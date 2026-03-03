@@ -7,6 +7,10 @@ find_package(GTest CONFIG REQUIRED)
 add_executable(mr_tests
     common/test_math.cpp
     common/test_network.cpp
+    common/test_world.cpp
+    common/test_core.cpp
+    common/test_blockid.cpp
+    common/test_noise.cpp
 )
 
 target_link_libraries(mr_tests

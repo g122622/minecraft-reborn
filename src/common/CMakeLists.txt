@@ -7,10 +7,16 @@ add_library(mr_common STATIC
 
     # Math
     math/MathUtils.cpp
+    math/Noise.cpp
 
     # Network
     network/Packet.cpp
     network/PacketSerializer.cpp
+
+    # World
+    world/BlockID.cpp
+    world/ChunkData.cpp
+    world/TerrainGenerator.cpp
 )
 
 target_include_directories(mr_common

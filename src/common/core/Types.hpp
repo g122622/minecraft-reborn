@@ -58,9 +58,6 @@ using WorldHeight = i32;
 // 实体ID类型
 using EntityId = u64;
 
-// 方块ID类型
-using BlockId = u16;
-
 // 物品ID类型
 using ItemId = u16;
 
