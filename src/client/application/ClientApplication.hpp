@@ -4,6 +4,7 @@
 #include "common/core/Result.hpp"
 #include "../window/Window.hpp"
 #include "../input/InputManager.hpp"
+#include "../renderer/VulkanRenderer.hpp"
 
 #include <string>
 #include <memory>
@@ -96,6 +97,15 @@ public:
      */
     [[nodiscard]] const ClientConfig& config() const noexcept { return m_config; }
 
+    /**
+     * @brief 获取渲染器
+     */
+    [[nodiscard]] VulkanRenderer& renderer() noexcept { return *m_renderer; }
+    [[nodiscard]] const VulkanRenderer& renderer() const noexcept { return *m_renderer; }
+
+    // 友元声明，用于回调
+    friend void onWindowResize(i32 width, i32 height, void* userData);
+
 private:
     void mainLoop();
     void handleEvents();
@@ -106,6 +116,7 @@ private:
     ClientConfig m_config;
     Window m_window;
     InputManager m_input;
+    std::unique_ptr<VulkanRenderer> m_renderer;
 
     std::atomic<bool> m_running{false};
     std::atomic<bool> m_initialized{false};

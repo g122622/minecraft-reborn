@@ -9,6 +9,10 @@ add_executable(minecraft-client
     application/ClientApplication.cpp
     window/Window.cpp
     input/InputManager.cpp
+    renderer/VulkanContext.cpp
+    renderer/VulkanSwapchain.cpp
+    renderer/VulkanPipeline.cpp
+    renderer/VulkanRenderer.cpp
 )
 
 target_link_libraries(minecraft-client

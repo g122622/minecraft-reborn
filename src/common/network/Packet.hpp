@@ -1,0 +1,105 @@
+#pragma once
+
+#include "../core/Types.hpp"
+#include "../core/Result.hpp"
+#include <vector>
+#include <memory>
+
+namespace mr::network {
+
+// 数据包类型ID
+enum class PacketType : u16 {
+    // 内部控制包
+    Handshake = 0,
+    Heartbeat = 1,
+    Disconnect = 2,
+
+    // 客户端 -> 服务端
+    LoginRequest = 100,
+    PlayerMove = 101,
+    PlayerAction = 102,
+    ChatMessage = 103,
+    BlockInteraction = 104,
+
+    // 服务端 -> 客户端
+    LoginResponse = 200,
+    PlayerSpawn = 201,
+    PlayerDespawn = 202,
+    ChunkData = 203,
+    BlockUpdate = 204,
+    EntityUpdate = 205,
+    ChatBroadcast = 206,
+};
+
+// 数据包头
+struct PacketHeader {
+    u32 size;           // 数据包总大小 (包含头部)
+    u16 type;           // 数据包类型 (PacketType)
+    u16 flags;          // 标志位
+    u16 reserved;       // 保留
+    u16 padding;        // 填充 (确保头部大小为12字节)
+};
+
+static_assert(sizeof(PacketHeader) == 12, "PacketHeader should be 12 bytes");
+
+// 数据包基类
+class Packet {
+public:
+    Packet(PacketType type);
+    virtual ~Packet() = default;
+
+    PacketType type() const { return m_type; }
+    u16 flags() const { return m_flags; }
+    void setFlags(u16 flags) { m_flags = flags; }
+
+    // 序列化到字节数组
+    [[nodiscard]] virtual Result<std::vector<u8>> serialize() const = 0;
+
+    // 从字节数组反序列化
+    [[nodiscard]] virtual Result<void> deserialize(const u8* data, size_t size) = 0;
+
+    // 获取预期大小 (用于预分配)
+    virtual size_t expectedSize() const { return sizeof(PacketHeader); }
+
+protected:
+    PacketType m_type;
+    u16 m_flags = 0;
+};
+
+// 心跳包
+class HeartbeatPacket : public Packet {
+public:
+    HeartbeatPacket() : Packet(PacketType::Heartbeat) {}
+
+    [[nodiscard]] Result<std::vector<u8>> serialize() const override;
+    [[nodiscard]] Result<void> deserialize(const u8* data, size_t size) override;
+
+    u64 timestamp() const { return m_timestamp; }
+    void setTimestamp(u64 ts) { m_timestamp = ts; }
+
+private:
+    u64 m_timestamp = 0;
+};
+
+// 断开连接包
+class DisconnectPacket : public Packet {
+public:
+    DisconnectPacket() : Packet(PacketType::Disconnect) {}
+
+    [[nodiscard]] Result<std::vector<u8>> serialize() const override;
+    [[nodiscard]] Result<void> deserialize(const u8* data, size_t size) override;
+
+    const String& reason() const { return m_reason; }
+    void setReason(const String& reason) { m_reason = reason; }
+
+private:
+    String m_reason;
+};
+
+// 辅助函数
+constexpr size_t PACKET_HEADER_SIZE = sizeof(PacketHeader);
+constexpr u16 PACKET_FLAG_COMPRESSED = 0x0001;
+constexpr u16 PACKET_FLAG_ENCRYPTED = 0x0002;
+constexpr u16 PACKET_FLAG_RELIABLE = 0x0004;
+
+} // namespace mr::network

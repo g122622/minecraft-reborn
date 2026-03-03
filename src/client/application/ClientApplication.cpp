@@ -78,9 +78,33 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
 
     // 设置窗口大小变化回调
     m_window.setResizeCallback([](i32 width, i32 height, void* userData) {
+        auto* app = static_cast<ClientApplication*>(userData);
         spdlog::info("Window resized: {}x{}", width, height);
-        // TODO: 重新创建交换链
-    });
+        if (app && app->m_renderer) {
+            auto result = app->m_renderer->onResize(static_cast<u32>(width), static_cast<u32>(height));
+            if (result.failed()) {
+                spdlog::error("Failed to handle resize: {}", result.error().toString());
+            }
+        }
+    }, this);
+
+    // 初始化Vulkan渲染器
+    spdlog::info("Initializing Vulkan renderer...");
+    m_renderer = std::make_unique<VulkanRenderer>();
+
+    RendererConfig rendererConfig;
+    rendererConfig.vulkanConfig.appName = m_config.windowTitle;
+    rendererConfig.vulkanConfig.enableValidation = true; // Debug模式启用验证层
+    rendererConfig.enableVSync = m_config.vsyncEnabled;
+    rendererConfig.swapChainConfig.width = static_cast<u32>(m_config.windowWidth);
+    rendererConfig.swapChainConfig.height = static_cast<u32>(m_config.windowHeight);
+
+    auto rendererResult = m_renderer->initialize(m_window.handle(), rendererConfig);
+    if (rendererResult.failed()) {
+        spdlog::error("Failed to initialize renderer: {}", rendererResult.error().toString());
+        m_window.destroy();
+        return rendererResult.error();
+    }
 
     spdlog::info("Client initialized successfully");
     spdlog::info("Window: {}x{}", m_window.width(), m_window.height());
@@ -178,21 +202,29 @@ void ClientApplication::update(f32 deltaTime)
 
 void ClientApplication::render()
 {
-    // TODO: 实现Vulkan渲染
-    // 目前只是清屏
+    if (!m_renderer || m_renderer->isMinimized()) {
+        return;
+    }
 
-    // 交换缓冲区
-    m_window.swapBuffers();
+    auto result = m_renderer->render();
+    if (result.failed()) {
+        spdlog::error("Render error: {}", result.error().toString());
+    }
 }
 
 void ClientApplication::shutdown()
 {
     spdlog::info("Shutting down client...");
 
+    // 清理渲染器
+    if (m_renderer) {
+        m_renderer->destroy();
+        m_renderer.reset();
+    }
+
     // TODO: 清理资源
     // - 保存世界
     // - 断开服务器连接
-    // - 清理Vulkan资源
 
     m_window.destroy();
 

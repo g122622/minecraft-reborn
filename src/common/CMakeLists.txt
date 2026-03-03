@@ -7,6 +7,10 @@ add_library(mr_common STATIC
 
     # Math
     math/MathUtils.cpp
+
+    # Network
+    network/Packet.cpp
+    network/PacketSerializer.cpp
 )
 
 target_include_directories(mr_common

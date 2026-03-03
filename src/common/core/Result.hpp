@@ -26,6 +26,8 @@ enum class ErrorCode : i32 {
     NullPointer = -3,
     OutOfRange = -4,
     Overflow = -5,
+    OutOfBounds = -6,
+    InvalidState = -7,
 
     // 资源错误
     NotFound = -100,
