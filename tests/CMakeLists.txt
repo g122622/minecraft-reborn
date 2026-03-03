@@ -11,6 +11,7 @@ add_executable(mr_tests
     common/test_core.cpp
     common/test_blockid.cpp
     common/test_noise.cpp
+    common/test_renderer.cpp
 )
 
 target_link_libraries(mr_tests

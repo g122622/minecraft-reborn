@@ -7,7 +7,8 @@
       "Bash(./bin/Debug/mr_tests.exe:*)",
       "Bash(./bin/Debug/minecraft-server.exe:*)",
       "Bash(sed:*)",
-      "Bash(./build/bin/Debug/mr_tests.exe:*)"
+      "Bash(./build/bin/Debug/mr_tests.exe:*)",
+      "Bash(D:/MiscProjects/minecraft-reborn/build/bin/Debug/mr_tests.exe:*)"
     ]
   }
 }

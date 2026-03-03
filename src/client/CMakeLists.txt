@@ -13,6 +13,9 @@ add_executable(minecraft-client
     renderer/VulkanSwapchain.cpp
     renderer/VulkanPipeline.cpp
     renderer/VulkanRenderer.cpp
+    renderer/VulkanBuffer.cpp
+    renderer/VulkanTexture.cpp
+    renderer/ChunkRenderer.cpp
 )
 
 target_link_libraries(minecraft-client

@@ -17,6 +17,10 @@ add_library(mr_common STATIC
     world/BlockID.cpp
     world/ChunkData.cpp
     world/TerrainGenerator.cpp
+
+    # Renderer (common)
+    renderer/MeshTypes.cpp
+    renderer/ChunkMesher.cpp
 )
 
 target_include_directories(mr_common

@@ -56,6 +56,12 @@ enum class ErrorCode : i32 {
     InvalidPlayer = -403,
     InvalidWorld = -404,
 
+    // 渲染错误
+    InitializationFailed = -600,
+    OperationFailed = -601,
+    CapacityExceeded = -602,
+    Unsupported = -603,
+
     // 权限错误
     PermissionDenied = -500,
     Unauthorized = -501
