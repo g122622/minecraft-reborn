@@ -16,6 +16,7 @@ add_executable(minecraft-client
     renderer/VulkanBuffer.cpp
     renderer/VulkanTexture.cpp
     renderer/ChunkRenderer.cpp
+    renderer/Camera.cpp
 )
 
 target_link_libraries(minecraft-client
@@ -43,3 +44,8 @@ set_target_properties(minecraft-client PROPERTIES
     OUTPUT_NAME "minecraft-client"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
+
+# 依赖着色器编译
+if(TARGET compile_shaders)
+    add_dependencies(minecraft-client compile_shaders)
+endif()

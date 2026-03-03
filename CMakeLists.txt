@@ -77,6 +77,7 @@ endif()
 
 if(MR_BUILD_CLIENT)
     add_subdirectory(src/client)
+    add_subdirectory(shaders)
 endif()
 
 if(MR_BUILD_TESTS)
