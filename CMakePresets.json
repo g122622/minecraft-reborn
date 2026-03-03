@@ -1,0 +1,95 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build",
+      "installDir": "${sourceDir}/dist",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "17"
+      }
+    },
+    {
+      "name": "windows-base",
+      "hidden": true,
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-windows"
+      }
+    },
+    {
+      "name": "windows-debug",
+      "displayName": "Windows Debug",
+      "inherits": "windows-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "MR_BUILD_CLIENT": "ON",
+        "MR_BUILD_SERVER": "ON",
+        "MR_BUILD_TESTS": "ON",
+        "MR_ENABLE_SANITIZERS": "OFF"
+      }
+    },
+    {
+      "name": "windows-release",
+      "displayName": "Windows Release",
+      "inherits": "windows-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MR_BUILD_CLIENT": "ON",
+        "MR_BUILD_SERVER": "ON",
+        "MR_BUILD_TESTS": "OFF",
+        "MR_ENABLE_SANITIZERS": "OFF"
+      }
+    },
+    {
+      "name": "server-only",
+      "displayName": "Server Only",
+      "inherits": "windows-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MR_BUILD_CLIENT": "OFF",
+        "MR_BUILD_SERVER": "ON",
+        "MR_BUILD_TESTS": "OFF"
+      }
+    },
+    {
+      "name": "client-only",
+      "displayName": "Client Only",
+      "inherits": "windows-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MR_BUILD_CLIENT": "ON",
+        "MR_BUILD_SERVER": "OFF",
+        "MR_BUILD_TESTS": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-debug",
+      "configurePreset": "windows-debug",
+      "configuration": "Debug"
+    },
+    {
+      "name": "windows-release",
+      "configurePreset": "windows-release",
+      "configuration": "Release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "windows-debug",
+      "configurePreset": "windows-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

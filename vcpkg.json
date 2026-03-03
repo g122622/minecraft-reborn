@@ -1,0 +1,27 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "minecraft-reborn",
+  "version": "0.1.0",
+  "description": "Modern Minecraft Clone with Client-Server Architecture",
+  "dependencies": [
+    "glm",
+    "spdlog",
+    "nlohmann-json",
+    "gtest",
+    "asio",
+    "glfw3",
+    "stb",
+    "zlib"
+  ],
+  "features": {
+    "vulkan": {
+      "description": "Vulkan rendering support",
+      "dependencies": [
+        "vulkan",
+        "vulkan-memory-allocator"
+      ]
+    }
+  },
+  "default-features": ["vulkan"],
+  "builtin-baseline": "39a6cc0e44641977a7ccdfdb01a14eaf832aa330"
+}

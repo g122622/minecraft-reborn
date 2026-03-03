@@ -1,0 +1,302 @@
+#include "Window.hpp"
+
+#include <spdlog/spdlog.h>
+#include <GLFW/glfw3.h>
+
+namespace mr::client {
+
+// 静态计数器，跟踪GLFW初始化
+static int s_glfwInitCount = 0;
+
+Window::Window() = default;
+
+Window::~Window()
+{
+    destroy();
+}
+
+Window::Window(Window&& other) noexcept
+    : m_window(other.m_window)
+    , m_width(other.m_width)
+    , m_height(other.m_height)
+    , m_framebufferWidth(other.m_framebufferWidth)
+    , m_framebufferHeight(other.m_framebufferHeight)
+    , m_fullscreen(other.m_fullscreen)
+    , m_cursorVisible(other.m_cursorVisible)
+    , m_initialized(other.m_initialized)
+    , m_resizeCallback(other.m_resizeCallback)
+    , m_resizeUserData(other.m_resizeUserData)
+    , m_keyCallback(other.m_keyCallback)
+    , m_keyUserData(other.m_keyUserData)
+    , m_mouseCallback(other.m_mouseCallback)
+    , m_mouseUserData(other.m_mouseUserData)
+    , m_mouseButtonCallback(other.m_mouseButtonCallback)
+    , m_mouseButtonUserData(other.m_mouseButtonUserData)
+    , m_scrollCallback(other.m_scrollCallback)
+    , m_scrollUserData(other.m_scrollUserData)
+{
+    other.m_window = nullptr;
+    other.m_initialized = false;
+}
+
+Window& Window::operator=(Window&& other) noexcept
+{
+    if (this != &other) {
+        destroy();
+        m_window = other.m_window;
+        m_width = other.m_width;
+        m_height = other.m_height;
+        m_framebufferWidth = other.m_framebufferWidth;
+        m_framebufferHeight = other.m_framebufferHeight;
+        m_fullscreen = other.m_fullscreen;
+        m_cursorVisible = other.m_cursorVisible;
+        m_initialized = other.m_initialized;
+        m_resizeCallback = other.m_resizeCallback;
+        m_resizeUserData = other.m_resizeUserData;
+        m_keyCallback = other.m_keyCallback;
+        m_keyUserData = other.m_keyUserData;
+        m_mouseCallback = other.m_mouseCallback;
+        m_mouseUserData = other.m_mouseUserData;
+        m_mouseButtonCallback = other.m_mouseButtonCallback;
+        m_mouseButtonUserData = other.m_mouseButtonUserData;
+        m_scrollCallback = other.m_scrollCallback;
+        m_scrollUserData = other.m_scrollUserData;
+
+        other.m_window = nullptr;
+        other.m_initialized = false;
+    }
+    return *this;
+}
+
+Result<void> Window::create(const WindowConfig& config)
+{
+    // 初始化GLFW（如果需要）
+    if (s_glfwInitCount == 0) {
+        if (!glfwInit()) {
+            return Error(ErrorCode::Unknown, "Failed to initialize GLFW");
+        }
+    }
+    ++s_glfwInitCount;
+
+    // 设置GLFW提示
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Vulkan
+    glfwWindowHint(GLFW_RESIZABLE, config.resizable ? GLFW_TRUE : GLFW_FALSE);
+    glfwWindowHint(GLFW_DECORATED, config.decorated ? GLFW_TRUE : GLFW_FALSE);
+    glfwWindowHint(GLFW_SAMPLES, config.samples);
+
+    // 创建窗口
+    m_window = glfwCreateWindow(
+        config.width,
+        config.height,
+        config.title.c_str(),
+        config.fullscreen ? glfwGetPrimaryMonitor() : nullptr,
+        nullptr
+    );
+
+    if (!m_window) {
+        if (s_glfwInitCount > 0) {
+            --s_glfwInitCount;
+            if (s_glfwInitCount == 0) {
+                glfwTerminate();
+            }
+        }
+        return Error(ErrorCode::Unknown, "Failed to create window");
+    }
+
+    // 设置用户指针
+    glfwSetWindowUserPointer(m_window, this);
+
+    // 设置回调
+    glfwSetFramebufferSizeCallback(m_window, framebufferSizeCallback);
+    glfwSetKeyCallback(m_window, keyCallback);
+    glfwSetCursorPosCallback(m_window, cursorPosCallback);
+    glfwSetMouseButtonCallback(m_window, mouseButtonCallback);
+    glfwSetScrollCallback(m_window, scrollCallback);
+
+    // 获取尺寸
+    glfwGetWindowSize(m_window, &m_width, &m_height);
+    glfwGetFramebufferSize(m_window, &m_framebufferWidth, &m_framebufferHeight);
+
+    // 设置VSync
+    glfwSwapInterval(config.vsync ? 1 : 0);
+
+    m_fullscreen = config.fullscreen;
+    m_initialized = true;
+
+    spdlog::info("Window created: {}x{} (framebuffer: {}x{})",
+                 m_width, m_height, m_framebufferWidth, m_framebufferHeight);
+
+    return Result<void>::ok();
+}
+
+void Window::destroy()
+{
+    if (m_window) {
+        glfwDestroyWindow(m_window);
+        m_window = nullptr;
+        spdlog::info("Window destroyed");
+    }
+
+    if (m_initialized) {
+        --s_glfwInitCount;
+        if (s_glfwInitCount == 0) {
+            glfwTerminate();
+        }
+        m_initialized = false;
+    }
+}
+
+bool Window::shouldClose() const
+{
+    return m_window ? glfwWindowShouldClose(m_window) : true;
+}
+
+void Window::pollEvents()
+{
+    glfwPollEvents();
+}
+
+void Window::swapBuffers()
+{
+    if (m_window) {
+        glfwSwapBuffers(m_window);
+    }
+}
+
+void Window::setTitle(const String& title)
+{
+    if (m_window) {
+        glfwSetWindowTitle(m_window, title.c_str());
+    }
+}
+
+void Window::setSize(i32 width, i32 height)
+{
+    if (m_window) {
+        glfwSetWindowSize(m_window, width, height);
+    }
+}
+
+void Window::setVSync(bool enabled)
+{
+    glfwSwapInterval(enabled ? 1 : 0);
+}
+
+void Window::setFullscreen(bool fullscreen)
+{
+    if (!m_window || m_fullscreen == fullscreen) {
+        return;
+    }
+
+    if (fullscreen) {
+        // 保存窗口位置和尺寸
+        glfwGetWindowPos(m_window, &m_width, &m_height); // 临时存储
+        glfwSetWindowMonitor(
+            m_window,
+            glfwGetPrimaryMonitor(),
+            0, 0,
+            m_width, m_height,
+            GLFW_DONT_CARE
+        );
+    } else {
+        glfwSetWindowMonitor(
+            m_window,
+            nullptr,
+            100, 100, // 恢复位置
+            m_width, m_height,
+            GLFW_DONT_CARE
+        );
+    }
+
+    m_fullscreen = fullscreen;
+}
+
+void Window::setCursorVisible(bool visible)
+{
+    if (m_window) {
+        glfwSetInputMode(
+            m_window,
+            GLFW_CURSOR,
+            visible ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED
+        );
+        m_cursorVisible = visible;
+    }
+}
+
+void Window::setResizeCallback(ResizeCallback callback, void* userData)
+{
+    m_resizeCallback = callback;
+    m_resizeUserData = userData;
+}
+
+void Window::setKeyCallback(KeyCallback callback, void* userData)
+{
+    m_keyCallback = callback;
+    m_keyUserData = userData;
+}
+
+void Window::setMouseCallback(MouseCallback callback, void* userData)
+{
+    m_mouseCallback = callback;
+    m_mouseUserData = userData;
+}
+
+void Window::setMouseButtonCallback(MouseButtonCallback callback, void* userData)
+{
+    m_mouseButtonCallback = callback;
+    m_mouseButtonUserData = userData;
+}
+
+void Window::setScrollCallback(ScrollCallback callback, void* userData)
+{
+    m_scrollCallback = callback;
+    m_scrollUserData = userData;
+}
+
+void Window::framebufferSizeCallback(GLFWwindow* window, int width, int height)
+{
+    auto* win = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    if (win) {
+        win->m_framebufferWidth = width;
+        win->m_framebufferHeight = height;
+        glfwGetWindowSize(window, &win->m_width, &win->m_height);
+
+        if (win->m_resizeCallback) {
+            win->m_resizeCallback(width, height, win->m_resizeUserData);
+        }
+    }
+}
+
+void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    auto* win = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    if (win && win->m_keyCallback) {
+        win->m_keyCallback(key, scancode, action, mods, win->m_keyUserData);
+    }
+}
+
+void Window::cursorPosCallback(GLFWwindow* window, double xpos, double ypos)
+{
+    auto* win = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    if (win && win->m_mouseCallback) {
+        win->m_mouseCallback(xpos, ypos, win->m_mouseUserData);
+    }
+}
+
+void Window::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{
+    auto* win = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    if (win && win->m_mouseButtonCallback) {
+        win->m_mouseButtonCallback(button, action, mods, win->m_mouseButtonUserData);
+    }
+}
+
+void Window::scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    auto* win = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    if (win && win->m_scrollCallback) {
+        win->m_scrollCallback(xoffset, yoffset, win->m_scrollUserData);
+    }
+}
+
+} // namespace mr::client

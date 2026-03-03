@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__filesystems__list_directory",
+      "Bash(cmake:*)",
+      "Bash(export:*)",
+      "Bash(./bin/Debug/mr_tests.exe:*)",
+      "Bash(./bin/Debug/minecraft-server.exe:*)"
+    ]
+  }
+}
