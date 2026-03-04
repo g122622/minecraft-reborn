@@ -1,0 +1,531 @@
+#include "BlockModelLoader.hpp"
+#include "../common/resource/IResourcePack.hpp"
+#include <nlohmann/json.hpp>
+#include <random>
+
+namespace mr {
+
+Direction parseDirection(StringView str) {
+    if (str == "down") return Direction::Down;
+    if (str == "up") return Direction::Up;
+    if (str == "north") return Direction::North;
+    if (str == "south") return Direction::South;
+    if (str == "west") return Direction::West;
+    if (str == "east") return Direction::East;
+    return Direction::None;
+}
+
+String directionToString(Direction dir) {
+    switch (dir) {
+        case Direction::Down: return "down";
+        case Direction::Up: return "up";
+        case Direction::North: return "north";
+        case Direction::South: return "south";
+        case Direction::West: return "west";
+        case Direction::East: return "east";
+        default: return "";
+    }
+}
+
+ResourceLocation BakedBlockModel::resolveTexture(StringView textureRef) const {
+    String ref(textureRef);
+
+    // 移除前导 #
+    if (!ref.empty() && ref[0] == '#') {
+        ref = ref.substr(1);
+    }
+
+    // 查找纹理变量
+    auto it = textures.find(ref);
+    if (it != textures.end()) {
+        return it->second;
+    }
+
+    // 直接作为路径使用
+    return ResourceLocation(ref);
+}
+
+const BlockStateVariant& VariantList::select() const {
+    return select(0);
+}
+
+const BlockStateVariant& VariantList::select(u64 seed) const {
+    if (variants.empty()) {
+        static BlockStateVariant empty;
+        return empty;
+    }
+
+    if (variants.size() == 1) {
+        return variants[0];
+    }
+
+    // 计算总权重
+    i32 totalWeight = 0;
+    for (const auto& v : variants) {
+        totalWeight += v.weight;
+    }
+
+    // 使用种子随机选择
+    std::mt19937_64 rng(seed);
+    std::uniform_int_distribution<i32> dist(0, totalWeight - 1);
+    i32 value = dist(rng);
+
+    // 选择变体
+    i32 cumulative = 0;
+    for (const auto& v : variants) {
+        cumulative += v.weight;
+        if (value < cumulative) {
+            return v;
+        }
+    }
+
+    return variants.back();
+}
+
+bool BlockStateVariant::operator==(const BlockStateVariant& other) const {
+    return model == other.model && x == other.x && y == other.y &&
+           uvLock == other.uvLock && weight == other.weight;
+}
+
+Result<BlockStateDefinition> BlockStateDefinition::parse(StringView jsonContent) {
+    try {
+        auto json = nlohmann::json::parse(jsonContent);
+
+        BlockStateDefinition def;
+
+        // 解析 variants
+        if (json.contains("variants")) {
+            const auto& variants = json["variants"];
+
+            for (auto it = variants.begin(); it != variants.end(); ++it) {
+                String stateKey = it.key();
+                VariantList list;
+
+                if (it.value().is_array()) {
+                    // 数组形式
+                    for (const auto& v : it.value()) {
+                        BlockStateVariant variant;
+
+                        if (v.contains("model")) {
+                            variant.model = ResourceLocation(v["model"].get<String>());
+                        }
+
+                        if (v.contains("x")) {
+                            variant.x = v["x"].get<i32>();
+                        }
+
+                        if (v.contains("y")) {
+                            variant.y = v["y"].get<i32>();
+                        }
+
+                        if (v.contains("uvlock")) {
+                            variant.uvLock = v["uvlock"].get<bool>();
+                        }
+
+                        if (v.contains("weight")) {
+                            variant.weight = v["weight"].get<i32>();
+                        }
+
+                        list.variants.push_back(variant);
+                    }
+                } else {
+                    // 单个对象形式
+                    BlockStateVariant variant;
+
+                    if (it.value().contains("model")) {
+                        variant.model = ResourceLocation(it.value()["model"].get<String>());
+                    }
+
+                    if (it.value().contains("x")) {
+                        variant.x = it.value()["x"].get<i32>();
+                    }
+
+                    if (it.value().contains("y")) {
+                        variant.y = it.value()["y"].get<i32>();
+                    }
+
+                    if (it.value().contains("uvlock")) {
+                        variant.uvLock = it.value()["uvlock"].get<bool>();
+                    }
+
+                    if (it.value().contains("weight")) {
+                        variant.weight = it.value()["weight"].get<i32>();
+                    }
+
+                    list.variants.push_back(variant);
+                }
+
+                def.m_variants[stateKey] = std::move(list);
+            }
+        }
+
+        // 解析 multipart
+        if (json.contains("multipart")) {
+            def.m_hasMultipart = true;
+            // TODO: 实现multipart解析
+        }
+
+        return def;
+    } catch (const std::exception& e) {
+        return Error(ErrorCode::ResourceParseError,
+                     String("Failed to parse block state: ") + e.what());
+    }
+}
+
+const VariantList* BlockStateDefinition::getVariants(StringView stateStr) const {
+    String key(stateStr);
+    auto it = m_variants.find(key);
+    if (it != m_variants.end()) {
+        return &it->second;
+    }
+
+    // 尝试空键 (normal状态)
+    if (stateStr == "normal" || stateStr == "") {
+        it = m_variants.find("normal");
+        if (it != m_variants.end()) {
+            return &it->second;
+        }
+    }
+
+    return nullptr;
+}
+
+Result<void> BlockModelLoader::loadFromResourcePack(IResourcePack& resourcePack) {
+    m_resourcePack = &resourcePack;
+
+    // 列出所有模型文件
+    auto result = resourcePack.listResources(
+        "assets/minecraft/models/block", "json");
+
+    if (result.failed()) {
+        // 目录可能不存在，不算错误
+        return Result<void>::ok();
+    }
+
+    // 不预加载所有模型，按需加载
+    return Result<void>::ok();
+}
+
+Result<UnbakedBlockModel> BlockModelLoader::loadModel(const ResourceLocation& location) {
+    // 检查缓存
+    auto it = m_unbakedModels.find(location);
+    if (it != m_unbakedModels.end()) {
+        return it->second;
+    }
+
+    // 构建文件路径
+    String filePath = location.toFilePath("json");
+
+    // 读取文件
+    if (!m_resourcePack) {
+        return Error(ErrorCode::ResourceNotFound, "No resource pack set");
+    }
+
+    auto readResult = m_resourcePack->readTextResource(filePath);
+    if (readResult.failed()) {
+        return readResult.error();
+    }
+
+    // 解析JSON
+    auto parseResult = parseModel(readResult.value());
+    if (parseResult.failed()) {
+        return parseResult.error();
+    }
+
+    // 缓存模型
+    auto& model = m_unbakedModels[location];
+    model = parseResult.value();
+    model.name = location.toString();
+
+    return model;
+}
+
+Result<BakedBlockModel> BlockModelLoader::bakeModel(const ResourceLocation& location) {
+    BakedBlockModel baked;
+
+    // 加载模型链 (子 -> 父 -> 祖父...)
+    std::vector<UnbakedBlockModel*> modelChain;
+
+    ResourceLocation currentLoc = location;
+    while (true) {
+        auto result = loadModel(currentLoc);
+        if (result.failed()) {
+            return result.error();
+        }
+
+        auto& model = m_unbakedModels[currentLoc];
+        modelChain.push_back(&model);
+
+        if (!model.hasParent()) {
+            break;
+        }
+
+        // 转换父模型位置
+        String parentPath = model.parentLocation.path();
+        if (parentPath.find("block/") == String::npos && parentPath.find("block\\") == String::npos) {
+            // 父模型路径可能是相对路径
+            parentPath = "block/" + parentPath;
+            model.parentLocation = ResourceLocation(model.parentLocation.namespace_(), parentPath);
+        }
+
+        currentLoc = model.parentLocation;
+    }
+
+    // 从根到叶合并
+    // 纹理变量从子到父查找
+    for (auto it = modelChain.rbegin(); it != modelChain.rend(); ++it) {
+        auto& model = *it;
+
+        // 合并纹理
+        for (const auto& [name, path] : model->textures) {
+            baked.textures[name] = ResourceLocation(path);
+        }
+
+        // 合并元素 (子模型覆盖父模型)
+        if (!model->elements.empty() && baked.elements.empty()) {
+            baked.elements = model->elements;
+        }
+
+        // 环境光遮蔽
+        if (!model->ambientOcclusion) {
+            baked.ambientOcclusion = false;
+        }
+    }
+
+    return baked;
+}
+
+bool BlockModelLoader::hasModel(const ResourceLocation& location) const {
+    return m_unbakedModels.find(location) != m_unbakedModels.end();
+}
+
+const UnbakedBlockModel* BlockModelLoader::getUnbakedModel(const ResourceLocation& location) const {
+    auto it = m_unbakedModels.find(location);
+    if (it != m_unbakedModels.end()) {
+        return &it->second;
+    }
+    return nullptr;
+}
+
+void BlockModelLoader::clearCache() {
+    m_unbakedModels.clear();
+}
+
+Result<UnbakedBlockModel> BlockModelLoader::parseModel(StringView jsonContent) {
+    try {
+        auto json = nlohmann::json::parse(jsonContent);
+
+        UnbakedBlockModel model;
+
+        // 解析父模型
+        if (json.contains("parent")) {
+            model.parentLocation = ResourceLocation(json["parent"].get<String>());
+        }
+
+        // 解析环境光遮蔽
+        if (json.contains("ambientocclusion")) {
+            model.ambientOcclusion = json["ambientocclusion"].get<bool>();
+        }
+
+        // 解析纹理
+        if (json.contains("textures")) {
+            const auto& textures = json["textures"];
+            for (auto it = textures.begin(); it != textures.end(); ++it) {
+                String name = it.key();
+                String path = it.value().get<String>();
+
+                // 移除前导 # (如果有)
+                if (!path.empty() && path[0] == '#') {
+                    // 纹理变量引用，保持原样
+                }
+
+                model.textures[name] = path;
+            }
+        }
+
+        // 解析元素
+        if (json.contains("elements")) {
+            for (const auto& elemJson : json["elements"]) {
+                auto result = parseElement(elemJson);
+                if (result.success()) {
+                    model.elements.push_back(result.value());
+                }
+            }
+        }
+
+        return model;
+    } catch (const std::exception& e) {
+        return Error(ErrorCode::ResourceParseError,
+                     String("Failed to parse model: ") + e.what());
+    }
+}
+
+Result<ModelElement> BlockModelLoader::parseElement(const nlohmann::json& json) {
+    ModelElement elem;
+
+    // 解析 from/to
+    if (json.contains("from")) {
+        const auto& from = json["from"];
+        if (from.is_array() && from.size() >= 3) {
+            elem.from.x = from[0].get<f32>();
+            elem.from.y = from[1].get<f32>();
+            elem.from.z = from[2].get<f32>();
+        }
+    }
+
+    if (json.contains("to")) {
+        const auto& to = json["to"];
+        if (to.is_array() && to.size() >= 3) {
+            elem.to.x = to[0].get<f32>();
+            elem.to.y = to[1].get<f32>();
+            elem.to.z = to[2].get<f32>();
+        }
+    }
+
+    // 解析旋转
+    if (json.contains("rotation")) {
+        elem.rotation = parseRotation(json["rotation"]);
+    }
+
+    // 解析阴影
+    if (json.contains("shade")) {
+        elem.shade = json["shade"].get<bool>();
+    }
+
+    // 解析面
+    if (json.contains("faces")) {
+        const auto& faces = json["faces"];
+        for (auto it = faces.begin(); it != faces.end(); ++it) {
+            Direction dir = parseDirection(it.key());
+            if (dir != Direction::None) {
+                auto result = parseFace(it.value(), dir);
+                if (result.success()) {
+                    elem.faces[dir] = result.value();
+                }
+            }
+        }
+    }
+
+    // 计算默认UV (如果没有指定)
+    for (auto& [dir, face] : elem.faces) {
+        if (face.uv.isDefault()) {
+            // 根据面的方向计算默认UV
+            // 参考 BlockPart.getFaceUvs
+            switch (dir) {
+                case Direction::Down:
+                    face.uv.u0 = elem.from.x;
+                    face.uv.v0 = 16.0f - elem.to.z;
+                    face.uv.u1 = elem.to.x;
+                    face.uv.v1 = 16.0f - elem.from.z;
+                    break;
+                case Direction::Up:
+                    face.uv.u0 = elem.from.x;
+                    face.uv.v0 = elem.from.z;
+                    face.uv.u1 = elem.to.x;
+                    face.uv.v1 = elem.to.z;
+                    break;
+                case Direction::North:
+                    face.uv.u0 = 16.0f - elem.to.x;
+                    face.uv.v0 = 16.0f - elem.to.y;
+                    face.uv.u1 = 16.0f - elem.from.x;
+                    face.uv.v1 = 16.0f - elem.from.y;
+                    break;
+                case Direction::South:
+                    face.uv.u0 = elem.from.x;
+                    face.uv.v0 = 16.0f - elem.to.y;
+                    face.uv.u1 = elem.to.x;
+                    face.uv.v1 = 16.0f - elem.from.y;
+                    break;
+                case Direction::West:
+                    face.uv.u0 = elem.from.z;
+                    face.uv.v0 = 16.0f - elem.to.y;
+                    face.uv.u1 = elem.to.z;
+                    face.uv.v1 = 16.0f - elem.from.y;
+                    break;
+                case Direction::East:
+                    face.uv.u0 = 16.0f - elem.to.z;
+                    face.uv.v0 = 16.0f - elem.to.y;
+                    face.uv.u1 = 16.0f - elem.from.z;
+                    face.uv.v1 = 16.0f - elem.from.y;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    return elem;
+}
+
+Result<ModelFace> BlockModelLoader::parseFace(const nlohmann::json& json, Direction dir) {
+    ModelFace face;
+
+    // 解析纹理
+    if (json.contains("texture")) {
+        face.texture = json["texture"].get<String>();
+    }
+
+    // 解析剔除面
+    if (json.contains("cullface")) {
+        face.cullFace = parseDirection(json["cullface"].get<String>());
+    }
+
+    // 解析着色索引
+    if (json.contains("tintindex")) {
+        face.tintIndex = json["tintindex"].get<i32>();
+    }
+
+    // 解析UV
+    if (json.contains("uv")) {
+        face.uv = parseUV(json["uv"]);
+    }
+
+    // 解析旋转
+    if (json.contains("rotation")) {
+        face.uv.rotation = json["rotation"].get<i32>();
+    }
+
+    return face;
+}
+
+ModelFaceUV BlockModelLoader::parseUV(const nlohmann::json& json) {
+    ModelFaceUV uv;
+
+    if (json.is_array() && json.size() >= 4) {
+        uv.u0 = json[0].get<f32>();
+        uv.v0 = json[1].get<f32>();
+        uv.u1 = json[2].get<f32>();
+        uv.v1 = json[3].get<f32>();
+    }
+
+    return uv;
+}
+
+ModelRotation BlockModelLoader::parseRotation(const nlohmann::json& json) {
+    ModelRotation rot;
+
+    if (json.contains("origin")) {
+        const auto& origin = json["origin"];
+        if (origin.is_array() && origin.size() >= 3) {
+            rot.origin.x = origin[0].get<f32>();
+            rot.origin.y = origin[1].get<f32>();
+            rot.origin.z = origin[2].get<f32>();
+        }
+    }
+
+    if (json.contains("axis")) {
+        rot.axis = json["axis"].get<String>();
+    }
+
+    if (json.contains("angle")) {
+        rot.angle = json["angle"].get<f32>();
+    }
+
+    if (json.contains("rescale")) {
+        rot.rescale = json["rescale"].get<bool>();
+    }
+
+    return rot;
+}
+
+} // namespace mr

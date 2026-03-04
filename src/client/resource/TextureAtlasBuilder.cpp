@@ -1,0 +1,363 @@
+#include "TextureAtlasBuilder.hpp"
+#include "../common/resource/IResourcePack.hpp"
+
+// 只在stb_image.h未被包含时定义实现
+#ifndef STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_ONLY_PNG
+#endif
+#include <stb_image.h>
+
+#include <algorithm>
+#include <cmath>
+
+namespace mr {
+
+TextureAtlasBuilder::TextureAtlasBuilder()
+    : m_maxWidth(4096)
+    , m_maxHeight(4096)
+    , m_padding(0)
+{
+}
+
+void TextureAtlasBuilder::setMaxSize(u32 width, u32 height) {
+    m_maxWidth = width;
+    m_maxHeight = height;
+}
+
+void TextureAtlasBuilder::setPadding(u32 padding) {
+    m_padding = padding;
+}
+
+Result<void> TextureAtlasBuilder::addTexture(
+    IResourcePack& resourcePack,
+    const ResourceLocation& location)
+{
+    // 检查是否已添加
+    if (m_addedLocations.count(location) > 0) {
+        return Result<void>::ok();
+    }
+
+    // 构建文件路径
+    String filePath = location.toFilePath("png");
+
+    // 读取纹理数据
+    auto readResult = resourcePack.readResource(filePath);
+    if (readResult.failed()) {
+        return readResult.error();
+    }
+
+    auto& data = readResult.value();
+
+    // 解析PNG
+    int width, height, channels;
+    stbi_uc* pixels = stbi_load_from_memory(
+        data.data(),
+        static_cast<int>(data.size()),
+        &width,
+        &height,
+        &channels,
+        4); // 强制RGBA
+
+    if (!pixels) {
+        return Error(ErrorCode::TextureLoadFailed,
+                     String("Failed to decode PNG: ") + location.toString());
+    }
+
+    // 复制像素数据
+    std::vector<u8> pixelData(pixels, pixels + width * height * 4);
+    stbi_image_free(pixels);
+
+    // 添加纹理
+    addTexture(location, pixelData, static_cast<u32>(width), static_cast<u32>(height));
+
+    return Result<void>::ok();
+}
+
+void TextureAtlasBuilder::addTexture(
+    const ResourceLocation& location,
+    const std::vector<u8>& pixels,
+    u32 width,
+    u32 height)
+{
+    // 检查是否已添加
+    if (m_addedLocations.count(location) > 0) {
+        return;
+    }
+
+    TextureInfo info;
+    info.location = location;
+    info.pixels = pixels;
+    info.width = width;
+    info.height = height;
+
+    m_textures.push_back(std::move(info));
+    m_addedLocations.insert(location);
+}
+
+Result<AtlasBuildResult> TextureAtlasBuilder::build() {
+    if (m_textures.empty()) {
+        AtlasBuildResult empty;
+        empty.width = 1;
+        empty.height = 1;
+        empty.pixels.resize(4, 0);
+        return empty;
+    }
+
+    // 按面积从大到小排序
+    std::vector<size_t> indices(m_textures.size());
+    for (size_t i = 0; i < indices.size(); ++i) {
+        indices[i] = i;
+    }
+
+    std::sort(indices.begin(), indices.end(),
+        [this](size_t a, size_t b) {
+            u32 areaA = m_textures[a].width * m_textures[a].height;
+            u32 areaB = m_textures[b].width * m_textures[b].height;
+            return areaA > areaB;
+        });
+
+    // Skyline打包算法
+    std::vector<SkylineNode> skyline;
+    skyline.push_back({0, 0, m_maxWidth});
+
+    // 计算需要的图集尺寸
+    u32 atlasWidth = 0;
+    u32 atlasHeight = 0;
+
+    // 首先确定最小需要的尺寸
+    for (const auto& tex : m_textures) {
+        atlasWidth = std::max(atlasWidth, tex.width + m_padding * 2);
+        atlasHeight = std::max(atlasHeight, tex.height + m_padding * 2);
+    }
+
+    // 从小尺寸开始尝试
+    u32 tryWidth = 64;
+    u32 tryHeight = 64;
+    while (tryWidth < m_maxWidth) tryWidth *= 2;
+    while (tryHeight < m_maxHeight) tryHeight *= 2;
+
+    // 实际使用的尺寸
+    u32 actualWidth = tryWidth;
+    u32 actualHeight = tryHeight;
+
+    // 存储放置结果
+    struct PlacedTexture {
+        size_t index;
+        u32 x, y;
+    };
+    std::vector<PlacedTexture> placed;
+    placed.reserve(m_textures.size());
+
+    // 尝试打包
+    bool success = false;
+    for (int attempt = 0; attempt < 2; ++attempt) {
+        skyline.clear();
+        skyline.push_back({0, 0, actualWidth});
+        placed.clear();
+        success = true;
+
+        for (size_t idx : indices) {
+            const auto& tex = m_textures[idx];
+            u32 texW = tex.width + m_padding * 2;
+            u32 texH = tex.height + m_padding * 2;
+
+            u32 x, y;
+            size_t nodeIndex;
+            if (canPlace(skyline, texW, texH, x, y, nodeIndex)) {
+                placed.push_back({idx, x + m_padding, y + m_padding});
+                placeTexture(skyline, x, y, texW, texH, nodeIndex);
+
+                // 更新图集高度
+                atlasHeight = std::max(atlasHeight, y + texH);
+            } else {
+                success = false;
+                break;
+            }
+        }
+
+        if (success) break;
+
+        // 尝试增大尺寸
+        if (actualWidth < m_maxWidth) {
+            actualWidth *= 2;
+        } else if (actualHeight < m_maxHeight) {
+            actualHeight *= 2;
+        } else {
+            break;
+        }
+    }
+
+    if (!success) {
+        return Error(ErrorCode::TextureAtlasFull,
+                     "Texture atlas is full, cannot fit all textures");
+    }
+
+    // 计算实际高度 (使用2的幂次)
+    u32 finalHeight = 1;
+    while (finalHeight < atlasHeight) finalHeight *= 2;
+    finalHeight = std::min(finalHeight, actualHeight);
+
+    // 创建图集像素缓冲区
+    AtlasBuildResult result;
+    result.width = actualWidth;
+    result.height = finalHeight;
+    result.pixels.resize(static_cast<size_t>(actualWidth) * finalHeight * 4, 0);
+
+    // 复制纹理到图集
+    for (const auto& p : placed) {
+        const auto& tex = m_textures[p.index];
+
+        // 复制像素
+        for (u32 y = 0; y < tex.height; ++y) {
+            const u8* src = tex.pixels.data() + y * tex.width * 4;
+            u8* dst = result.pixels.data() + ((p.y + y) * actualWidth + p.x) * 4;
+            std::memcpy(dst, src, tex.width * 4);
+        }
+
+        // 计算UV坐标
+        TextureRegion region;
+        region.u0 = static_cast<f32>(p.x) / static_cast<f32>(actualWidth);
+        region.v0 = static_cast<f32>(p.y) / static_cast<f32>(finalHeight);
+        region.u1 = static_cast<f32>(p.x + tex.width) / static_cast<f32>(actualWidth);
+        region.v1 = static_cast<f32>(p.y + tex.height) / static_cast<f32>(finalHeight);
+
+        result.regions[tex.location] = region;
+    }
+
+    return result;
+}
+
+void TextureAtlasBuilder::clear() {
+    m_textures.clear();
+    m_addedLocations.clear();
+}
+
+std::vector<ResourceLocation> TextureAtlasBuilder::getTextureLocations() const {
+    std::vector<ResourceLocation> locations;
+    locations.reserve(m_textures.size());
+    for (const auto& tex : m_textures) {
+        locations.push_back(tex.location);
+    }
+    return locations;
+}
+
+bool TextureAtlasBuilder::canPlace(
+    const std::vector<SkylineNode>& skyline,
+    u32 width,
+    u32 height,
+    u32& outX,
+    u32& outY,
+    size_t& outIndex) const
+{
+    u32 bestY = UINT32_MAX;
+    u32 bestX = 0;
+    size_t bestIndex = 0;
+
+    for (size_t i = 0; i < skyline.size(); ++i) {
+        const auto& node = skyline[i];
+
+        // 检查是否可以放在这个节点
+        u32 x = node.x;
+        u32 y = node.y;
+
+        // 检查宽度是否足够
+        u32 availableWidth = node.width;
+        size_t j = i;
+
+        // 检查后续节点是否可以提供足够的宽度
+        while (availableWidth < width && j + 1 < skyline.size()) {
+            ++j;
+            const auto& nextNode = skyline[j];
+
+            // 检查是否有高度差
+            if (nextNode.y > node.y) {
+                break;
+            }
+
+            // 下一个节点是否与当前节点相邻
+            if (skyline[j - 1].x + skyline[j - 1].width != nextNode.x) {
+                break;
+            }
+
+            availableWidth += nextNode.width;
+        }
+
+        if (availableWidth < width) {
+            continue;
+        }
+
+        // 检查是否超出边界
+        if (x + width > m_maxWidth || y + height > m_maxHeight) {
+            continue;
+        }
+
+        // 选择最低的位置
+        if (y < bestY) {
+            bestY = y;
+            bestX = x;
+            bestIndex = i;
+        }
+    }
+
+    if (bestY == UINT32_MAX) {
+        return false;
+    }
+
+    outX = bestX;
+    outY = bestY;
+    outIndex = bestIndex;
+    return true;
+}
+
+void TextureAtlasBuilder::placeTexture(
+    std::vector<SkylineNode>& skyline,
+    u32 x,
+    u32 y,
+    u32 width,
+    u32 height,
+    size_t index)
+{
+    // 创建新节点
+    SkylineNode newNode;
+    newNode.x = x;
+    newNode.y = y + height;
+    newNode.width = width;
+
+    // 插入新节点
+    skyline.insert(skyline.begin() + index, newNode);
+
+    // 移除被覆盖的节点
+    for (size_t i = index + 1; i < skyline.size(); ) {
+        if (skyline[i].x < x + width) {
+            // 这个节点被部分或完全覆盖
+            u32 overlapEnd = skyline[i].x + skyline[i].width;
+            u32 placeEnd = x + width;
+
+            if (overlapEnd <= placeEnd) {
+                // 完全覆盖，移除
+                skyline.erase(skyline.begin() + i);
+            } else {
+                // 部分覆盖，调整
+                skyline[i].x = placeEnd;
+                skyline[i].width = overlapEnd - placeEnd;
+                ++i;
+            }
+        } else {
+            ++i;
+        }
+    }
+
+    // 合并相邻的相同高度节点
+    for (size_t i = 0; i + 1 < skyline.size(); ) {
+        if (skyline[i].y == skyline[i + 1].y &&
+            skyline[i].x + skyline[i].width == skyline[i + 1].x) {
+            skyline[i].width += skyline[i + 1].width;
+            skyline.erase(skyline.begin() + i + 1);
+        } else {
+            ++i;
+        }
+    }
+}
+
+} // namespace mr

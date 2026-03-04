@@ -18,6 +18,12 @@ add_library(mr_common STATIC
     world/ChunkData.cpp
     world/TerrainGenerator.cpp
 
+    # Resource
+    resource/ResourceLocation.cpp
+    resource/PackMetadata.cpp
+    resource/IResourcePack.cpp
+    resource/FolderResourcePack.cpp
+
     # Renderer (common)
     renderer/MeshTypes.cpp
     renderer/ChunkMesher.cpp

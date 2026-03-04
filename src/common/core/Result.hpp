@@ -64,7 +64,17 @@ enum class ErrorCode : i32 {
 
     // 权限错误
     PermissionDenied = -500,
-    Unauthorized = -501
+    Unauthorized = -501,
+
+    // 资源包错误
+    ResourcePackNotFound = -700,
+    ResourcePackInvalid = -701,
+    ResourceNotFound = -702,
+    ResourceParseError = -703,
+    TextureLoadFailed = -704,
+    TextureAtlasFull = -705,
+    ModelNotFound = -706,
+    BlockStateNotFound = -707
 };
 
 /**

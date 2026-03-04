@@ -48,6 +48,11 @@ src/
 │   ├── math/        # Vector3, MathUtils, PerlinNoise, SimplexNoise
 │   ├── network/     # Packet, PacketSerializer
 │   ├── world/       # BlockID, ChunkPos, BlockPos, ChunkData, TerrainGenerator
+│   ├── resource/    # Resource system (NEW)
+│   │   ├── ResourceLocation.hpp   # Resource identifier (namespace:path)
+│   │   ├── IResourcePack.hpp      # Resource pack interface
+│   │   ├── FolderResourcePack.hpp # Folder resource pack implementation
+│   │   └── PackMetadata.hpp       # pack.mcmeta parsing
 │   └── renderer/    # MeshTypes, ChunkMesher (shared rendering data)
 ├── server/          # Server application
 │   ├── application/ # ServerApplication, ServerLoop
@@ -57,14 +62,19 @@ src/
 │   ├── application/ # ClientApplication, GameLoop
 │   ├── window/      # Window (GLFW wrapper)
 │   ├── input/       # InputManager
-│   └── renderer/    # Vulkan rendering
-│       ├── VulkanContext.hpp    # Vulkan instance, device, queues
-│       ├── VulkanSwapchain.hpp  # Swapchain management
-│       ├── VulkanPipeline.hpp   # Pipeline and render pass
-│       ├── VulkanRenderer.hpp   # Main renderer
-│       ├── VulkanBuffer.hpp     # GPU buffer management
-│       ├── VulkanTexture.hpp    # Texture and texture atlas
-│       └── ChunkRenderer.hpp    # Chunk mesh GPU buffers
+│   ├── renderer/    # Vulkan rendering
+│   │   ├── VulkanContext.hpp    # Vulkan instance, device, queues
+│   │   ├── VulkanSwapchain.hpp  # Swapchain management
+│   │   ├── VulkanPipeline.hpp   # Pipeline and render pass
+│   │   ├── VulkanRenderer.hpp   # Main renderer
+│   │   ├── VulkanBuffer.hpp     # GPU buffer management
+│   │   ├── VulkanTexture.hpp    # Texture and texture atlas
+│   │   └── ChunkRenderer.hpp    # Chunk mesh GPU buffers
+│   └── resource/    # Client resource loading (NEW)
+│       ├── BlockModelLoader.hpp    # Model JSON parsing
+│       ├── BlockStateLoader.hpp    # Block state JSON parsing
+│       ├── TextureAtlasBuilder.hpp # Texture atlas construction
+│       └── ResourceManager.hpp     # Resource manager facade
 └── modding/         # JavaScript mod system (future)
 ```
 
@@ -77,6 +87,9 @@ All types are in namespace `mr` (client types in `mr::client`, server types in `
 - **Game types**: `ChunkCoord`, `BlockCoord`, `BlockId`, `EntityId`, `DimensionId`
 - **World types**: `ChunkId`, `BlockPos`, `ChunkPos`, `BlockState`, `ChunkSection`, `ChunkData`
 - **Renderer types**: `Vertex`, `Face`, `MeshData`, `TextureRegion`, `BlockModel`, `TextureAtlas`
+- **Resource types**: `ResourceLocation`, `PackMetadata`, `IResourcePack`, `FolderResourcePack`
+- **Model types**: `Direction`, `ModelElement`, `ModelFace`, `UnbakedBlockModel`, `BakedBlockModel`
+- **Block state types**: `BlockStateVariant`, `VariantList`, `BlockStateDefinition`
 - **Error handling**: `Result<T>` with `Error` class and `ErrorCode` enum
 
 ## Chunk Mesh Generation
@@ -107,6 +120,61 @@ The client uses Vulkan for rendering:
 - **VulkanTexture**: Texture image, view, sampler management
 - **VulkanTextureAtlas**: Texture atlas for block textures
 - **ChunkRenderer**: Manages chunk GPU buffers and rendering
+
+## Resource Pack System
+
+The resource pack system parses standard Minecraft resource pack format:
+
+### Resource Location
+```cpp
+// Parse "minecraft:textures/blocks/stone"
+ResourceLocation loc("minecraft:textures/blocks/stone");
+loc.namespace_();  // "minecraft"
+loc.path();        // "textures/blocks/stone"
+loc.toFilePath();  // "assets/minecraft/textures/blocks/stone"
+```
+
+### Loading a Resource Pack
+```cpp
+// Create folder resource pack
+auto pack = std::make_shared<FolderResourcePack>("z:/方块概念材质");
+auto result = pack->initialize();
+
+// Load block states
+BlockStateLoader stateLoader;
+stateLoader.loadFromResourcePack(*pack);
+
+// Load and bake models
+BlockModelLoader modelLoader;
+modelLoader.loadFromResourcePack(*pack);
+auto bakedModel = modelLoader.bakeModel(ResourceLocation("minecraft:block/stone"));
+
+// Build texture atlas
+TextureAtlasBuilder atlasBuilder;
+atlasBuilder.addTexture(*pack, ResourceLocation("minecraft:textures/blocks/stone"));
+auto atlas = atlasBuilder.build();
+```
+
+### Model Inheritance
+Models support parent inheritance (e.g., `cobblestone` inherits from `cube_all`):
+- Parent models are resolved recursively
+- Textures are inherited and can be overridden
+- Elements from parent are used if child has none
+
+### Block State Mapping
+```cpp
+// Get variant for block state
+const auto* variant = blockStateLoader.getVariant(
+    ResourceLocation("minecraft:oak_log"),
+    "axis=y"  // or properties map
+);
+```
+
+### Supported Files
+- `pack.mcmeta` - Pack metadata
+- `blockstates/*.json` - Block state definitions
+- `models/block/*.json` - Block models
+- `textures/blocks/*.png` - Block textures
 
 ## Error Handling Pattern
 
@@ -139,6 +207,7 @@ Key error codes in `ErrorCode` enum:
 - Network: `ConnectionFailed`, `ConnectionClosed`, `ConnectionTimeout`, `InvalidPacket`
 - Game: `InvalidBlock`, `InvalidItem`, `InvalidEntity`, `InvalidWorld`
 - Render: `InitializationFailed`, `OperationFailed`, `CapacityExceeded`, `Unsupported`
+- Resource Pack: `ResourcePackNotFound`, `ResourcePackInvalid`, `ResourceNotFound`, `ResourceParseError`, `TextureLoadFailed`, `TextureAtlasFull`, `ModelNotFound`, `BlockStateNotFound`
 
 ## Naming Conventions
 
@@ -181,13 +250,16 @@ Managed via vcpkg:
 - Use `const&` for large object parameters
 - Use `string_view` for read-only string parameters
 
+## 注意，你可随时访问mc java版本的源码来供自己参考：`D:\Minecraft\MC研究\Minecraft1.16.5源码\net\minecraft`，这很重要，因为当前项目是一个复刻项目，目标是完全使用cpp复刻java版mc
+
 ## Current Status
 
 - **Core**: Complete (types, math, error handling)
 - **Network**: Basic implementation (TCP server, packet serialization)
 - **World**: Complete (chunk storage, terrain generation)
 - **Renderer**: In progress (Vulkan context, basic mesh generation)
-- **Tests**: 163 tests passing
+- **Resource Pack System**: Complete (model/blockstate parsing, texture atlas)
+- **Tests**: 190+ tests passing (163 common + 27 resource)
 
 ## Self-Maintenance Rule
 

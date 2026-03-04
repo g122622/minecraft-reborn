@@ -17,6 +17,12 @@ add_executable(minecraft-client
     renderer/VulkanTexture.cpp
     renderer/ChunkRenderer.cpp
     renderer/Camera.cpp
+    renderer/UniformBuffer.cpp
+    renderer/Descriptor.cpp
+    resource/BlockModelLoader.cpp
+    resource/BlockStateLoader.cpp
+    resource/TextureAtlasBuilder.cpp
+    resource/ResourceManager.cpp
 )
 
 target_link_libraries(minecraft-client

@@ -1,6 +1,10 @@
 #include "VulkanRenderer.hpp"
 #include <spdlog/spdlog.h>
 #include <array>
+#include <cstring>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -65,6 +69,18 @@ Result<void> VulkanRenderer::initialize(GLFWwindow* window, const RendererConfig
         return renderPassResult.error();
     }
 
+    // 创建描述符集布局
+    auto descriptorResult = createDescriptorSetLayouts();
+    if (descriptorResult.failed()) {
+        return descriptorResult.error();
+    }
+
+    // 创建管线布局
+    auto pipelineLayoutResult = createPipelineLayout();
+    if (pipelineLayoutResult.failed()) {
+        return pipelineLayoutResult.error();
+    }
+
     // 创建命令池
     auto commandPoolResult = createCommandPool();
     if (commandPoolResult.failed()) {
@@ -81,6 +97,18 @@ Result<void> VulkanRenderer::initialize(GLFWwindow* window, const RendererConfig
     auto framebufferResult = createFramebuffers();
     if (framebufferResult.failed()) {
         return framebufferResult.error();
+    }
+
+    // 创建描述符池
+    auto descriptorPoolResult = createDescriptorPool();
+    if (descriptorPoolResult.failed()) {
+        return descriptorPoolResult.error();
+    }
+
+    // 创建Uniform缓冲区
+    auto uniformResult = createUniformBuffers();
+    if (uniformResult.failed()) {
+        return uniformResult.error();
     }
 
     // 创建同步对象
@@ -101,7 +129,11 @@ void VulkanRenderer::destroy() {
 
     m_context->waitIdle();
 
+    m_cameraUBO.destroy();
+    m_lightingUBO.destroy();
+
     destroySyncObjects();
+    destroyDescriptors();
     destroyFramebuffers();
     destroyCommandBuffers();
     destroyCommandPool();
@@ -246,7 +278,11 @@ Result<void> VulkanRenderer::render() {
         return beginResult.error();
     }
 
+    // 更新Uniform缓冲区
+    updateUniformBuffers();
+
     // TODO: 在这里添加实际渲染代码
+    // 绑定管线、描述符集、渲染区块等
 
     return endFrame();
 }
@@ -491,6 +527,223 @@ Result<void> VulkanRenderer::recreateSwapchain() {
     }
 
     return Result<void>::ok();
+}
+
+Result<void> VulkanRenderer::createDescriptorSetLayouts() {
+    VkDevice device = m_context->device();
+
+    // 相机描述符集布局 (set 0)
+    // binding 0: CameraUBO
+    // binding 1: LightingUBO
+    std::array<VkDescriptorSetLayoutBinding, 2> cameraBindings{};
+    cameraBindings[0].binding = 0;
+    cameraBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    cameraBindings[0].descriptorCount = 1;
+    cameraBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    cameraBindings[0].pImmutableSamplers = nullptr;
+
+    cameraBindings[1].binding = 1;
+    cameraBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    cameraBindings[1].descriptorCount = 1;
+    cameraBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    cameraBindings[1].pImmutableSamplers = nullptr;
+
+    VkDescriptorSetLayoutCreateInfo cameraLayoutInfo{};
+    cameraLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    cameraLayoutInfo.bindingCount = static_cast<u32>(cameraBindings.size());
+    cameraLayoutInfo.pBindings = cameraBindings.data();
+
+    if (vkCreateDescriptorSetLayout(device, &cameraLayoutInfo, nullptr, &m_cameraDescriptorLayout) != VK_SUCCESS) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create camera descriptor set layout");
+    }
+
+    // 纹理描述符集布局 (set 1)
+    // binding 0: combined image sampler
+    VkDescriptorSetLayoutBinding textureBinding{};
+    textureBinding.binding = 0;
+    textureBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    textureBinding.descriptorCount = 1;
+    textureBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    textureBinding.pImmutableSamplers = nullptr;
+
+    VkDescriptorSetLayoutCreateInfo textureLayoutInfo{};
+    textureLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    textureLayoutInfo.bindingCount = 1;
+    textureLayoutInfo.pBindings = &textureBinding;
+
+    if (vkCreateDescriptorSetLayout(device, &textureLayoutInfo, nullptr, &m_textureDescriptorLayout) != VK_SUCCESS) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create texture descriptor set layout");
+    }
+
+    spdlog::info("Descriptor set layouts created");
+    return {};
+}
+
+Result<void> VulkanRenderer::createPipelineLayout() {
+    VkDevice device = m_context->device();
+
+    // 描述符集布局
+    std::array<VkDescriptorSetLayout, 2> layouts = {
+        m_cameraDescriptorLayout,
+        m_textureDescriptorLayout
+    };
+
+    // 推送常量
+    VkPushConstantRange pushConstantRange{};
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    pushConstantRange.offset = 0;
+    pushConstantRange.size = sizeof(ModelPushConstants);
+
+    VkPipelineLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    layoutInfo.setLayoutCount = static_cast<u32>(layouts.size());
+    layoutInfo.pSetLayouts = layouts.data();
+    layoutInfo.pushConstantRangeCount = 1;
+    layoutInfo.pPushConstantRanges = &pushConstantRange;
+
+    if (vkCreatePipelineLayout(device, &layoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create pipeline layout");
+    }
+
+    spdlog::info("Pipeline layout created");
+    return {};
+}
+
+Result<void> VulkanRenderer::createDescriptorPool() {
+    VkDevice device = m_context->device();
+
+    // 描述符池大小
+    std::array<VkDescriptorPoolSize, 2> poolSizes{};
+    poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes[0].descriptorCount = static_cast<u32>(MAX_FRAMES_IN_FLIGHT) * 2; // Camera + Lighting
+
+    poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes[1].descriptorCount = 16; // 支持最多16个纹理
+
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    poolInfo.maxSets = static_cast<u32>(MAX_FRAMES_IN_FLIGHT) * 2 + 16;
+    poolInfo.poolSizeCount = static_cast<u32>(poolSizes.size());
+    poolInfo.pPoolSizes = poolSizes.data();
+
+    if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create descriptor pool");
+    }
+
+    spdlog::info("Descriptor pool created");
+    return {};
+}
+
+Result<void> VulkanRenderer::createUniformBuffers() {
+    VkDevice device = m_context->device();
+    VkPhysicalDevice physicalDevice = m_context->physicalDevice();
+
+    // 创建相机UBO
+    auto result = m_cameraUBO.create(device, physicalDevice, sizeof(CameraUBO), MAX_FRAMES_IN_FLIGHT);
+    if (!result.success()) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create camera UBO");
+    }
+
+    // 创建光照UBO
+    result = m_lightingUBO.create(device, physicalDevice, sizeof(LightingUBO), MAX_FRAMES_IN_FLIGHT);
+    if (!result.success()) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create lighting UBO");
+    }
+
+    // 初始化默认光照
+    LightingUBO lighting{};
+    lighting.sunDirection[0] = 0.5f;
+    lighting.sunDirection[1] = 0.8f;
+    lighting.sunDirection[2] = 0.3f;
+    lighting.sunIntensity = 1.0f;
+    lighting.ambientColor[0] = 0.4f;
+    lighting.ambientColor[1] = 0.4f;
+    lighting.ambientColor[2] = 0.5f;
+    lighting.ambientIntensity = 0.4f;
+    lighting.cameraPosition[0] = 0.0f;
+    lighting.cameraPosition[1] = 0.0f;
+    lighting.cameraPosition[2] = 0.0f;
+    lighting.fogColor[0] = 0.6f;
+    lighting.fogColor[1] = 0.7f;
+    lighting.fogColor[2] = 0.9f;
+    lighting.fogStart = 100.0f;
+    lighting.fogEnd = 500.0f;
+    lighting.fogDensity = 0.002f;
+    lighting.fogMode = 1; // 线性雾
+
+    m_lightingUBO.update(&lighting, sizeof(lighting));
+
+    spdlog::info("Uniform buffers created");
+    return {};
+}
+
+void VulkanRenderer::destroyDescriptors() {
+    VkDevice device = m_context->device();
+
+    if (m_pipelineLayout != VK_NULL_HANDLE) {
+        vkDestroyPipelineLayout(device, m_pipelineLayout, nullptr);
+        m_pipelineLayout = VK_NULL_HANDLE;
+    }
+
+    if (m_cameraDescriptorLayout != VK_NULL_HANDLE) {
+        vkDestroyDescriptorSetLayout(device, m_cameraDescriptorLayout, nullptr);
+        m_cameraDescriptorLayout = VK_NULL_HANDLE;
+    }
+
+    if (m_textureDescriptorLayout != VK_NULL_HANDLE) {
+        vkDestroyDescriptorSetLayout(device, m_textureDescriptorLayout, nullptr);
+        m_textureDescriptorLayout = VK_NULL_HANDLE;
+    }
+
+    if (m_descriptorPool != VK_NULL_HANDLE) {
+        vkDestroyDescriptorPool(device, m_descriptorPool, nullptr);
+        m_descriptorPool = VK_NULL_HANDLE;
+    }
+}
+
+void VulkanRenderer::updateUniformBuffers() {
+    if (!m_camera) {
+        return;
+    }
+
+    // 更新相机UBO
+    CameraUBO cameraUBO{};
+    const auto& view = m_camera->viewMatrix();
+    const auto& proj = m_camera->projectionMatrix();
+    const auto& viewProj = m_camera->viewProjectionMatrix();
+
+    std::memcpy(cameraUBO.view, glm::value_ptr(view), sizeof(glm::mat4));
+    std::memcpy(cameraUBO.projection, glm::value_ptr(proj), sizeof(glm::mat4));
+    std::memcpy(cameraUBO.viewProjection, glm::value_ptr(viewProj), sizeof(glm::mat4));
+
+    m_cameraUBO.update(&cameraUBO, sizeof(cameraUBO), m_currentFrame);
+
+    // 更新光照UBO中的相机位置
+    LightingUBO lighting{};
+    lighting.sunDirection[0] = 0.5f;
+    lighting.sunDirection[1] = 0.8f;
+    lighting.sunDirection[2] = 0.3f;
+    lighting.sunIntensity = 1.0f;
+    lighting.ambientColor[0] = 0.4f;
+    lighting.ambientColor[1] = 0.4f;
+    lighting.ambientColor[2] = 0.5f;
+    lighting.ambientIntensity = 0.4f;
+
+    const auto& camPos = m_camera->position();
+    lighting.cameraPosition[0] = camPos.x;
+    lighting.cameraPosition[1] = camPos.y;
+    lighting.cameraPosition[2] = camPos.z;
+
+    lighting.fogColor[0] = 0.6f;
+    lighting.fogColor[1] = 0.7f;
+    lighting.fogColor[2] = 0.9f;
+    lighting.fogStart = 100.0f;
+    lighting.fogEnd = 500.0f;
+    lighting.fogDensity = 0.002f;
+    lighting.fogMode = 1;
+
+    m_lightingUBO.update(&lighting, sizeof(lighting), m_currentFrame);
 }
 
 } // namespace mr::client

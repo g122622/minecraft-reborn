@@ -5,6 +5,9 @@
 #include "VulkanContext.hpp"
 #include "VulkanSwapchain.hpp"
 #include "VulkanPipeline.hpp"
+#include "UniformBuffer.hpp"
+#include "Descriptor.hpp"
+#include "Camera.hpp"
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <memory>
@@ -51,6 +54,11 @@ public:
     // 窗口大小变化
     [[nodiscard]] Result<void> onResize(u32 width, u32 height);
 
+    // 相机设置
+    void setCamera(Camera* camera) { m_camera = camera; }
+    Camera* camera() { return m_camera; }
+    const Camera* camera() const { return m_camera; }
+
     // 状态
     bool isInitialized() const { return m_initialized; }
     bool isMinimized() const { return m_minimized; }
@@ -61,10 +69,20 @@ public:
     VkRenderPass renderPass() const { return m_renderPass; }
     VkCommandPool commandPool() const { return m_commandPool; }
     VkCommandBuffer currentCommandBuffer() const;
+    VkPipelineLayout pipelineLayout() const { return m_pipelineLayout; }
+
+    // 描述符
+    VkDescriptorSetLayout cameraDescriptorLayout() const { return m_cameraDescriptorLayout; }
+    VkDescriptorSetLayout textureDescriptorLayout() const { return m_textureDescriptorLayout; }
+    VkDescriptorPool descriptorPool() { return m_descriptorPool; }
 
     // 帧信息
     u32 currentFrameIndex() const { return m_currentFrame; }
     u32 currentImageIndex() const { return m_imageIndex; }
+
+    // Uniform缓冲区
+    UniformBuffer& cameraUBO() { return m_cameraUBO; }
+    UniformBuffer& lightingUBO() { return m_lightingUBO; }
 
 private:
     std::unique_ptr<VulkanContext> m_context;
@@ -74,6 +92,19 @@ private:
     VkCommandPool m_commandPool = VK_NULL_HANDLE;
     std::vector<VkCommandBuffer> m_commandBuffers;
     std::vector<VkFramebuffer> m_framebuffers;
+
+    // 描述符
+    VkDescriptorSetLayout m_cameraDescriptorLayout = VK_NULL_HANDLE;
+    VkDescriptorSetLayout m_textureDescriptorLayout = VK_NULL_HANDLE;
+    VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
+    VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
+
+    // Uniform缓冲区
+    UniformBuffer m_cameraUBO;
+    UniformBuffer m_lightingUBO;
+
+    // 相机
+    Camera* m_camera = nullptr;
 
     // 同步
     static constexpr u32 MAX_FRAMES_IN_FLIGHT = 2;
@@ -93,15 +124,21 @@ private:
     [[nodiscard]] Result<void> createCommandBuffers();
     [[nodiscard]] Result<void> createFramebuffers();
     [[nodiscard]] Result<void> createSyncObjects();
+    [[nodiscard]] Result<void> createDescriptorSetLayouts();
+    [[nodiscard]] Result<void> createPipelineLayout();
+    [[nodiscard]] Result<void> createDescriptorPool();
+    [[nodiscard]] Result<void> createUniformBuffers();
 
     void destroyRenderPass();
     void destroyCommandPool();
     void destroyCommandBuffers();
     void destroyFramebuffers();
     void destroySyncObjects();
+    void destroyDescriptors();
 
     // 辅助函数
     [[nodiscard]] Result<void> recreateSwapchain();
+    void updateUniformBuffers();
 };
 
 } // namespace mr::client
