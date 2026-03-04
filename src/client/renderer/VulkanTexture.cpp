@@ -464,7 +464,8 @@ Result<void> VulkanTextureAtlas::create(
     TextureConfig config;
     config.width = textureSize;
     config.height = textureSize;
-    config.format = VK_FORMAT_R8G8B8A8_SRGB;
+    // 使用 UNORM 而不是 SRGB，避免颜色空间转换问题
+    config.format = VK_FORMAT_R8G8B8A8_UNORM;
     config.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     config.mipLevels = 1;
 

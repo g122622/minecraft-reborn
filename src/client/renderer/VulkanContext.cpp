@@ -67,6 +67,65 @@ Result<void> VulkanContext::initialize(const VulkanConfig& config, VkSurfaceKHR 
     return Result<void>::ok();
 }
 
+Result<void> VulkanContext::createInstanceOnly(const VulkanConfig& config) {
+    if (m_instance != VK_NULL_HANDLE) {
+        return Error(ErrorCode::AlreadyExists, "Vulkan instance already created");
+    }
+
+    m_config = config;
+
+    // 创建实例
+    auto instanceResult = createInstance();
+    if (instanceResult.failed()) {
+        return instanceResult.error();
+    }
+
+    // 设置调试信使
+    if (m_validationEnabled) {
+        auto debugResult = setupDebugMessenger();
+        if (debugResult.failed()) {
+            spdlog::warn("Failed to setup debug messenger: {}", debugResult.error().toString());
+        }
+    }
+
+    spdlog::info("Vulkan instance created");
+    return Result<void>::ok();
+}
+
+void VulkanContext::setSurface(VkSurfaceKHR surface) {
+    assert(m_instance != VK_NULL_HANDLE && "Instance must be created before setting surface");
+    m_surface = surface;
+}
+
+Result<void> VulkanContext::createDevice() {
+    assert(m_surface != VK_NULL_HANDLE && "Surface must be set before creating device");
+    assert(m_instance != VK_NULL_HANDLE && "Instance must be created before creating device");
+
+    // 选择物理设备
+    auto deviceResult = pickPhysicalDevice();
+    if (deviceResult.failed()) {
+        destroy();
+        return deviceResult.error();
+    }
+
+    // 创建逻辑设备
+    auto logicalResult = createLogicalDevice();
+    if (logicalResult.failed()) {
+        destroy();
+        return logicalResult.error();
+    }
+
+    m_initialized = true;
+    spdlog::info("Vulkan context initialized successfully");
+    spdlog::info("GPU: {}", m_deviceProperties.deviceName);
+    spdlog::info("Vulkan API: {}.{}.{}",
+        VK_API_VERSION_MAJOR(m_deviceProperties.apiVersion),
+        VK_API_VERSION_MINOR(m_deviceProperties.apiVersion),
+        VK_API_VERSION_PATCH(m_deviceProperties.apiVersion));
+
+    return Result<void>::ok();
+}
+
 void VulkanContext::destroy() {
     if (!m_initialized) {
         return;
@@ -84,6 +143,12 @@ void VulkanContext::destroy() {
             func(m_instance, m_debugMessenger, nullptr);
         }
         m_debugMessenger = VK_NULL_HANDLE;
+    }
+
+    // 销毁surface（必须在instance销毁之前）
+    if (m_surface != VK_NULL_HANDLE) {
+        vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+        m_surface = VK_NULL_HANDLE;
     }
 
     if (m_instance != VK_NULL_HANDLE) {

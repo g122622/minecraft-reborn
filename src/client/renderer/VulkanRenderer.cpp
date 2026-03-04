@@ -1,7 +1,12 @@
 #include "VulkanRenderer.hpp"
+#include "VulkanBuffer.hpp"
+#include "DefaultTextureAtlas.hpp"
+#include "../../common/renderer/ChunkMesher.hpp"
+#include "../../common/world/WorldConstants.hpp"
 #include <spdlog/spdlog.h>
 #include <array>
 #include <cstring>
+#include <algorithm>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -27,24 +32,26 @@ Result<void> VulkanRenderer::initialize(GLFWwindow* window, const RendererConfig
     // 创建Vulkan上下文
     m_context = std::make_unique<VulkanContext>();
 
-    // 创建Surface
-    VkSurfaceKHR surface;
-    VkResult result = glfwCreateWindowSurface(
-        m_context->instance() ? m_context->instance() : VkInstance{nullptr},
-        window,
-        nullptr,
-        &surface);
-
-    // 初始化上下文
-    auto contextResult = m_context->initialize(config.vulkanConfig, surface);
-    if (contextResult.failed()) {
-        return contextResult.error();
+    // 第一步：创建instance
+    auto instanceResult = m_context->createInstanceOnly(config.vulkanConfig);
+    if (instanceResult.failed()) {
+        return instanceResult.error();
     }
 
-    // 创建Surface (在上下文初始化后)
-    result = glfwCreateWindowSurface(m_context->instance(), window, nullptr, &surface);
+    // 第二步：创建Surface（在instance创建后）
+    VkSurfaceKHR surface;
+    VkResult result = glfwCreateWindowSurface(m_context->instance(), window, nullptr, &surface);
     if (result != VK_SUCCESS) {
         return Error(ErrorCode::Unknown, "Failed to create window surface: " + std::to_string(result));
+    }
+
+    // 设置surface到context
+    m_context->setSurface(surface);
+
+    // 第三步：创建设备（物理设备+逻辑设备）
+    auto deviceResult = m_context->createDevice();
+    if (deviceResult.failed()) {
+        return deviceResult.error();
     }
 
     // 获取窗口大小
@@ -117,6 +124,43 @@ Result<void> VulkanRenderer::initialize(GLFWwindow* window, const RendererConfig
         return syncResult.error();
     }
 
+    // 创建测试管线和三角形
+    auto pipelineResult = createTestPipeline();
+    if (pipelineResult.failed()) {
+        return pipelineResult.error();
+    }
+
+    auto triangleResult = createTestTriangle();
+    if (triangleResult.failed()) {
+        return triangleResult.error();
+    }
+
+    auto textureResult = createTestTexture();
+    if (textureResult.failed()) {
+        spdlog::warn("Failed to create test texture: {}", textureResult.error().toString());
+        // 继续运行，只是没有纹理
+    }
+
+    // 创建区块管线
+    auto chunkPipelineResult = createChunkPipeline();
+    if (chunkPipelineResult.failed()) {
+        spdlog::warn("Failed to create chunk pipeline: {}", chunkPipelineResult.error().toString());
+    }
+
+    // 创建区块纹理图集
+    auto chunkAtlasResult = createChunkTextureAtlas();
+    if (chunkAtlasResult.failed()) {
+        spdlog::warn("Failed to create chunk texture atlas: {}", chunkAtlasResult.error().toString());
+    }
+
+    // 创建测试区块
+    if (m_chunkRendererInitialized) {
+        auto testChunkResult = createTestChunk();
+        if (testChunkResult.failed()) {
+            spdlog::warn("Failed to create test chunk: {}", testChunkResult.error().toString());
+        }
+    }
+
     m_initialized = true;
     spdlog::info("Vulkan renderer initialized successfully");
     return Result<void>::ok();
@@ -129,6 +173,11 @@ void VulkanRenderer::destroy() {
 
     m_context->waitIdle();
 
+    destroyChunkResources();
+    destroyTestResources();
+
+    m_testPipeline.reset();
+    m_chunkPipeline.reset();
     m_cameraUBO.destroy();
     m_lightingUBO.destroy();
 
@@ -155,35 +204,41 @@ Result<void> VulkanRenderer::beginFrame() {
         return Error(ErrorCode::InvalidState, "Frame already started");
     }
 
-    // 等待上一帧完成
-    vkWaitForFences(m_context->device(), 1, &m_frameSyncs[m_currentFrame].inFlightFence,
+    // 等待当前帧的fence（限制同时进行的帧数）
+    vkWaitForFences(m_context->device(), 1, &m_inFlightFences[m_currentFrame],
                     VK_TRUE, UINT64_MAX);
 
-    // 获取下一帧图像
+    // 获取下一帧图像，使用当前帧索引对应的信号量
     auto acquireResult = m_swapchain->acquireNextImage(
-        m_frameSyncs[m_currentFrame].imageAvailableSemaphore);
+        m_imageAvailableSemaphores[m_currentFrame]);
 
     if (acquireResult.failed()) {
-        // 交换链需要重建
         if (acquireResult.error().code() == ErrorCode::InvalidState) {
             auto recreateResult = recreateSwapchain();
             if (recreateResult.failed()) {
                 return recreateResult.error();
             }
-            return beginFrame(); // 重试
+            return beginFrame();
         }
         return acquireResult.error();
     }
 
     m_imageIndex = acquireResult.value();
 
-    // 重置栅栏
-    vkResetFences(m_context->device(), 1, &m_frameSyncs[m_currentFrame].inFlightFence);
+    // 检查是否有其他帧正在使用此图像
+    if (m_imageFences[m_imageIndex] != VK_NULL_HANDLE) {
+        vkWaitForFences(m_context->device(), 1, &m_imageFences[m_imageIndex], VK_TRUE, UINT64_MAX);
+    }
+    // 标记此图像正在被当前帧使用
+    m_imageFences[m_imageIndex] = m_inFlightFences[m_currentFrame];
+
+    // 重置fence
+    vkResetFences(m_context->device(), 1, &m_inFlightFences[m_currentFrame]);
 
     // 开始命令缓冲区
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = 0;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     beginInfo.pInheritanceInfo = nullptr;
 
     VkCommandBuffer cmd = m_commandBuffers[m_imageIndex];
@@ -232,7 +287,8 @@ Result<void> VulkanRenderer::endFrame() {
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = {m_frameSyncs[m_currentFrame].imageAvailableSemaphore};
+    // 使用当前帧的imageAvailableSemaphore等待
+    VkSemaphore waitSemaphores[] = {m_imageAvailableSemaphores[m_currentFrame]};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = waitSemaphores;
@@ -240,19 +296,20 @@ Result<void> VulkanRenderer::endFrame() {
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &cmd;
 
-    VkSemaphore signalSemaphores[] = {m_frameSyncs[m_currentFrame].renderFinishedSemaphore};
+    // 使用当前图像的renderFinishedSemaphore发信号
+    VkSemaphore signalSemaphores[] = {m_renderFinishedSemaphores[m_imageIndex]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
     result = vkQueueSubmit(m_context->graphicsQueue(), 1, &submitInfo,
-                           m_frameSyncs[m_currentFrame].inFlightFence);
+                           m_inFlightFences[m_currentFrame]);
     if (result != VK_SUCCESS) {
         return Error(ErrorCode::Unknown, "Failed to submit draw command buffer: " + std::to_string(result));
     }
 
-    // 呈现
+    // 呈现，使用当前图像的renderFinishedSemaphore
     auto presentResult = m_swapchain->present(m_imageIndex,
-                                               m_frameSyncs[m_currentFrame].renderFinishedSemaphore);
+                                               m_renderFinishedSemaphores[m_imageIndex]);
 
     if (presentResult.failed()) {
         if (presentResult.error().code() == ErrorCode::InvalidState) {
@@ -265,7 +322,7 @@ Result<void> VulkanRenderer::endFrame() {
         }
     }
 
-    // 下一帧
+    // 下一帧（循环使用MAX_FRAMES_IN_FLIGHT个帧资源）
     m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
     m_frameStarted = false;
 
@@ -281,10 +338,131 @@ Result<void> VulkanRenderer::render() {
     // 更新Uniform缓冲区
     updateUniformBuffers();
 
-    // TODO: 在这里添加实际渲染代码
-    // 绑定管线、描述符集、渲染区块等
+    VkCommandBuffer cmd = m_commandBuffers[m_imageIndex];
+    assert(cmd != VK_NULL_HANDLE && "Command buffer must be valid");
+
+    // 设置视口和裁剪
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(m_swapchain->extent().width);
+    viewport.height = static_cast<float>(m_swapchain->extent().height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = m_swapchain->extent();
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+    // 渲染区块
+    if (m_chunkRendererInitialized && m_chunkRenderer.chunkCount() > 0) {
+        renderChunks(cmd);
+    }
 
     return endFrame();
+}
+
+void VulkanRenderer::renderChunks(VkCommandBuffer cmd) {
+    if (!m_chunkPipeline || !m_chunkPipeline->pipeline()) {
+        return;
+    }
+
+    // 绑定区块管线
+    m_chunkPipeline->bind(cmd);
+
+    // 绑定相机描述符集 (set = 0)
+    if (!m_chunkDescriptorSets.empty() && m_chunkDescriptorSets[m_currentFrame] != VK_NULL_HANDLE) {
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                m_chunkPipeline->pipelineLayout(), 0, 1,
+                                &m_chunkDescriptorSets[m_currentFrame], 0, nullptr);
+    }
+
+    // 绑定纹理描述符集 (set = 1)
+    if (m_chunkTextureDescriptorSet != VK_NULL_HANDLE) {
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                m_chunkPipeline->pipelineLayout(), 1, 1,
+                                &m_chunkTextureDescriptorSet, 0, nullptr);
+    }
+
+    // 设置推送常量
+    ModelPushConstants pushConstants{};
+    std::memset(&pushConstants, 0, sizeof(pushConstants));
+    // 单位矩阵
+    pushConstants.model[0] = 1.0f;
+    pushConstants.model[5] = 1.0f;
+    pushConstants.model[10] = 1.0f;
+    pushConstants.model[15] = 1.0f;
+    // 区块偏移将在每个区块绘制时设置
+    pushConstants.chunkOffset[0] = 0.0f;
+    pushConstants.chunkOffset[1] = 0.0f;
+    pushConstants.chunkOffset[2] = 0.0f;
+    pushConstants.padding = 0.0f;
+
+    vkCmdPushConstants(cmd, m_chunkPipeline->pipelineLayout(),
+                       VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pushConstants), &pushConstants);
+
+    // 渲染所有区块
+    m_chunkRenderer.render(cmd, m_chunkPipeline->pipelineLayout());
+}
+
+void VulkanRenderer::renderTestTriangle(VkCommandBuffer cmd) {
+    if (!m_testPipeline || m_testPipeline->pipeline() == VK_NULL_HANDLE) {
+        return;
+    }
+
+    // 绑定管线
+    m_testPipeline->bind(cmd);
+
+    // 绑定描述符集（使用当前帧的描述符集）
+    if (!m_testDescriptorSets.empty() && m_testDescriptorSets[m_currentFrame] != VK_NULL_HANDLE) {
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                m_testPipeline->pipelineLayout(), 0, 1, &m_testDescriptorSets[m_currentFrame], 0, nullptr);
+    } else {
+        spdlog::warn("No descriptor set available for frame {}", m_currentFrame);
+    }
+
+    // 绑定纹理描述符集 (set = 1)
+    if (m_testTextureDescriptorSet != VK_NULL_HANDLE) {
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                m_testPipeline->pipelineLayout(), 1, 1, &m_testTextureDescriptorSet, 0, nullptr);
+    }
+
+    // 设置推送常量 - 单位矩阵
+    ModelPushConstants pushConstants{};
+    // 初始化为0
+    std::memset(&pushConstants, 0, sizeof(pushConstants));
+    // 设置单位矩阵 (列主序)
+    pushConstants.model[0] = 1.0f;  // [0][0]
+    pushConstants.model[5] = 1.0f;  // [1][1]
+    pushConstants.model[10] = 1.0f; // [2][2]
+    pushConstants.model[15] = 1.0f; // [3][3]
+    pushConstants.chunkOffset[0] = 0.0f;
+    pushConstants.chunkOffset[1] = 0.0f;
+    pushConstants.chunkOffset[2] = 0.0f;
+    pushConstants.padding = 0.0f;
+
+    vkCmdPushConstants(cmd, m_testPipeline->pipelineLayout(),
+                       VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pushConstants), &pushConstants);
+
+    // 绑定顶点缓冲区
+    if (m_testVertexBuffer.isValid()) {
+        VkBuffer vertexBuffers[] = {m_testVertexBuffer.buffer()};
+        VkDeviceSize offsets[] = {0};
+        vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
+    } else {
+        spdlog::error("Test vertex buffer is not valid!");
+    }
+
+    // 绑定索引缓冲区并绘制
+    if (m_testIndexBuffer.isValid()) {
+        vkCmdBindIndexBuffer(cmd, m_testIndexBuffer.buffer(), 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(cmd, m_testIndexCount, 1, 0, 0, 0);
+    } else if (m_testVertexBuffer.isValid()) {
+        // 没有索引缓冲区，直接绘制顶点
+        vkCmdDraw(cmd, 3, 1, 0, 0);
+    }
 }
 
 Result<void> VulkanRenderer::onResize(u32 width, u32 height) {
@@ -417,7 +595,22 @@ Result<void> VulkanRenderer::createFramebuffers() {
 }
 
 Result<void> VulkanRenderer::createSyncObjects() {
-    m_frameSyncs.resize(MAX_FRAMES_IN_FLIGHT);
+    // 关键同步策略（参考Vulkan文档 swapchain_semaphore_reuse）:
+    // 1. imageAvailableSemaphores: 用于vkAcquireNextImageKHR，按MAX_FRAMES_IN_FLIGHT分配
+    // 2. renderFinishedSemaphores: 用于vkQueueSubmit信号和vkQueuePresentKHR等待，按交换链图像数量分配
+    // 3. inFlightFences: 用于CPU等待帧完成，按MAX_FRAMES_IN_FLIGHT分配
+    // 4. imageFences: 追踪每个图像正在使用的fence
+
+    u32 imageCount = m_swapchain->imageCount();
+
+    // 每帧一个imageAvailableSemaphore
+    m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    // 每个交换链图像一个renderFinishedSemaphore
+    m_renderFinishedSemaphores.resize(imageCount);
+    // 每帧一个fence
+    m_inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+    // 每个交换链图像追踪其当前使用的fence
+    m_imageFences.resize(imageCount, VK_NULL_HANDLE);
 
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -426,27 +619,34 @@ Result<void> VulkanRenderer::createSyncObjects() {
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+    // 创建imageAvailableSemaphores（每帧一个）
+    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         VkResult result = vkCreateSemaphore(m_context->device(), &semaphoreInfo, nullptr,
-                                            &m_frameSyncs[i].imageAvailableSemaphore);
+                                            &m_imageAvailableSemaphores[i]);
         if (result != VK_SUCCESS) {
-            return Error(ErrorCode::Unknown, "Failed to create semaphore: " + std::to_string(result));
+            return Error(ErrorCode::Unknown, "Failed to create image available semaphore: " + std::to_string(result));
         }
+    }
 
-        result = vkCreateSemaphore(m_context->device(), &semaphoreInfo, nullptr,
-                                   &m_frameSyncs[i].renderFinishedSemaphore);
+    // 创建renderFinishedSemaphores（每个交换链图像一个）
+    for (u32 i = 0; i < imageCount; ++i) {
+        VkResult result = vkCreateSemaphore(m_context->device(), &semaphoreInfo, nullptr,
+                                   &m_renderFinishedSemaphores[i]);
         if (result != VK_SUCCESS) {
-            return Error(ErrorCode::Unknown, "Failed to create semaphore: " + std::to_string(result));
+            return Error(ErrorCode::Unknown, "Failed to create render finished semaphore: " + std::to_string(result));
         }
+    }
 
-        result = vkCreateFence(m_context->device(), &fenceInfo, nullptr,
-                               &m_frameSyncs[i].inFlightFence);
+    // 创建帧fence
+    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        VkResult result = vkCreateFence(m_context->device(), &fenceInfo, nullptr,
+                               &m_inFlightFences[i]);
         if (result != VK_SUCCESS) {
             return Error(ErrorCode::Unknown, "Failed to create fence: " + std::to_string(result));
         }
     }
 
-    spdlog::info("Sync objects created");
+    spdlog::info("Sync objects created ({} swapchain images, {} frames in flight)", imageCount, MAX_FRAMES_IN_FLIGHT);
     return Result<void>::ok();
 }
 
@@ -482,18 +682,28 @@ void VulkanRenderer::destroyFramebuffers() {
 }
 
 void VulkanRenderer::destroySyncObjects() {
-    for (auto& sync : m_frameSyncs) {
-        if (sync.imageAvailableSemaphore != VK_NULL_HANDLE) {
-            vkDestroySemaphore(m_context->device(), sync.imageAvailableSemaphore, nullptr);
-        }
-        if (sync.renderFinishedSemaphore != VK_NULL_HANDLE) {
-            vkDestroySemaphore(m_context->device(), sync.renderFinishedSemaphore, nullptr);
-        }
-        if (sync.inFlightFence != VK_NULL_HANDLE) {
-            vkDestroyFence(m_context->device(), sync.inFlightFence, nullptr);
+    // 销毁imageAvailableSemaphores（每帧一个）
+    for (size_t i = 0; i < m_imageAvailableSemaphores.size(); ++i) {
+        if (m_imageAvailableSemaphores[i] != VK_NULL_HANDLE) {
+            vkDestroySemaphore(m_context->device(), m_imageAvailableSemaphores[i], nullptr);
         }
     }
-    m_frameSyncs.clear();
+    // 销毁renderFinishedSemaphores（每个交换链图像一个）
+    for (size_t i = 0; i < m_renderFinishedSemaphores.size(); ++i) {
+        if (m_renderFinishedSemaphores[i] != VK_NULL_HANDLE) {
+            vkDestroySemaphore(m_context->device(), m_renderFinishedSemaphores[i], nullptr);
+        }
+    }
+    // 销毁帧fence
+    for (size_t i = 0; i < m_inFlightFences.size(); ++i) {
+        if (m_inFlightFences[i] != VK_NULL_HANDLE) {
+            vkDestroyFence(m_context->device(), m_inFlightFences[i], nullptr);
+        }
+    }
+    m_imageAvailableSemaphores.clear();
+    m_renderFinishedSemaphores.clear();
+    m_inFlightFences.clear();
+    m_imageFences.clear();
 }
 
 Result<void> VulkanRenderer::recreateSwapchain() {
@@ -509,6 +719,13 @@ Result<void> VulkanRenderer::recreateSwapchain() {
 
     if (result.failed()) {
         return result;
+    }
+
+    // 重新创建同步对象（交换链图像数量可能变化）
+    destroySyncObjects();
+    auto syncResult = createSyncObjects();
+    if (syncResult.failed()) {
+        return syncResult.error();
     }
 
     auto renderPassResult = createRenderPass();
@@ -703,23 +920,44 @@ void VulkanRenderer::destroyDescriptors() {
 }
 
 void VulkanRenderer::updateUniformBuffers() {
-    if (!m_camera) {
-        return;
-    }
-
-    // 更新相机UBO
     CameraUBO cameraUBO{};
-    const auto& view = m_camera->viewMatrix();
-    const auto& proj = m_camera->projectionMatrix();
-    const auto& viewProj = m_camera->viewProjectionMatrix();
 
-    std::memcpy(cameraUBO.view, glm::value_ptr(view), sizeof(glm::mat4));
-    std::memcpy(cameraUBO.projection, glm::value_ptr(proj), sizeof(glm::mat4));
-    std::memcpy(cameraUBO.viewProjection, glm::value_ptr(viewProj), sizeof(glm::mat4));
+    if (m_camera) {
+        // 使用相机的矩阵
+        const auto& view = m_camera->viewMatrix();
+        const auto& proj = m_camera->projectionMatrix();
+        const auto& viewProj = m_camera->viewProjectionMatrix();
+
+        std::memcpy(cameraUBO.view, glm::value_ptr(view), sizeof(glm::mat4));
+        std::memcpy(cameraUBO.projection, glm::value_ptr(proj), sizeof(glm::mat4));
+        std::memcpy(cameraUBO.viewProjection, glm::value_ptr(viewProj), sizeof(glm::mat4));
+    } else {
+        // 默认矩阵（用于测试）
+        // 相机在较高位置，俯视区块
+        // 区块范围大约是 (0,0,0) 到 (16, 50, 16)
+        // 将相机放在 (8, 80, 80) 看向区块中心
+        glm::mat4 view = glm::lookAt(
+            glm::vec3(8.0f, 50.0f, 64.0f),   // 相机位置
+            glm::vec3(8.0f, 20.0f, 8.0f),    // 看向区块中心
+            glm::vec3(0.0f, 1.0f, 0.0f)      // 上方向
+        );
+        // 投影矩阵：透视投影
+        glm::mat4 proj = glm::perspective(glm::radians(70.0f),
+                                          static_cast<float>(m_swapchain->extent().width) / m_swapchain->extent().height,
+                                          0.1f, 500.0f);
+        // 翻转Y轴（GLM默认用于OpenGL，Vulkan需要翻转）
+        proj[1][1] *= -1.0f;
+
+        glm::mat4 viewProj = proj * view;
+
+        std::memcpy(cameraUBO.view, glm::value_ptr(view), sizeof(glm::mat4));
+        std::memcpy(cameraUBO.projection, glm::value_ptr(proj), sizeof(glm::mat4));
+        std::memcpy(cameraUBO.viewProjection, glm::value_ptr(viewProj), sizeof(glm::mat4));
+    }
 
     m_cameraUBO.update(&cameraUBO, sizeof(cameraUBO), m_currentFrame);
 
-    // 更新光照UBO中的相机位置
+    // 更新光照UBO
     LightingUBO lighting{};
     lighting.sunDirection[0] = 0.5f;
     lighting.sunDirection[1] = 0.8f;
@@ -730,10 +968,16 @@ void VulkanRenderer::updateUniformBuffers() {
     lighting.ambientColor[2] = 0.5f;
     lighting.ambientIntensity = 0.4f;
 
-    const auto& camPos = m_camera->position();
-    lighting.cameraPosition[0] = camPos.x;
-    lighting.cameraPosition[1] = camPos.y;
-    lighting.cameraPosition[2] = camPos.z;
+    if (m_camera) {
+        const auto& camPos = m_camera->position();
+        lighting.cameraPosition[0] = camPos.x;
+        lighting.cameraPosition[1] = camPos.y;
+        lighting.cameraPosition[2] = camPos.z;
+    } else {
+        lighting.cameraPosition[0] = 0.0f;
+        lighting.cameraPosition[1] = 0.0f;
+        lighting.cameraPosition[2] = 2.0f;
+    }
 
     lighting.fogColor[0] = 0.6f;
     lighting.fogColor[1] = 0.7f;
@@ -744,6 +988,921 @@ void VulkanRenderer::updateUniformBuffers() {
     lighting.fogMode = 1;
 
     m_lightingUBO.update(&lighting, sizeof(lighting), m_currentFrame);
+}
+
+Result<void> VulkanRenderer::createTestPipeline() {
+    assert(m_context && m_context->device() != VK_NULL_HANDLE && "Context must be valid");
+    assert(m_renderPass != VK_NULL_HANDLE && "Render pass must be valid");
+    assert(m_pipelineLayout != VK_NULL_HANDLE && "Pipeline layout must be valid");
+
+    m_testPipeline = std::make_unique<VulkanPipeline>();
+
+    PipelineConfig config{};
+
+    // 着色器路径 - 使用带纹理的着色器
+    config.vertexShaderPath = "shaders/textured.vert.spv";
+    config.fragmentShaderPath = "shaders/textured.frag.spv";
+
+    // 顶点输入描述 - 与TestVertex结构匹配
+    VkVertexInputBindingDescription bindingDesc{};
+    bindingDesc.binding = 0;
+    bindingDesc.stride = sizeof(TestVertex);
+    bindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    config.vertexBindings.push_back(bindingDesc);
+
+    // position (location = 0)
+    VkVertexInputAttributeDescription attr0{};
+    attr0.binding = 0;
+    attr0.location = 0;
+    attr0.format = VK_FORMAT_R32G32B32_SFLOAT;
+    attr0.offset = offsetof(TestVertex, pos);
+    config.vertexAttributes.push_back(attr0);
+
+    // normal (location = 1)
+    VkVertexInputAttributeDescription attr1{};
+    attr1.binding = 0;
+    attr1.location = 1;
+    attr1.format = VK_FORMAT_R32G32B32_SFLOAT;
+    attr1.offset = offsetof(TestVertex, normal);
+    config.vertexAttributes.push_back(attr1);
+
+    // texCoord (location = 2)
+    VkVertexInputAttributeDescription attr2{};
+    attr2.binding = 0;
+    attr2.location = 2;
+    attr2.format = VK_FORMAT_R32G32_SFLOAT;
+    attr2.offset = offsetof(TestVertex, texCoord);
+    config.vertexAttributes.push_back(attr2);
+
+    // color (location = 3)
+    VkVertexInputAttributeDescription attr3{};
+    attr3.binding = 0;
+    attr3.location = 3;
+    attr3.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    attr3.offset = offsetof(TestVertex, color);
+    config.vertexAttributes.push_back(attr3);
+
+    // light (location = 4)
+    VkVertexInputAttributeDescription attr4{};
+    attr4.binding = 0;
+    attr4.location = 4;
+    attr4.format = VK_FORMAT_R32_SFLOAT;
+    attr4.offset = offsetof(TestVertex, light);
+    config.vertexAttributes.push_back(attr4);
+
+    // 光栅化配置
+    config.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    config.polygonMode = VK_POLYGON_MODE_FILL;
+    config.cullMode = VK_CULL_MODE_NONE;  // 暂时禁用剔除以便调试
+    config.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+
+    // 深度测试
+    config.depthTestEnable = VK_FALSE;  // 测试三角形不需要深度测试
+    config.depthWriteEnable = VK_FALSE;
+
+    // 渲染通道
+    config.renderPass = m_renderPass;
+    config.subpass = 0;
+
+    // 描述符集布局 - camera (set 0) 和 texture (set 1)
+    config.descriptorSetLayouts.push_back(m_cameraDescriptorLayout);
+    config.descriptorSetLayouts.push_back(m_textureDescriptorLayout);
+
+    // 推送常量
+    VkPushConstantRange pushConstantRange{};
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    pushConstantRange.offset = 0;
+    pushConstantRange.size = sizeof(ModelPushConstants);
+    config.pushConstantRanges.push_back(pushConstantRange);
+
+    // 使用已创建的管线布局
+    // 注意：VulkanPipeline会创建自己的管线布局，但我们想用现有的
+    // 所以需要修改VulkanPipeline来支持外部布局，或者使用现有布局
+    // 这里我们先让VulkanPipeline创建新的布局
+
+    auto result = m_testPipeline->initialize(m_context.get(), config);
+    if (result.failed()) {
+        return result.error();
+    }
+
+    spdlog::info("Test pipeline created");
+    return Result<void>::ok();
+}
+
+Result<void> VulkanRenderer::createTestTriangle() {
+    assert(m_context && m_context->device() != VK_NULL_HANDLE && "Context must be valid");
+
+    // 定义彩色三角形顶点
+    TestVertex vertices[] = {
+        // 位置                法线              纹理坐标      颜色               光照
+        {{ 0.0f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.5f, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, 1.0f},  // 顶部 - 红色
+        {{ 0.5f,  0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}, 1.0f},  // 右下 - 绿色
+        {{-0.5f,  0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, 1.0f},  // 左下 - 蓝色
+    };
+
+    u32 indices[] = {0, 1, 2};
+    m_testIndexCount = 3;
+
+    VkDevice device = m_context->device();
+    VkPhysicalDevice physicalDevice = m_context->physicalDevice();
+
+    // 创建顶点缓冲区
+    auto result = m_testVertexBuffer.create(
+        device,
+        physicalDevice,
+        sizeof(vertices),
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    );
+    if (result.failed()) {
+        return Error(ErrorCode::OutOfMemory, "Failed to create test vertex buffer: " + result.error().toString());
+    }
+
+    // 上传顶点数据
+    void* data = nullptr;
+    VkResult vkResult = vkMapMemory(device, m_testVertexBuffer.memory(), 0, sizeof(vertices), 0, &data);
+    if (vkResult != VK_SUCCESS) {
+        return Error(ErrorCode::Unknown, "Failed to map vertex buffer memory");
+    }
+    std::memcpy(data, vertices, sizeof(vertices));
+    vkUnmapMemory(device, m_testVertexBuffer.memory());
+
+    // 创建索引缓冲区
+    result = m_testIndexBuffer.create(
+        device,
+        physicalDevice,
+        sizeof(indices),
+        VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    );
+    if (result.failed()) {
+        return Error(ErrorCode::OutOfMemory, "Failed to create test index buffer: " + result.error().toString());
+    }
+
+    // 上传索引数据
+    vkResult = vkMapMemory(device, m_testIndexBuffer.memory(), 0, sizeof(indices), 0, &data);
+    if (vkResult != VK_SUCCESS) {
+        return Error(ErrorCode::Unknown, "Failed to map index buffer memory");
+    }
+    std::memcpy(data, indices, sizeof(indices));
+    vkUnmapMemory(device, m_testIndexBuffer.memory());
+
+    // 为每一帧创建描述符集
+    m_testDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = m_descriptorPool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &m_cameraDescriptorLayout;
+
+    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        vkResult = vkAllocateDescriptorSets(device, &allocInfo, &m_testDescriptorSets[i]);
+        if (vkResult != VK_SUCCESS) {
+            return Error(ErrorCode::Unknown, "Failed to allocate descriptor set: " + std::to_string(vkResult));
+        }
+
+        // 更新描述符集
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = m_cameraUBO.buffer(i).buffer();
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(CameraUBO);
+
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = m_testDescriptorSets[i];
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
+
+        vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+    }
+
+    spdlog::info("Test triangle created with {} vertices, {} indices", 3, m_testIndexCount);
+    return Result<void>::ok();
+}
+
+void VulkanRenderer::destroyTestResources() {
+    m_testVertexBuffer.destroy();
+    m_testIndexBuffer.destroy();
+
+    if (!m_testDescriptorSets.empty() && m_descriptorPool != VK_NULL_HANDLE && m_context) {
+        for (auto& ds : m_testDescriptorSets) {
+            if (ds != VK_NULL_HANDLE) {
+                vkFreeDescriptorSets(m_context->device(), m_descriptorPool, 1, &ds);
+                ds = VK_NULL_HANDLE;
+            }
+        }
+        m_testDescriptorSets.clear();
+    }
+
+    // 销毁纹理描述符集
+    if (m_testTextureDescriptorSet != VK_NULL_HANDLE && m_descriptorPool != VK_NULL_HANDLE && m_context) {
+        vkFreeDescriptorSets(m_context->device(), m_descriptorPool, 1, &m_testTextureDescriptorSet);
+        m_testTextureDescriptorSet = VK_NULL_HANDLE;
+    }
+
+    m_testTexture.destroy();
+}
+
+Result<void> VulkanRenderer::createTestTexture() {
+    assert(m_context && m_context->device() != VK_NULL_HANDLE && "Context must be valid");
+
+    VkDevice device = m_context->device();
+    VkPhysicalDevice physicalDevice = m_context->physicalDevice();
+
+    // 创建一个简单的棋盘格测试纹理 (64x64 RGBA)
+    constexpr u32 texSize = 64;
+    std::vector<u8> pixels(texSize * texSize * 4);
+
+    for (u32 y = 0; y < texSize; ++y) {
+        for (u32 x = 0; x < texSize; ++x) {
+            u32 index = (y * texSize + x) * 4;
+            // 棋盘格图案
+            bool isWhite = ((x / 8) + (y / 8)) % 2 == 0;
+            if (isWhite) {
+                pixels[index + 0] = 255; // R
+                pixels[index + 1] = 255; // G
+                pixels[index + 2] = 255; // B
+            } else {
+                pixels[index + 0] = 64;  // R
+                pixels[index + 1] = 64;  // G
+                pixels[index + 2] = 128; // B (蓝灰色)
+            }
+            pixels[index + 3] = 255; // A
+        }
+    }
+
+    // 创建纹理
+    TextureConfig texConfig{};
+    texConfig.width = texSize;
+    texConfig.height = texSize;
+    texConfig.format = VK_FORMAT_R8G8B8A8_UNORM;  // 使用UNORM避免SRGB转换
+    texConfig.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    texConfig.mipLevels = 1;
+
+    auto result = m_testTexture.create(device, physicalDevice, texConfig);
+    if (!result.success()) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create test texture: " + result.error().toString());
+    }
+
+    // 创建image view
+    result = m_testTexture.createImageView();
+    if (!result.success()) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create test texture view: " + result.error().toString());
+    }
+
+    // 创建sampler
+    result = m_testTexture.createSampler(VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT);
+    if (!result.success()) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create test texture sampler: " + result.error().toString());
+    }
+
+    // 上传纹理数据 - 需要暂存缓冲区和命令缓冲区
+    // 创建暂存缓冲区
+    VulkanBuffer stagingBuffer;
+    VkDeviceSize imageSize = texSize * texSize * 4;
+    result = stagingBuffer.create(device, physicalDevice, imageSize,
+                                   VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (!result.success()) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create staging buffer: " + result.error().toString());
+    }
+
+    // 复制数据到暂存缓冲区
+    void* data = stagingBuffer.map().value();
+    if (!data) {
+        stagingBuffer.destroy();
+        return Error(ErrorCode::OperationFailed, "Failed to map staging buffer");
+    }
+    std::memcpy(data, pixels.data(), pixels.size());
+    stagingBuffer.unmap();
+
+    // 分配命令缓冲区用于上传
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = m_commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+    // 开始录制命令
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    // 上传纹理
+    auto uploadResult = m_testTexture.upload(commandBuffer, stagingBuffer, pixels.data());
+    if (uploadResult.failed()) {
+        vkFreeCommandBuffers(device, m_commandPool, 1, &commandBuffer);
+        stagingBuffer.destroy();
+        return Error(ErrorCode::OperationFailed, "Failed to upload texture: " + uploadResult.error().toString());
+    }
+
+    vkEndCommandBuffer(commandBuffer);
+
+    // 提交命令
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(m_context->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(m_context->graphicsQueue());
+
+    // 清理
+    vkFreeCommandBuffers(device, m_commandPool, 1, &commandBuffer);
+    stagingBuffer.destroy();
+
+    // 创建纹理描述符集
+    VkDescriptorSetAllocateInfo descAllocInfo{};
+    descAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    descAllocInfo.descriptorPool = m_descriptorPool;
+    descAllocInfo.descriptorSetCount = 1;
+    descAllocInfo.pSetLayouts = &m_textureDescriptorLayout;
+
+    VkResult vkResult = vkAllocateDescriptorSets(device, &descAllocInfo, &m_testTextureDescriptorSet);
+    if (vkResult != VK_SUCCESS) {
+        return Error(ErrorCode::Unknown, "Failed to allocate texture descriptor set: " + std::to_string(vkResult));
+    }
+
+    // 更新纹理描述符集
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = m_testTexture.imageView();
+    imageInfo.sampler = m_testTexture.sampler();
+
+    VkWriteDescriptorSet descriptorWrite{};
+    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet = m_testTextureDescriptorSet;
+    descriptorWrite.dstBinding = 0;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pImageInfo = &imageInfo;
+
+    vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+
+    spdlog::info("Test texture created ({}x{} checkerboard)", texSize, texSize);
+    return Result<void>::ok();
+}
+
+Result<void> VulkanRenderer::createChunkPipeline() {
+    assert(m_context && m_context->device() != VK_NULL_HANDLE && "Context must be valid");
+    assert(m_renderPass != VK_NULL_HANDLE && "Render pass must be valid");
+
+    m_chunkPipeline = std::make_unique<VulkanPipeline>();
+
+    PipelineConfig config{};
+
+    // 着色器路径 - 使用区块着色器
+    config.vertexShaderPath = "shaders/chunk.vert.spv";
+    config.fragmentShaderPath = "shaders/chunk.frag.spv";
+
+    // 顶点输入描述 - 与Vertex结构匹配
+    VkVertexInputBindingDescription bindingDesc{};
+    bindingDesc.binding = 0;
+    bindingDesc.stride = sizeof(Vertex);
+    bindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    config.vertexBindings.push_back(bindingDesc);
+
+    // position (location = 0)
+    VkVertexInputAttributeDescription attr0{};
+    attr0.binding = 0;
+    attr0.location = 0;
+    attr0.format = VK_FORMAT_R32G32B32_SFLOAT;
+    attr0.offset = offsetof(Vertex, x);
+    config.vertexAttributes.push_back(attr0);
+
+    // normal (location = 1)
+    VkVertexInputAttributeDescription attr1{};
+    attr1.binding = 0;
+    attr1.location = 1;
+    attr1.format = VK_FORMAT_R32G32B32_SFLOAT;
+    attr1.offset = offsetof(Vertex, nx);
+    config.vertexAttributes.push_back(attr1);
+
+    // texCoord (location = 2)
+    VkVertexInputAttributeDescription attr2{};
+    attr2.binding = 0;
+    attr2.location = 2;
+    attr2.format = VK_FORMAT_R32G32_SFLOAT;
+    attr2.offset = offsetof(Vertex, u);
+    config.vertexAttributes.push_back(attr2);
+
+    // color (location = 3) - RGBA8
+    VkVertexInputAttributeDescription attr3{};
+    attr3.binding = 0;
+    attr3.location = 3;
+    attr3.format = VK_FORMAT_R8G8B8A8_UNORM;
+    attr3.offset = offsetof(Vertex, color);
+    config.vertexAttributes.push_back(attr3);
+
+    // light (location = 4)
+    VkVertexInputAttributeDescription attr4{};
+    attr4.binding = 0;
+    attr4.location = 4;
+    attr4.format = VK_FORMAT_R8_UNORM;
+    attr4.offset = offsetof(Vertex, light);
+    config.vertexAttributes.push_back(attr4);
+
+    // 光栅化配置
+    config.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    config.polygonMode = VK_POLYGON_MODE_FILL;
+    config.cullMode = VK_CULL_MODE_NONE;  // 暂时禁用剔除
+    config.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+
+    // 深度测试（暂时禁用）
+    config.depthTestEnable = VK_FALSE;
+    config.depthWriteEnable = VK_FALSE;
+
+    // 渲染通道
+    config.renderPass = m_renderPass;
+    config.subpass = 0;
+
+    // 描述符集布局 - camera (set 0) 和 texture (set 1)
+    config.descriptorSetLayouts.push_back(m_cameraDescriptorLayout);
+    config.descriptorSetLayouts.push_back(m_textureDescriptorLayout);
+
+    // 推送常量
+    VkPushConstantRange pushConstantRange{};
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    pushConstantRange.offset = 0;
+    pushConstantRange.size = sizeof(ModelPushConstants);
+    config.pushConstantRanges.push_back(pushConstantRange);
+
+    auto result = m_chunkPipeline->initialize(m_context.get(), config);
+    if (result.failed()) {
+        return result.error();
+    }
+
+    // 为每帧创建描述符集（set 0: camera）
+    m_chunkDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = m_descriptorPool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &m_cameraDescriptorLayout;
+
+        VkResult vkResult = vkAllocateDescriptorSets(m_context->device(), &allocInfo, &m_chunkDescriptorSets[i]);
+        if (vkResult != VK_SUCCESS) {
+            return Error(ErrorCode::Unknown, "Failed to allocate chunk descriptor set: " + std::to_string(vkResult));
+        }
+
+        // 更新描述符集
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = m_cameraUBO.buffer(i).buffer();
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(CameraUBO);
+
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = m_chunkDescriptorSets[i];
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
+
+        vkUpdateDescriptorSets(m_context->device(), 1, &descriptorWrite, 0, nullptr);
+    }
+
+    spdlog::info("Chunk pipeline created");
+    return Result<void>::ok();
+}
+
+Result<void> VulkanRenderer::createChunkTextureAtlas() {
+    assert(m_context && m_context->device() != VK_NULL_HANDLE && "Context must be valid");
+
+    VkDevice device = m_context->device();
+    VkPhysicalDevice physicalDevice = m_context->physicalDevice();
+
+    // 生成默认纹理图集
+    auto pixels = DefaultTextureAtlas::generate();
+
+    // 创建纹理图集
+    auto result = m_chunkTextureAtlas.create(device, physicalDevice,
+                                              DefaultTextureAtlas::atlasSize(),
+                                              DefaultTextureAtlas::tileSize());
+    if (!result.success()) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create chunk texture atlas: " + result.error().toString());
+    }
+
+    // 创建暂存缓冲区
+    VulkanBuffer stagingBuffer;
+    VkDeviceSize imageSize = pixels.size();
+    result = stagingBuffer.create(device, physicalDevice, imageSize,
+                                   VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (!result.success()) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create staging buffer: " + result.error().toString());
+    }
+
+    // 复制数据到暂存缓冲区
+    void* data = stagingBuffer.map().value();
+    if (!data) {
+        stagingBuffer.destroy();
+        return Error(ErrorCode::OperationFailed, "Failed to map staging buffer");
+    }
+    std::memcpy(data, pixels.data(), pixels.size());
+    stagingBuffer.unmap();
+
+    // 分配命令缓冲区用于上传
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = m_commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+    // 开始录制命令
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    // 直接调用纹理的upload方法（不需要再次复制数据）
+    // VulkanTexture::upload会处理布局转换和复制
+    VkBufferImageCopy region{};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+    region.imageOffset = {0, 0, 0};
+    region.imageExtent = {m_chunkTextureAtlas.texture().width(),
+                          m_chunkTextureAtlas.texture().height(), 1};
+
+    // 转换图像布局到传输目标
+    m_chunkTextureAtlas.texture().transitionLayout(
+        commandBuffer,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT);
+
+    // 复制缓冲区到图像
+    vkCmdCopyBufferToImage(
+        commandBuffer,
+        stagingBuffer.buffer(),
+        m_chunkTextureAtlas.texture().image(),
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1,
+        &region);
+
+    // 转换到着色器只读布局
+    m_chunkTextureAtlas.texture().transitionLayout(
+        commandBuffer,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+
+    vkEndCommandBuffer(commandBuffer);
+
+    // 提交命令
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(m_context->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(m_context->graphicsQueue());
+
+    // 清理
+    vkFreeCommandBuffers(device, m_commandPool, 1, &commandBuffer);
+    stagingBuffer.destroy();
+
+    // 创建纹理描述符集
+    VkDescriptorSetAllocateInfo descAllocInfo{};
+    descAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    descAllocInfo.descriptorPool = m_descriptorPool;
+    descAllocInfo.descriptorSetCount = 1;
+    descAllocInfo.pSetLayouts = &m_textureDescriptorLayout;
+
+    VkResult vkResult = vkAllocateDescriptorSets(device, &descAllocInfo, &m_chunkTextureDescriptorSet);
+    if (vkResult != VK_SUCCESS) {
+        return Error(ErrorCode::Unknown, "Failed to allocate chunk texture descriptor set: " + std::to_string(vkResult));
+    }
+
+    // 更新纹理描述符集
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = m_chunkTextureAtlas.texture().imageView();
+    imageInfo.sampler = m_chunkTextureAtlas.texture().sampler();
+
+    VkWriteDescriptorSet descriptorWrite{};
+    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet = m_chunkTextureDescriptorSet;
+    descriptorWrite.dstBinding = 0;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pImageInfo = &imageInfo;
+
+    vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+
+    // 初始化ChunkRenderer
+    result = m_chunkRenderer.initialize(device, physicalDevice, m_commandPool, m_context->graphicsQueue());
+    if (!result.success()) {
+        return Error(ErrorCode::InitializationFailed, "Failed to initialize ChunkRenderer: " + result.error().toString());
+    }
+    m_chunkRendererInitialized = true;
+
+    spdlog::info("Chunk texture atlas created ({}x{}, tile: {})",
+                 DefaultTextureAtlas::atlasSize(), DefaultTextureAtlas::atlasSize(), DefaultTextureAtlas::tileSize());
+    return Result<void>::ok();
+}
+
+void VulkanRenderer::destroyChunkResources() {
+    m_chunkRenderer.destroy();
+    m_chunkRendererInitialized = false;
+    m_chunkTextureAtlas.destroy();
+
+    if (!m_chunkDescriptorSets.empty() && m_descriptorPool != VK_NULL_HANDLE && m_context) {
+        for (auto& ds : m_chunkDescriptorSets) {
+            if (ds != VK_NULL_HANDLE) {
+                vkFreeDescriptorSets(m_context->device(), m_descriptorPool, 1, &ds);
+                ds = VK_NULL_HANDLE;
+            }
+        }
+        m_chunkDescriptorSets.clear();
+    }
+
+    if (m_chunkTextureDescriptorSet != VK_NULL_HANDLE && m_descriptorPool != VK_NULL_HANDLE && m_context) {
+        vkFreeDescriptorSets(m_context->device(), m_descriptorPool, 1, &m_chunkTextureDescriptorSet);
+        m_chunkTextureDescriptorSet = VK_NULL_HANDLE;
+    }
+
+    m_chunkPipeline.reset();
+}
+
+Result<void> VulkanRenderer::createTestChunk() {
+    // 创建测试区块数据
+    auto chunkData = std::make_unique<ChunkData>(0, 0);
+
+    // 填充区块 - 创建一个简单的地形
+    for (i32 x = 0; x < ChunkData::WIDTH; ++x) {
+        for (i32 z = 0; z < ChunkData::WIDTH; ++z) {
+            // 简单的高度图：中间高，边缘低
+            i32 height = 32 + (x - 8) * (x - 8) / 8 + (z - 8) * (z - 8) / 8;
+            height = std::max(1, std::min(height, 60));
+
+            for (i32 y = 0; y < height; ++y) {
+                BlockId blockId;
+                if (y == 0) {
+                    blockId = BlockId::Bedrock;
+                } else if (y < height - 4) {
+                    blockId = BlockId::Stone;
+                } else if (y < height - 1) {
+                    blockId = BlockId::Dirt;
+                } else {
+                    blockId = BlockId::GrassBlock;
+                }
+                chunkData->setBlock(x, y, z, BlockState(blockId));
+            }
+
+            // 添加一些矿石
+            if (height > 20) {
+                for (i32 y = 5; y < 20; ++y) {
+                    if ((x + y + z) % 7 == 0) {
+                        chunkData->setBlock(x, y, z, BlockState(BlockId::CoalOre));
+                    }
+                    if ((x * 2 + y + z * 3) % 13 == 0) {
+                        chunkData->setBlock(x, y, z, BlockState(BlockId::IronOre));
+                    }
+                    if ((x + y * 2 + z * 2) % 23 == 0 && y < 15) {
+                        chunkData->setBlock(x, y, z, BlockState(BlockId::DiamondOre));
+                    }
+                }
+            }
+        }
+    }
+
+    // 在中间放置一些特殊方块
+    chunkData->setBlock(8, 40, 8, BlockState(BlockId::GoldOre));
+    chunkData->setBlock(8, 41, 8, BlockState(BlockId::DiamondBlock));
+    chunkData->setBlock(7, 40, 8, BlockState(BlockId::OakPlanks));
+    chunkData->setBlock(9, 40, 8, BlockState(BlockId::Cobblestone));
+
+    // 直接生成网格，使用正确的UV坐标
+    MeshData meshData;
+    generateChunkMesh(*chunkData, meshData);
+
+    spdlog::info("Test chunk generated: {} vertices, {} indices",
+                 meshData.vertices.size(), meshData.indices.size());
+
+    if (meshData.empty()) {
+        return Error(ErrorCode::InvalidState, "Generated mesh is empty");
+    }
+
+    // 上传到GPU
+    ChunkId chunkId(0, 0);
+    auto result = m_chunkRenderer.updateChunk(chunkId, meshData);
+    if (!result.success()) {
+        return Error(ErrorCode::OperationFailed, "Failed to upload chunk mesh: " + result.error().toString());
+    }
+
+    spdlog::info("Test chunk uploaded to GPU (chunks: {})", m_chunkRenderer.chunkCount());
+    return Result<void>::ok();
+}
+
+void VulkanRenderer::generateChunkMesh(const ChunkData& chunk, MeshData& outMesh) {
+    outMesh.clear();
+    outMesh.reserve(65536, 98304);
+
+    constexpr i32 SIZE = ChunkSection::SIZE;
+
+    // 遍历所有区块段
+    for (i32 sectionY = 0; sectionY < ChunkData::SECTIONS; ++sectionY) {
+        if (!chunk.hasSection(sectionY)) continue;
+
+        const ChunkSection* section = chunk.getSection(sectionY);
+        if (!section || section->isEmpty()) continue;
+
+        const i32 baseY = sectionY * SIZE;
+
+        // 遍历段内所有方块
+        for (i32 y = 0; y < SIZE; ++y) {
+            for (i32 z = 0; z < SIZE; ++z) {
+                for (i32 x = 0; x < SIZE; ++x) {
+                    BlockState block = section->getBlock(x, y, z);
+                    if (block.isAir()) continue;
+
+                    // 检查每个面
+                    for (size_t faceIdx = 0; faceIdx < 6; ++faceIdx) {
+                        Face face = static_cast<Face>(faceIdx);
+                        auto dir = BlockGeometry::getFaceDirection(face);
+
+                        // 计算邻居坐标
+                        i32 nx = x + dir[0];
+                        i32 ny = y + dir[1];
+                        i32 nz = z + dir[2];
+
+                        BlockState neighbor;
+                        if (nx >= 0 && nx < SIZE && ny >= 0 && ny < SIZE && nz >= 0 && nz < SIZE) {
+                            neighbor = section->getBlock(nx, ny, nz);
+                        } else {
+                            i32 worldY = baseY + ny;
+                            if (worldY < 0 || worldY >= world::CHUNK_HEIGHT) {
+                                neighbor = BlockState(BlockId::Air);
+                            } else {
+                                neighbor = chunk.getBlock(nx, worldY, nz);
+                            }
+                        }
+
+                        // 如果邻居是空气，渲染该面
+                        if (neighbor.isAir() || neighbor.isTransparent()) {
+                            addBlockFace(outMesh, block.id(), face,
+                                        static_cast<f32>(x),
+                                        static_cast<f32>(baseY + y),
+                                        static_cast<f32>(z));
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+void VulkanRenderer::addBlockFace(MeshData& mesh, BlockId blockId, Face face, f32 x, f32 y, f32 z) {
+    // 获取纹理UV - 使用DefaultTextureAtlas的映射
+    TextureRegion tex = getBlockTexture(blockId, face);
+
+    auto normal = BlockGeometry::getFaceNormal(face);
+    auto vertices = BlockGeometry::getFaceVertices(face);
+
+    // 创建4个顶点
+    std::array<Vertex, 4> faceVerts;
+
+    // UV坐标根据顶点位置设置
+    // 顶点顺序: 左下、右下、右上、左上
+    f32 uvs[4][2] = {
+        { tex.u0, tex.v1 }, // 左下
+        { tex.u1, tex.v1 }, // 右下
+        { tex.u1, tex.v0 }, // 右上
+        { tex.u0, tex.v0 }  // 左上
+    };
+
+    // 光照值映射到0-255范围（15*17=255）
+    u8 light = 15 * 17; // 全亮度
+
+    for (size_t i = 0; i < 4; ++i) {
+        faceVerts[i] = Vertex(
+            x + vertices[i * 3 + 0],
+            y + vertices[i * 3 + 1],
+            z + vertices[i * 3 + 2],
+            normal[0], normal[1], normal[2],
+            uvs[i][0], uvs[i][1],
+            0xFFFFFFFF,
+            light
+        );
+    }
+
+    // 添加顶点和索引
+    u32 baseIndex = static_cast<u32>(mesh.vertices.size());
+    for (const auto& v : faceVerts) {
+        mesh.vertices.push_back(v);
+    }
+
+    auto indices = BlockGeometry::getFaceIndices();
+    for (u32 idx : indices) {
+        mesh.indices.push_back(baseIndex + idx);
+    }
+}
+
+TextureRegion VulkanRenderer::getBlockTexture(BlockId blockId, Face face) {
+    // 使用VulkanTextureAtlas获取正确的UV坐标
+    // 纹理位置映射：
+    // 0: Air (空)
+    // 1: Stone (石头)
+    // 2: GrassTop (草地顶部)
+    // 3: GrassSide (草地侧面)
+    // 4: Dirt (泥土)
+    // 5: Cobblestone (圆石)
+    // 6: WoodSide (木头侧面)
+    // 7: WoodTop (木头顶部)
+    // 8: Leaves (树叶)
+    // 9: Sand (沙子)
+    // 10: Gravel (沙砾)
+    // 11: GoldOre (金矿)
+    // 12: IronOre (铁矿)
+    // 13: CoalOre (煤矿)
+    // 14: DiamondOre (钻石矿)
+    // 15: Bedrock (基岩)
+
+    u32 tileIndex = 1; // 默认石头
+
+    switch (blockId) {
+        case BlockId::Air:
+            return TextureRegion(0, 0, 0, 0); // 空气不渲染
+        case BlockId::Stone:
+            tileIndex = 1;
+            break;
+        case BlockId::GrassBlock:
+            if (face == Face::Top) tileIndex = 2;       // 草地顶部
+            else if (face == Face::Bottom) tileIndex = 4; // 泥土底部
+            else tileIndex = 3;                          // 草地侧面
+            break;
+        case BlockId::Dirt:
+            tileIndex = 4;
+            break;
+        case BlockId::Cobblestone:
+            tileIndex = 5;
+            break;
+        case BlockId::OakPlanks:
+            tileIndex = 6; // 使用木头侧面纹理
+            break;
+        case BlockId::OakLog:
+            if (face == Face::Top || face == Face::Bottom) tileIndex = 7;
+            else tileIndex = 6;
+            break;
+        case BlockId::OakLeaves:
+            tileIndex = 8;
+            break;
+        case BlockId::Sand:
+            tileIndex = 9;
+            break;
+        case BlockId::Gravel:
+            tileIndex = 10;
+            break;
+        case BlockId::GoldOre:
+            tileIndex = 11;
+            break;
+        case BlockId::IronOre:
+            tileIndex = 12;
+            break;
+        case BlockId::CoalOre:
+            tileIndex = 13;
+            break;
+        case BlockId::DiamondOre:
+            tileIndex = 14;
+            break;
+        case BlockId::Bedrock:
+            tileIndex = 15;
+            break;
+        case BlockId::DiamondBlock:
+            tileIndex = 1; // 暂时用石头纹理
+            break;
+        default:
+            tileIndex = 1;
+            break;
+    }
+
+    return m_chunkTextureAtlas.getRegion(tileIndex);
 }
 
 } // namespace mr::client

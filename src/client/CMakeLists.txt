@@ -19,6 +19,7 @@ add_executable(minecraft-client
     renderer/Camera.cpp
     renderer/UniformBuffer.cpp
     renderer/Descriptor.cpp
+    renderer/DefaultTextureAtlas.cpp
     resource/BlockModelLoader.cpp
     resource/BlockStateLoader.cpp
     resource/TextureAtlasBuilder.cpp

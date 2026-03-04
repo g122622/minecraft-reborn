@@ -259,6 +259,7 @@ Managed via vcpkg:
 - **World**: Complete (chunk storage, terrain generation)
 - **Renderer**: In progress (Vulkan context, basic mesh generation)
 - **Resource Pack System**: Complete (model/blockstate parsing, texture atlas)
+- **Block Properties**: Complete (property encoding, variant mapping)
 - **Tests**: 190+ tests passing (163 common + 27 resource)
 
 ## Self-Maintenance Rule

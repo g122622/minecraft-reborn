@@ -10,6 +10,7 @@ namespace mr {
 
 bool ChunkMesher::s_useGreedyMeshing = false; // 默认使用简单网格
 bool ChunkMesher::s_lightingEnabled = true;
+bool ChunkMesher::s_useResourceModels = false; // 默认使用内置模型
 
 // ============================================================================
 // ChunkMesher 实现
@@ -89,6 +90,11 @@ u8 ChunkMesher::getBlockLight(
     return std::max(skyLight, blockLight);
 }
 
+BlockProperties ChunkMesher::getBlockProperties(BlockState block) {
+    // 从BlockState的data字段解码属性
+    return BlockProperties(block.data());
+}
+
 void ChunkMesher::addFace(
     MeshData& mesh,
     Face face,
@@ -140,6 +146,26 @@ void ChunkMesher::addFace(
     for (u32 idx : indices) {
         mesh.indices.push_back(baseIndex + idx);
     }
+}
+
+void ChunkMesher::addFaceWithProperties(
+    MeshData& mesh,
+    Face face,
+    f32 x, f32 y, f32 z,
+    BlockState block,
+    const BlockProperties& properties,
+    u8 light
+) {
+    // 获取模型
+    const BlockModel* model = BlockModelRegistry::instance().getModel(block.id());
+
+    if (!model) return;
+
+    // TODO: 根据属性选择正确的模型变体
+    // 目前使用基本模型，未来可以通过s_useResourceModels标志
+    // 调用client模块的资源系统获取正确的模型变体
+
+    addFace(mesh, face, x, y, z, block, light, model);
 }
 
 void ChunkMesher::simpleMeshSection(
@@ -226,11 +252,14 @@ void ChunkMesher::simpleMeshSection(
                             light = getBlockLight(chunk, x, baseY + y, z, neighborChunks);
                         }
 
-                        addFace(outMesh, face,
+                        // 获取方块属性
+                        BlockProperties properties = getBlockProperties(block);
+
+                        addFaceWithProperties(outMesh, face,
                                 static_cast<f32>(x),
                                 static_cast<f32>(baseY + y),
                                 static_cast<f32>(z),
-                                block, light, nullptr);
+                                block, properties, light);
                     }
                 }
             }

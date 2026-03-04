@@ -3,6 +3,7 @@
 #include "../core/Types.hpp"
 #include "../world/ChunkData.hpp"
 #include "../world/BlockID.hpp"
+#include "../world/BlockProperties.hpp"
 #include "MeshTypes.hpp"
 #include <memory>
 #include <functional>
@@ -40,6 +41,10 @@ public:
     static void setLightingEnabled(bool enabled) { s_lightingEnabled = enabled; }
     static bool isLightingEnabled() { return s_lightingEnabled; }
 
+    // 设置是否使用资源系统获取模型
+    static void setUseResourceModels(bool enabled) { s_useResourceModels = enabled; }
+    static bool isUsingResourceModels() { return s_useResourceModels; }
+
 private:
     // 检查方块是否应该渲染
     static bool shouldRenderBlock(BlockState block);
@@ -57,6 +62,9 @@ private:
         const ChunkData* neighborChunks[6]
     );
 
+    // 获取方块属性
+    static BlockProperties getBlockProperties(BlockState block);
+
     // 添加单个面的顶点
     static void addFace(
         MeshData& mesh,
@@ -65,6 +73,16 @@ private:
         BlockState block,
         u8 light,
         const BlockModel* model
+    );
+
+    // 添加单个面的顶点（带属性）
+    static void addFaceWithProperties(
+        MeshData& mesh,
+        Face face,
+        f32 x, f32 y, f32 z,
+        BlockState block,
+        const BlockProperties& properties,
+        u8 light
     );
 
     // 贪婪网格合并
@@ -85,6 +103,7 @@ private:
 
     static bool s_useGreedyMeshing;
     static bool s_lightingEnabled;
+    static bool s_useResourceModels;
 };
 
 // ============================================================================

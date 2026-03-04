@@ -2,9 +2,14 @@
 
 #include "../../common/core/Types.hpp"
 #include "../../common/core/Result.hpp"
+#include "../../common/renderer/MeshTypes.hpp"
+#include "../../common/world/ChunkData.hpp"
 #include "VulkanContext.hpp"
 #include "VulkanSwapchain.hpp"
 #include "VulkanPipeline.hpp"
+#include "VulkanTexture.hpp"
+#include "ChunkRenderer.hpp"
+#include "DefaultTextureAtlas.hpp"
 #include "UniformBuffer.hpp"
 #include "Descriptor.hpp"
 #include "Camera.hpp"
@@ -30,6 +35,15 @@ struct FrameSync {
     VkSemaphore imageAvailableSemaphore = VK_NULL_HANDLE;
     VkSemaphore renderFinishedSemaphore = VK_NULL_HANDLE;
     VkFence inFlightFence = VK_NULL_HANDLE;
+};
+
+// 测试三角形顶点
+struct TestVertex {
+    float pos[3];
+    float normal[3];
+    float texCoord[2];
+    float color[4];
+    float light;
 };
 
 // 渲染器
@@ -107,8 +121,12 @@ private:
     Camera* m_camera = nullptr;
 
     // 同步
+    // 参考: https://docs.vulkan.org/guide/latest/swapchain_semaphore_reuse.html
     static constexpr u32 MAX_FRAMES_IN_FLIGHT = 2;
-    std::vector<FrameSync> m_frameSyncs;
+    std::vector<VkSemaphore> m_imageAvailableSemaphores;  // 每帧一个，用m_currentFrame索引
+    std::vector<VkSemaphore> m_renderFinishedSemaphores;  // 每个交换链图像一个，用m_imageIndex索引
+    std::vector<VkFence> m_inFlightFences;                // 每帧一个，用m_currentFrame索引
+    std::vector<VkFence> m_imageFences;                   // 每个交换链图像一个，追踪当前使用的fence
     u32 m_currentFrame = 0;
     u32 m_imageIndex = 0;
 
@@ -117,6 +135,26 @@ private:
     bool m_minimized = false;
     bool m_frameStarted = false;
     RendererConfig m_config;
+
+    // 测试三角形
+    std::unique_ptr<VulkanPipeline> m_testPipeline;
+    VulkanBuffer m_testVertexBuffer;
+    VulkanBuffer m_testIndexBuffer;
+    std::vector<VkDescriptorSet> m_testDescriptorSets;  // 每帧一个
+    u32 m_testIndexCount = 0;
+
+    // 测试纹理
+    VulkanTexture m_testTexture;
+    VkDescriptorSetLayout m_textureDescriptorSetLayout = VK_NULL_HANDLE;
+    VkDescriptorSet m_testTextureDescriptorSet = VK_NULL_HANDLE;
+
+    // 区块渲染
+    std::unique_ptr<VulkanPipeline> m_chunkPipeline;
+    std::vector<VkDescriptorSet> m_chunkDescriptorSets;  // 每帧一个
+    VkDescriptorSet m_chunkTextureDescriptorSet = VK_NULL_HANDLE;
+    VulkanTextureAtlas m_chunkTextureAtlas;
+    ChunkRenderer m_chunkRenderer;
+    bool m_chunkRendererInitialized = false;
 
     // 创建函数
     [[nodiscard]] Result<void> createRenderPass();
@@ -128,6 +166,11 @@ private:
     [[nodiscard]] Result<void> createPipelineLayout();
     [[nodiscard]] Result<void> createDescriptorPool();
     [[nodiscard]] Result<void> createUniformBuffers();
+    [[nodiscard]] Result<void> createTestPipeline();
+    [[nodiscard]] Result<void> createTestTriangle();
+    [[nodiscard]] Result<void> createTestTexture();
+    [[nodiscard]] Result<void> createChunkPipeline();
+    [[nodiscard]] Result<void> createChunkTextureAtlas();
 
     void destroyRenderPass();
     void destroyCommandPool();
@@ -135,10 +178,22 @@ private:
     void destroyFramebuffers();
     void destroySyncObjects();
     void destroyDescriptors();
+    void destroyTestResources();
+    void destroyChunkResources();
 
     // 辅助函数
     [[nodiscard]] Result<void> recreateSwapchain();
     void updateUniformBuffers();
+
+    // 渲染函数
+    void renderChunks(VkCommandBuffer cmd);
+    void renderTestTriangle(VkCommandBuffer cmd);
+
+    // 测试区块
+    [[nodiscard]] Result<void> createTestChunk();
+    void generateChunkMesh(const ChunkData& chunk, MeshData& outMesh);
+    void addBlockFace(MeshData& mesh, BlockId blockId, Face face, f32 x, f32 y, f32 z);
+    TextureRegion getBlockTexture(BlockId blockId, Face face);
 };
 
 } // namespace mr::client

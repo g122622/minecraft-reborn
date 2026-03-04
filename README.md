@@ -35,6 +35,7 @@ cmake --build build --config Debug
 确保已安装 [Vulkan SDK](https://vulkan.lunarg.com/)，然后：
 
 ```powershell
+cd D:\MiscProjects\minecraft-reborn
 # 编译所有着色器
 glslc shaders/block.vert -o build/shaders/block.vert.spv
 glslc shaders/block.frag -o build/shaders/block.frag.spv

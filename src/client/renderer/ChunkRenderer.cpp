@@ -226,28 +226,38 @@ Result<void> ChunkRenderer::createChunkBuffer(
     VkDeviceSize vertexSize = static_cast<VkDeviceSize>(meshData.vertices.size() * sizeof(Vertex));
     VkDeviceSize indexSize = static_cast<VkDeviceSize>(meshData.indices.size() * sizeof(u32));
 
-    // 创建顶点缓冲区
-    auto result = buffer.vertexBuffer.create(
-        m_device,
-        m_physicalDevice,
-        static_cast<VkDeviceSize>(meshData.vertices.size()),
-        sizeof(Vertex));
+    // 如果缓冲区已存在且大小足够，重用；否则重建
+    bool needNewVertex = !buffer.vertexBuffer.isValid() || buffer.vertexBuffer.size() < vertexSize;
+    bool needNewIndex = !buffer.indexBuffer.isValid() || buffer.indexBuffer.size() < indexSize;
 
-    if (!result.success()) {
-        return Error(ErrorCode::InitializationFailed,
-            "Failed to create vertex buffer: " + result.error().message());
+    // 创建顶点缓冲区（设备本地内存）
+    if (needNewVertex) {
+        buffer.vertexBuffer.destroy();
+        auto result = buffer.vertexBuffer.create(
+            m_device,
+            m_physicalDevice,
+            static_cast<VkDeviceSize>(meshData.vertices.size()),
+            sizeof(Vertex));
+
+        if (!result.success()) {
+            return Error(ErrorCode::InitializationFailed,
+                "Failed to create vertex buffer: " + result.error().message());
+        }
     }
 
-    // 创建索引缓冲区
-    result = buffer.indexBuffer.create(
-        m_device,
-        m_physicalDevice,
-        static_cast<VkDeviceSize>(meshData.indices.size()));
+    // 创建索引缓冲区（设备本地内存）
+    if (needNewIndex) {
+        buffer.indexBuffer.destroy();
+        auto result = buffer.indexBuffer.create(
+            m_device,
+            m_physicalDevice,
+            static_cast<VkDeviceSize>(meshData.indices.size()));
 
-    if (!result.success()) {
-        buffer.vertexBuffer.destroy();
-        return Error(ErrorCode::InitializationFailed,
-            "Failed to create index buffer: " + result.error().message());
+        if (!result.success()) {
+            buffer.vertexBuffer.destroy();
+            return Error(ErrorCode::InitializationFailed,
+                "Failed to create index buffer: " + result.error().message());
+        }
     }
 
     // 上传数据
@@ -258,21 +268,40 @@ Result<void> ChunkRenderer::createChunkBuffer(
     }
     VkCommandBuffer commandBuffer = cmdResult.value();
 
-    // 上传顶点数据
-    result = uploadBufferData(buffer.vertexBuffer, meshData.vertices.data(), vertexSize);
-    if (!result.success()) {
-        endSingleTimeCommands(commandBuffer);
-        buffer.destroy();
-        return result;
+    // 使用暂存缓冲区上传顶点数据
+    VkDeviceSize maxDataSize = std::max(vertexSize, indexSize);
+    if (maxDataSize > m_stagingBufferSize) {
+        m_stagingBufferSize = maxDataSize;
+        auto result = m_stagingBuffer->create(m_device, m_physicalDevice, m_stagingBufferSize);
+        if (!result.success()) {
+            endSingleTimeCommands(commandBuffer);
+            return Error(ErrorCode::OperationFailed, "Failed to resize staging buffer");
+        }
     }
 
-    // 上传索引数据
-    result = uploadBufferData(buffer.indexBuffer, meshData.indices.data(), indexSize);
-    if (!result.success()) {
+    // 上传顶点数据
+    void* mapped = m_stagingBuffer->map().value();
+    if (!mapped) {
         endSingleTimeCommands(commandBuffer);
-        buffer.destroy();
-        return result;
+        return Error(ErrorCode::OperationFailed, "Failed to map staging buffer");
     }
+    std::memcpy(mapped, meshData.vertices.data(), static_cast<size_t>(vertexSize));
+    m_stagingBuffer->unmap();
+
+    // 复制顶点数据到设备本地缓冲区
+    m_stagingBuffer->copyTo(commandBuffer, buffer.vertexBuffer, vertexSize);
+
+    // 上传索引数据
+    mapped = m_stagingBuffer->map().value();
+    if (!mapped) {
+        endSingleTimeCommands(commandBuffer);
+        return Error(ErrorCode::OperationFailed, "Failed to map staging buffer");
+    }
+    std::memcpy(mapped, meshData.indices.data(), static_cast<size_t>(indexSize));
+    m_stagingBuffer->unmap();
+
+    // 复制索引数据到设备本地缓冲区
+    m_stagingBuffer->copyTo(commandBuffer, buffer.indexBuffer, indexSize);
 
     endSingleTimeCommands(commandBuffer);
 

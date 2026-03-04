@@ -88,8 +88,17 @@ public:
     VulkanContext(const VulkanContext&) = delete;
     VulkanContext& operator=(const VulkanContext&) = delete;
 
-    // 初始化
+    // 初始化（完整流程）
     [[nodiscard]] Result<void> initialize(const VulkanConfig& config, VkSurfaceKHR surface);
+
+    // 分阶段初始化
+    // 第一步：创建instance
+    [[nodiscard]] Result<void> createInstanceOnly(const VulkanConfig& config);
+    // 第二步：设置surface
+    void setSurface(VkSurfaceKHR surface);
+    // 第三步：创建设备
+    [[nodiscard]] Result<void> createDevice();
+
     void destroy();
 
     // 实例和设备

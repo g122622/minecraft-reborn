@@ -17,6 +17,7 @@ add_library(mr_common STATIC
     world/BlockID.cpp
     world/ChunkData.cpp
     world/TerrainGenerator.cpp
+    world/BlockProperties.cpp
 
     # Resource
     resource/ResourceLocation.cpp
