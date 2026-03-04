@@ -2,6 +2,7 @@
 #include "VulkanBuffer.hpp"
 #include "DefaultTextureAtlas.hpp"
 #include "../../common/renderer/ChunkMesher.hpp"
+#include "../../common/renderer/MeshTypes.hpp"
 #include "../../common/world/WorldConstants.hpp"
 #include <spdlog/spdlog.h>
 #include <array>
@@ -153,13 +154,7 @@ Result<void> VulkanRenderer::initialize(GLFWwindow* window, const RendererConfig
         spdlog::warn("Failed to create chunk texture atlas: {}", chunkAtlasResult.error().toString());
     }
 
-    // 创建测试区块
-    if (m_chunkRendererInitialized) {
-        auto testChunkResult = createTestChunk();
-        if (testChunkResult.failed()) {
-            spdlog::warn("Failed to create test chunk: {}", testChunkResult.error().toString());
-        }
-    }
+    // 注意：区块由 ClientWorld 管理，不再自动创建测试区块
 
     m_initialized = true;
     spdlog::info("Vulkan renderer initialized successfully");
@@ -386,25 +381,26 @@ void VulkanRenderer::renderChunks(VkCommandBuffer cmd) {
                                 &m_chunkTextureDescriptorSet, 0, nullptr);
     }
 
-    // 设置推送常量
-    ModelPushConstants pushConstants{};
-    std::memset(&pushConstants, 0, sizeof(pushConstants));
-    // 单位矩阵
-    pushConstants.model[0] = 1.0f;
-    pushConstants.model[5] = 1.0f;
-    pushConstants.model[10] = 1.0f;
-    pushConstants.model[15] = 1.0f;
-    // 区块偏移将在每个区块绘制时设置
-    pushConstants.chunkOffset[0] = 0.0f;
-    pushConstants.chunkOffset[1] = 0.0f;
-    pushConstants.chunkOffset[2] = 0.0f;
-    pushConstants.padding = 0.0f;
+    // 渲染所有区块，为每个区块设置正确的世界偏移
+    m_chunkRenderer.render(cmd, m_chunkPipeline->pipelineLayout(),
+        [this, cmd](const ChunkId& chunkId) {
+            // 设置推送常量 - 区块世界偏移
+            ModelPushConstants pushConstants{};
+            std::memset(&pushConstants, 0, sizeof(pushConstants));
+            // 单位矩阵
+            pushConstants.model[0] = 1.0f;
+            pushConstants.model[5] = 1.0f;
+            pushConstants.model[10] = 1.0f;
+            pushConstants.model[15] = 1.0f;
+            // 区块世界偏移（区块坐标 * 区块大小）
+            pushConstants.chunkOffset[0] = static_cast<f32>(chunkId.x * world::CHUNK_WIDTH);
+            pushConstants.chunkOffset[1] = 0.0f;
+            pushConstants.chunkOffset[2] = static_cast<f32>(chunkId.z * world::CHUNK_WIDTH);
+            pushConstants.padding = 0.0f;
 
-    vkCmdPushConstants(cmd, m_chunkPipeline->pipelineLayout(),
-                       VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pushConstants), &pushConstants);
-
-    // 渲染所有区块
-    m_chunkRenderer.render(cmd, m_chunkPipeline->pipelineLayout());
+            vkCmdPushConstants(cmd, m_chunkPipeline->pipelineLayout(),
+                               VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pushConstants), &pushConstants);
+        });
 }
 
 void VulkanRenderer::renderTestTriangle(VkCommandBuffer cmd) {
@@ -1621,6 +1617,10 @@ Result<void> VulkanRenderer::createChunkTextureAtlas() {
         return Error(ErrorCode::InitializationFailed, "Failed to initialize ChunkRenderer: " + result.error().toString());
     }
     m_chunkRendererInitialized = true;
+
+    // 初始化方块模型注册表
+    TextureAtlas cpuAtlas(DefaultTextureAtlas::atlasSize(), DefaultTextureAtlas::atlasSize(), DefaultTextureAtlas::tileSize());
+    BlockModelRegistry::instance().initialize(cpuAtlas);
 
     spdlog::info("Chunk texture atlas created ({}x{}, tile: {})",
                  DefaultTextureAtlas::atlasSize(), DefaultTextureAtlas::atlasSize(), DefaultTextureAtlas::tileSize());

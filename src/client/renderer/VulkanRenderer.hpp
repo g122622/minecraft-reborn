@@ -73,6 +73,11 @@ public:
     Camera* camera() { return m_camera; }
     const Camera* camera() const { return m_camera; }
 
+    // 区块管理
+    ChunkRenderer& chunkRenderer() { return m_chunkRenderer; }
+    const ChunkRenderer& chunkRenderer() const { return m_chunkRenderer; }
+    bool isChunkRendererInitialized() const { return m_chunkRendererInitialized; }
+
     // 状态
     bool isInitialized() const { return m_initialized; }
     bool isMinimized() const { return m_minimized; }

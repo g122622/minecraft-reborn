@@ -160,11 +160,47 @@ void ChunkRenderer::render(VkCommandBuffer commandBuffer, VkPipelineLayout pipel
         // 实际使用时需要在渲染管线中设置 descriptor
     }
 
+    // 渲染所有区块（不设置偏移，由外部设置）
+    for (const auto& pair : m_chunkBuffers) {
+        const auto& buffer = pair.second;
+        if (!buffer->isValid) {
+            continue;
+        }
+
+        buffer->vertexBuffer.bind(commandBuffer);
+        buffer->indexBuffer.bind(commandBuffer);
+
+        vkCmdDrawIndexed(
+            commandBuffer,
+            buffer->indexCount,
+            1,  // instance count
+            0,  // first index
+            0,  // vertex offset
+            0   // first instance
+        );
+    }
+}
+
+void ChunkRenderer::render(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout,
+                           PushConstantsCallback pushConstantsCallback) {
+    // 绑定纹理
+    if (m_textureAtlas.isValid()) {
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = m_textureAtlas.texture().imageView();
+        imageInfo.sampler = m_textureAtlas.texture().sampler();
+    }
+
     // 渲染所有区块
     for (const auto& pair : m_chunkBuffers) {
         const auto& buffer = pair.second;
         if (!buffer->isValid) {
             continue;
+        }
+
+        // 调用回调设置推送常量（区块偏移）
+        if (pushConstantsCallback) {
+            pushConstantsCallback(buffer->chunkId);
         }
 
         buffer->vertexBuffer.bind(commandBuffer);

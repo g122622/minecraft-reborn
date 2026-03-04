@@ -24,6 +24,7 @@ add_executable(minecraft-client
     resource/BlockStateLoader.cpp
     resource/TextureAtlasBuilder.cpp
     resource/ResourceManager.cpp
+    world/ClientWorld.cpp
 )
 
 target_link_libraries(minecraft-client

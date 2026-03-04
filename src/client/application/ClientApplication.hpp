@@ -6,6 +6,7 @@
 #include "../input/InputManager.hpp"
 #include "../renderer/VulkanRenderer.hpp"
 #include "../renderer/Camera.hpp"
+#include "../world/ClientWorld.hpp"
 
 #include <string>
 #include <memory>
@@ -110,6 +111,12 @@ public:
     [[nodiscard]] Camera& camera() noexcept { return m_camera; }
     [[nodiscard]] const Camera& camera() const noexcept { return m_camera; }
 
+    /**
+     * @brief 获取世界
+     */
+    [[nodiscard]] ClientWorld& world() noexcept { return m_world; }
+    [[nodiscard]] const ClientWorld& world() const noexcept { return m_world; }
+
     // 友元声明，用于回调
     friend void onWindowResize(i32 width, i32 height, void* userData);
 
@@ -134,6 +141,9 @@ private:
     Camera m_camera;
     CameraController m_cameraController;
     bool m_mouseCaptured = false;
+
+    // 世界
+    ClientWorld m_world;
 
     std::atomic<bool> m_running{false};
     std::atomic<bool> m_initialized{false};

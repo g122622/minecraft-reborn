@@ -102,6 +102,16 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
     // 将相机设置给渲染器
     m_renderer->setCamera(&m_camera);
 
+    // 初始化世界
+    spdlog::info("Initializing world...");
+    auto worldResult = m_world.initialize(12345); // 使用固定种子
+    if (worldResult.failed()) {
+        spdlog::error("Failed to initialize world: {}", worldResult.error().toString());
+        m_renderer->destroy();
+        m_window.destroy();
+        return worldResult.error();
+    }
+
     spdlog::info("Client initialized successfully");
     spdlog::info("Window: {}x{}", m_window.width(), m_window.height());
     spdlog::info("Controls: WASD to move, Space to go up, Shift to go down, mouse to look");
@@ -238,6 +248,30 @@ void ClientApplication::update(f32 deltaTime)
 {
     // 更新相机控制器（这会调用 Camera::update 更新矩阵）
     m_cameraController.update(deltaTime);
+
+    // 更新世界（根据相机位置加载/卸载区块）
+    m_world.update(m_camera.position(), m_config.renderDistance);
+
+    // 更新需要重建网格的区块
+    if (m_renderer->isChunkRendererInitialized()) {
+        auto& chunkRenderer = m_renderer->chunkRenderer();
+        m_world.forEachDirtyMesh([this, &chunkRenderer](const ChunkId& id, ClientChunk& chunk) {
+            // 检查网格是否为空
+            if (chunk.solidMesh.empty()) {
+                chunk.needsMeshUpdate = false;
+                return;
+            }
+
+            // 上传网格到GPU
+            ChunkId chunkId(id.x, id.z);
+            auto result = chunkRenderer.updateChunk(chunkId, chunk.solidMesh);
+            if (result.success()) {
+                chunk.needsMeshUpdate = false;
+            } else {
+                spdlog::error("Failed to update chunk mesh: {}", result.error().toString());
+            }
+        });
+    }
 }
 
 void ClientApplication::render()
@@ -262,9 +296,8 @@ void ClientApplication::shutdown()
         m_renderer.reset();
     }
 
-    // TODO: 清理资源
-    // - 保存世界
-    // - 断开服务器连接
+    // 清理世界
+    m_world.destroy();
 
     m_window.destroy();
 

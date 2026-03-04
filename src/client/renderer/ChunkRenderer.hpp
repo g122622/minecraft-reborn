@@ -70,6 +70,12 @@ public:
     // 渲染
     void render(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout);
 
+    // 渲染（带推送常量回调）
+    // pushConstantsCallback: 设置推送常量的回调函数，参数是 chunkId
+    using PushConstantsCallback = std::function<void(const ChunkId&)>;
+    void render(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout,
+                PushConstantsCallback pushConstantsCallback);
+
     // 统计
     u32 chunkCount() const { return static_cast<u32>(m_chunkBuffers.size()); }
     u32 totalVertexCount() const { return m_totalVertices; }
