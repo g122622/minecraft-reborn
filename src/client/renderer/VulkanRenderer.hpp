@@ -112,6 +112,11 @@ private:
     std::vector<VkCommandBuffer> m_commandBuffers;
     std::vector<VkFramebuffer> m_framebuffers;
 
+    // 深度缓冲区
+    VkImage m_depthImage = VK_NULL_HANDLE;
+    VkDeviceMemory m_depthImageMemory = VK_NULL_HANDLE;
+    VkImageView m_depthImageView = VK_NULL_HANDLE;
+
     // 描述符
     VkDescriptorSetLayout m_cameraDescriptorLayout = VK_NULL_HANDLE;
     VkDescriptorSetLayout m_textureDescriptorLayout = VK_NULL_HANDLE;
@@ -163,6 +168,7 @@ private:
 
     // 创建函数
     [[nodiscard]] Result<void> createRenderPass();
+    [[nodiscard]] Result<void> createDepthResources();
     [[nodiscard]] Result<void> createCommandPool();
     [[nodiscard]] Result<void> createCommandBuffers();
     [[nodiscard]] Result<void> createFramebuffers();
@@ -178,6 +184,7 @@ private:
     [[nodiscard]] Result<void> createChunkTextureAtlas();
 
     void destroyRenderPass();
+    void destroyDepthResources();
     void destroyCommandPool();
     void destroyCommandBuffers();
     void destroyFramebuffers();

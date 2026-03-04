@@ -77,6 +77,12 @@ Result<void> VulkanRenderer::initialize(GLFWwindow* window, const RendererConfig
         return renderPassResult.error();
     }
 
+    // 创建深度缓冲区
+    auto depthResult = createDepthResources();
+    if (depthResult.failed()) {
+        return depthResult.error();
+    }
+
     // 创建描述符集布局
     auto descriptorResult = createDescriptorSetLayouts();
     if (descriptorResult.failed()) {
@@ -179,6 +185,7 @@ void VulkanRenderer::destroy() {
     destroySyncObjects();
     destroyDescriptors();
     destroyFramebuffers();
+    destroyDepthResources();
     destroyCommandBuffers();
     destroyCommandPool();
     destroyRenderPass();
@@ -252,9 +259,13 @@ Result<void> VulkanRenderer::beginFrame() {
     renderPassInfo.renderArea.offset = {0, 0};
     renderPassInfo.renderArea.extent = m_swapchain->extent();
 
-    VkClearValue clearColor = {{{0.0f, 0.0f, 0.2f, 1.0f}}};
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = &clearColor;
+    // 清除值：颜色 + 深度
+    std::array<VkClearValue, 2> clearValues{};
+    clearValues[0].color = {{0.0f, 0.0f, 0.2f, 1.0f}};
+    clearValues[1].depthStencil.depth = 1.0f;
+    clearValues[1].depthStencil.stencil = 0;
+    renderPassInfo.clearValueCount = static_cast<u32>(clearValues.size());
+    renderPassInfo.pClearValues = clearValues.data();
 
     vkCmdBeginRenderPass(cmd, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -484,6 +495,7 @@ VkCommandBuffer VulkanRenderer::currentCommandBuffer() const {
 }
 
 Result<void> VulkanRenderer::createRenderPass() {
+    // 颜色附件
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = m_swapchain->imageFormat();
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -498,23 +510,45 @@ Result<void> VulkanRenderer::createRenderPass() {
     colorAttachmentRef.attachment = 0;
     colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+    // 深度附件
+    VkAttachmentDescription depthAttachment{};
+    auto depthFormatResult = m_context->findDepthFormat();
+    VkFormat depthFormat = depthFormatResult.success() ? depthFormatResult.value() : VK_FORMAT_D32_SFLOAT;
+    depthAttachment.format = depthFormat;
+    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depthAttachmentRef{};
+    depthAttachmentRef.attachment = 1;
+    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    // 附件数组
+    std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
+
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
+    subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
+    // 深度附件需要在早期片段测试阶段可用
     VkSubpassDependency dependency{};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
     dependency.srcAccessMask = 0;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
     VkRenderPassCreateInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount = 1;
-    renderPassInfo.pAttachments = &colorAttachment;
+    renderPassInfo.attachmentCount = static_cast<u32>(attachments.size());
+    renderPassInfo.pAttachments = attachments.data();
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
     renderPassInfo.dependencyCount = 1;
@@ -525,7 +559,79 @@ Result<void> VulkanRenderer::createRenderPass() {
         return Error(ErrorCode::Unknown, "Failed to create render pass: " + std::to_string(result));
     }
 
-    spdlog::info("Render pass created");
+    spdlog::info("Render pass created with depth attachment");
+    return Result<void>::ok();
+}
+
+Result<void> VulkanRenderer::createDepthResources() {
+    auto depthFormatResult = m_context->findDepthFormat();
+    VkFormat depthFormat = depthFormatResult.success() ? depthFormatResult.value() : VK_FORMAT_D32_SFLOAT;
+    VkExtent2D extent = m_swapchain->extent();
+
+    // 创建深度图像
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = extent.width;
+    imageInfo.extent.height = extent.height;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = depthFormat;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VkDevice device = m_context->device();
+    VkResult result = vkCreateImage(device, &imageInfo, nullptr, &m_depthImage);
+    if (result != VK_SUCCESS) {
+        return Error(ErrorCode::OutOfMemory, "Failed to create depth image: " + std::to_string(result));
+    }
+
+    // 分配内存
+    VkMemoryRequirements memRequirements;
+    vkGetImageMemoryRequirements(device, m_depthImage, &memRequirements);
+
+    auto memoryTypeResult = m_context->findMemoryType(
+        memRequirements.memoryTypeBits,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    );
+    if (memoryTypeResult.failed()) {
+        return memoryTypeResult.error();
+    }
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = memoryTypeResult.value();
+
+    result = vkAllocateMemory(device, &allocInfo, nullptr, &m_depthImageMemory);
+    if (result != VK_SUCCESS) {
+        return Error(ErrorCode::OutOfMemory, "Failed to allocate depth image memory: " + std::to_string(result));
+    }
+
+    vkBindImageMemory(device, m_depthImage, m_depthImageMemory, 0);
+
+    // 创建图像视图
+    VkImageViewCreateInfo viewInfo{};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = m_depthImage;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = depthFormat;
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = 1;
+
+    result = vkCreateImageView(device, &viewInfo, nullptr, &m_depthImageView);
+    if (result != VK_SUCCESS) {
+        return Error(ErrorCode::Unknown, "Failed to create depth image view: " + std::to_string(result));
+    }
+
+    spdlog::info("Depth buffer created: {}x{}, format: {}", extent.width, extent.height, static_cast<int>(depthFormat));
     return Result<void>::ok();
 }
 
@@ -568,12 +674,12 @@ Result<void> VulkanRenderer::createFramebuffers() {
     m_framebuffers.resize(m_swapchain->imageCount());
 
     for (size_t i = 0; i < m_swapchain->imageCount(); ++i) {
-        VkImageView attachments[] = {m_swapchain->imageViews()[i]};
+        VkImageView attachments[] = {m_swapchain->imageViews()[i], m_depthImageView};
 
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebufferInfo.renderPass = m_renderPass;
-        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.attachmentCount = 2;
         framebufferInfo.pAttachments = attachments;
         framebufferInfo.width = m_swapchain->extent().width;
         framebufferInfo.height = m_swapchain->extent().height;
@@ -653,6 +759,24 @@ void VulkanRenderer::destroyRenderPass() {
     }
 }
 
+void VulkanRenderer::destroyDepthResources() {
+    VkDevice device = m_context ? m_context->device() : VK_NULL_HANDLE;
+    if (device == VK_NULL_HANDLE) return;
+
+    if (m_depthImageView != VK_NULL_HANDLE) {
+        vkDestroyImageView(device, m_depthImageView, nullptr);
+        m_depthImageView = VK_NULL_HANDLE;
+    }
+    if (m_depthImage != VK_NULL_HANDLE) {
+        vkDestroyImage(device, m_depthImage, nullptr);
+        m_depthImage = VK_NULL_HANDLE;
+    }
+    if (m_depthImageMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, m_depthImageMemory, nullptr);
+        m_depthImageMemory = VK_NULL_HANDLE;
+    }
+}
+
 void VulkanRenderer::destroyCommandPool() {
     if (m_commandPool != VK_NULL_HANDLE) {
         vkDestroyCommandPool(m_context->device(), m_commandPool, nullptr);
@@ -706,6 +830,7 @@ Result<void> VulkanRenderer::recreateSwapchain() {
     m_context->waitIdle();
 
     destroyFramebuffers();
+    destroyDepthResources();
     destroyCommandBuffers();
     destroyRenderPass();
 
@@ -727,6 +852,11 @@ Result<void> VulkanRenderer::recreateSwapchain() {
     auto renderPassResult = createRenderPass();
     if (renderPassResult.failed()) {
         return renderPassResult.error();
+    }
+
+    auto depthResult = createDepthResources();
+    if (depthResult.failed()) {
+        return depthResult.error();
     }
 
     auto commandBufferResult = createCommandBuffers();
@@ -1411,12 +1541,12 @@ Result<void> VulkanRenderer::createChunkPipeline() {
     // 光栅化配置
     config.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     config.polygonMode = VK_POLYGON_MODE_FILL;
-    config.cullMode = VK_CULL_MODE_NONE;  // 暂时禁用剔除
-    config.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    config.cullMode = VK_CULL_MODE_BACK_BIT;  // 启用背面剔除
+    config.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;  // 由于投影矩阵翻转Y轴，屏幕空间缠绕顺序反转
 
-    // 深度测试（暂时禁用）
-    config.depthTestEnable = VK_FALSE;
-    config.depthWriteEnable = VK_FALSE;
+    // 深度测试
+    config.depthTestEnable = VK_TRUE;   // 启用深度测试
+    config.depthWriteEnable = VK_TRUE;  // 启用深度写入
 
     // 渲染通道
     config.renderPass = m_renderPass;
