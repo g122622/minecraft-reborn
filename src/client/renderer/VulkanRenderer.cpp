@@ -375,6 +375,10 @@ void VulkanRenderer::renderChunks(VkCommandBuffer cmd) {
         return;
     }
 
+    if (m_chunkRenderer.chunkCount() == 0) {
+        return;
+    }
+
     // 绑定区块管线
     m_chunkPipeline->bind(cmd);
 

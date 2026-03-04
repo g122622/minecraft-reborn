@@ -354,14 +354,15 @@ void ClientWorld::onChunkData(ChunkCoord x, ChunkCoord z, std::vector<u8>&& data
     chunk->chunkId = id;
     chunk->data = std::move(chunkData);
     chunk->isLoaded = true;
-    chunk->needsMeshUpdate = true;
 
-    // 重建网格
+    // 重建网格（rebuildMesh 会设置 needsMeshUpdate = false）
     rebuildMesh(*chunk);
+
+    // 标记需要上传到 GPU（重要！需要在下一帧上传到 GPU）
+    chunk->needsMeshUpdate = true;
 
     m_chunks[id] = std::move(chunk);
     m_chunksLoaded++;
-    spdlog::debug("Chunk ({}, {}) loaded", x, z);
 }
 
 void ClientWorld::onChunkUnload(ChunkCoord x, ChunkCoord z) {

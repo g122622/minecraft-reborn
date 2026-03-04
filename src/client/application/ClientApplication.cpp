@@ -443,9 +443,8 @@ void ClientApplication::setupNetworkCallbacks()
         m_camera.setPosition(static_cast<f32>(x), static_cast<f32>(y), static_cast<f32>(z));
         m_camera.setYaw(yaw);
         m_camera.setPitch(pitch);
-        if (m_networkClient) {
-            m_networkClient->sendTeleportConfirm(teleportId);
-        }
+        m_camera.update(0.0f);  // 立即更新相机矩阵
+        // 注意：sendTeleportConfirm 已在 NetworkClient::handleTeleport 中调用
     };
 
     callbacks.onBlockUpdate = [this](i32 bx, i32 by, i32 bz, BlockId blockId, u16 blockData) {
