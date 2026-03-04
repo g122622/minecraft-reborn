@@ -39,6 +39,17 @@ public:
     }
 };
 
+// VarInt/VarLong 编码结果
+struct VarIntResult {
+    i32 value;
+    size_t bytesRead;
+};
+
+struct VarLongResult {
+    i64 value;
+    size_t bytesRead;
+};
+
 // 数据包序列化器
 class PacketSerializer {
 public:
@@ -62,6 +73,12 @@ public:
     void writeBytes(const u8* data, size_t size);
     void writeBytes(const std::vector<u8>& data);
 
+    // VarInt/VarLong 写入 (Minecraft协议格式)
+    void writeVarInt(i32 value);
+    void writeVarLong(i64 value);
+    void writeVarUInt(u32 value);  // 无符号VarInt
+    void writeVarULong(u64 value); // 无符号VarLong
+
     // 读取操作
     [[nodiscard]] Result<u8> readU8();
     [[nodiscard]] Result<u16> readU16();
@@ -76,6 +93,12 @@ public:
     [[nodiscard]] Result<bool> readBool();
     [[nodiscard]] Result<String> readString();
     [[nodiscard]] Result<std::vector<u8>> readBytes(size_t size);
+
+    // VarInt/VarLong 读取
+    [[nodiscard]] Result<i32> readVarInt();
+    [[nodiscard]] Result<i64> readVarLong();
+    [[nodiscard]] Result<u32> readVarUInt();
+    [[nodiscard]] Result<u64> readVarULong();
 
     // 缓冲区管理
     const std::vector<u8>& buffer() const { return m_buffer; }
@@ -114,6 +137,12 @@ public:
     [[nodiscard]] Result<bool> readBool();
     [[nodiscard]] Result<String> readString();
     [[nodiscard]] Result<std::vector<u8>> readBytes(size_t size);
+
+    // VarInt/VarLong 读取
+    [[nodiscard]] Result<i32> readVarInt();
+    [[nodiscard]] Result<i64> readVarLong();
+    [[nodiscard]] Result<u32> readVarUInt();
+    [[nodiscard]] Result<u64> readVarULong();
 
     // 状态查询
     size_t size() const { return m_size; }

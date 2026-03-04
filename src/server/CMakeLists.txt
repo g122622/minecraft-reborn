@@ -4,8 +4,10 @@
 add_executable(minecraft-server
     main.cpp
     application/ServerApplication.cpp
+    application/IntegratedServer.cpp
     network/TcpServer.cpp
     network/TcpSession.cpp
+    world/ServerWorld.cpp
 )
 
 target_link_libraries(minecraft-server

@@ -144,6 +144,45 @@ void PacketSerializer::writeBytes(const std::vector<u8>& data) {
     m_buffer.insert(m_buffer.end(), data.begin(), data.end());
 }
 
+// ============================================================================
+// VarInt/VarLong 写入实现
+// ============================================================================
+
+void PacketSerializer::writeVarInt(i32 value) {
+    // VarInt 使用 ZigZag 编码将有符号转为无符号
+    // 但Minecraft协议中VarInt直接使用有符号数
+    // 使用无符号形式写入，每个字节的低7位存储数据
+    u32 uvalue = static_cast<u32>(value);
+    while (true) {
+        if ((uvalue & ~0x7F) == 0) {
+            m_buffer.push_back(static_cast<u8>(uvalue));
+            break;
+        }
+        m_buffer.push_back(static_cast<u8>((uvalue & 0x7F) | 0x80));
+        uvalue >>= 7;
+    }
+}
+
+void PacketSerializer::writeVarLong(i64 value) {
+    u64 uvalue = static_cast<u64>(value);
+    while (true) {
+        if ((uvalue & ~0x7FULL) == 0) {
+            m_buffer.push_back(static_cast<u8>(uvalue));
+            break;
+        }
+        m_buffer.push_back(static_cast<u8>((uvalue & 0x7F) | 0x80));
+        uvalue >>= 7;
+    }
+}
+
+void PacketSerializer::writeVarUInt(u32 value) {
+    writeVarInt(static_cast<i32>(value));
+}
+
+void PacketSerializer::writeVarULong(u64 value) {
+    writeVarLong(static_cast<i64>(value));
+}
+
 Result<u8> PacketSerializer::readU8() {
     if (m_readPos + 1 > m_buffer.size()) {
         return Error(ErrorCode::OutOfBounds, "Not enough data to read u8");
@@ -266,6 +305,76 @@ Result<std::vector<u8>> PacketSerializer::readBytes(size_t size) {
     std::vector<u8> data(m_buffer.begin() + m_readPos, m_buffer.begin() + m_readPos + size);
     m_readPos += size;
     return data;
+}
+
+// ============================================================================
+// VarInt/VarLong 读取实现
+// ============================================================================
+
+Result<i32> PacketSerializer::readVarInt() {
+    i32 result = 0;
+    int shift = 0;
+
+    while (true) {
+        if (m_readPos >= m_buffer.size()) {
+            return Error(ErrorCode::OutOfBounds, "Not enough data to read VarInt");
+        }
+
+        u8 byte = m_buffer[m_readPos++];
+        result |= static_cast<i32>(byte & 0x7F) << shift;
+
+        if ((byte & 0x80) == 0) {
+            break;
+        }
+
+        shift += 7;
+        if (shift >= 35) {
+            return Error(ErrorCode::InvalidData, "VarInt too long");
+        }
+    }
+
+    return result;
+}
+
+Result<i64> PacketSerializer::readVarLong() {
+    i64 result = 0;
+    int shift = 0;
+
+    while (true) {
+        if (m_readPos >= m_buffer.size()) {
+            return Error(ErrorCode::OutOfBounds, "Not enough data to read VarLong");
+        }
+
+        u8 byte = m_buffer[m_readPos++];
+        result |= static_cast<i64>(byte & 0x7F) << shift;
+
+        if ((byte & 0x80) == 0) {
+            break;
+        }
+
+        shift += 7;
+        if (shift >= 70) {
+            return Error(ErrorCode::InvalidData, "VarLong too long");
+        }
+    }
+
+    return result;
+}
+
+Result<u32> PacketSerializer::readVarUInt() {
+    auto result = readVarInt();
+    if (result.failed()) {
+        return result.error();
+    }
+    return static_cast<u32>(result.value());
+}
+
+Result<u64> PacketSerializer::readVarULong() {
+    auto result = readVarLong();
+    if (result.failed()) {
+        return result.error();
+    }
+    return static_cast<u64>(result.value());
 }
 
 void PacketSerializer::clear() {
@@ -425,6 +534,76 @@ Result<std::vector<u8>> PacketDeserializer::readBytes(size_t size) {
     std::vector<u8> data(m_data + m_readPos, m_data + m_readPos + size);
     m_readPos += size;
     return data;
+}
+
+// ============================================================================
+// PacketDeserializer VarInt/VarLong 读取实现
+// ============================================================================
+
+Result<i32> PacketDeserializer::readVarInt() {
+    i32 result = 0;
+    int shift = 0;
+
+    while (true) {
+        if (m_readPos >= m_size) {
+            return Error(ErrorCode::OutOfBounds, "Not enough data to read VarInt");
+        }
+
+        u8 byte = m_data[m_readPos++];
+        result |= static_cast<i32>(byte & 0x7F) << shift;
+
+        if ((byte & 0x80) == 0) {
+            break;
+        }
+
+        shift += 7;
+        if (shift >= 35) {
+            return Error(ErrorCode::InvalidData, "VarInt too long");
+        }
+    }
+
+    return result;
+}
+
+Result<i64> PacketDeserializer::readVarLong() {
+    i64 result = 0;
+    int shift = 0;
+
+    while (true) {
+        if (m_readPos >= m_size) {
+            return Error(ErrorCode::OutOfBounds, "Not enough data to read VarLong");
+        }
+
+        u8 byte = m_data[m_readPos++];
+        result |= static_cast<i64>(byte & 0x7F) << shift;
+
+        if ((byte & 0x80) == 0) {
+            break;
+        }
+
+        shift += 7;
+        if (shift >= 70) {
+            return Error(ErrorCode::InvalidData, "VarLong too long");
+        }
+    }
+
+    return result;
+}
+
+Result<u32> PacketDeserializer::readVarUInt() {
+    auto result = readVarInt();
+    if (result.failed()) {
+        return result.error();
+    }
+    return static_cast<u32>(result.value());
+}
+
+Result<u64> PacketDeserializer::readVarULong() {
+    auto result = readVarLong();
+    if (result.failed()) {
+        return result.error();
+    }
+    return static_cast<u64>(result.value());
 }
 
 } // namespace mr::network

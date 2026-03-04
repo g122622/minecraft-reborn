@@ -1,6 +1,7 @@
 #include "ClientWorld.hpp"
 #include "../../common/renderer/ChunkMesher.hpp"
 #include "../../common/world/WorldConstants.hpp"
+#include "../../common/network/ChunkSync.hpp"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <cmath>
@@ -17,9 +18,13 @@ ClientWorld::~ClientWorld() {
 
 Result<void> ClientWorld::initialize(u64 seed) {
     m_seed = seed;
-    m_terrainGenerator = TerrainGenFactory::createStandard(seed);
 
-    spdlog::info("ClientWorld initialized with seed: {}", seed);
+    // 网络模式下不创建本地地形生成器
+    if (!m_networkMode) {
+        m_terrainGenerator = TerrainGenFactory::createStandard(seed);
+    }
+
+    spdlog::info("ClientWorld initialized with seed: {} (networkMode: {})", seed, m_networkMode);
     return Result<void>::ok();
 }
 
@@ -38,12 +43,12 @@ void ClientWorld::destroy() {
 void ClientWorld::update(const glm::vec3& cameraPosition, i32 renderDistance) {
     m_renderDistance = renderDistance;
 
-    // 加载/卸载区块
-    loadChunksInRange(cameraPosition, renderDistance);
+    // 网络模式下，区块加载由服务端控制，客户端只处理卸载
+    if (!m_networkMode) {
+        loadChunksInRange(cameraPosition, renderDistance);
+        processLoadQueue();
+    }
     unloadChunksOutOfRange(cameraPosition, renderDistance + 2); // 多保留2个区块的缓冲
-
-    // 处理加载队列
-    processLoadQueue();
 }
 
 ClientChunk* ClientWorld::getChunk(const ChunkId& id) {
@@ -331,6 +336,41 @@ world::ChunkLoadPriority ClientWorld::calculatePriority(const ChunkId& id, const
         return world::ChunkLoadPriority::Normal;
     } else {
         return world::ChunkLoadPriority::Low;
+    }
+}
+
+void ClientWorld::onChunkData(ChunkCoord x, ChunkCoord z, std::vector<u8>&& data) {
+    ChunkId id(x, z);
+
+    // 反序列化区块数据
+    auto result = network::ChunkSerializer::deserializeChunk(x, z, data);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize chunk ({}, {}): {}", x, z, result.error().message());
+        return;
+    }
+    auto chunkData = std::move(result.value());
+
+    auto chunk = std::make_unique<ClientChunk>();
+    chunk->chunkId = id;
+    chunk->data = std::move(chunkData);
+    chunk->isLoaded = true;
+    chunk->needsMeshUpdate = true;
+
+    // 重建网格
+    rebuildMesh(*chunk);
+
+    m_chunks[id] = std::move(chunk);
+    m_chunksLoaded++;
+    spdlog::debug("Chunk ({}, {}) loaded", x, z);
+}
+
+void ClientWorld::onChunkUnload(ChunkCoord x, ChunkCoord z) {
+    ChunkId id(x, z);
+    auto it = m_chunks.find(id);
+    if (it != m_chunks.end()) {
+        m_chunks.erase(it);
+        m_chunksUnloaded++;
+        spdlog::debug("Unloaded chunk ({}, {}) from server", x, z);
     }
 }
 

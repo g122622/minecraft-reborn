@@ -12,6 +12,13 @@ add_library(mr_common STATIC
     # Network
     network/Packet.cpp
     network/PacketSerializer.cpp
+    network/ChunkSync.cpp
+    network/LocalConnection.cpp
+
+    # Entity
+    entity/Entity.cpp
+    entity/Player.cpp
+    entity/PlayerManager.cpp
 
     # World
     world/BlockID.cpp

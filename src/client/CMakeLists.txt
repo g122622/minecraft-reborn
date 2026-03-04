@@ -25,6 +25,10 @@ add_executable(minecraft-client
     resource/TextureAtlasBuilder.cpp
     resource/ResourceManager.cpp
     world/ClientWorld.cpp
+    network/NetworkClient.cpp
+    # 内置服务端支持
+    ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp
 )
 
 target_link_libraries(minecraft-client
@@ -37,7 +41,7 @@ target_link_libraries(minecraft-client
 )
 
 if(WIN32)
-    target_link_libraries(minecraft-client PRIVATE user32 gdi32)
+    target_link_libraries(minecraft-client PRIVATE user32 gdi32 ws2_32)
 endif()
 
 mr_set_compiler_warnings(minecraft-client)

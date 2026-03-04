@@ -1,0 +1,164 @@
+#pragma once
+
+#include "../world/ChunkData.hpp"
+#include "../world/ChunkPos.hpp"
+#include "ProtocolPackets.hpp"
+#include "../core/Result.hpp"
+#include <unordered_set>
+#include <unordered_map>
+#include <memory>
+
+namespace mr::network {
+
+// ============================================================================
+// 区块序列化器 - 将区块数据序列化为网络传输格式
+// ============================================================================
+
+class ChunkSerializer {
+public:
+    // 序列化区块数据到包格式
+    static Result<std::vector<u8>> serializeChunk(const ChunkData& chunk);
+    static std::vector<u8> serializeSection(const ChunkSection& section);
+
+    // 反序列化区块数据
+    static Result<std::unique_ptr<ChunkData>> deserializeChunk(
+        ChunkCoord x, ChunkCoord z,
+        const std::vector<u8>& data
+    );
+    static Result<std::unique_ptr<ChunkSection>> deserializeChunkSection(
+        const u8* data, size_t size
+    );
+
+    // 计算序列化后的大小
+    static size_t calculateChunkSize(const ChunkData& chunk);
+    static size_t calculateSectionSize(const ChunkSection& section);
+
+    // 区块段位掩码计算
+    static u16 calculateSectionMask(const ChunkData& chunk);
+};
+
+// ============================================================================
+// 区块视图距离管理
+// ============================================================================
+
+struct ChunkView {
+    ChunkCoord centerX = 0;
+    ChunkCoord centerZ = 0;
+    i32 viewDistance = 10;  // 默认视距10个区块
+
+    // 检查区块是否在视距内
+    [[nodiscard]] bool isChunkInView(ChunkCoord x, ChunkCoord z) const {
+        i32 dx = std::abs(x - centerX);
+        i32 dz = std::abs(z - centerZ);
+        return dx <= viewDistance && dz <= viewDistance;
+    }
+
+    // 获取所有在视距内的区块坐标
+    [[nodiscard]] std::vector<ChunkPos> getChunksInView() const {
+        std::vector<ChunkPos> chunks;
+        chunks.reserve(static_cast<size_t>(viewDistance * 2 + 1) * (viewDistance * 2 + 1));
+
+        for (ChunkCoord x = centerX - viewDistance; x <= centerX + viewDistance; ++x) {
+            for (ChunkCoord z = centerZ - viewDistance; z <= centerZ + viewDistance; ++z) {
+                chunks.emplace_back(x, z);
+            }
+        }
+        return chunks;
+    }
+
+    // 计算需要加载的新区块和需要卸载的旧区块
+    void calculateChunkDiff(
+        const std::unordered_set<ChunkId>& currentChunks,
+        std::vector<ChunkPos>& chunksToLoad,
+        std::vector<ChunkPos>& chunksToUnload
+    ) const;
+};
+
+// ============================================================================
+// 玩家区块跟踪器 - 跟踪每个玩家已加载的区块
+// ============================================================================
+
+class PlayerChunkTracker {
+public:
+    explicit PlayerChunkTracker(PlayerId playerId);
+
+    [[nodiscard]] PlayerId playerId() const { return m_playerId; }
+    [[nodiscard]] const ChunkView& view() const { return m_view; }
+    ChunkView& view() { return m_view; }
+
+    // 已加载区块管理
+    void addLoadedChunk(ChunkCoord x, ChunkCoord z);
+    void removeLoadedChunk(ChunkCoord x, ChunkCoord z);
+    [[nodiscard]] bool hasChunk(ChunkCoord x, ChunkCoord z) const;
+    [[nodiscard]] const std::unordered_set<ChunkId>& loadedChunks() const { return m_loadedChunks; }
+
+    // 更新视距中心
+    void updateCenter(ChunkCoord x, ChunkCoord z);
+
+    // 计算需要的区块更新
+    void calculateChunkUpdates(
+        std::vector<ChunkPos>& chunksToLoad,
+        std::vector<ChunkPos>& chunksToUnload
+    );
+
+    // 设置视距
+    void setViewDistance(i32 distance);
+    [[nodiscard]] i32 viewDistance() const { return m_view.viewDistance; }
+
+    // 清空所有已加载区块
+    void clear();
+
+private:
+    PlayerId m_playerId;
+    ChunkView m_view;
+    std::unordered_set<ChunkId> m_loadedChunks;
+};
+
+// ============================================================================
+// 区块同步管理器 - 管理所有玩家的区块同步
+// ============================================================================
+
+class ChunkSyncManager {
+public:
+    // 获取或创建玩家区块跟踪器
+    [[nodiscard]] std::shared_ptr<PlayerChunkTracker> getTracker(PlayerId playerId);
+    void removeTracker(PlayerId playerId);
+
+    // 更新玩家位置
+    void updatePlayerPosition(PlayerId playerId, f64 x, f64 z);
+
+    // 计算区块更新
+    void calculateUpdates(
+        PlayerId playerId,
+        std::vector<ChunkPos>& chunksToLoad,
+        std::vector<ChunkPos>& chunksToUnload
+    );
+
+    // 标记区块为已发送
+    void markChunkSent(PlayerId playerId, ChunkCoord x, ChunkCoord z);
+
+    // 标记区块为已卸载
+    void markChunkUnloaded(PlayerId playerId, ChunkCoord x, ChunkCoord z);
+
+    // 获取区块订阅者（哪些玩家需要这个区块）
+    [[nodiscard]] std::vector<PlayerId> getChunkSubscribers(ChunkCoord x, ChunkCoord z) const;
+
+    // 全局设置
+    void setDefaultViewDistance(i32 distance) { m_defaultViewDistance = distance; }
+    [[nodiscard]] i32 defaultViewDistance() const { return m_defaultViewDistance; }
+
+    // 区块坐标转换工具
+    static ChunkCoord blockToChunk(f64 blockCoord) {
+        return static_cast<ChunkCoord>(std::floor(blockCoord / 16.0));
+    }
+
+private:
+    std::unordered_map<PlayerId, std::shared_ptr<PlayerChunkTracker>> m_trackers;
+
+    // 区块 -> 订阅玩家映射
+    std::unordered_map<ChunkId, std::unordered_set<PlayerId>> m_chunkSubscribers;
+
+    i32 m_defaultViewDistance = 10;
+};
+
+} // namespace mr::network

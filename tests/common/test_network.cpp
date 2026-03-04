@@ -2,6 +2,7 @@
 
 #include "common/network/Packet.hpp"
 #include "common/network/PacketSerializer.hpp"
+#include "common/network/ProtocolPackets.hpp"
 
 using namespace mr::network;
 using namespace mr;
@@ -172,11 +173,11 @@ TEST(PacketSerializer, ResetRead) {
 }
 
 // ============================================================================
-// HeartbeatPacket 测试
+// KeepAlivePacket 测试
 // ============================================================================
 
-TEST(HeartbeatPacket, SerializeDeserialize) {
-    HeartbeatPacket original;
+TEST(KeepAlivePacket, SerializeDeserialize) {
+    KeepAlivePacket original;
     original.setTimestamp(1234567890);
     original.setFlags(0x0001);
 
@@ -186,17 +187,17 @@ TEST(HeartbeatPacket, SerializeDeserialize) {
     const auto& data = serializeResult.value();
     EXPECT_GE(data.size(), PACKET_HEADER_SIZE);
 
-    HeartbeatPacket deserialized;
+    KeepAlivePacket deserialized;
     auto deserializeResult = deserialized.deserialize(data.data(), data.size());
     EXPECT_TRUE(deserializeResult.success());
     EXPECT_EQ(deserialized.timestamp(), 1234567890);
     EXPECT_EQ(deserialized.flags(), 0x0001);
 }
 
-TEST(HeartbeatPacket, PacketTooSmall) {
+TEST(KeepAlivePacket, PacketTooSmall) {
     std::vector<mr::u8> smallData(PACKET_HEADER_SIZE - 1, 0x00);
 
-    HeartbeatPacket packet;
+    KeepAlivePacket packet;
     auto result = packet.deserialize(smallData.data(), smallData.size());
     EXPECT_FALSE(result.success());
     EXPECT_EQ(result.error().code(), mr::ErrorCode::InvalidArgument);
@@ -259,6 +260,376 @@ TEST(PacketDeserializer, HasRemaining) {
     EXPECT_TRUE(deserializer.hasRemaining(2));
     EXPECT_FALSE(deserializer.hasRemaining(5));
 
-    deserializer.readU32();
+    (void)deserializer.readU32();
     EXPECT_FALSE(deserializer.hasRemaining(1));
+}
+
+// ============================================================================
+// VarInt/VarLong 测试
+// ============================================================================
+
+TEST(PacketSerializer, WriteReadVarInt) {
+    PacketSerializer serializer;
+
+    // 测试各种值
+    serializer.writeVarInt(0);
+    serializer.writeVarInt(1);
+    serializer.writeVarInt(127);
+    serializer.writeVarInt(128);
+    serializer.writeVarInt(16383);
+    serializer.writeVarInt(16384);
+    serializer.writeVarInt(2097151);
+    serializer.writeVarInt(2097152);
+    serializer.writeVarInt(-1);
+    serializer.writeVarInt(-2147483648);  // INT_MIN
+
+    auto result0 = serializer.readVarInt();
+    EXPECT_TRUE(result0.success());
+    EXPECT_EQ(result0.value(), 0);
+
+    auto result1 = serializer.readVarInt();
+    EXPECT_TRUE(result1.success());
+    EXPECT_EQ(result1.value(), 1);
+
+    auto result127 = serializer.readVarInt();
+    EXPECT_TRUE(result127.success());
+    EXPECT_EQ(result127.value(), 127);
+
+    auto result128 = serializer.readVarInt();
+    EXPECT_TRUE(result128.success());
+    EXPECT_EQ(result128.value(), 128);
+
+    auto result16383 = serializer.readVarInt();
+    EXPECT_TRUE(result16383.success());
+    EXPECT_EQ(result16383.value(), 16383);
+
+    auto result16384 = serializer.readVarInt();
+    EXPECT_TRUE(result16384.success());
+    EXPECT_EQ(result16384.value(), 16384);
+
+    auto result2097151 = serializer.readVarInt();
+    EXPECT_TRUE(result2097151.success());
+    EXPECT_EQ(result2097151.value(), 2097151);
+
+    auto result2097152 = serializer.readVarInt();
+    EXPECT_TRUE(result2097152.success());
+    EXPECT_EQ(result2097152.value(), 2097152);
+
+    auto resultNeg1 = serializer.readVarInt();
+    EXPECT_TRUE(resultNeg1.success());
+    EXPECT_EQ(resultNeg1.value(), -1);
+
+    auto resultMin = serializer.readVarInt();
+    EXPECT_TRUE(resultMin.success());
+    EXPECT_EQ(resultMin.value(), -2147483647 - 1);
+}
+
+TEST(PacketSerializer, VarIntSize) {
+    // VarInt 编码后的大小应该是可变的
+    PacketSerializer serializer;
+
+    // 0-127: 1字节
+    size_t start = serializer.size();
+    serializer.writeVarInt(0);
+    EXPECT_EQ(serializer.size() - start, 1u);
+
+    serializer.clear();
+    start = serializer.size();
+    serializer.writeVarInt(127);
+    EXPECT_EQ(serializer.size() - start, 1u);
+
+    // 128-16383: 2字节
+    serializer.clear();
+    start = serializer.size();
+    serializer.writeVarInt(128);
+    EXPECT_EQ(serializer.size() - start, 2u);
+
+    serializer.clear();
+    start = serializer.size();
+    serializer.writeVarInt(16383);
+    EXPECT_EQ(serializer.size() - start, 2u);
+
+    // 16384-2097151: 3字节
+    serializer.clear();
+    start = serializer.size();
+    serializer.writeVarInt(16384);
+    EXPECT_EQ(serializer.size() - start, 3u);
+}
+
+TEST(PacketSerializer, WriteReadVarLong) {
+    PacketSerializer serializer;
+
+    serializer.writeVarLong(0);
+    serializer.writeVarLong(9223372036854775807LL);  // LONG_MAX
+    serializer.writeVarLong(-1);
+    serializer.writeVarLong(-9223372036854775807LL - 1);  // LONG_MIN
+
+    auto result0 = serializer.readVarLong();
+    EXPECT_TRUE(result0.success());
+    EXPECT_EQ(result0.value(), 0);
+
+    auto resultMax = serializer.readVarLong();
+    EXPECT_TRUE(resultMax.success());
+    EXPECT_EQ(resultMax.value(), 9223372036854775807LL);
+
+    auto resultNeg1 = serializer.readVarLong();
+    EXPECT_TRUE(resultNeg1.success());
+    EXPECT_EQ(resultNeg1.value(), -1);
+
+    auto resultMin = serializer.readVarLong();
+    EXPECT_TRUE(resultMin.success());
+    EXPECT_EQ(resultMin.value(), -9223372036854775807LL - 1);
+}
+
+// ============================================================================
+// ProtocolPackets 测试
+// ============================================================================
+
+TEST(PlayerPosition, SerializeDeserialize) {
+    PlayerPosition pos1(100.5, 64.0, -200.25, 90.0f, 45.0f, true);
+
+    PacketSerializer ser;
+    pos1.serialize(ser);
+
+    PacketDeserializer deser(ser.buffer());
+    auto result = PlayerPosition::deserialize(deser);
+
+    EXPECT_TRUE(result.success());
+    EXPECT_DOUBLE_EQ(result.value().x, 100.5);
+    EXPECT_DOUBLE_EQ(result.value().y, 64.0);
+    EXPECT_DOUBLE_EQ(result.value().z, -200.25);
+    EXPECT_FLOAT_EQ(result.value().yaw, 90.0f);
+    EXPECT_FLOAT_EQ(result.value().pitch, 45.0f);
+    EXPECT_TRUE(result.value().onGround);
+}
+
+TEST(LoginRequestPacket, SerializeDeserialize) {
+    LoginRequestPacket original("TestPlayer", 753);
+
+    PacketSerializer ser;
+    original.serialize(ser);
+
+    PacketDeserializer deser(ser.buffer());
+    auto result = LoginRequestPacket::deserialize(deser);
+
+    EXPECT_TRUE(result.success());
+    EXPECT_EQ(result.value().username(), "TestPlayer");
+    EXPECT_EQ(result.value().protocolVersion(), 753);
+}
+
+TEST(LoginRequestPacket, InvalidUsername) {
+    // 空用户名
+    LoginRequestPacket emptyUsername("", 753);
+    PacketSerializer ser;
+    emptyUsername.serialize(ser);
+    PacketDeserializer deser(ser.buffer());
+    auto result = LoginRequestPacket::deserialize(deser);
+    EXPECT_FALSE(result.success());
+}
+
+TEST(LoginResponsePacket, SerializeDeserialize) {
+    LoginResponsePacket original(true, 12345, "TestPlayer", "Welcome!");
+
+    PacketSerializer ser;
+    original.serialize(ser);
+
+    PacketDeserializer deser(ser.buffer());
+    auto result = LoginResponsePacket::deserialize(deser);
+
+    EXPECT_TRUE(result.success());
+    EXPECT_TRUE(result.value().success());
+    EXPECT_EQ(result.value().playerId(), 12345u);
+    EXPECT_EQ(result.value().username(), "TestPlayer");
+    EXPECT_EQ(result.value().message(), "Welcome!");
+}
+
+TEST(PlayerMovePacket, FullPosition) {
+    PlayerPosition pos(100.0, 64.0, 200.0, 45.0f, 30.0f, true);
+    PlayerMovePacket original(pos, PlayerMovePacket::MoveType::Full);
+
+    PacketSerializer ser;
+    original.serialize(ser);
+
+    PacketDeserializer deser(ser.buffer());
+    auto result = PlayerMovePacket::deserialize(deser);
+
+    EXPECT_TRUE(result.success());
+    EXPECT_EQ(result.value().type(), PlayerMovePacket::MoveType::Full);
+    EXPECT_DOUBLE_EQ(result.value().x(), 100.0);
+    EXPECT_DOUBLE_EQ(result.value().y(), 64.0);
+    EXPECT_DOUBLE_EQ(result.value().z(), 200.0);
+    EXPECT_FLOAT_EQ(result.value().yaw(), 45.0f);
+    EXPECT_FLOAT_EQ(result.value().pitch(), 30.0f);
+    EXPECT_TRUE(result.value().onGround());
+}
+
+TEST(PlayerMovePacket, PositionOnly) {
+    PlayerMovePacket original;
+    original.setPosition(PlayerPosition(50.0, 70.0, 100.0, 0.0f, 0.0f, false));
+    original.setType(PlayerMovePacket::MoveType::Position);
+
+    PacketSerializer ser;
+    original.serialize(ser);
+
+    PacketDeserializer deser(ser.buffer());
+    auto result = PlayerMovePacket::deserialize(deser);
+
+    EXPECT_TRUE(result.success());
+    EXPECT_EQ(result.value().type(), PlayerMovePacket::MoveType::Position);
+    EXPECT_DOUBLE_EQ(result.value().x(), 50.0);
+    EXPECT_DOUBLE_EQ(result.value().y(), 70.0);
+    EXPECT_DOUBLE_EQ(result.value().z(), 100.0);
+    EXPECT_FALSE(result.value().onGround());
+}
+
+TEST(PlayerMovePacket, RotationOnly) {
+    PlayerMovePacket original;
+    original.setPosition(PlayerPosition(0.0, 0.0, 0.0, 180.0f, 90.0f, true));
+    original.setType(PlayerMovePacket::MoveType::Rotation);
+
+    PacketSerializer ser;
+    original.serialize(ser);
+
+    PacketDeserializer deser(ser.buffer());
+    auto result = PlayerMovePacket::deserialize(deser);
+
+    EXPECT_TRUE(result.success());
+    EXPECT_EQ(result.value().type(), PlayerMovePacket::MoveType::Rotation);
+    EXPECT_FLOAT_EQ(result.value().yaw(), 180.0f);
+    EXPECT_FLOAT_EQ(result.value().pitch(), 90.0f);
+    EXPECT_TRUE(result.value().onGround());
+}
+
+TEST(TeleportPacket, SerializeDeserialize) {
+    TeleportPacket original(100.0, 64.0, -50.0, 0.0f, 0.0f, 42);
+
+    PacketSerializer ser;
+    original.serialize(ser);
+
+    PacketDeserializer deser(ser.buffer());
+    auto result = TeleportPacket::deserialize(deser);
+
+    EXPECT_TRUE(result.success());
+    EXPECT_DOUBLE_EQ(result.value().x(), 100.0);
+    EXPECT_DOUBLE_EQ(result.value().y(), 64.0);
+    EXPECT_DOUBLE_EQ(result.value().z(), -50.0);
+    EXPECT_FLOAT_EQ(result.value().yaw(), 0.0f);
+    EXPECT_FLOAT_EQ(result.value().pitch(), 0.0f);
+    EXPECT_EQ(result.value().teleportId(), 42u);
+}
+
+TEST(TeleportConfirmPacket, SerializeDeserialize) {
+    TeleportConfirmPacket original(12345);
+
+    PacketSerializer ser;
+    original.serialize(ser);
+
+    PacketDeserializer deser(ser.buffer());
+    auto result = TeleportConfirmPacket::deserialize(deser);
+
+    EXPECT_TRUE(result.success());
+    EXPECT_EQ(result.value().teleportId(), 12345u);
+}
+
+TEST(SimpleKeepAlive, SerializeDeserialize) {
+    SimpleKeepAlive original(9876543210ULL);
+
+    PacketSerializer ser;
+    original.serialize(ser);
+
+    PacketDeserializer deser(ser.buffer());
+    auto result = SimpleKeepAlive::deserialize(deser);
+
+    EXPECT_TRUE(result.success());
+    EXPECT_EQ(result.value().id(), 9876543210ULL);
+}
+
+TEST(ChunkDataPacket, SerializeDeserialize) {
+    std::vector<u8> chunkData(1024, 0xAB);
+    ChunkDataPacket original(10, -5, std::move(chunkData));
+
+    PacketSerializer ser;
+    original.serialize(ser);
+
+    PacketDeserializer deser(ser.buffer());
+    auto result = ChunkDataPacket::deserialize(deser);
+
+    EXPECT_TRUE(result.success());
+    EXPECT_EQ(result.value().x(), 10);
+    EXPECT_EQ(result.value().z(), -5);
+    EXPECT_EQ(result.value().size(), 1024u);
+}
+
+TEST(UnloadChunkPacket, SerializeDeserialize) {
+    UnloadChunkPacket original(15, -20);
+
+    PacketSerializer ser;
+    original.serialize(ser);
+
+    PacketDeserializer deser(ser.buffer());
+    auto result = UnloadChunkPacket::deserialize(deser);
+
+    EXPECT_TRUE(result.success());
+    EXPECT_EQ(result.value().x(), 15);
+    EXPECT_EQ(result.value().z(), -20);
+}
+
+TEST(PlayerSpawnPacket, SerializeDeserialize) {
+    PlayerPosition pos(100.0, 64.0, 200.0, 0.0f, 0.0f, true);
+    PlayerSpawnPacket original(12345, "OtherPlayer", pos);
+
+    PacketSerializer ser;
+    original.serialize(ser);
+
+    PacketDeserializer deser(ser.buffer());
+    auto result = PlayerSpawnPacket::deserialize(deser);
+
+    EXPECT_TRUE(result.success());
+    EXPECT_EQ(result.value().playerId(), 12345u);
+    EXPECT_EQ(result.value().username(), "OtherPlayer");
+    EXPECT_DOUBLE_EQ(result.value().position().x, 100.0);
+}
+
+TEST(PlayerDespawnPacket, SerializeDeserialize) {
+    PlayerDespawnPacket original(12345);
+
+    PacketSerializer ser;
+    original.serialize(ser);
+
+    PacketDeserializer deser(ser.buffer());
+    auto result = PlayerDespawnPacket::deserialize(deser);
+
+    EXPECT_TRUE(result.success());
+    EXPECT_EQ(result.value().playerId(), 12345u);
+}
+
+TEST(BlockUpdatePacket, SerializeDeserialize) {
+    BlockUpdatePacket original(100, 64, -200, mr::BlockId::Stone, 3);
+
+    PacketSerializer ser;
+    original.serialize(ser);
+
+    PacketDeserializer deser(ser.buffer());
+    auto result = BlockUpdatePacket::deserialize(deser);
+
+    EXPECT_TRUE(result.success());
+    EXPECT_EQ(result.value().x(), 100);
+    EXPECT_EQ(result.value().y(), 64);
+    EXPECT_EQ(result.value().z(), -200);
+    EXPECT_EQ(result.value().blockId(), mr::BlockId::Stone);
+    EXPECT_EQ(result.value().blockData(), 3u);
+}
+
+TEST(ChatMessagePacket, SerializeDeserialize) {
+    ChatMessagePacket original("Hello, world!", 12345);
+
+    PacketSerializer ser;
+    original.serialize(ser);
+
+    PacketDeserializer deser(ser.buffer());
+    auto result = ChatMessagePacket::deserialize(deser);
+
+    EXPECT_TRUE(result.success());
+    EXPECT_EQ(result.value().message(), "Hello, world!");
+    EXPECT_EQ(result.value().senderId(), 12345u);
 }

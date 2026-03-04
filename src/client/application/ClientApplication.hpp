@@ -7,6 +7,8 @@
 #include "../renderer/VulkanRenderer.hpp"
 #include "../renderer/Camera.hpp"
 #include "../world/ClientWorld.hpp"
+#include "../network/NetworkClient.hpp"
+#include "server/application/IntegratedServer.hpp"
 
 #include <string>
 #include <memory>
@@ -130,6 +132,7 @@ private:
     // 初始化辅助函数
     void setupInputBindings();
     void setupCamera();
+    void setupNetworkCallbacks();
     void toggleMouseCapture();
 
     ClientConfig m_config;
@@ -144,6 +147,11 @@ private:
 
     // 世界
     ClientWorld m_world;
+
+    // 内置服务端
+    std::unique_ptr<server::IntegratedServer> m_integratedServer;
+    std::unique_ptr<NetworkClient> m_networkClient;
+    bool m_useIntegratedServer = true;
 
     std::atomic<bool> m_running{false};
     std::atomic<bool> m_initialized{false};

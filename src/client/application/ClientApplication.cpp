@@ -102,11 +102,51 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
     // 将相机设置给渲染器
     m_renderer->setCamera(&m_camera);
 
+    // 启动内置服务端
+    if (m_useIntegratedServer) {
+        spdlog::info("Starting integrated server...");
+
+        m_integratedServer = std::make_unique<server::IntegratedServer>();
+        server::IntegratedServerConfig serverConfig;
+        serverConfig.seed = 12345;
+        serverConfig.viewDistance = m_config.renderDistance;
+
+        auto serverResult = m_integratedServer->initialize(serverConfig);
+        if (serverResult.failed()) {
+            spdlog::error("Failed to initialize integrated server: {}", serverResult.error().toString());
+            m_renderer->destroy();
+            m_window.destroy();
+            return serverResult.error();
+        }
+
+        // 初始化网络客户端
+        m_networkClient = std::make_unique<NetworkClient>();
+        setupNetworkCallbacks();
+
+        NetworkClientConfig clientConfig;
+        clientConfig.username = m_config.username;
+        auto clientResult = m_networkClient->connectLocal(m_integratedServer->getClientEndpoint());
+        if (clientResult.failed()) {
+            spdlog::error("Failed to connect to integrated server: {}", clientResult.error().toString());
+            m_integratedServer->stop();
+            m_renderer->destroy();
+            m_window.destroy();
+            return clientResult.error();
+        }
+
+        // 设置世界为网络模式
+        m_world.setNetworkMode(true);
+        spdlog::info("Connected to integrated server");
+    }
+
     // 初始化世界
     spdlog::info("Initializing world...");
     auto worldResult = m_world.initialize(12345); // 使用固定种子
     if (worldResult.failed()) {
         spdlog::error("Failed to initialize world: {}", worldResult.error().toString());
+        if (m_integratedServer) {
+            m_integratedServer->stop();
+        }
         m_renderer->destroy();
         m_window.destroy();
         return worldResult.error();
@@ -246,13 +286,18 @@ void ClientApplication::handleEvents()
 
 void ClientApplication::update(f32 deltaTime)
 {
+    // 更新网络客户端（处理服务端数据包）
+    if (m_networkClient) {
+        m_networkClient->poll();
+    }
+
     // 更新相机控制器（这会调用 Camera::update 更新矩阵）
     m_cameraController.update(deltaTime);
 
     // 更新世界（根据相机位置加载/卸载区块）
     m_world.update(m_camera.position(), m_config.renderDistance);
 
-    // 更新需要重建网格的区块
+    // 上传网格到 GPU
     if (m_renderer->isChunkRendererInitialized()) {
         auto& chunkRenderer = m_renderer->chunkRenderer();
         m_world.forEachDirtyMesh([this, &chunkRenderer](const ChunkId& id, ClientChunk& chunk) {
@@ -289,6 +334,18 @@ void ClientApplication::render()
 void ClientApplication::shutdown()
 {
     spdlog::info("Shutting down client...");
+
+    // 断开网络连接
+    if (m_networkClient) {
+        m_networkClient->disconnect("Client shutdown");
+        m_networkClient.reset();
+    }
+
+    // 停止内置服务端
+    if (m_integratedServer) {
+        m_integratedServer->stop();
+        m_integratedServer.reset();
+    }
 
     // 清理渲染器
     if (m_renderer) {
@@ -353,6 +410,49 @@ void ClientApplication::setupCamera()
 
     // 设置相机控制器
     m_cameraController.setCamera(&m_camera);
+}
+
+void ClientApplication::setupNetworkCallbacks()
+{
+    if (!m_networkClient) return;
+
+    NetworkClientCallbacks callbacks;
+
+    callbacks.onLoginSuccess = [this](PlayerId playerId, const String& username) {
+        spdlog::info("Login successful: playerId={}, username={}", playerId, username);
+    };
+
+    callbacks.onLoginFailed = [this](const String& reason) {
+        spdlog::error("Login failed: {}", reason);
+        stop();
+    };
+
+    callbacks.onDisconnected = [this](const String& reason) {
+        spdlog::warn("Disconnected: {}", reason);
+    };
+
+    callbacks.onChunkData = [this](ChunkCoord x, ChunkCoord z, const std::vector<u8>& data) {
+        m_world.onChunkData(x, z, std::vector<u8>(data));
+    };
+
+    callbacks.onChunkUnload = [this](ChunkCoord x, ChunkCoord z) {
+        m_world.onChunkUnload(x, z);
+    };
+
+    callbacks.onTeleport = [this](f64 x, f64 y, f64 z, f32 yaw, f32 pitch, u32 teleportId) {
+        m_camera.setPosition(static_cast<f32>(x), static_cast<f32>(y), static_cast<f32>(z));
+        m_camera.setYaw(yaw);
+        m_camera.setPitch(pitch);
+        if (m_networkClient) {
+            m_networkClient->sendTeleportConfirm(teleportId);
+        }
+    };
+
+    callbacks.onBlockUpdate = [this](i32 bx, i32 by, i32 bz, BlockId blockId, u16 blockData) {
+        m_world.setBlock(bx, by, bz, BlockState(blockId, blockData));
+    };
+
+    m_networkClient->setCallbacks(callbacks);
 }
 
 void ClientApplication::toggleMouseCapture()

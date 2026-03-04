@@ -13,10 +13,10 @@ Packet::Packet(PacketType type)
 }
 
 // ============================================================================
-// HeartbeatPacket 实现
+// KeepAlivePacket 实现
 // ============================================================================
 
-Result<std::vector<u8>> HeartbeatPacket::serialize() const {
+Result<std::vector<u8>> KeepAlivePacket::serialize() const {
     PacketSerializer serializer;
     serializer.writeU32(static_cast<u32>(PACKET_HEADER_SIZE + sizeof(u64))); // size
     serializer.writeU16(static_cast<u16>(m_type)); // type
@@ -27,9 +27,9 @@ Result<std::vector<u8>> HeartbeatPacket::serialize() const {
     return serializer.buffer();
 }
 
-Result<void> HeartbeatPacket::deserialize(const u8* data, size_t size) {
+Result<void> KeepAlivePacket::deserialize(const u8* data, size_t size) {
     if (size < PACKET_HEADER_SIZE + sizeof(u64)) {
-        return Error(ErrorCode::InvalidArgument, "Packet too small for heartbeat");
+        return Error(ErrorCode::InvalidArgument, "Packet too small for keep alive");
     }
 
     PacketDeserializer deserializer(data, size);

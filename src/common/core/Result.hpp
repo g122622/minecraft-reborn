@@ -28,6 +28,7 @@ enum class ErrorCode : i32 {
     Overflow = -5,
     OutOfBounds = -6,
     InvalidState = -7,
+    InvalidData = -8,
 
     // 资源错误
     NotFound = -100,

@@ -6,6 +6,7 @@
 #include "../../common/world/TerrainGenerator.hpp"
 #include "../../common/world/WorldConstants.hpp"
 #include "../../common/renderer/MeshTypes.hpp"
+#include "../../common/network/ChunkSync.hpp"
 #include "../renderer/Camera.hpp"
 #include <unordered_map>
 #include <unordered_set>
@@ -139,6 +140,24 @@ public:
      */
     [[nodiscard]] ITerrainGenerator* terrainGenerator() { return m_terrainGenerator.get(); }
 
+    /**
+     * @brief 设置网络模式
+     *
+     * 网络模式下，区块从服务端接收，不使用本地生成器
+     */
+    void setNetworkMode(bool networkMode) { m_networkMode = networkMode; }
+    [[nodiscard]] bool isNetworkMode() const { return m_networkMode; }
+
+    /**
+     * @brief 接收服务端区块数据
+     */
+    void onChunkData(ChunkCoord x, ChunkCoord z, std::vector<u8>&& data);
+
+    /**
+     * @brief 卸载区块（服务端通知）
+     */
+    void onChunkUnload(ChunkCoord x, ChunkCoord z);
+
 private:
     // 区块加载/卸载
     void loadChunksInRange(const glm::vec3& position, i32 range);
@@ -167,6 +186,7 @@ private:
     i32 m_renderDistance = 12;
     i32 m_maxChunksPerFrame = 4;  // 每帧最多加载的区块数
     u64 m_seed = 0;
+    bool m_networkMode = false;  // 网络模式标志
 
     // 统计
     u32 m_chunksLoaded = 0;

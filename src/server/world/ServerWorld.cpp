@@ -1,0 +1,548 @@
+#include "ServerWorld.hpp"
+#include "server/network/TcpSession.hpp"
+#include <chrono>
+#include <spdlog/spdlog.h>
+
+namespace mr::server {
+
+// ============================================================================
+// ServerWorld 实现
+// ============================================================================
+
+ServerWorld::ServerWorld()
+    : m_terrainGenerator(std::make_unique<StandardTerrainGenerator>())
+    , m_chunkSyncManager()
+{
+}
+
+ServerWorld::ServerWorld(const ServerWorldConfig& config)
+    : m_config(config)
+    , m_terrainGenerator(std::make_unique<StandardTerrainGenerator>())
+    , m_chunkSyncManager()
+{
+    m_chunkSyncManager.setDefaultViewDistance(config.viewDistance);
+}
+
+ServerWorld::~ServerWorld() {
+    shutdown();
+}
+
+Result<void> ServerWorld::initialize() {
+    spdlog::info("Initializing server world...");
+
+    // 初始化地形生成器
+    m_terrainGenerator = std::make_unique<StandardTerrainGenerator>();
+    m_terrainGenerator->setSeed(12345);  // 固定种子用于测试
+
+    m_chunkSyncManager.setDefaultViewDistance(m_config.viewDistance);
+
+    spdlog::info("Server world initialized");
+    return Result<void>::ok();
+}
+
+void ServerWorld::shutdown() {
+    spdlog::info("Shutting down server world...");
+
+    std::lock_guard<std::mutex> chunkLock(m_chunkMutex);
+    std::lock_guard<std::mutex> playerLock(m_playerMutex);
+
+    m_chunks.clear();
+    m_players.clear();
+
+    spdlog::info("Server world shut down");
+}
+
+void ServerWorld::setConfig(const ServerWorldConfig& config) {
+    m_config = config;
+    m_chunkSyncManager.setDefaultViewDistance(config.viewDistance);
+}
+
+// ============================================================================
+// 区块管理
+// ============================================================================
+
+ChunkData* ServerWorld::getChunk(ChunkCoord x, ChunkCoord z) {
+    std::lock_guard<std::mutex> lock(m_chunkMutex);
+
+    ChunkId chunkId(x, z, m_config.dimension);
+    auto it = m_chunks.find(chunkId);
+    if (it == m_chunks.end()) {
+        return nullptr;
+    }
+
+    it->second.lastAccessTime = m_currentTick;
+    return it->second.chunk.get();
+}
+
+const ChunkData* ServerWorld::getChunk(ChunkCoord x, ChunkCoord z) const {
+    std::lock_guard<std::mutex> lock(m_chunkMutex);
+
+    ChunkId chunkId(x, z, m_config.dimension);
+    auto it = m_chunks.find(chunkId);
+    if (it == m_chunks.end()) {
+        return nullptr;
+    }
+
+    return it->second.chunk.get();
+}
+
+bool ServerWorld::hasChunk(ChunkCoord x, ChunkCoord z) const {
+    std::lock_guard<std::mutex> lock(m_chunkMutex);
+
+    ChunkId chunkId(x, z, m_config.dimension);
+    return m_chunks.find(chunkId) != m_chunks.end();
+}
+
+ChunkData* ServerWorld::getOrGenerateChunk(ChunkCoord x, ChunkCoord z) {
+    std::lock_guard<std::mutex> lock(m_chunkMutex);
+
+    ChunkId chunkId(x, z, m_config.dimension);
+    auto it = m_chunks.find(chunkId);
+
+    if (it != m_chunks.end()) {
+        it->second.lastAccessTime = m_currentTick;
+        return it->second.chunk.get();
+    }
+
+    // 创建新区块
+    auto& entry = m_chunks[chunkId];
+    entry.chunk = std::make_unique<ChunkData>(x, z);
+    entry.lastAccessTime = m_currentTick;
+    entry.isGenerated = false;
+
+    // 生成区块
+    generateChunk(*entry.chunk);
+    entry.isGenerated = true;
+    entry.chunk->setFullyGenerated(true);
+
+    return entry.chunk.get();
+}
+
+void ServerWorld::unloadChunk(ChunkCoord x, ChunkCoord z) {
+    std::lock_guard<std::mutex> lock(m_chunkMutex);
+
+    ChunkId chunkId(x, z, m_config.dimension);
+    m_chunks.erase(chunkId);
+}
+
+void ServerWorld::generateChunk(ChunkData& chunk) {
+    if (m_terrainGenerator) {
+        m_terrainGenerator->generateChunk(chunk);
+    }
+}
+
+// ============================================================================
+// 玩家管理
+// ============================================================================
+
+void ServerWorld::addPlayer(PlayerId playerId, const String& username, std::shared_ptr<TcpSession> session) {
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+
+    auto& player = m_players[playerId];
+    player.playerId = playerId;
+    player.username = username;
+    player.session = session;
+    player.chunkTracker = std::make_shared<network::PlayerChunkTracker>(playerId);
+    player.chunkTracker->setViewDistance(m_config.viewDistance);
+
+    // 更新区块同步管理器
+    m_chunkSyncManager.getTracker(playerId);
+    m_chunkSyncManager.updatePlayerPosition(playerId, player.x, player.z);
+
+    spdlog::info("Player {} ({}) joined the world", username, playerId);
+}
+
+void ServerWorld::removePlayer(PlayerId playerId) {
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+
+    auto it = m_players.find(playerId);
+    if (it == m_players.end()) return;
+
+    // 通知其他玩家
+    network::PlayerDespawnPacket despawnPacket(playerId);
+    network::PacketSerializer ser;
+    despawnPacket.serialize(ser);
+
+    network::PacketSerializer fullPacket;
+    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
+    fullPacket.writeU16(static_cast<u16>(network::PacketType::PlayerDespawn));
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeBytes(ser.buffer());
+
+    for (auto& [pid, pdata] : m_players) {
+        if (pid != playerId) {
+            auto session = pdata.session.lock();
+            if (session) {
+                // session->send(fullPacket.data(), fullPacket.size());
+            }
+        }
+    }
+
+    String username = it->second.username;
+    m_players.erase(it);
+    m_chunkSyncManager.removeTracker(playerId);
+
+    spdlog::info("Player {} ({}) left the world", username, playerId);
+}
+
+ServerPlayerData* ServerWorld::getPlayer(PlayerId playerId) {
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+    auto it = m_players.find(playerId);
+    return it != m_players.end() ? &it->second : nullptr;
+}
+
+const ServerPlayerData* ServerWorld::getPlayer(PlayerId playerId) const {
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+    auto it = m_players.find(playerId);
+    return it != m_players.end() ? &it->second : nullptr;
+}
+
+bool ServerWorld::hasPlayer(PlayerId playerId) const {
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+    return m_players.find(playerId) != m_players.end();
+}
+
+size_t ServerWorld::playerCount() const {
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+    return m_players.size();
+}
+
+// ============================================================================
+// 位置更新
+// ============================================================================
+
+void ServerWorld::updatePlayerPosition(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch, bool onGround) {
+    // 准备区块更新数据（在锁外执行耗时操作）
+    std::vector<mr::ChunkPos> chunksToLoad;
+    std::vector<mr::ChunkPos> chunksToUnload;
+    bool needsChunkUpdate = false;
+
+    {
+        std::lock_guard<std::mutex> lock(m_playerMutex);
+
+        auto it = m_players.find(playerId);
+        if (it == m_players.end()) return;
+
+        auto& player = it->second;
+
+        ChunkCoord oldChunkX = blockToChunk(player.x);
+        ChunkCoord oldChunkZ = blockToChunk(player.z);
+        ChunkCoord newChunkX = blockToChunk(x);
+        ChunkCoord newChunkZ = blockToChunk(z);
+
+        player.x = x;
+        player.y = y;
+        player.z = z;
+        player.yaw = yaw;
+        player.pitch = pitch;
+        player.onGround = onGround;
+
+        // 检查是否跨越区块边界
+        if (oldChunkX != newChunkX || oldChunkZ != newChunkZ) {
+            // 更新区块同步
+            m_chunkSyncManager.updatePlayerPosition(playerId, x, z);
+
+            // 计算需要发送/卸载的区块
+            m_chunkSyncManager.calculateUpdates(playerId, chunksToLoad, chunksToUnload);
+            needsChunkUpdate = true;
+        }
+    }
+
+    // 在锁外发送区块（避免死锁）
+    if (needsChunkUpdate) {
+        // 发送新区块
+        for (const auto& pos : chunksToLoad) {
+            sendChunkToPlayer(playerId, pos.x, pos.z);
+        }
+
+        // 卸载旧区块
+        for (const auto& pos : chunksToUnload) {
+            sendUnloadChunkToPlayer(playerId, pos.x, pos.z);
+        }
+    }
+
+    // 广播玩家移动给其他玩家
+    // TODO: 实现玩家移动广播
+}
+
+void ServerWorld::confirmTeleport(PlayerId playerId, u32 teleportId) {
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+
+    auto it = m_players.find(playerId);
+    if (it == m_players.end()) return;
+
+    auto& player = it->second;
+
+    if (player.waitingTeleportConfirm && player.pendingTeleportId == teleportId) {
+        player.waitingTeleportConfirm = false;
+        spdlog::debug("Player {} confirmed teleport {}", playerId, teleportId);
+    }
+}
+
+// ============================================================================
+// 传送
+// ============================================================================
+
+void ServerWorld::teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch) {
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+
+    auto it = m_players.find(playerId);
+    if (it == m_players.end()) return;
+
+    auto& player = it->second;
+
+    // 生成新的传送ID
+    static u32 nextTeleportId = 1;
+    u32 teleportId = nextTeleportId++;
+
+    player.pendingTeleportId = teleportId;
+    player.waitingTeleportConfirm = true;
+
+    // 发送传送包
+    network::TeleportPacket teleportPacket(x, y, z, yaw, pitch, teleportId);
+    network::PacketSerializer ser;
+    teleportPacket.serialize(ser);
+
+    network::PacketSerializer fullPacket;
+    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
+    fullPacket.writeU16(static_cast<u16>(network::PacketType::Teleport));
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeBytes(ser.buffer());
+
+    auto session = player.session.lock();
+    if (session) {
+        // session->send(fullPacket.data(), fullPacket.size());
+    }
+
+    spdlog::debug("Teleporting player {} to ({}, {}, {}), teleportId={}",
+                  playerId, x, y, z, teleportId);
+}
+
+// ============================================================================
+// 区块同步
+// ============================================================================
+
+void ServerWorld::sendInitialChunks(PlayerId playerId) {
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+
+    auto it = m_players.find(playerId);
+    if (it == m_players.end()) return;
+
+    auto& player = it->second;
+
+    std::vector<mr::ChunkPos> chunksToLoad;
+    std::vector<mr::ChunkPos> chunksToUnload;
+
+    m_chunkSyncManager.calculateUpdates(playerId, chunksToLoad, chunksToUnload);
+
+    // 发送所有需要的区块
+    for (const auto& pos : chunksToLoad) {
+        sendChunkToPlayer(playerId, pos.x, pos.z);
+    }
+}
+
+void ServerWorld::sendChunkToPlayer(PlayerId playerId, ChunkCoord x, ChunkCoord z) {
+    // 获取或生成区块
+    ChunkData* chunk = getOrGenerateChunk(x, z);
+    if (!chunk) return;
+
+    // 序列化区块
+    auto result = network::ChunkSerializer::serializeChunk(*chunk);
+    if (result.failed()) {
+        spdlog::error("Failed to serialize chunk ({}, {}): {}", x, z, result.error().message());
+        return;
+    }
+
+    // 标记为已发送
+    m_chunkSyncManager.markChunkSent(playerId, x, z);
+
+    // 发送区块数据包
+    network::ChunkDataPacket chunkPacket(x, z, std::move(result.value()));
+    network::PacketSerializer ser;
+    chunkPacket.serialize(ser);
+
+    network::PacketSerializer fullPacket;
+    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
+    fullPacket.writeU16(static_cast<u16>(network::PacketType::ChunkData));
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeBytes(ser.buffer());
+
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+    auto it = m_players.find(playerId);
+    if (it != m_players.end()) {
+        auto session = it->second.session.lock();
+        if (session) {
+            // session->send(fullPacket.data(), fullPacket.size());
+        }
+    }
+
+    spdlog::debug("Sent chunk ({}, {}) to player {}", x, z, playerId);
+}
+
+void ServerWorld::sendUnloadChunkToPlayer(PlayerId playerId, ChunkCoord x, ChunkCoord z) {
+    m_chunkSyncManager.markChunkUnloaded(playerId, x, z);
+
+    network::UnloadChunkPacket unloadPacket(x, z);
+    network::PacketSerializer ser;
+    unloadPacket.serialize(ser);
+
+    network::PacketSerializer fullPacket;
+    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
+    fullPacket.writeU16(static_cast<u16>(network::PacketType::UnloadChunk));
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeBytes(ser.buffer());
+
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+    auto it = m_players.find(playerId);
+    if (it != m_players.end()) {
+        auto session = it->second.session.lock();
+        if (session) {
+            // session->send(fullPacket.data(), fullPacket.size());
+        }
+    }
+}
+
+// ============================================================================
+// 方块操作
+// ============================================================================
+
+void ServerWorld::setBlock(i32 x, i32 y, i32 z, BlockId blockId, u16 blockData) {
+    ChunkCoord chunkX = blockToChunk(static_cast<f64>(x));
+    ChunkCoord chunkZ = blockToChunk(static_cast<f64>(z));
+
+    ChunkData* chunk = getOrGenerateChunk(chunkX, chunkZ);
+    if (!chunk) return;
+
+    i32 localX = x - chunkX * 16;
+    i32 localZ = z - chunkZ * 16;
+
+    chunk->setBlock(localX, y, localZ, BlockState(blockId, blockData));
+    chunk->setDirty(true);
+
+    // 广播方块更新
+    broadcastBlockUpdate(x, y, z, blockId, blockData);
+}
+
+BlockState ServerWorld::getBlock(i32 x, i32 y, i32 z) const {
+    ChunkCoord chunkX = blockToChunk(static_cast<f64>(x));
+    ChunkCoord chunkZ = blockToChunk(static_cast<f64>(z));
+
+    const ChunkData* chunk = getChunk(chunkX, chunkZ);
+    if (!chunk) return BlockState(BlockId::Air, 0);
+
+    i32 localX = x - chunkX * 16;
+    i32 localZ = z - chunkZ * 16;
+
+    return chunk->getBlock(localX, y, localZ);
+}
+
+void ServerWorld::broadcastBlockUpdate(i32 x, i32 y, i32 z, BlockId blockId, u16 blockData) {
+    network::BlockUpdatePacket blockPacket(x, y, z, blockId, blockData);
+    network::PacketSerializer ser;
+    blockPacket.serialize(ser);
+
+    network::PacketSerializer fullPacket;
+    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
+    fullPacket.writeU16(static_cast<u16>(network::PacketType::BlockUpdate));
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeBytes(ser.buffer());
+
+    broadcastPacket(fullPacket.buffer());
+}
+
+// ============================================================================
+// 发送数据包
+// ============================================================================
+
+void ServerWorld::sendPacket(PlayerId playerId, const std::vector<u8>& data) {
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+
+    auto it = m_players.find(playerId);
+    if (it == m_players.end()) return;
+
+    auto session = it->second.session.lock();
+    if (session) {
+        // session->send(data.data(), data.size());
+    }
+}
+
+void ServerWorld::broadcastPacket(const std::vector<u8>& data) {
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+
+    for (const auto& [playerId, player] : m_players) {
+        auto session = player.session.lock();
+        if (session) {
+            // session->send(data.data(), data.size());
+        }
+    }
+}
+
+void ServerWorld::broadcastPacketExcept(PlayerId excludePlayerId, const std::vector<u8>& data) {
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+
+    for (const auto& [playerId, player] : m_players) {
+        if (playerId == excludePlayerId) continue;
+
+        auto session = player.session.lock();
+        if (session) {
+            // session->send(data.data(), data.size());
+        }
+    }
+}
+
+// ============================================================================
+// 更新循环
+// ============================================================================
+
+void ServerWorld::tick() {
+    m_currentTick++;
+
+    // 检查区块卸载
+    if (m_currentTick - m_lastChunkUnloadCheck > 100) {  // 每100tick检查一次
+        checkChunkUnloading();
+        m_lastChunkUnloadCheck = m_currentTick;
+    }
+}
+
+void ServerWorld::checkChunkUnloading() {
+    std::lock_guard<std::mutex> lock(m_chunkMutex);
+
+    auto it = m_chunks.begin();
+    while (it != m_chunks.end()) {
+        auto& entry = it->second;
+
+        // 检查是否没有任何订阅者
+        if (entry.subscribers.empty()) {
+            // 检查是否超时
+            if (m_currentTick - entry.lastAccessTime > 6000) {  // 300秒 = 6000tick
+                spdlog::debug("Unloading chunk ({}, {})", it->first.x, it->first.z);
+                it = m_chunks.erase(it);
+                continue;
+            }
+        }
+        ++it;
+    }
+}
+
+size_t ServerWorld::loadedChunkCount() const {
+    std::lock_guard<std::mutex> lock(m_chunkMutex);
+    size_t count = 0;
+    for (const auto& [id, entry] : m_chunks) {
+        if (entry.chunk && entry.chunk->isLoaded()) {
+            count++;
+        }
+    }
+    return count;
+}
+
+} // namespace mr::server

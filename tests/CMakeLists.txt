@@ -2,6 +2,7 @@
 # 测试配置
 
 find_package(GTest CONFIG REQUIRED)
+find_package(asio CONFIG REQUIRED)
 
 # 通用测试可执行文件
 add_executable(mr_tests
@@ -12,6 +13,18 @@ add_executable(mr_tests
     common/test_blockid.cpp
     common/test_noise.cpp
     common/test_renderer.cpp
+    common/test_entity.cpp
+    common/test_chunksync.cpp
+    common/test_localconnection.cpp
+    server/ServerWorldTest.cpp
+)
+
+# 添加服务端源文件
+target_sources(mr_tests
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/network/TcpServer.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/network/TcpSession.cpp
 )
 
 target_link_libraries(mr_tests
@@ -19,7 +32,12 @@ target_link_libraries(mr_tests
         mr_common
         GTest::gtest
         GTest::gtest_main
+        asio::asio
 )
+
+if(WIN32)
+    target_link_libraries(mr_tests PRIVATE ws2_32)
+endif()
 
 target_include_directories(mr_tests
     PRIVATE

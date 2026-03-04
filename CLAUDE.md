@@ -82,7 +82,7 @@ src/
 
 All types are in namespace `mr` (client types in `mr::client`, server types in `mr::server`):
 
-- **Primitive types**: `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32`, `f64`
+- **Primitive types**: `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32`, `f64` （浮点数尽量使用f32而非f64以提升性能。）
 - **String types**: `String` (std::string), `StringView` (std::string_view)
 - **Game types**: `ChunkCoord`, `BlockCoord`, `BlockId`, `EntityId`, `DimensionId`
 - **World types**: `ChunkId`, `BlockPos`, `ChunkPos`, `BlockState`, `ChunkSection`, `ChunkData`
@@ -250,7 +250,11 @@ Managed via vcpkg:
 - Use `const&` for large object parameters
 - Use `string_view` for read-only string parameters
 
-## 注意，你可随时访问mc java版本的源码来供自己参考：`D:\Minecraft\MC研究\Minecraft1.16.5源码\net\minecraft`，这很重要，因为当前项目是一个复刻项目，目标是完全使用cpp复刻java版mc
+## 注意，你可随时访问mc java版本的源码来供自己参考：`D:\Minecraft\MC研究\Minecraft1.16.5源码\net\minecraft`，这很重要，因为当前项目是一个复刻项目，目标是完全使用cpp尽可能一致地复刻java版mc的游戏体验，并在存档、数据包等层面上尽可能兼容和复用现有java版minecraft生态
+
+## 你需要先阅读readme文件了解怎么构建项目
+
+## 需要断言+单测来保证代码质量
 
 ## Current Status
 

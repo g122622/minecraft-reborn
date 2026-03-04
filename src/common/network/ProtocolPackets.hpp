@@ -1,0 +1,813 @@
+#pragma once
+
+#include "../core/Types.hpp"
+#include "../core/Result.hpp"
+#include "../math/Vector3.hpp"
+#include "../world/BlockID.hpp"
+#include "PacketSerializer.hpp"
+#include <memory>
+
+namespace mr::network {
+
+// ============================================================================
+// 协议常量
+// ============================================================================
+
+namespace protocol {
+    // Minecraft 1.16.5 协议版本
+    constexpr i32 VERSION = 753;
+    constexpr i32 MIN_VERSION = 753;
+    constexpr i32 MAX_VERSION = 753;
+
+    // 字符串长度限制
+    constexpr size_t MAX_USERNAME_LENGTH = 16;
+    constexpr size_t MAX_CHAT_LENGTH = 256;
+    constexpr size_t MAX_REASON_LENGTH = 1024;
+
+    // 位置精度
+    constexpr f32 POSITION_SCALE = 4096.0f; // 用于delta位置编码
+    constexpr f32 ANGLE_SCALE = 256.0f / 360.0f; // 角度编码
+
+    // 传送确认超时
+    constexpr u32 TELEPORT_TIMEOUT_MS = 5000;
+
+    // 区块数据限制
+    constexpr size_t MAX_CHUNK_DATA_SIZE = 1024 * 1024; // 1MB
+}
+
+// ============================================================================
+// 协议状态
+// ============================================================================
+
+enum class ProtocolState : u8 {
+    Handshaking = 0,
+    Status = 1,
+    Login = 2,
+    Play = 3
+};
+
+// ============================================================================
+// 玩家位置数据
+// ============================================================================
+
+struct PlayerPosition {
+    f64 x = 0.0;
+    f64 y = 0.0;
+    f64 z = 0.0;
+    f32 yaw = 0.0f;
+    f32 pitch = 0.0f;
+    bool onGround = true;
+
+    PlayerPosition() = default;
+    PlayerPosition(f64 x, f64 y, f64 z, f32 yaw = 0.0f, f32 pitch = 0.0f, bool ground = true)
+        : x(x), y(y), z(z), yaw(yaw), pitch(pitch), onGround(ground) {}
+
+    [[nodiscard]] Vector3 toVector3() const { return Vector3(static_cast<f32>(x), static_cast<f32>(y), static_cast<f32>(z)); }
+
+    void serialize(PacketSerializer& ser) const {
+        ser.writeF64(x);
+        ser.writeF64(y);
+        ser.writeF64(z);
+        ser.writeF32(yaw);
+        ser.writeF32(pitch);
+        ser.writeBool(onGround);
+    }
+
+    [[nodiscard]] static Result<PlayerPosition> deserialize(PacketDeserializer& deser) {
+        PlayerPosition pos;
+        auto xResult = deser.readF64();
+        if (xResult.failed()) return xResult.error();
+        pos.x = xResult.value();
+
+        auto yResult = deser.readF64();
+        if (yResult.failed()) return yResult.error();
+        pos.y = yResult.value();
+
+        auto zResult = deser.readF64();
+        if (zResult.failed()) return zResult.error();
+        pos.z = zResult.value();
+
+        auto yawResult = deser.readF32();
+        if (yawResult.failed()) return yawResult.error();
+        pos.yaw = yawResult.value();
+
+        auto pitchResult = deser.readF32();
+        if (pitchResult.failed()) return pitchResult.error();
+        pos.pitch = pitchResult.value();
+
+        auto groundResult = deser.readBool();
+        if (groundResult.failed()) return groundResult.error();
+        pos.onGround = groundResult.value();
+
+        return pos;
+    }
+};
+
+// ============================================================================
+// 登录请求包 (客户端 -> 服务端)
+// ============================================================================
+
+class LoginRequestPacket {
+public:
+    LoginRequestPacket() = default;
+    explicit LoginRequestPacket(String username, i32 protocolVersion = protocol::VERSION)
+        : m_username(std::move(username))
+        , m_protocolVersion(protocolVersion)
+    {}
+
+    // Getters
+    const String& username() const { return m_username; }
+    i32 protocolVersion() const { return m_protocolVersion; }
+
+    // Setters
+    void setUsername(const String& username) { m_username = username; }
+    void setProtocolVersion(i32 version) { m_protocolVersion = version; }
+
+    // 序列化
+    void serialize(PacketSerializer& ser) const {
+        ser.writeVarInt(m_protocolVersion);
+        ser.writeString(m_username);
+    }
+
+    [[nodiscard]] static Result<LoginRequestPacket> deserialize(PacketDeserializer& deser) {
+        LoginRequestPacket packet;
+
+        auto versionResult = deser.readVarInt();
+        if (versionResult.failed()) {
+            return versionResult.error();
+        }
+        packet.m_protocolVersion = versionResult.value();
+
+        auto usernameResult = deser.readString();
+        if (usernameResult.failed()) {
+            return usernameResult.error();
+        }
+        packet.m_username = usernameResult.value();
+
+        // 验证
+        if (packet.m_username.empty() || packet.m_username.size() > protocol::MAX_USERNAME_LENGTH) {
+            return Error(ErrorCode::InvalidData, "Invalid username length");
+        }
+
+        return packet;
+    }
+
+private:
+    String m_username;
+    i32 m_protocolVersion = protocol::VERSION;
+};
+
+// ============================================================================
+// 登录响应包 (服务端 -> 客户端)
+// ============================================================================
+
+class LoginResponsePacket {
+public:
+    LoginResponsePacket() = default;
+    LoginResponsePacket(bool success, PlayerId playerId, const String& username, const String& message = "")
+        : m_success(success)
+        , m_playerId(playerId)
+        , m_username(username)
+        , m_message(message)
+    {}
+
+    // Getters
+    bool success() const { return m_success; }
+    PlayerId playerId() const { return m_playerId; }
+    const String& username() const { return m_username; }
+    const String& message() const { return m_message; }
+
+    // Setters
+    void setSuccess(bool success) { m_success = success; }
+    void setPlayerId(PlayerId id) { m_playerId = id; }
+    void setUsername(const String& username) { m_username = username; }
+    void setMessage(const String& message) { m_message = message; }
+
+    // 序列化
+    void serialize(PacketSerializer& ser) const {
+        ser.writeBool(m_success);
+        ser.writeU64(m_playerId);
+        ser.writeString(m_username);
+        ser.writeString(m_message);
+    }
+
+    [[nodiscard]] static Result<LoginResponsePacket> deserialize(PacketDeserializer& deser) {
+        LoginResponsePacket packet;
+
+        auto successResult = deser.readBool();
+        if (successResult.failed()) return successResult.error();
+        packet.m_success = successResult.value();
+
+        auto idResult = deser.readU64();
+        if (idResult.failed()) return idResult.error();
+        packet.m_playerId = idResult.value();
+
+        auto usernameResult = deser.readString();
+        if (usernameResult.failed()) return usernameResult.error();
+        packet.m_username = usernameResult.value();
+
+        auto messageResult = deser.readString();
+        if (messageResult.failed()) return messageResult.error();
+        packet.m_message = messageResult.value();
+
+        return packet;
+    }
+
+private:
+    bool m_success = false;
+    PlayerId m_playerId = 0;
+    String m_username;
+    String m_message;
+};
+
+// ============================================================================
+// 玩家移动包 (客户端 -> 服务端)
+// ============================================================================
+
+class PlayerMovePacket {
+public:
+    enum class MoveType : u8 {
+        Full = 0,           // 位置 + 旋转 + 地面
+        Position = 1,       // 仅位置 + 地面
+        Rotation = 2,       // 仅旋转 + 地面
+        GroundOnly = 3      // 仅地面状态
+    };
+
+    PlayerMovePacket() = default;
+    explicit PlayerMovePacket(const PlayerPosition& pos, MoveType type = MoveType::Full)
+        : m_position(pos)
+        , m_type(type)
+    {}
+
+    // Getters
+    const PlayerPosition& position() const { return m_position; }
+    MoveType type() const { return m_type; }
+    f64 x() const { return m_position.x; }
+    f64 y() const { return m_position.y; }
+    f64 z() const { return m_position.z; }
+    f32 yaw() const { return m_position.yaw; }
+    f32 pitch() const { return m_position.pitch; }
+    bool onGround() const { return m_position.onGround; }
+
+    // Setters
+    void setPosition(const PlayerPosition& pos) { m_position = pos; }
+    void setType(MoveType type) { m_type = type; }
+
+    // 序列化
+    void serialize(PacketSerializer& ser) const {
+        ser.writeU8(static_cast<u8>(m_type));
+
+        switch (m_type) {
+            case MoveType::Full:
+                m_position.serialize(ser);
+                break;
+            case MoveType::Position:
+                ser.writeF64(m_position.x);
+                ser.writeF64(m_position.y);
+                ser.writeF64(m_position.z);
+                ser.writeBool(m_position.onGround);
+                break;
+            case MoveType::Rotation:
+                ser.writeF32(m_position.yaw);
+                ser.writeF32(m_position.pitch);
+                ser.writeBool(m_position.onGround);
+                break;
+            case MoveType::GroundOnly:
+                ser.writeBool(m_position.onGround);
+                break;
+        }
+    }
+
+    [[nodiscard]] static Result<PlayerMovePacket> deserialize(PacketDeserializer& deser) {
+        PlayerMovePacket packet;
+
+        auto typeResult = deser.readU8();
+        if (typeResult.failed()) return typeResult.error();
+        packet.m_type = static_cast<MoveType>(typeResult.value());
+
+        switch (packet.m_type) {
+            case MoveType::Full: {
+                auto posResult = PlayerPosition::deserialize(deser);
+                if (posResult.failed()) return posResult.error();
+                packet.m_position = posResult.value();
+                break;
+            }
+            case MoveType::Position: {
+                auto xResult = deser.readF64();
+                if (xResult.failed()) return xResult.error();
+                packet.m_position.x = xResult.value();
+
+                auto yResult = deser.readF64();
+                if (yResult.failed()) return yResult.error();
+                packet.m_position.y = yResult.value();
+
+                auto zResult = deser.readF64();
+                if (zResult.failed()) return zResult.error();
+                packet.m_position.z = zResult.value();
+
+                auto groundResult = deser.readBool();
+                if (groundResult.failed()) return groundResult.error();
+                packet.m_position.onGround = groundResult.value();
+                break;
+            }
+            case MoveType::Rotation: {
+                auto yawResult = deser.readF32();
+                if (yawResult.failed()) return yawResult.error();
+                packet.m_position.yaw = yawResult.value();
+
+                auto pitchResult = deser.readF32();
+                if (pitchResult.failed()) return pitchResult.error();
+                packet.m_position.pitch = pitchResult.value();
+
+                auto groundResult = deser.readBool();
+                if (groundResult.failed()) return groundResult.error();
+                packet.m_position.onGround = groundResult.value();
+                break;
+            }
+            case MoveType::GroundOnly: {
+                auto groundResult = deser.readBool();
+                if (groundResult.failed()) return groundResult.error();
+                packet.m_position.onGround = groundResult.value();
+                break;
+            }
+            default:
+                return Error(ErrorCode::InvalidData, "Invalid move type");
+        }
+
+        return packet;
+    }
+
+private:
+    PlayerPosition m_position;
+    MoveType m_type = MoveType::Full;
+};
+
+// ============================================================================
+// 传送包 (服务端 -> 客户端)
+// ============================================================================
+
+class TeleportPacket {
+public:
+    TeleportPacket() = default;
+    TeleportPacket(f64 x, f64 y, f64 z, f32 yaw, f32 pitch, u32 teleportId)
+        : m_x(x), m_y(y), m_z(z), m_yaw(yaw), m_pitch(pitch), m_teleportId(teleportId)
+    {}
+
+    // Getters
+    f64 x() const { return m_x; }
+    f64 y() const { return m_y; }
+    f64 z() const { return m_z; }
+    f32 yaw() const { return m_yaw; }
+    f32 pitch() const { return m_pitch; }
+    u32 teleportId() const { return m_teleportId; }
+
+    // Setters
+    void setX(f64 x) { m_x = x; }
+    void setY(f64 y) { m_y = y; }
+    void setZ(f64 z) { m_z = z; }
+    void setYaw(f32 yaw) { m_yaw = yaw; }
+    void setPitch(f32 pitch) { m_pitch = pitch; }
+    void setTeleportId(u32 id) { m_teleportId = id; }
+
+    // 序列化
+    void serialize(PacketSerializer& ser) const {
+        ser.writeF64(m_x);
+        ser.writeF64(m_y);
+        ser.writeF64(m_z);
+        ser.writeF32(m_yaw);
+        ser.writeF32(m_pitch);
+        ser.writeVarUInt(m_teleportId);
+    }
+
+    [[nodiscard]] static Result<TeleportPacket> deserialize(PacketDeserializer& deser) {
+        TeleportPacket packet;
+
+        auto xResult = deser.readF64();
+        if (xResult.failed()) return xResult.error();
+        packet.m_x = xResult.value();
+
+        auto yResult = deser.readF64();
+        if (yResult.failed()) return yResult.error();
+        packet.m_y = yResult.value();
+
+        auto zResult = deser.readF64();
+        if (zResult.failed()) return zResult.error();
+        packet.m_z = zResult.value();
+
+        auto yawResult = deser.readF32();
+        if (yawResult.failed()) return yawResult.error();
+        packet.m_yaw = yawResult.value();
+
+        auto pitchResult = deser.readF32();
+        if (pitchResult.failed()) return pitchResult.error();
+        packet.m_pitch = pitchResult.value();
+
+        auto idResult = deser.readVarUInt();
+        if (idResult.failed()) return idResult.error();
+        packet.m_teleportId = idResult.value();
+
+        return packet;
+    }
+
+private:
+    f64 m_x = 0.0;
+    f64 m_y = 0.0;
+    f64 m_z = 0.0;
+    f32 m_yaw = 0.0f;
+    f32 m_pitch = 0.0f;
+    u32 m_teleportId = 0;
+};
+
+// ============================================================================
+// 传送确认包 (客户端 -> 服务端)
+// ============================================================================
+
+class TeleportConfirmPacket {
+public:
+    TeleportConfirmPacket() = default;
+    explicit TeleportConfirmPacket(u32 teleportId)
+        : m_teleportId(teleportId)
+    {}
+
+    // Getters
+    u32 teleportId() const { return m_teleportId; }
+
+    // Setters
+    void setTeleportId(u32 id) { m_teleportId = id; }
+
+    // 序列化
+    void serialize(PacketSerializer& ser) const {
+        ser.writeVarUInt(m_teleportId);
+    }
+
+    [[nodiscard]] static Result<TeleportConfirmPacket> deserialize(PacketDeserializer& deser) {
+        TeleportConfirmPacket packet;
+
+        auto idResult = deser.readVarUInt();
+        if (idResult.failed()) return idResult.error();
+        packet.m_teleportId = idResult.value();
+
+        return packet;
+    }
+
+private:
+    u32 m_teleportId = 0;
+};
+
+// ============================================================================
+// Keep-Alive 数据包 (双向) - 用于 ProtocolPackets 内部
+// 注意: 这是简化版本，完整的 KeepAlivePacket 见 Packet.hpp
+// ============================================================================
+
+class SimpleKeepAlive {
+public:
+    SimpleKeepAlive() = default;
+    explicit SimpleKeepAlive(u64 id)
+        : m_id(id)
+    {}
+
+    // Getters
+    u64 id() const { return m_id; }
+
+    // Setters
+    void setId(u64 id) { m_id = id; }
+
+    // 序列化
+    void serialize(PacketSerializer& ser) const {
+        ser.writeU64(m_id);
+    }
+
+    [[nodiscard]] static Result<SimpleKeepAlive> deserialize(PacketDeserializer& deser) {
+        SimpleKeepAlive packet;
+
+        auto idResult = deser.readU64();
+        if (idResult.failed()) return idResult.error();
+        packet.m_id = idResult.value();
+
+        return packet;
+    }
+
+private:
+    u64 m_id = 0;
+};
+
+// ============================================================================
+// 区块数据包 (服务端 -> 客户端)
+// ============================================================================
+
+class ChunkDataPacket {
+public:
+    ChunkDataPacket() = default;
+    ChunkDataPacket(ChunkCoord x, ChunkCoord z, std::vector<u8> data)
+        : m_x(x)
+        , m_z(z)
+        , m_data(std::move(data))
+    {}
+
+    // Getters
+    ChunkCoord x() const { return m_x; }
+    ChunkCoord z() const { return m_z; }
+    const std::vector<u8>& data() const { return m_data; }
+    size_t size() const { return m_data.size(); }
+
+    // Setters
+    void setX(ChunkCoord x) { m_x = x; }
+    void setZ(ChunkCoord z) { m_z = z; }
+    void setData(const std::vector<u8>& data) { m_data = data; }
+    void setData(std::vector<u8>&& data) { m_data = std::move(data); }
+
+    // 序列化
+    void serialize(PacketSerializer& ser) const {
+        ser.writeI32(m_x);
+        ser.writeI32(m_z);
+        ser.writeVarUInt(static_cast<u32>(m_data.size()));
+        ser.writeBytes(m_data);
+    }
+
+    [[nodiscard]] static Result<ChunkDataPacket> deserialize(PacketDeserializer& deser) {
+        ChunkDataPacket packet;
+
+        auto xResult = deser.readI32();
+        if (xResult.failed()) return xResult.error();
+        packet.m_x = xResult.value();
+
+        auto zResult = deser.readI32();
+        if (zResult.failed()) return zResult.error();
+        packet.m_z = zResult.value();
+
+        auto sizeResult = deser.readVarUInt();
+        if (sizeResult.failed()) return sizeResult.error();
+        u32 size = sizeResult.value();
+
+        if (size > protocol::MAX_CHUNK_DATA_SIZE) {
+            return Error(ErrorCode::InvalidData, "Chunk data too large");
+        }
+
+        auto dataResult = deser.readBytes(size);
+        if (dataResult.failed()) return dataResult.error();
+        packet.m_data = std::move(dataResult.value());
+
+        return packet;
+    }
+
+private:
+    ChunkCoord m_x = 0;
+    ChunkCoord m_z = 0;
+    std::vector<u8> m_data;
+};
+
+// ============================================================================
+// 卸载区块包 (服务端 -> 客户端)
+// ============================================================================
+
+class UnloadChunkPacket {
+public:
+    UnloadChunkPacket() = default;
+    UnloadChunkPacket(ChunkCoord x, ChunkCoord z)
+        : m_x(x), m_z(z)
+    {}
+
+    // Getters
+    ChunkCoord x() const { return m_x; }
+    ChunkCoord z() const { return m_z; }
+
+    // Setters
+    void setX(ChunkCoord x) { m_x = x; }
+    void setZ(ChunkCoord z) { m_z = z; }
+
+    // 序列化
+    void serialize(PacketSerializer& ser) const {
+        ser.writeI32(m_x);
+        ser.writeI32(m_z);
+    }
+
+    [[nodiscard]] static Result<UnloadChunkPacket> deserialize(PacketDeserializer& deser) {
+        UnloadChunkPacket packet;
+
+        auto xResult = deser.readI32();
+        if (xResult.failed()) return xResult.error();
+        packet.m_x = xResult.value();
+
+        auto zResult = deser.readI32();
+        if (zResult.failed()) return zResult.error();
+        packet.m_z = zResult.value();
+
+        return packet;
+    }
+
+private:
+    ChunkCoord m_x = 0;
+    ChunkCoord m_z = 0;
+};
+
+// ============================================================================
+// 玩家生成包 (服务端 -> 客户端)
+// ============================================================================
+
+class PlayerSpawnPacket {
+public:
+    PlayerSpawnPacket() = default;
+    PlayerSpawnPacket(PlayerId playerId, const String& username, const PlayerPosition& pos)
+        : m_playerId(playerId)
+        , m_username(username)
+        , m_position(pos)
+    {}
+
+    // Getters
+    PlayerId playerId() const { return m_playerId; }
+    const String& username() const { return m_username; }
+    const PlayerPosition& position() const { return m_position; }
+
+    // Setters
+    void setPlayerId(PlayerId id) { m_playerId = id; }
+    void setUsername(const String& username) { m_username = username; }
+    void setPosition(const PlayerPosition& pos) { m_position = pos; }
+
+    // 序列化
+    void serialize(PacketSerializer& ser) const {
+        ser.writeU64(m_playerId);
+        ser.writeString(m_username);
+        m_position.serialize(ser);
+    }
+
+    [[nodiscard]] static Result<PlayerSpawnPacket> deserialize(PacketDeserializer& deser) {
+        PlayerSpawnPacket packet;
+
+        auto idResult = deser.readU64();
+        if (idResult.failed()) return idResult.error();
+        packet.m_playerId = idResult.value();
+
+        auto usernameResult = deser.readString();
+        if (usernameResult.failed()) return usernameResult.error();
+        packet.m_username = usernameResult.value();
+
+        auto posResult = PlayerPosition::deserialize(deser);
+        if (posResult.failed()) return posResult.error();
+        packet.m_position = posResult.value();
+
+        return packet;
+    }
+
+private:
+    PlayerId m_playerId = 0;
+    String m_username;
+    PlayerPosition m_position;
+};
+
+// ============================================================================
+// 玩家消失包 (服务端 -> 客户端)
+// ============================================================================
+
+class PlayerDespawnPacket {
+public:
+    PlayerDespawnPacket() = default;
+    explicit PlayerDespawnPacket(PlayerId playerId)
+        : m_playerId(playerId)
+    {}
+
+    // Getters
+    PlayerId playerId() const { return m_playerId; }
+
+    // Setters
+    void setPlayerId(PlayerId id) { m_playerId = id; }
+
+    // 序列化
+    void serialize(PacketSerializer& ser) const {
+        ser.writeU64(m_playerId);
+    }
+
+    [[nodiscard]] static Result<PlayerDespawnPacket> deserialize(PacketDeserializer& deser) {
+        PlayerDespawnPacket packet;
+
+        auto idResult = deser.readU64();
+        if (idResult.failed()) return idResult.error();
+        packet.m_playerId = idResult.value();
+
+        return packet;
+    }
+
+private:
+    PlayerId m_playerId = 0;
+};
+
+// ============================================================================
+// 方块更新包 (服务端 -> 客户端)
+// ============================================================================
+
+class BlockUpdatePacket {
+public:
+    BlockUpdatePacket() = default;
+    BlockUpdatePacket(i32 x, i32 y, i32 z, mr::BlockId blockId, u16 blockData = 0)
+        : m_x(x), m_y(y), m_z(z)
+        , m_blockId(blockId)
+        , m_blockData(blockData)
+    {}
+
+    // Getters
+    i32 x() const { return m_x; }
+    i32 y() const { return m_y; }
+    i32 z() const { return m_z; }
+    mr::BlockId blockId() const { return m_blockId; }
+    u16 blockData() const { return m_blockData; }
+
+    // Setters
+    void setX(i32 x) { m_x = x; }
+    void setY(i32 y) { m_y = y; }
+    void setZ(i32 z) { m_z = z; }
+    void setBlockId(mr::BlockId id) { m_blockId = id; }
+    void setBlockData(u16 data) { m_blockData = data; }
+
+    // 序列化
+    void serialize(PacketSerializer& ser) const {
+        ser.writeI32(m_x);
+        ser.writeI32(m_y);
+        ser.writeI32(m_z);
+        ser.writeVarUInt(static_cast<u32>(m_blockId));
+        ser.writeU16(m_blockData);
+    }
+
+    [[nodiscard]] static Result<BlockUpdatePacket> deserialize(PacketDeserializer& deser) {
+        BlockUpdatePacket packet;
+
+        auto xResult = deser.readI32();
+        if (xResult.failed()) return xResult.error();
+        packet.m_x = xResult.value();
+
+        auto yResult = deser.readI32();
+        if (yResult.failed()) return yResult.error();
+        packet.m_y = yResult.value();
+
+        auto zResult = deser.readI32();
+        if (zResult.failed()) return zResult.error();
+        packet.m_z = zResult.value();
+
+        auto idResult = deser.readVarUInt();
+        if (idResult.failed()) return idResult.error();
+        packet.m_blockId = static_cast<mr::BlockId>(idResult.value());
+
+        auto dataResult = deser.readU16();
+        if (dataResult.failed()) return dataResult.error();
+        packet.m_blockData = dataResult.value();
+
+        return packet;
+    }
+
+private:
+    i32 m_x = 0;
+    i32 m_y = 0;
+    i32 m_z = 0;
+    mr::BlockId m_blockId = mr::BlockId::Air;
+    u16 m_blockData = 0;
+};
+
+// ============================================================================
+// 聊天消息包 (双向)
+// ============================================================================
+
+class ChatMessagePacket {
+public:
+    ChatMessagePacket() = default;
+    ChatMessagePacket(const String& message, PlayerId senderId = 0)
+        : m_message(message)
+        , m_senderId(senderId)
+    {}
+
+    // Getters
+    const String& message() const { return m_message; }
+    PlayerId senderId() const { return m_senderId; }
+
+    // Setters
+    void setMessage(const String& message) { m_message = message; }
+    void setSenderId(PlayerId id) { m_senderId = id; }
+
+    // 序列化
+    void serialize(PacketSerializer& ser) const {
+        ser.writeString(m_message);
+        ser.writeU64(m_senderId);
+    }
+
+    [[nodiscard]] static Result<ChatMessagePacket> deserialize(PacketDeserializer& deser) {
+        ChatMessagePacket packet;
+
+        auto msgResult = deser.readString();
+        if (msgResult.failed()) return msgResult.error();
+        packet.m_message = msgResult.value();
+
+        auto idResult = deser.readU64();
+        if (idResult.failed()) return idResult.error();
+        packet.m_senderId = idResult.value();
+
+        // 验证消息长度
+        if (packet.m_message.size() > protocol::MAX_CHAT_LENGTH) {
+            return Error(ErrorCode::InvalidData, "Chat message too long");
+        }
+
+        return packet;
+    }
+
+private:
+    String m_message;
+    PlayerId m_senderId = 0;
+};
+
+} // namespace mr::network

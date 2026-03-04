@@ -11,24 +11,29 @@ namespace mr::network {
 enum class PacketType : u16 {
     // 内部控制包
     Handshake = 0,
-    Heartbeat = 1,
+    KeepAlive = 1,
     Disconnect = 2,
 
-    // 客户端 -> 服务端
+    // 客户端 -> 服务端 (登录阶段)
     LoginRequest = 100,
+
+    // 客户端 -> 服务端 (游戏阶段)
     PlayerMove = 101,
-    PlayerAction = 102,
+    TeleportConfirm = 102,
     ChatMessage = 103,
     BlockInteraction = 104,
 
-    // 服务端 -> 客户端
+    // 服务端 -> 客户端 (登录阶段)
     LoginResponse = 200,
+
+    // 服务端 -> 客户端 (游戏阶段)
     PlayerSpawn = 201,
     PlayerDespawn = 202,
     ChunkData = 203,
-    BlockUpdate = 204,
-    EntityUpdate = 205,
-    ChatBroadcast = 206,
+    UnloadChunk = 204,
+    BlockUpdate = 205,
+    Teleport = 206,
+    ChatBroadcast = 207
 };
 
 // 数据包头
@@ -66,10 +71,10 @@ protected:
     u16 m_flags = 0;
 };
 
-// 心跳包
-class HeartbeatPacket : public Packet {
+// 心跳包 (KeepAlive)
+class KeepAlivePacket : public Packet {
 public:
-    HeartbeatPacket() : Packet(PacketType::Heartbeat) {}
+    KeepAlivePacket() : Packet(PacketType::KeepAlive) {}
 
     [[nodiscard]] Result<std::vector<u8>> serialize() const override;
     [[nodiscard]] Result<void> deserialize(const u8* data, size_t size) override;

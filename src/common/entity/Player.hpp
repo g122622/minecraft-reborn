@@ -1,0 +1,231 @@
+#pragma once
+
+#include "Entity.hpp"
+#include "../network/ProtocolPackets.hpp"
+#include <array>
+
+namespace mr {
+
+// ============================================================================
+// 玩家能力标志
+// ============================================================================
+
+struct PlayerAbilities {
+    bool invulnerable = false;      // 无敌
+    bool flying = false;            // 正在飞行
+    bool canFly = false;            // 允许飞行
+    bool creativeMode = false;      // 创造模式
+    bool allowEdit = true;          // 允许编辑方块
+    f32 flySpeed = 0.05f;           // 飞行速度
+    f32 walkSpeed = 0.1f;           // 行走速度
+
+    void serialize(network::PacketSerializer& ser) const {
+        u8 flags = 0;
+        if (invulnerable) flags |= 0x01;
+        if (flying) flags |= 0x02;
+        if (canFly) flags |= 0x04;
+        if (creativeMode) flags |= 0x08;
+        ser.writeU8(flags);
+        ser.writeF32(flySpeed);
+        ser.writeF32(walkSpeed);
+    }
+
+    [[nodiscard]] static Result<PlayerAbilities> deserialize(network::PacketDeserializer& deser) {
+        PlayerAbilities abilities;
+
+        auto flagsResult = deser.readU8();
+        if (flagsResult.failed()) return flagsResult.error();
+
+        u8 flags = flagsResult.value();
+        abilities.invulnerable = (flags & 0x01) != 0;
+        abilities.flying = (flags & 0x02) != 0;
+        abilities.canFly = (flags & 0x04) != 0;
+        abilities.creativeMode = (flags & 0x08) != 0;
+
+        auto flySpeedResult = deser.readF32();
+        if (flySpeedResult.failed()) return flySpeedResult.error();
+        abilities.flySpeed = flySpeedResult.value();
+
+        auto walkSpeedResult = deser.readF32();
+        if (walkSpeedResult.failed()) return walkSpeedResult.error();
+        abilities.walkSpeed = walkSpeedResult.value();
+
+        return abilities;
+    }
+};
+
+// ============================================================================
+// 饥饿系统
+// ============================================================================
+
+struct FoodStats {
+    i32 foodLevel = 20;             // 饥饿值 (0-20)
+    f32 saturationLevel = 5.0f;     // 饱和度
+    f32 exhaustionLevel = 0.0f;     // 消耗累积值
+    i32 foodTimer = 0;              // 计时器
+
+    void addExhaustion(f32 amount) {
+        exhaustionLevel += amount;
+        while (exhaustionLevel >= 4.0f) {
+            exhaustionLevel -= 4.0f;
+            if (saturationLevel > 0.0f) {
+                saturationLevel = std::max(0.0f, saturationLevel - 1.0f);
+            } else if (foodLevel > 0) {
+                foodLevel--;
+            }
+        }
+    }
+
+    void addStats(i32 food, f32 saturation) {
+        foodLevel = std::min(20, foodLevel + food);
+        saturationLevel = std::min(20.0f, saturationLevel + saturation);
+    }
+
+    bool needsFood() const {
+        return foodLevel < 20;
+    }
+
+    void serialize(network::PacketSerializer& ser) const {
+        ser.writeI32(foodLevel);
+        ser.writeF32(saturationLevel);
+        ser.writeF32(exhaustionLevel);
+    }
+
+    [[nodiscard]] static Result<FoodStats> deserialize(network::PacketDeserializer& deser) {
+        FoodStats stats;
+
+        auto foodResult = deser.readI32();
+        if (foodResult.failed()) return foodResult.error();
+        stats.foodLevel = foodResult.value();
+
+        auto satResult = deser.readF32();
+        if (satResult.failed()) return satResult.error();
+        stats.saturationLevel = satResult.value();
+
+        auto exhResult = deser.readF32();
+        if (exhResult.failed()) return exhResult.error();
+        stats.exhaustionLevel = exhResult.value();
+
+        return stats;
+    }
+};
+
+// ============================================================================
+// 玩家类
+// ============================================================================
+
+class Player : public Entity {
+public:
+    // 玩家尺寸常量
+    static constexpr f32 PLAYER_WIDTH = 0.6f;
+    static constexpr f32 PLAYER_HEIGHT = 1.8f;
+    static constexpr f32 PLAYER_EYE_HEIGHT = 1.62f;
+    static constexpr f32 PLAYER_CROUCH_HEIGHT = 1.5f;
+    static constexpr f32 PLAYER_SWIM_HEIGHT = 0.6f;
+
+    Player(EntityId id, const String& username);
+    ~Player() override = default;
+
+    // 禁止拷贝
+    Player(const Player&) = delete;
+    Player& operator=(const Player&) = delete;
+
+    // 允许移动
+    Player(Player&&) = default;
+    Player& operator=(Player&&) = default;
+
+    // 玩家特有属性
+    [[nodiscard]] const String& username() const { return m_username; }
+    [[nodiscard]] PlayerId playerId() const { return m_playerId; }
+    void setPlayerId(PlayerId id) { m_playerId = id; }
+
+    // 游戏模式
+    [[nodiscard]] GameMode gameMode() const { return m_gameMode; }
+    void setGameMode(GameMode mode);
+
+    // 维度
+    [[nodiscard]] DimensionId dimension() const { return m_dimension; }
+    void setDimension(DimensionId dim) { m_dimension = dim; }
+
+    // 生命值和饥饿
+    [[nodiscard]] f32 health() const { return m_health; }
+    [[nodiscard]] f32 maxHealth() const { return m_maxHealth; }
+    void setHealth(f32 health);
+    void heal(f32 amount);
+    void damage(f32 amount);
+
+    [[nodiscard]] const FoodStats& foodStats() const { return m_foodStats; }
+    FoodStats& foodStats() { return m_foodStats; }
+
+    // 经验
+    [[nodiscard]] i32 experienceLevel() const { return m_experienceLevel; }
+    [[nodiscard]] f32 experienceProgress() const { return m_experienceProgress; }
+    [[nodiscard]] i32 totalExperience() const { return m_totalExperience; }
+    void addExperience(i32 amount);
+    void setExperienceLevel(i32 level);
+    i32 experienceBarCapacity() const;  // 当前等级填满经验条需要的经验值
+
+    // 能力
+    [[nodiscard]] const PlayerAbilities& abilities() const { return m_abilities; }
+    PlayerAbilities& abilities() { return m_abilities; }
+
+    // 状态
+    [[nodiscard]] bool isOnGround() const { return m_onGround; }
+    [[nodiscard]] bool isSprinting() const { return m_isSprinting; }
+    [[nodiscard]] bool isSneaking() const { return m_isSneaking; }
+    [[nodiscard]] bool isSwimming() const { return m_isSwimming; }
+    [[nodiscard]] bool isSleeping() const { return m_isSleeping; }
+    [[nodiscard]] bool isDead() const { return m_health <= 0.0f; }
+
+    void setSprinting(bool sprinting);
+    void setSneaking(bool sneaking);
+    void setSwimming(bool swimming);
+    void setSleeping(bool sleeping);
+
+    // 重写尺寸
+    [[nodiscard]] f32 width() const override { return PLAYER_WIDTH; }
+    [[nodiscard]] f32 height() const override;
+    [[nodiscard]] f32 eyeHeight() const override;
+
+    // 重写更新
+    void tick() override;
+    void update() override;
+
+    // 网络同步位置
+    [[nodiscard]] network::PlayerPosition playerPosition() const;
+
+    // 重生
+    void respawn();
+
+    // 序列化
+    void serialize(network::PacketSerializer& ser) const;
+    [[nodiscard]] static Result<std::unique_ptr<Player>> deserialize(network::PacketDeserializer& deser);
+
+private:
+    String m_username;
+    PlayerId m_playerId = 0;
+    GameMode m_gameMode = GameMode::Survival;
+
+    f32 m_health = 20.0f;
+    f32 m_maxHealth = 20.0f;
+    f32 m_absorptionAmount = 0.0f;
+
+    FoodStats m_foodStats;
+    PlayerAbilities m_abilities;
+
+    i32 m_experienceLevel = 0;
+    f32 m_experienceProgress = 0.0f;
+    i32 m_totalExperience = 0;
+    i32 m_xpSeed = 0;
+
+    bool m_isSprinting = false;
+    bool m_isSneaking = false;
+    bool m_isSwimming = false;
+    bool m_isSleeping = false;
+
+    i32 sleepTimer = 0;
+    i32 hurtTime = 0;
+    i32 deathTime = 0;
+};
+
+} // namespace mr
