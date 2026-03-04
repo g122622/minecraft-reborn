@@ -62,19 +62,7 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
     m_input.initialize(m_window.handle());
 
     // 设置按键绑定
-    m_input.bindKeyAction(GLFW_KEY_ESCAPE, "exit");
-    m_input.bindKeyAction(GLFW_KEY_W, "forward");
-    m_input.bindKeyAction(GLFW_KEY_S, "backward");
-    m_input.bindKeyAction(GLFW_KEY_A, "left");
-    m_input.bindKeyAction(GLFW_KEY_D, "right");
-    m_input.bindKeyAction(GLFW_KEY_SPACE, "jump");
-    m_input.bindKeyAction(GLFW_KEY_LEFT_SHIFT, "sneak");
-
-    // 设置动作回调
-    m_input.bindActionCallback("exit", [this]() {
-        spdlog::info("Exit key pressed");
-        stop();
-    });
+    setupInputBindings();
 
     // 设置窗口大小变化回调
     m_window.setResizeCallback([](i32 width, i32 height, void* userData) {
@@ -85,6 +73,8 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
             if (result.failed()) {
                 spdlog::error("Failed to handle resize: {}", result.error().toString());
             }
+            // 更新相机宽高比
+            app->m_camera.setAspectRatio(static_cast<f32>(width) / static_cast<f32>(height));
         }
     }, this);
 
@@ -106,8 +96,16 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
         return rendererResult.error();
     }
 
+    // 设置相机
+    setupCamera();
+
+    // 将相机设置给渲染器
+    m_renderer->setCamera(&m_camera);
+
     spdlog::info("Client initialized successfully");
     spdlog::info("Window: {}x{}", m_window.width(), m_window.height());
+    spdlog::info("Controls: WASD to move, Space to go up, Shift to go down, mouse to look");
+    spdlog::info("Press ALT to toggle mouse capture");
 
     m_initialized = true;
     return Result<void>::ok();
@@ -154,6 +152,9 @@ void ClientApplication::mainLoop()
     spdlog::info("Client is now running!");
     spdlog::info("Press ESC to exit");
 
+    // 初始捕获鼠标
+    toggleMouseCapture();
+
     m_lastFrameTime = glfwGetTime();
 
     while (m_running && !m_window.shouldClose()) {
@@ -188,16 +189,55 @@ void ClientApplication::handleEvents()
 {
     m_window.pollEvents();
     m_input.update();
+
+    // 检查ALT键切换鼠标捕获
+    if (m_input.isKeyJustPressed(GLFW_KEY_LEFT_ALT) ||
+        m_input.isKeyJustPressed(GLFW_KEY_RIGHT_ALT)) {
+        toggleMouseCapture();
+    }
+
+    // 传递键盘输入到相机控制器
+    if (m_mouseCaptured) {
+        if (m_input.isKeyPressed(GLFW_KEY_W)) {
+            m_cameraController.handleKeyboardInput(GLFW_KEY_W, 1);
+        } else {
+            m_cameraController.handleKeyboardInput(GLFW_KEY_W, 0);
+        }
+        if (m_input.isKeyPressed(GLFW_KEY_S)) {
+            m_cameraController.handleKeyboardInput(GLFW_KEY_S, 1);
+        } else {
+            m_cameraController.handleKeyboardInput(GLFW_KEY_S, 0);
+        }
+        if (m_input.isKeyPressed(GLFW_KEY_A)) {
+            m_cameraController.handleKeyboardInput(GLFW_KEY_A, 1);
+        } else {
+            m_cameraController.handleKeyboardInput(GLFW_KEY_A, 0);
+        }
+        if (m_input.isKeyPressed(GLFW_KEY_D)) {
+            m_cameraController.handleKeyboardInput(GLFW_KEY_D, 1);
+        } else {
+            m_cameraController.handleKeyboardInput(GLFW_KEY_D, 0);
+        }
+        if (m_input.isKeyPressed(GLFW_KEY_SPACE)) {
+            m_cameraController.handleKeyboardInput(GLFW_KEY_SPACE, 1);
+        } else {
+            m_cameraController.handleKeyboardInput(GLFW_KEY_SPACE, 0);
+        }
+        if (m_input.isKeyPressed(GLFW_KEY_LEFT_SHIFT)) {
+            m_cameraController.handleKeyboardInput(GLFW_KEY_LEFT_SHIFT, 1);
+        } else {
+            m_cameraController.handleKeyboardInput(GLFW_KEY_LEFT_SHIFT, 0);
+        }
+
+        // 鼠标视角控制
+        m_cameraController.handleMouseMove(m_input.mouseDeltaX(), m_input.mouseDeltaY());
+    }
 }
 
 void ClientApplication::update(f32 deltaTime)
 {
-    // TODO: 实现游戏逻辑更新
-    // - 更新游戏状态
-    // - 处理输入
-    // - 更新网络
-    // - 更新世界
-    // - 更新实体
+    // 更新相机控制器（这会调用 Camera::update 更新矩阵）
+    m_cameraController.update(deltaTime);
 }
 
 void ClientApplication::render()
@@ -246,6 +286,52 @@ Result<void> ClientConfig::save(const String& path) const
     // TODO: 实现JSON配置保存
     spdlog::info("Saved client config to: {}", path);
     return Result<void>::ok();
+}
+
+// 辅助函数实现
+
+void ClientApplication::setupInputBindings()
+{
+    m_input.bindKeyAction(GLFW_KEY_ESCAPE, "exit");
+
+    m_input.bindActionCallback("exit", [this]() {
+        spdlog::info("Exit key pressed");
+        stop();
+    });
+}
+
+void ClientApplication::setupCamera()
+{
+    // 设置相机配置
+    CameraConfig cameraConfig;
+    cameraConfig.fov = 70.0f;
+    cameraConfig.aspectRatio = static_cast<f32>(m_config.windowWidth) / static_cast<f32>(m_config.windowHeight);
+    cameraConfig.nearPlane = 0.1f;
+    cameraConfig.farPlane = 1000.0f;
+    cameraConfig.moveSpeed = 10.0f;      // 移动速度
+    cameraConfig.mouseSensitivity = 0.1f; // 鼠标灵敏度
+
+    m_camera = Camera(cameraConfig);
+
+    // 设置初始位置（在测试区块上方）
+    m_camera.setPosition(8.0f, 30.0f, 8.0f);
+    m_camera.setYaw(45.0f);
+    m_camera.update(0.0f);
+
+    // 设置相机控制器
+    m_cameraController.setCamera(&m_camera);
+}
+
+void ClientApplication::toggleMouseCapture()
+{
+    m_mouseCaptured = !m_mouseCaptured;
+    m_input.setMouseLocked(m_mouseCaptured);
+
+    if (m_mouseCaptured) {
+        spdlog::debug("Mouse captured - first person mode");
+    } else {
+        spdlog::debug("Mouse released - UI mode");
+    }
 }
 
 } // namespace mr::client

@@ -113,7 +113,9 @@ void Camera::rotate(f32 pitchDelta, f32 yawDelta) {
 
 void Camera::look(f32 mouseDeltaX, f32 mouseDeltaY) {
     // 应用鼠标灵敏度和方向
-    f32 yawDelta = -mouseDeltaX * m_config.mouseSensitivity;
+    // 鼠标右移 -> yaw 增大 -> 视角右转
+    f32 yawDelta = mouseDeltaX * m_config.mouseSensitivity;
+    // 鼠标上移 -> pitch 增大 -> 视角上抬
     f32 pitchDelta = -mouseDeltaY * m_config.mouseSensitivity;
 
     rotate(pitchDelta, yawDelta);
@@ -193,6 +195,9 @@ void Camera::updateProjectionMatrix() {
             m_config.farPlane
         );
     }
+
+    // Vulkan 使用右手坐标系，Y 轴向下，需要翻转投影矩阵的 Y 轴
+    m_projectionMatrix[1][1] *= -1.0f;
 }
 
 void Camera::updateViewProjectionMatrix() {

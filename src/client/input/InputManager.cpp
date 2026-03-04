@@ -43,13 +43,6 @@ void InputManager::update()
     m_lastMouseX = m_mouseX;
     m_lastMouseY = m_mouseY;
 
-    // 如果鼠标锁定，重置增量为原始增量
-    if (m_mouseLocked) {
-        m_mouseDeltaX = m_mouseX;
-        m_mouseDeltaY = m_mouseY;
-        // 重新居中鼠标（GLFW会处理这个）
-    }
-
     // 触发按键绑定
     for (const auto& key : m_keysJustPressed) {
         auto it = m_keyBindings.find(key);
@@ -101,6 +94,12 @@ void InputManager::setMouseLocked(bool locked)
             GLFW_CURSOR,
             locked ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL
         );
+        // 切换模式后重置鼠标状态，避免跳跃
+        glfwGetCursorPos(m_window, &m_mouseX, &m_mouseY);
+        m_lastMouseX = m_mouseX;
+        m_lastMouseY = m_mouseY;
+        m_mouseDeltaX = 0.0;
+        m_mouseDeltaY = 0.0;
     }
 }
 

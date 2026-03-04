@@ -5,6 +5,7 @@
 #include "../window/Window.hpp"
 #include "../input/InputManager.hpp"
 #include "../renderer/VulkanRenderer.hpp"
+#include "../renderer/Camera.hpp"
 
 #include <string>
 #include <memory>
@@ -103,6 +104,12 @@ public:
     [[nodiscard]] VulkanRenderer& renderer() noexcept { return *m_renderer; }
     [[nodiscard]] const VulkanRenderer& renderer() const noexcept { return *m_renderer; }
 
+    /**
+     * @brief 获取相机
+     */
+    [[nodiscard]] Camera& camera() noexcept { return m_camera; }
+    [[nodiscard]] const Camera& camera() const noexcept { return m_camera; }
+
     // 友元声明，用于回调
     friend void onWindowResize(i32 width, i32 height, void* userData);
 
@@ -113,10 +120,20 @@ private:
     void render();
     void shutdown();
 
+    // 初始化辅助函数
+    void setupInputBindings();
+    void setupCamera();
+    void toggleMouseCapture();
+
     ClientConfig m_config;
     Window m_window;
     InputManager m_input;
     std::unique_ptr<VulkanRenderer> m_renderer;
+
+    // 相机
+    Camera m_camera;
+    CameraController m_cameraController;
+    bool m_mouseCaptured = false;
 
     std::atomic<bool> m_running{false};
     std::atomic<bool> m_initialized{false};
