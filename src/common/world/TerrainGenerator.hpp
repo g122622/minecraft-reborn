@@ -2,7 +2,7 @@
 
 #include "../core/Types.hpp"
 #include "../world/BlockID.hpp"
-#include "../world/ChunkData.hpp"
+#include "../world/chunk/ChunkData.hpp"
 #include "../world/WorldConstants.hpp"
 #include "../math/Noise.hpp"
 #include <memory>

@@ -294,6 +294,15 @@ void ClientApplication::update(f32 deltaTime)
     // 更新相机控制器（这会调用 Camera::update 更新矩阵）
     m_cameraController.update(deltaTime);
 
+    // 发送玩家位置到服务端（限制频率）
+    if (m_networkClient && m_networkClient->isLoggedIn()) {
+        m_positionSendAccumulator += deltaTime;
+        if (m_positionSendAccumulator >= POSITION_SEND_INTERVAL) {
+            m_positionSendAccumulator = 0.0f;
+            sendPlayerPosition();
+        }
+    }
+
     // 更新世界（根据相机位置加载/卸载区块）
     m_world.update(m_camera.position(), m_config.renderDistance);
 
@@ -464,6 +473,54 @@ void ClientApplication::toggleMouseCapture()
     } else {
         spdlog::debug("Mouse released - UI mode");
     }
+}
+
+void ClientApplication::sendPlayerPosition()
+{
+    if (!m_networkClient || !m_networkClient->isLoggedIn()) {
+        return;
+    }
+
+    const auto& pos = m_camera.position();
+
+    // 检查是否需要发送（位置或旋转变化）
+    bool positionChanged =
+        std::abs(pos.x - m_lastSentX) > 0.001 ||
+        std::abs(pos.y - m_lastSentY) > 0.001 ||
+        std::abs(pos.z - m_lastSentZ) > 0.001;
+
+    bool rotationChanged =
+        std::abs(m_camera.yaw() - m_lastSentYaw) > 0.01f ||
+        std::abs(m_camera.pitch() - m_lastSentPitch) > 0.01f;
+
+    network::PlayerPosition playerPos;
+    playerPos.x = pos.x;
+    playerPos.y = pos.y;
+    playerPos.z = pos.z;
+    playerPos.yaw = m_camera.yaw();
+    playerPos.pitch = m_camera.pitch();
+    playerPos.onGround = true;  // TODO: 实际的地面检测
+
+    network::PlayerMovePacket::MoveType type;
+    if (positionChanged && rotationChanged) {
+        type = network::PlayerMovePacket::MoveType::Full;
+    } else if (positionChanged) {
+        type = network::PlayerMovePacket::MoveType::Position;
+    } else if (rotationChanged) {
+        type = network::PlayerMovePacket::MoveType::Rotation;
+    } else {
+        // 无变化，只发送地面状态
+        type = network::PlayerMovePacket::MoveType::GroundOnly;
+    }
+
+    m_networkClient->sendPlayerMove(playerPos, type);
+
+    // 更新上次发送的位置
+    m_lastSentX = pos.x;
+    m_lastSentY = pos.y;
+    m_lastSentZ = pos.z;
+    m_lastSentYaw = m_camera.yaw();
+    m_lastSentPitch = m_camera.pitch();
 }
 
 } // namespace mr::client

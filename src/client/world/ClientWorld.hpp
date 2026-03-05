@@ -2,7 +2,7 @@
 
 #include "../../common/core/Types.hpp"
 #include "../../common/core/Result.hpp"
-#include "../../common/world/ChunkData.hpp"
+#include "../../common/world/chunk/ChunkData.hpp"
 #include "../../common/world/TerrainGenerator.hpp"
 #include "../../common/world/WorldConstants.hpp"
 #include "../../common/renderer/MeshTypes.hpp"

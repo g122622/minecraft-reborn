@@ -1,0 +1,425 @@
+#pragma once
+
+#include "common/core/Types.hpp"
+#include "common/world/chunk/ChunkPos.hpp"
+#include <functional>
+#include <memory>
+#include <cstdint>
+#include <vector>
+
+namespace mr::world {
+
+// ============================================================================
+// 票据类型 - 定义不同来源的区块加载请求
+// ============================================================================
+
+/**
+ * @brief 空类型，用于不需要值的票据类型
+ *
+ * 某些票据类型（如 START, DRAGON）不需要关联具体的值，
+ * 使用 Unit 作为模板参数。
+ */
+struct Unit {
+    // 为 Unit 类型提供比较运算符
+    bool operator<(const Unit&) const { return false; }
+    bool operator==(const Unit&) const { return true; }
+};
+
+/**
+ * @brief 区块加载票据类型
+ *
+ * 参考 Minecraft TicketType，定义不同来源的加载请求。
+ * 票据类型用于区分加载原因和优先级。
+ *
+ * @tparam T 票据关联的值类型（如 ChunkPos、u32、Unit）
+ *
+ * @example
+ * @code
+ * // 创建玩家票据类型
+ * auto playerType = ChunkLoadTicketType<ChunkPos>::create("player");
+ *
+ * // 创建带生命周期的票据类型
+ * auto portalType = ChunkLoadTicketType<ChunkPos>::create("portal", 300); // 300 tick
+ * @endcode
+ */
+template<typename T>
+class ChunkLoadTicketType {
+public:
+    using ValueType = T;
+    using Comparator = std::function<bool(const T&, const T&)>;
+
+    /**
+     * @brief 获取票据类型名称
+     * @return 类型名称字符串
+     */
+    [[nodiscard]] const String& name() const noexcept { return m_name; }
+
+    /**
+     * @brief 获取生命周期（tick 数）
+     * @return 生命周期，0 表示永不过期
+     */
+    [[nodiscard]] u32 lifespan() const noexcept { return m_lifespan; }
+
+    /**
+     * @brief 获取比较器
+     * @return 用于比较同类型票据的比较器
+     */
+    [[nodiscard]] const Comparator& comparator() const noexcept { return m_comparator; }
+
+    /**
+     * @brief 创建不带生命周期的票据类型
+     * @param name 类型名称（必须唯一）
+     * @param comp 比较器函数
+     * @return 票据类型实例
+     *
+     * @note 不带生命周期的票据会一直存在直到被显式移除
+     */
+    static ChunkLoadTicketType<T> create(const String& name, Comparator comp = defaultCompare) {
+        return ChunkLoadTicketType<T>(name, comp, 0);
+    }
+
+    /**
+     * @brief 创建带生命周期的票据类型
+     * @param name 类型名称（必须唯一）
+     * @param lifespan 生命周期（tick 数），过期后自动移除
+     * @param comp 比较器函数
+     * @return 票据类型实例
+     *
+     * @note 生命周期票据常用于临时加载（如传送门）
+     */
+    static ChunkLoadTicketType<T> create(const String& name, u32 lifespan, Comparator comp = defaultCompare) {
+        return ChunkLoadTicketType<T>(name, comp, lifespan);
+    }
+
+    bool operator==(const ChunkLoadTicketType& other) const {
+        return m_name == other.m_name;
+    }
+
+    bool operator!=(const ChunkLoadTicketType& other) const {
+        return m_name != other.m_name;
+    }
+
+private:
+    String m_name;
+    Comparator m_comparator;
+    u32 m_lifespan;
+
+    ChunkLoadTicketType(const String& name, Comparator comp, u32 lifespan)
+        : m_name(name), m_comparator(std::move(comp)), m_lifespan(lifespan) {}
+
+    static bool defaultCompare(const T& a, const T& b) {
+        return a < b;
+    }
+};
+
+// ============================================================================
+// 预定义票据类型
+// ============================================================================
+
+namespace TicketTypes {
+    /**
+     * @brief 玩家加载票据
+     *
+     * 当玩家进入区块时添加，离开时移除。
+     * 这是最常用的票据类型，用于加载玩家视距范围内的区块。
+     */
+    extern const ChunkLoadTicketType<ChunkPos> PLAYER;
+
+    /**
+     * @brief 强制加载票据
+     *
+     * 通过 /forceload 命令或 API 添加。
+     * 永久加载区块，不会因玩家离开而卸载。
+     */
+    extern const ChunkLoadTicketType<ChunkPos> FORCED;
+
+    /**
+     * @brief 传送门加载票据
+     *
+     * 玩家使用传送门时临时加载目标区域的区块。
+     * 生命周期：300 tick（约 15 秒）
+     */
+    extern const ChunkLoadTicketType<ChunkPos> PORTAL;
+
+    /**
+     * @brief 传送后加载票据
+     *
+     * 传送完成后的临时加载，确保区块不会立即卸载。
+     * 生命周期：5 tick
+     */
+    extern const ChunkLoadTicketType<u32> POST_TELEPORT;
+
+    /**
+     * @brief 未知/临时加载票据
+     */
+    extern const ChunkLoadTicketType<ChunkPos> UNKNOWN;
+
+    /**
+     * @brief 世界启动票据
+     *
+     * 用于加载世界出生点附近的区块。
+     */
+    extern const ChunkLoadTicketType<Unit> START;
+
+    /**
+     * @brief 末影龙战斗票据
+     *
+     * 加载末地中央岛屿的区块。
+     */
+    extern const ChunkLoadTicketType<Unit> DRAGON;
+
+    /**
+     * @brief 光照计算票据
+     *
+     * 用于光照计算的区块加载。
+     */
+    extern const ChunkLoadTicketType<ChunkPos> LIGHT;
+
+    /**
+     * @brief 初始化所有票据类型
+     *
+     * @note 必须在使用任何票据类型之前调用一次
+     */
+    void initializeTicketTypes();
+} // namespace TicketTypes
+
+// ============================================================================
+// 区块加载票据
+// ============================================================================
+
+/**
+ * @brief 区块加载票据
+ *
+ * 代表一个区块加载请求，包含类型、级别和关联值。
+ * 参考 Minecraft 的 Ticket 类。
+ *
+ * 票据级别说明：
+ * - Level 越小，优先级越高
+ * - Level <= 31：完全加载（实体可以 tick）
+ * - Level == 32：边界区块（加载但实体不 tick）
+ * - Level == 33：加载边界
+ * - Level >= 34：未加载
+ *
+ * @note 票据是不可变的，创建后无法修改
+ */
+class ChunkLoadTicket {
+public:
+    ChunkLoadTicket() = default;
+
+    /**
+     * @brief 构造票据
+     * @tparam T 值类型
+     * @param type 票据类型
+     * @param level 票据级别
+     * @param value 关联值
+     */
+    template<typename T>
+    ChunkLoadTicket(const ChunkLoadTicketType<T>& type, i32 level, const T& value)
+        : m_typeName(type.name())
+        , m_level(level)
+        , m_timestamp(0)
+        , m_lifespan(type.lifespan())
+        , m_forceTicks(false)
+    {
+        if constexpr (std::is_same_v<T, ChunkPos>) {
+            m_chunkValue = value;
+            m_hasChunkValue = true;
+        } else if constexpr (std::is_same_v<T, u32>) {
+            m_intValue = value;
+            m_hasIntValue = true;
+        }
+    }
+
+    /**
+     * @brief 比较优先级
+     * @param other 另一个票据
+     * @return true 表示 this 优先级低于 other（在优先队列中排后面）
+     *
+     * @note 级别越小优先级越高
+     */
+    bool operator<(const ChunkLoadTicket& other) const {
+        if (m_level != other.m_level) {
+            return m_level > other.m_level;  // 级别大的排后面
+        }
+        return m_typeName > other.m_typeName;
+    }
+
+    bool operator==(const ChunkLoadTicket& other) const {
+        return m_typeName == other.m_typeName &&
+               m_level == other.m_level &&
+               m_chunkValue == other.m_chunkValue &&
+               m_intValue == other.m_intValue;
+    }
+
+    /**
+     * @brief 比较优先级
+     * @param other 另一个票据
+     * @return true 表示 this 优先级高于 other
+     */
+    bool hasHigherPriorityThan(const ChunkLoadTicket& other) const {
+        if (m_level != other.m_level) {
+            return m_level < other.m_level;  // 级别小优先级高
+        }
+        return m_typeName < other.m_typeName;
+    }
+
+    /** @brief 获取票据级别 */
+    [[nodiscard]] i32 level() const noexcept { return m_level; }
+
+    /** @brief 获取票据类型名称 */
+    [[nodiscard]] const String& typeName() const noexcept { return m_typeName; }
+
+    /** @brief 获取区块值 */
+    [[nodiscard]] ChunkPos chunkValue() const noexcept { return m_chunkValue; }
+    [[nodiscard]] bool hasChunkValue() const noexcept { return m_hasChunkValue; }
+
+    /** @brief 获取整数值 */
+    [[nodiscard]] u32 intValue() const noexcept { return m_intValue; }
+    [[nodiscard]] bool hasIntValue() const noexcept { return m_hasIntValue; }
+
+    /** @brief 设置时间戳（用于过期检查） */
+    void setTimestamp(u64 timestamp) { m_timestamp = timestamp; }
+
+    /**
+     * @brief 检查是否过期
+     * @param currentTime 当前时间
+     * @return true 表示已过期
+     *
+     * @note 生命周期为 0 的票据永不过期
+     */
+    [[nodiscard]] bool isExpired(u64 currentTime) const {
+        if (m_lifespan == 0) return false;
+        return currentTime - m_timestamp > m_lifespan;
+    }
+
+    /** @brief 是否强制 tick */
+    [[nodiscard]] bool isForceTicks() const noexcept { return m_forceTicks; }
+    void setForceTicks(bool force) { m_forceTicks = force; }
+
+private:
+    String m_typeName;
+    i32 m_level = 34;  // 默认为未加载级别
+    u64 m_timestamp = 0;
+    u32 m_lifespan = 0;
+    bool m_forceTicks = false;
+
+    ChunkPos m_chunkValue{0, 0};
+    u32 m_intValue = 0;
+    bool m_hasChunkValue = false;
+    bool m_hasIntValue = false;
+};
+
+// ============================================================================
+// 票据集合 - 每个区块可以有多个票据
+// ============================================================================
+
+/**
+ * @brief 区块票据集合
+ *
+ * 管理单个区块的所有票据，自动计算最小级别。
+ *
+ * @note 一个区块可以有多个票据，最终加载级别由级别最高的票据决定
+ */
+class ChunkTicketSet {
+public:
+    /**
+     * @brief 添加票据
+     * @param ticket 要添加的票据
+     *
+     * @note 如果相同票据已存在，不会重复添加
+     */
+    void addTicket(ChunkLoadTicket ticket);
+
+    /**
+     * @brief 移除票据
+     * @param ticket 要移除的票据
+     * @return true 如果成功移除
+     */
+    bool removeTicket(const ChunkLoadTicket& ticket);
+
+    /**
+     * @brief 获取最小级别（最高优先级）
+     * @return 最小级别，如果集合为空返回 MaxLevel
+     */
+    [[nodiscard]] i32 getMinLevel() const;
+
+    /** @brief 是否为空 */
+    [[nodiscard]] bool empty() const { return m_tickets.empty(); }
+
+    /**
+     * @brief 清理过期票据
+     * @param currentTime 当前时间
+     */
+    void removeExpired(u64 currentTime);
+
+    /** @brief 票据数量 */
+    [[nodiscard]] size_t size() const { return m_tickets.size(); }
+
+    /** @brief 获取所有票据 */
+    [[nodiscard]] const std::vector<ChunkLoadTicket>& tickets() const { return m_tickets; }
+
+private:
+    std::vector<ChunkLoadTicket> m_tickets;
+};
+
+// ============================================================================
+// 区块加载级别
+// ============================================================================
+
+/**
+ * @brief 区块加载级别
+ *
+ * Level 越小，优先级越高。
+ *
+ * 级别说明：
+ * - Unloaded (34): 区块未加载
+ * - Border (33): 边界区块，加载但实体不 tick
+ * - EntityTicking (32): 实体可以 tick
+ * - Full (31): 完全加载
+ */
+enum class ChunkLoadLevel : i32 {
+    Unloaded = 34,          ///< 未加载
+    Border = 33,            ///< 边界区块（实体不 tick）
+    EntityTicking = 32,     ///< 实体可以 tick
+    Full = 31,              ///< 完全加载
+
+    PlayerTicket = 31,      ///< 玩家票据级别
+    MaxLevel = 34           ///< 最大级别
+};
+
+/**
+ * @brief 将视距转换为票据级别
+ * @param viewDistance 视距（区块数）
+ * @return 票据级别
+ *
+ * 公式: level = 33 - viewDistance
+ * 例如: viewDistance = 10 -> level = 23
+ *
+ * @note 视距越大，票据级别越小，加载范围越大
+ */
+inline i32 viewDistanceToLevel(i32 viewDistance) {
+    return 33 - viewDistance;
+}
+
+/**
+ * @brief 将票据级别转换为加载状态
+ * @param level 票据级别
+ * @return 加载级别枚举
+ */
+inline ChunkLoadLevel levelToLoadLevel(i32 level) {
+    if (level <= 31) return ChunkLoadLevel::Full;
+    if (level == 32) return ChunkLoadLevel::EntityTicking;
+    if (level == 33) return ChunkLoadLevel::Border;
+    return ChunkLoadLevel::Unloaded;
+}
+
+/**
+ * @brief 检查区块是否应该加载
+ * @param level 票据级别
+ * @return true 表示区块应该加载
+ */
+inline bool shouldChunkLoad(i32 level) {
+    return level <= static_cast<i32>(ChunkLoadLevel::Border);
+}
+
+} // namespace mr::world

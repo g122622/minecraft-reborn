@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../core/Types.hpp"
-#include "../world/ChunkData.hpp"
+#include "../world/chunk/ChunkData.hpp"
 #include "../world/BlockID.hpp"
 #include "../world/BlockProperties.hpp"
 #include "MeshTypes.hpp"

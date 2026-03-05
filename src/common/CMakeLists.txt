@@ -22,9 +22,11 @@ add_library(mr_common STATIC
 
     # World
     world/BlockID.cpp
-    world/ChunkData.cpp
+    world/chunk/ChunkData.cpp
     world/TerrainGenerator.cpp
     world/BlockProperties.cpp
+    world/chunk/ChunkDistanceGraph.cpp
+    world/chunk/ChunkLoadTicketManager.cpp
 
     # Resource
     resource/ResourceLocation.cpp

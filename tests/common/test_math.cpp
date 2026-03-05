@@ -3,7 +3,7 @@
 #include "common/core/Result.hpp"
 #include "common/math/MathUtils.hpp"
 #include "common/math/Vector3.hpp"
-#include "common/world/ChunkPos.hpp"
+#include "common/world/chunk/ChunkPos.hpp"
 
 using namespace mr;
 using namespace mr::math;

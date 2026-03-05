@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <cmath>
 
-#include "common/world/ChunkData.hpp"
+#include "common/world/chunk/ChunkData.hpp"
 #include "common/world/TerrainGenerator.hpp"
 #include "common/math/Noise.hpp"
 

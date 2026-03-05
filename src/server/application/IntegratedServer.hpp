@@ -6,7 +6,8 @@
 #include "common/network/ProtocolPackets.hpp"
 #include "common/network/ChunkSync.hpp"
 #include "common/world/TerrainGenerator.hpp"
-#include "common/world/ChunkData.hpp"
+#include "common/world/chunk/ChunkData.hpp"
+#include "common/world/chunk/ChunkLoadTicketManager.hpp"
 #include "common/entity/Player.hpp"
 #include <memory>
 #include <thread>
@@ -95,6 +96,10 @@ private:
     void sendChunkToClient(ChunkCoord x, ChunkCoord z);
     void updateChunkSubscription();
 
+    // 票据系统
+    void handlePlayerChunkMove(ChunkCoord newChunkX, ChunkCoord newChunkZ);
+    void onChunkLevelChanged(ChunkCoord x, ChunkCoord z, i32 oldLevel, i32 newLevel);
+
     // 网络事件处理
     void onPacketReceived(const u8* data, size_t size);
 
@@ -150,6 +155,13 @@ private:
 
     // 玩家ID生成
     PlayerId m_nextPlayerId = 1;
+
+    // 区块加载票据管理器
+    std::unique_ptr<world::ChunkLoadTicketManager> m_ticketManager;
+
+    // 玩家当前区块位置（用于检测跨区块移动）
+    ChunkCoord m_lastPlayerChunkX = std::numeric_limits<ChunkCoord>::max();
+    ChunkCoord m_lastPlayerChunkZ = std::numeric_limits<ChunkCoord>::max();
 
     // 统计
     u64 m_tickCount = 0;

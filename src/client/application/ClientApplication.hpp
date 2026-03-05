@@ -135,6 +135,9 @@ private:
     void setupNetworkCallbacks();
     void toggleMouseCapture();
 
+    // 玩家位置同步
+    void sendPlayerPosition();
+
     ClientConfig m_config;
     Window m_window;
     InputManager m_input;
@@ -158,6 +161,15 @@ private:
 
     f64 m_lastFrameTime = 0.0;
     u64 m_frameCount = 0;
+
+    // 位置同步
+    f64 m_lastSentX = 0.0;
+    f64 m_lastSentY = 0.0;
+    f64 m_lastSentZ = 0.0;
+    f32 m_lastSentYaw = 0.0f;
+    f32 m_lastSentPitch = 0.0f;
+    f32 m_positionSendAccumulator = 0.0f;
+    static constexpr f32 POSITION_SEND_INTERVAL = 1.0f / 20.0f;  // 20 TPS
 };
 
 } // namespace mr::client

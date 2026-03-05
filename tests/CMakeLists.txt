@@ -16,6 +16,7 @@ add_executable(mr_tests
     common/test_entity.cpp
     common/test_chunksync.cpp
     common/test_localconnection.cpp
+    common/test_chunkloadticket.cpp
     server/ServerWorldTest.cpp
     server/test_integrated_server.cpp
 )
@@ -31,8 +32,10 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/network/ChunkSync.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/PacketSerializer.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/Packet.cpp
-        ${CMAKE_SOURCE_DIR}/src/common/world/ChunkData.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkData.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/TerrainGenerator.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkDistanceGraph.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkLoadTicketManager.cpp
         ${CMAKE_SOURCE_DIR}/src/common/entity/Player.cpp
 )
 

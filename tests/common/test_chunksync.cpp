@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "common/network/ChunkSync.hpp"
-#include "common/world/ChunkData.hpp"
+#include "common/world/chunk/ChunkData.hpp"
 
 using namespace mr;
 using namespace mr::network;

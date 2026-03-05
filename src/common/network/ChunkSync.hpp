@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../world/ChunkData.hpp"
-#include "../world/ChunkPos.hpp"
+#include "../world/chunk/ChunkData.hpp"
+#include "../world/chunk/ChunkPos.hpp"
 #include "ProtocolPackets.hpp"
 #include "../core/Result.hpp"
 #include <unordered_set>

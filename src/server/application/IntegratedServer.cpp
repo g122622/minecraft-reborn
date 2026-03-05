@@ -2,6 +2,7 @@
 #include "common/network/Packet.hpp"
 #include "common/network/ChunkSync.hpp"
 #include "common/world/WorldConstants.hpp"
+#include "common/world/chunk/ChunkLoadTicket.hpp"
 
 #include <spdlog/spdlog.h>
 #include <chrono>
@@ -35,6 +36,16 @@ Result<void> IntegratedServer::initialize(const IntegratedServerConfig& config) 
 
     // 初始化地形生成器
     m_terrainGenerator = TerrainGenFactory::createStandard(m_config.seed);
+
+    // 初始化票据管理器
+    m_ticketManager = std::make_unique<world::ChunkLoadTicketManager>();
+    m_ticketManager->setViewDistance(m_config.viewDistance);
+
+    // 设置票据级别变化回调
+    m_ticketManager->setLevelChangeCallback(
+        [this](ChunkCoord x, ChunkCoord z, i32 oldLevel, i32 newLevel) {
+            onChunkLevelChanged(x, z, oldLevel, newLevel);
+        });
 
     // 启动服务端线程
     m_running = true;
@@ -105,9 +116,9 @@ void IntegratedServer::tick() {
         onPacketReceived(packetData.data(), packetData.size());
     }
 
-    // 更新区块订阅
-    if (m_client.loggedIn) {
-        updateChunkSubscription();
+    // 更新票据管理器（清理过期票据等）
+    if (m_ticketManager) {
+        m_ticketManager->tick();
     }
 
     // 心跳（每 15 秒）
@@ -309,7 +320,17 @@ void IntegratedServer::handleLoginRequest(const u8* data, size_t size) {
     m_client.waitingTeleportConfirm = true;
     sendTeleport(m_client.x, m_client.y, m_client.z, m_client.yaw, m_client.pitch, teleportId);
 
-    spdlog::info("Player '{}' (ID: {}) joined the game", username, m_client.playerId);
+    // 初始化玩家票据位置
+    ChunkCoord spawnChunkX = static_cast<ChunkCoord>(std::floor(m_client.x / 16.0));
+    ChunkCoord spawnChunkZ = static_cast<ChunkCoord>(std::floor(m_client.z / 16.0));
+    m_lastPlayerChunkX = spawnChunkX;
+    m_lastPlayerChunkZ = spawnChunkZ;
+
+    // 在票据管理器中注册玩家位置
+    m_ticketManager->updatePlayerPosition(m_client.playerId, spawnChunkX, spawnChunkZ);
+
+    spdlog::info("Player '{}' (ID: {}) joined the game at chunk ({}, {})",
+                 username, m_client.playerId, spawnChunkX, spawnChunkZ);
 }
 
 void IntegratedServer::handlePlayerMove(const u8* data, size_t size) {
@@ -334,6 +355,45 @@ void IntegratedServer::handlePlayerMove(const u8* data, size_t size) {
     m_client.z = pos.z;
     m_client.yaw = pos.yaw;
     m_client.pitch = pos.pitch;
+
+    // 检查是否跨越区块边界
+    ChunkCoord newChunkX = static_cast<ChunkCoord>(std::floor(m_client.x / 16.0));
+    ChunkCoord newChunkZ = static_cast<ChunkCoord>(std::floor(m_client.z / 16.0));
+
+    if (newChunkX != m_lastPlayerChunkX || newChunkZ != m_lastPlayerChunkZ) {
+        handlePlayerChunkMove(newChunkX, newChunkZ);
+        m_lastPlayerChunkX = newChunkX;
+        m_lastPlayerChunkZ = newChunkZ;
+    }
+}
+
+void IntegratedServer::handlePlayerChunkMove(ChunkCoord newChunkX, ChunkCoord newChunkZ) {
+    spdlog::debug("Player crossed chunk boundary: ({}, {}) -> ({}, {})",
+                  m_lastPlayerChunkX, m_lastPlayerChunkZ, newChunkX, newChunkZ);
+
+    // 更新票据管理器中的玩家位置
+    // 这会自动触发区块加载/卸载的计算
+    m_ticketManager->updatePlayerPosition(m_client.playerId, newChunkX, newChunkZ);
+}
+
+void IntegratedServer::onChunkLevelChanged(ChunkCoord x, ChunkCoord z, i32 oldLevel, i32 newLevel) {
+    ChunkId id(x, z);
+    bool wasLoaded = world::shouldChunkLoad(oldLevel);
+    bool isLoaded = world::shouldChunkLoad(newLevel);
+
+    if (!wasLoaded && isLoaded) {
+        // 区块从卸载变为加载
+        spdlog::debug("Chunk ({}, {}) loading: level {} -> {}", x, z, oldLevel, newLevel);
+        sendChunkToClient(x, z);
+    } else if (wasLoaded && !isLoaded) {
+        // 区块从加载变为卸载
+        spdlog::debug("Chunk ({}, {}) unloading: level {} -> {}", x, z, oldLevel, newLevel);
+        if (m_client.loadedChunks.count(id) > 0) {
+            sendUnloadChunk(x, z);
+            m_client.loadedChunks.erase(id);
+        }
+    }
+    // 其他情况：区块级别变化但仍在加载范围内，不需要操作
 }
 
 void IntegratedServer::handleTeleportConfirm(const u8* data, size_t size) {
@@ -357,8 +417,10 @@ void IntegratedServer::handleTeleportConfirm(const u8* data, size_t size) {
     if (m_client.waitingTeleportConfirm && packet.teleportId() == m_client.pendingTeleportId) {
         m_client.waitingTeleportConfirm = false;
 
-        // 传送确认后发送初始区块
-        updateChunkSubscription();
+        // 传送确认后，触发区块加载
+        // 票据系统已经通过 handlePlayerChunkMove 设置了玩家位置
+        // 这里只需要处理更新，确保区块被发送
+        m_ticketManager->processUpdates();
     } else {
         spdlog::warn("Unexpected teleport confirm: id={}, expected={}",
                      packet.teleportId(), m_client.pendingTeleportId);

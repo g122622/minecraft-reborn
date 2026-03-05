@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../core/Types.hpp"
-#include "../core/Result.hpp"
-#include "BlockID.hpp"
+#include "../../core/Types.hpp"
+#include "../../core/Result.hpp"
+#include "../BlockID.hpp"
 #include "ChunkPos.hpp"
-#include "WorldConstants.hpp"
+#include "../WorldConstants.hpp"
 #include <vector>
 #include <memory>
 #include <array>

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../core/Types.hpp"
-#include "../core/Constants.hpp"
-#include "../math/MathUtils.hpp"
-#include "../math/Vector3.hpp"
+#include "../../core/Types.hpp"
+#include "../../core/Constants.hpp"
+#include "../../math/MathUtils.hpp"
+#include "../../math/Vector3.hpp"
 
 #include <cstdint>
 #include <functional>
