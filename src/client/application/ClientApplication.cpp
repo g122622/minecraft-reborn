@@ -152,9 +152,22 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
         return worldResult.error();
     }
 
+    // 初始化方块碰撞注册表
+    spdlog::info("Initializing block collision registry...");
+    BlockCollisionRegistry::instance().initialize();
+
+    // 创建物理引擎
+    m_physicsEngine = std::make_unique<PhysicsEngine>(m_world);
+
+    // 创建玩家实体
+    m_player = std::make_unique<Player>(static_cast<EntityId>(1), m_config.username);
+    m_player->setPosition(8.0, 50.0, 8.0);  // 初始位置在地面上方
+    m_player->setPhysicsEngine(m_physicsEngine.get());
+    spdlog::info("Player created at (8, 50, 8)");
+
     spdlog::info("Client initialized successfully");
     spdlog::info("Window: {}x{}", m_window.width(), m_window.height());
-    spdlog::info("Controls: WASD to move, Space to go up, Shift to go down, mouse to look");
+    spdlog::info("Controls: WASD to move, Space to jump, Shift to sneak, mouse to look");
     spdlog::info("Press F3 to toggle debug screen");
     spdlog::info("Press ALT to toggle mouse capture");
 
@@ -261,41 +274,28 @@ void ClientApplication::handleEvents()
         toggleMouseCapture();
     }
 
-    // 传递键盘输入到相机控制器
-    if (m_mouseCaptured) {
-        if (m_input.isKeyPressed(GLFW_KEY_W)) {
-            m_cameraController.handleKeyboardInput(GLFW_KEY_W, 1);
-        } else {
-            m_cameraController.handleKeyboardInput(GLFW_KEY_W, 0);
-        }
-        if (m_input.isKeyPressed(GLFW_KEY_S)) {
-            m_cameraController.handleKeyboardInput(GLFW_KEY_S, 1);
-        } else {
-            m_cameraController.handleKeyboardInput(GLFW_KEY_S, 0);
-        }
-        if (m_input.isKeyPressed(GLFW_KEY_A)) {
-            m_cameraController.handleKeyboardInput(GLFW_KEY_A, 1);
-        } else {
-            m_cameraController.handleKeyboardInput(GLFW_KEY_A, 0);
-        }
-        if (m_input.isKeyPressed(GLFW_KEY_D)) {
-            m_cameraController.handleKeyboardInput(GLFW_KEY_D, 1);
-        } else {
-            m_cameraController.handleKeyboardInput(GLFW_KEY_D, 0);
-        }
-        if (m_input.isKeyPressed(GLFW_KEY_SPACE)) {
-            m_cameraController.handleKeyboardInput(GLFW_KEY_SPACE, 1);
-        } else {
-            m_cameraController.handleKeyboardInput(GLFW_KEY_SPACE, 0);
-        }
-        if (m_input.isKeyPressed(GLFW_KEY_LEFT_SHIFT)) {
-            m_cameraController.handleKeyboardInput(GLFW_KEY_LEFT_SHIFT, 1);
-        } else {
-            m_cameraController.handleKeyboardInput(GLFW_KEY_LEFT_SHIFT, 0);
-        }
+    // 传递键盘输入到玩家和鼠标控制
+    if (m_mouseCaptured && m_player) {
+        // 鼠标视角控制 - 更新玩家朝向
+        f32 deltaYaw = m_input.mouseDeltaX() * 0.1f;   // 鼠标灵敏度
+        f32 deltaPitch = m_input.mouseDeltaY() * 0.1f;
+        m_player->rotate(deltaYaw, -deltaPitch);  // pitch方向相反
 
-        // 鼠标视角控制
-        m_cameraController.handleMouseMove(m_input.mouseDeltaX(), m_input.mouseDeltaY());
+        // 收集移动输入
+        f32 forward = 0.0f;
+        f32 strafe = 0.0f;
+        bool jumping = false;
+        bool sneaking = false;
+
+        if (m_input.isKeyPressed(GLFW_KEY_W)) forward += 1.0f;
+        if (m_input.isKeyPressed(GLFW_KEY_S)) forward -= 1.0f;
+        if (m_input.isKeyPressed(GLFW_KEY_A)) strafe -= 1.0f;
+        if (m_input.isKeyPressed(GLFW_KEY_D)) strafe += 1.0f;
+        if (m_input.isKeyPressed(GLFW_KEY_SPACE)) jumping = true;
+        if (m_input.isKeyPressed(GLFW_KEY_LEFT_SHIFT)) sneaking = true;
+
+        // 传递输入给玩家
+        m_player->handleMovementInput(forward, strafe, jumping, sneaking);
     }
 }
 
@@ -306,11 +306,27 @@ void ClientApplication::update(f32 deltaTime)
         m_networkClient->poll();
     }
 
-    // 更新相机控制器（这会调用 Camera::update 更新矩阵）
-    m_cameraController.update(deltaTime);
+    // 更新玩家物理
+    if (m_player) {
+        // 应用物理（重力、碰撞检测）
+        m_player->updatePhysics();
+
+        // 同步相机位置到玩家眼睛位置
+        m_camera.setPosition(
+            static_cast<f32>(m_player->x()),
+            static_cast<f32>(m_player->y() + m_player->eyeHeight()),
+            static_cast<f32>(m_player->z())
+        );
+        m_camera.setYaw(m_player->yaw());
+        m_camera.setPitch(m_player->pitch());
+        m_camera.update(deltaTime);
+    } else {
+        // 后备：更新相机控制器（这会调用 Camera::update 更新矩阵）
+        m_cameraController.update(deltaTime);
+    }
 
     // 发送玩家位置到服务端（限制频率）
-    if (m_networkClient && m_networkClient->isLoggedIn()) {
+    if (m_networkClient && m_networkClient->isLoggedIn() && m_player) {
         m_positionSendAccumulator += deltaTime;
         if (m_positionSendAccumulator >= POSITION_SEND_INTERVAL) {
             m_positionSendAccumulator = 0.0f;
@@ -380,6 +396,10 @@ void ClientApplication::shutdown()
         m_renderer.reset();
     }
 
+    // 清理玩家
+    m_player.reset();
+    m_physicsEngine.reset();
+
     // 清理世界
     m_world.destroy();
 
@@ -437,7 +457,7 @@ void ClientApplication::setupCamera()
     m_camera = Camera(cameraConfig);
 
     // 设置初始位置（在测试区块上方）
-    m_camera.setPosition(8.0f, 30.0f, 8.0f);
+    m_camera.setPosition(8.0f, 50.0f, 8.0f);
     m_camera.setYaw(45.0f);
     m_camera.update(0.0f);
 
@@ -473,6 +493,10 @@ void ClientApplication::setupNetworkCallbacks()
     };
 
     callbacks.onTeleport = [this](f64 x, f64 y, f64 z, f32 yaw, f32 pitch, u32 teleportId) {
+        if (m_player) {
+            m_player->setPosition(x, y, z);
+            m_player->setRotation(yaw, pitch);
+        }
         m_camera.setPosition(static_cast<f32>(x), static_cast<f32>(y), static_cast<f32>(z));
         m_camera.setYaw(yaw);
         m_camera.setPitch(pitch);
@@ -501,11 +525,11 @@ void ClientApplication::toggleMouseCapture()
 
 void ClientApplication::sendPlayerPosition()
 {
-    if (!m_networkClient || !m_networkClient->isLoggedIn()) {
+    if (!m_networkClient || !m_networkClient->isLoggedIn() || !m_player) {
         return;
     }
 
-    const auto& pos = m_camera.position();
+    const auto& pos = m_player->position();
 
     // 检查是否需要发送（位置或旋转变化）
     bool positionChanged =
@@ -514,16 +538,16 @@ void ClientApplication::sendPlayerPosition()
         std::abs(pos.z - m_lastSentZ) > 0.001;
 
     bool rotationChanged =
-        std::abs(m_camera.yaw() - m_lastSentYaw) > 0.01f ||
-        std::abs(m_camera.pitch() - m_lastSentPitch) > 0.01f;
+        std::abs(m_player->yaw() - m_lastSentYaw) > 0.01f ||
+        std::abs(m_player->pitch() - m_lastSentPitch) > 0.01f;
 
     network::PlayerPosition playerPos;
     playerPos.x = pos.x;
     playerPos.y = pos.y;
     playerPos.z = pos.z;
-    playerPos.yaw = m_camera.yaw();
-    playerPos.pitch = m_camera.pitch();
-    playerPos.onGround = true;  // TODO: 实际的地面检测
+    playerPos.yaw = m_player->yaw();
+    playerPos.pitch = m_player->pitch();
+    playerPos.onGround = m_player->onGround();
 
     network::PlayerMovePacket::MoveType type;
     if (positionChanged && rotationChanged) {
@@ -543,8 +567,8 @@ void ClientApplication::sendPlayerPosition()
     m_lastSentX = pos.x;
     m_lastSentY = pos.y;
     m_lastSentZ = pos.z;
-    m_lastSentYaw = m_camera.yaw();
-    m_lastSentPitch = m_camera.pitch();
+    m_lastSentYaw = m_player->yaw();
+    m_lastSentPitch = m_player->pitch();
 }
 
 } // namespace mr::client

@@ -28,6 +28,10 @@ add_library(mr_common STATIC
     world/chunk/ChunkDistanceGraph.cpp
     world/chunk/ChunkLoadTicketManager.cpp
 
+    # Physics
+    physics/PhysicsEngine.cpp
+    physics/collision/BlockCollision.cpp
+
     # Resource
     resource/ResourceLocation.cpp
     resource/PackMetadata.cpp

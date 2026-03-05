@@ -121,6 +121,15 @@ void ClientWorld::setBlock(i32 x, i32 y, i32 z, BlockState block) {
     if (localZ == CHUNK_WIDTH - 1) markChunkDirty(ChunkId(chunkX, chunkZ + 1));
 }
 
+const ChunkData* ClientWorld::getChunkAt(ChunkCoord x, ChunkCoord z) const {
+    ChunkId id(x, z);
+    const ClientChunk* chunk = getChunk(id);
+    if (chunk && chunk->data) {
+        return chunk->data.get();
+    }
+    return nullptr;
+}
+
 void ClientWorld::forEachChunk(std::function<void(const ChunkId&, ClientChunk&)> func) {
     for (auto& [id, chunk] : m_chunks) {
         func(id, *chunk);

@@ -1,0 +1,255 @@
+#pragma once
+
+#include "../core/Types.hpp"
+#include "../math/Vector3.hpp"
+#include <algorithm>
+#include <cmath>
+
+namespace mr {
+
+/**
+ * @brief 轴对齐包围盒 (AABB)
+ *
+ * 用于碰撞检测的轴对齐包围盒，与Minecraft的AxisAlignedBB兼容。
+ * 坐标系：minX/minY/minZ为最小角点，maxX/maxY/maxZ为最大角点。
+ *
+ * 注意：
+ * - min坐标必须小于等于max坐标
+ * - 所有坐标为世界坐标，非方块本地坐标
+ * - calculateXOffset等方法实现MC的碰撞逻辑
+ */
+class AxisAlignedBB {
+public:
+    f32 minX, minY, minZ, maxX, maxY, maxZ;
+
+    // 构造函数
+    AxisAlignedBB() noexcept
+        : minX(0.0f)
+        , minY(0.0f)
+        , minZ(0.0f)
+        , maxX(0.0f)
+        , maxY(0.0f)
+        , maxZ(0.0f)
+    {}
+
+    /**
+     * @brief 构造AABB
+     * @param x1, y1, z1 第一个角点
+     * @param x2, y2, z2 第二个角点
+     * 注意：坐标会自动排序，确保min <= max
+     */
+    AxisAlignedBB(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2) noexcept
+        : minX(std::min(x1, x2))
+        , minY(std::min(y1, y2))
+        , minZ(std::min(z1, z2))
+        , maxX(std::max(x1, x2))
+        , maxY(std::max(y1, y2))
+        , maxZ(std::max(z1, z2))
+    {}
+
+    /**
+     * @brief 从实体位置创建AABB
+     * @param pos 实体脚底位置
+     * @param width 实体宽度
+     * @param height 实体高度
+     * @return 以pos为底面中心的AABB
+     */
+    [[nodiscard]] static AxisAlignedBB fromPosition(const Vector3& pos, f32 width, f32 height) noexcept {
+        f32 hw = width / 2.0f;
+        return AxisAlignedBB(
+            pos.x - hw, pos.y, pos.z - hw,
+            pos.x + hw, pos.y + height, pos.z + hw
+        );
+    }
+
+    /**
+     * @brief 从方块坐标创建AABB
+     * @param x, y, z 方块坐标
+     * @return 覆盖整个方块的AABB (x, y, z) -> (x+1, y+1, z+1)
+     */
+    [[nodiscard]] static AxisAlignedBB fromBlock(i32 x, i32 y, i32 z) noexcept {
+        return AxisAlignedBB(
+            static_cast<f32>(x), static_cast<f32>(y), static_cast<f32>(z),
+            static_cast<f32>(x + 1), static_cast<f32>(y + 1), static_cast<f32>(z + 1)
+        );
+    }
+
+    // 基本属性
+    [[nodiscard]] f32 width() const noexcept { return maxX - minX; }
+    [[nodiscard]] f32 height() const noexcept { return maxY - minY; }
+    [[nodiscard]] f32 depth() const noexcept { return maxZ - minZ; }
+
+    [[nodiscard]] Vector3 center() const noexcept {
+        return Vector3(
+            (minX + maxX) / 2.0f,
+            (minY + maxY) / 2.0f,
+            (minZ + maxZ) / 2.0f
+        );
+    }
+
+    [[nodiscard]] f32 volume() const noexcept {
+        return (maxX - minX) * (maxY - minY) * (maxZ - minZ);
+    }
+
+    // 相交检测
+    [[nodiscard]] bool intersects(const AxisAlignedBB& other) const noexcept {
+        return minX < other.maxX && maxX > other.minX &&
+               minY < other.maxY && maxY > other.minY &&
+               minZ < other.maxZ && maxZ > other.minZ;
+    }
+
+    [[nodiscard]] bool contains(const Vector3& point) const noexcept {
+        return point.x >= minX && point.x <= maxX &&
+               point.y >= minY && point.y <= maxY &&
+               point.z >= minZ && point.z <= maxZ;
+    }
+
+    [[nodiscard]] bool contains(const AxisAlignedBB& other) const noexcept {
+        return minX <= other.minX && maxX >= other.maxX &&
+               minY <= other.minY && maxY >= other.maxY &&
+               minZ <= other.minZ && maxZ >= other.maxZ;
+    }
+
+    // 变换
+    void offset(f32 dx, f32 dy, f32 dz) noexcept {
+        minX += dx; maxX += dx;
+        minY += dy; maxY += dy;
+        minZ += dz; maxZ += dz;
+    }
+
+    [[nodiscard]] AxisAlignedBB offsetted(f32 dx, f32 dy, f32 dz) const noexcept {
+        return AxisAlignedBB(
+            minX + dx, minY + dy, minZ + dz,
+            maxX + dx, maxY + dy, maxZ + dz
+        );
+    }
+
+    /**
+     * @brief 扩展AABB（向各方向扩展相同距离）
+     * @param dx, dy, dz 各方向的扩展量
+     * @return 扩展后的AABB
+     */
+    [[nodiscard]] AxisAlignedBB expand(f32 dx, f32 dy, f32 dz) const noexcept {
+        return AxisAlignedBB(
+            minX - dx, minY - dy, minZ - dz,
+            maxX + dx, maxY + dy, maxZ + dz
+        );
+    }
+
+    /**
+     * @brief 均匀扩展AABB
+     * @param amount 各方向扩展量
+     */
+    [[nodiscard]] AxisAlignedBB grow(f32 amount) const noexcept {
+        return expand(amount, amount, amount);
+    }
+
+    /**
+     * @brief 均匀收缩AABB
+     * @param amount 各方向收缩量
+     */
+    [[nodiscard]] AxisAlignedBB shrink(f32 amount) const noexcept {
+        return expand(-amount, -amount, -amount);
+    }
+
+    // ========== MC碰撞检测核心算法 ==========
+
+    /**
+     * @brief 计算沿X轴移动时的最大允许偏移量
+     *
+     * 这是Minecraft Entity.move中的核心碰撞算法。
+     * 当实体沿X轴移动时，检查是否会与另一个AABB碰撞，
+     * 返回不会发生穿透的最大偏移量。
+     *
+     * @param other 另一个碰撞箱
+     * @param offsetX 期望的X轴偏移量（可正可负）
+     * @return 实际允许的偏移量（不会穿透other）
+     *
+     * 注意：
+     * - 如果Y或Z轴范围不相交，返回原偏移量
+     * - 正偏移时，返回min(offsetX, other.minX - maxX)
+     * - 负偏移时，返回max(offsetX, other.maxX - minX)
+     */
+    [[nodiscard]] f32 calculateXOffset(const AxisAlignedBB& other, f32 offsetX) const noexcept {
+        // Y或Z范围不相交，不影响移动
+        if (maxY <= other.minY || minY >= other.maxY) return offsetX;
+        if (maxZ <= other.minZ || minZ >= other.maxZ) return offsetX;
+
+        if (offsetX > 0.0f) {
+            // 向正X方向移动，计算与other左边的最大距离
+            f32 maxMove = other.minX - maxX;
+            // 如果已经重叠或移动距离小于最大可移动距离，返回原值
+            if (maxMove >= offsetX) return offsetX;
+            return maxMove;
+        } else if (offsetX < 0.0f) {
+            // 向负X方向移动，计算与other右边的最大距离
+            f32 maxMove = other.maxX - minX;
+            // 如果已经重叠或移动距离大于最大可移动距离，返回原值
+            if (maxMove <= offsetX) return offsetX;
+            return maxMove;
+        }
+        return offsetX;
+    }
+
+    /**
+     * @brief 计算沿Y轴移动时的最大允许偏移量
+     * @param other 另一个碰撞箱
+     * @param offsetY 期望的Y轴偏移量
+     * @return 实际允许的偏移量
+     */
+    [[nodiscard]] f32 calculateYOffset(const AxisAlignedBB& other, f32 offsetY) const noexcept {
+        // X或Z范围不相交，不影响移动
+        if (maxX <= other.minX || minX >= other.maxX) return offsetY;
+        if (maxZ <= other.minZ || minZ >= other.maxZ) return offsetY;
+
+        if (offsetY > 0.0f) {
+            // 向上移动
+            f32 maxMove = other.minY - maxY;
+            if (maxMove >= offsetY) return offsetY;
+            return maxMove;
+        } else if (offsetY < 0.0f) {
+            // 向下移动（重力）
+            f32 maxMove = other.maxY - minY;
+            if (maxMove <= offsetY) return offsetY;
+            return maxMove;
+        }
+        return offsetY;
+    }
+
+    /**
+     * @brief 计算沿Z轴移动时的最大允许偏移量
+     * @param other 另一个碰撞箱
+     * @param offsetZ 期望的Z轴偏移量
+     * @return 实际允许的偏移量
+     */
+    [[nodiscard]] f32 calculateZOffset(const AxisAlignedBB& other, f32 offsetZ) const noexcept {
+        // X或Y范围不相交，不影响移动
+        if (maxX <= other.minX || minX >= other.maxX) return offsetZ;
+        if (maxY <= other.minY || minY >= other.maxY) return offsetZ;
+
+        if (offsetZ > 0.0f) {
+            // 向正Z方向移动
+            f32 maxMove = other.minZ - maxZ;
+            if (maxMove >= offsetZ) return offsetZ;
+            return maxMove;
+        } else if (offsetZ < 0.0f) {
+            // 向负Z方向移动
+            f32 maxMove = other.maxZ - minZ;
+            if (maxMove <= offsetZ) return offsetZ;
+            return maxMove;
+        }
+        return offsetZ;
+    }
+
+    // 比较运算
+    [[nodiscard]] bool operator==(const AxisAlignedBB& other) const noexcept {
+        return minX == other.minX && minY == other.minY && minZ == other.minZ &&
+               maxX == other.maxX && maxY == other.maxY && maxZ == other.maxZ;
+    }
+
+    [[nodiscard]] bool operator!=(const AxisAlignedBB& other) const noexcept {
+        return !(*this == other);
+    }
+};
+
+} // namespace mr

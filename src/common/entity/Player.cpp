@@ -1,6 +1,8 @@
 #include "Player.hpp"
+#include "../physics/PhysicsEngine.hpp"
 #include <algorithm>
 #include <random>
+#include <cmath>
 
 namespace mr {
 
@@ -12,7 +14,7 @@ Player::Player(EntityId id, const String& username)
     : Entity(EntityType::Player, id)
     , m_username(username)
 {
-    // 生成随机XP种子
+    // 生成随机XP seed
     static std::random_device rd;
     static std::mt19937 gen(rd());
     static std::uniform_int_distribution<i32> dis;
@@ -192,6 +194,121 @@ void Player::tick() {
 
 void Player::update() {
     Entity::update();
+}
+
+void Player::handleMovementInput(f32 forward, f32 strafe, bool jumping, bool sneaking) {
+    // 计算移动速度
+    f32 speed = m_abilities.walkSpeed;
+    if (m_isSprinting) {
+        speed *= 1.3f; // 冲刺速度倍率
+    }
+    if (sneaking && !m_abilities.flying) {
+        speed *= 0.3f; // 潜行速度倍率
+    }
+    if (m_abilities.flying) {
+        speed = m_abilities.flySpeed * 2.0f; // 飞行速度
+    }
+
+    // 如果没有输入，不移动
+    if (forward == 0.0f && strafe == 0.0f) {
+        // 停止水平移动
+        m_velocity.x = 0.0f;
+        m_velocity.z = 0.0f;
+        return;
+    }
+
+    // 根据朝向计算移动方向
+    f32 yawRad = static_cast<f32>(m_yaw * 3.14159265358979323846 / 180.0);
+
+    // 计算移动向量（相对于玩家朝向）
+    f32 sinYaw = std::sin(yawRad);
+    f32 cosYaw = std::cos(yawRad);
+
+    // forward: Z方向，strafe: X方向
+    f32 moveX = strafe * cosYaw - forward * sinYaw;
+    f32 moveZ = strafe * sinYaw + forward * cosYaw;
+
+    // 归一化并应用速度
+    f32 length = std::sqrt(moveX * moveX + moveZ * moveZ);
+    if (length > 0.0f) {
+        moveX = moveX / length * speed;
+        moveZ = moveZ / length * speed;
+    }
+
+    m_velocity.x = moveX;
+    m_velocity.z = moveZ;
+
+    // 处理跳跃
+    if (jumping) {
+        if (m_abilities.flying) {
+            // 飞行模式下向上移动
+            m_velocity.y = m_abilities.flySpeed;
+        } else if (m_onGround) {
+            jump();
+        }
+    } else if (m_abilities.flying) {
+        // 飞行模式下不自动下降
+        m_velocity.y *= 0.6f; // 阻力
+    }
+}
+
+void Player::jump() {
+    if (m_onGround) {
+        m_velocity.y = PhysicsEngine::JUMP_VELOCITY;
+        m_onGround = false;
+    }
+}
+
+void Player::updatePhysics() {
+    // 如果在飞行模式，不应用重力
+    if (!m_abilities.flying) {
+        // 应用重力
+        if (!m_onGround) {
+            m_velocity.y -= PhysicsEngine::GRAVITY;
+        }
+    }
+
+    // 应用阻力
+    m_velocity.x *= PhysicsEngine::DRAG;
+    m_velocity.y *= PhysicsEngine::DRAG;
+    m_velocity.z *= PhysicsEngine::DRAG;
+
+    // 如果在地面，停止Y方向速度
+    if (m_onGround && m_velocity.y < 0.0f) {
+        m_velocity.y = 0.0f;
+    }
+
+    // 使用碰撞检测移动
+    if (m_physicsEngine && (m_velocity.x != 0.0f || m_velocity.y != 0.0f || m_velocity.z != 0.0f)) {
+        Vector3 actualMovement = moveWithCollision(
+            static_cast<f64>(m_velocity.x),
+            static_cast<f64>(m_velocity.y),
+            static_cast<f64>(m_velocity.z)
+        );
+
+        // 如果碰撞停止了移动，重置速度
+        if (m_collidedHorizontally) {
+            m_velocity.x = 0.0f;
+            m_velocity.z = 0.0f;
+        }
+        if (m_collidedVertically) {
+            m_velocity.y = 0.0f;
+        }
+    }
+}
+
+void Player::applyMovementSpeed(f32& speed, bool sneaking) const {
+    if (m_abilities.flying) {
+        speed = m_abilities.flySpeed;
+    } else {
+        speed = m_abilities.walkSpeed;
+        if (m_isSprinting) {
+            speed *= 1.3f;
+        }
+        if (sneaking) {
+            speed *= 0.3f;
+        }
+    }
 }
 
 network::PlayerPosition Player::playerPosition() const {

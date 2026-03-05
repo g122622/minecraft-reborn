@@ -2,6 +2,9 @@
 
 #include "common/core/Types.hpp"
 #include "common/core/Result.hpp"
+#include "common/entity/Player.hpp"
+#include "common/physics/PhysicsEngine.hpp"
+#include "common/physics/collision/BlockCollision.hpp"
 #include "../window/Window.hpp"
 #include "../input/InputManager.hpp"
 #include "../renderer/VulkanRenderer.hpp"
@@ -151,6 +154,12 @@ private:
 
     // 世界
     ClientWorld m_world;
+
+    // 物理系统
+    std::unique_ptr<PhysicsEngine> m_physicsEngine;
+
+    // 玩家实体
+    std::unique_ptr<Player> m_player;
 
     // 调试屏幕
     DebugScreen m_debugScreen;

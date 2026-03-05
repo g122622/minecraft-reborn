@@ -17,6 +17,7 @@ add_executable(mr_tests
     common/test_chunksync.cpp
     common/test_localconnection.cpp
     common/test_chunkloadticket.cpp
+    common/test_collision.cpp
     server/ServerWorldTest.cpp
     server/test_integrated_server.cpp
 )
@@ -36,7 +37,11 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/world/TerrainGenerator.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkDistanceGraph.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkLoadTicketManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/BlockID.cpp
         ${CMAKE_SOURCE_DIR}/src/common/entity/Player.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/entity/Entity.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/physics/PhysicsEngine.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/physics/collision/BlockCollision.cpp
 )
 
 target_link_libraries(mr_tests

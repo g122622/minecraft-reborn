@@ -7,6 +7,7 @@
 #include "../../common/world/WorldConstants.hpp"
 #include "../../common/renderer/MeshTypes.hpp"
 #include "../../common/network/ChunkSync.hpp"
+#include "../../common/physics/PhysicsEngine.hpp"
 #include "../renderer/Camera.hpp"
 #include <unordered_map>
 #include <unordered_set>
@@ -44,12 +45,13 @@ struct ChunkLoadRequest {
 /**
  * @brief 客户端世界管理器
  *
- * 管理区块的加载、卸载和渲染
+ * 管理区块的加载、卸载和渲染。
+ * 实现 ICollisionWorld 接口以支持物理碰撞检测。
  */
-class ClientWorld {
+class ClientWorld : public ICollisionWorld {
 public:
     ClientWorld();
-    ~ClientWorld();
+    ~ClientWorld() override;
 
     // 禁止拷贝
     ClientWorld(const ClientWorld&) = delete;
@@ -81,12 +83,38 @@ public:
     /**
      * @brief 获取方块
      */
-    [[nodiscard]] BlockState getBlock(i32 x, i32 y, i32 z) const;
+    [[nodiscard]] BlockState getBlock(i32 x, i32 y, i32 z) const override;
 
     /**
      * @brief 设置方块
      */
     void setBlock(i32 x, i32 y, i32 z, BlockState block);
+
+    // ========== ICollisionWorld 接口实现 ==========
+
+    /**
+     * @brief 检查位置是否在世界范围内
+     */
+    [[nodiscard]] bool isWithinWorldBounds(i32 x, i32 y, i32 z) const override {
+        return y >= m_minBuildHeight && y < m_maxBuildHeight;
+    }
+
+    /**
+     * @brief 获取区块数据
+     */
+    [[nodiscard]] const ChunkData* getChunkAt(ChunkCoord x, ChunkCoord z) const override;
+
+    /**
+     * @brief 获取世界最小Y坐标
+     */
+    [[nodiscard]] i32 getMinBuildHeight() const override { return m_minBuildHeight; }
+
+    /**
+     * @brief 获取世界最大Y坐标
+     */
+    [[nodiscard]] i32 getMaxBuildHeight() const override { return m_maxBuildHeight; }
+
+    // ========== 区块管理 ==========
 
     /**
      * @brief 获取所有已加载的区块
@@ -192,6 +220,10 @@ private:
     i32 m_maxChunksPerFrame = 4;  // 每帧最多加载的区块数
     u64 m_seed = 0;
     bool m_networkMode = false;  // 网络模式标志
+
+    // 世界边界
+    i32 m_minBuildHeight = 0;
+    i32 m_maxBuildHeight = 256;
 
     // 统计
     u32 m_chunksLoaded = 0;

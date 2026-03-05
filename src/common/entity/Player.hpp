@@ -114,6 +114,16 @@ struct FoodStats {
 // 玩家类
 // ============================================================================
 
+/**
+ * @brief 玩家实体类
+ *
+ * 继承自Entity，添加玩家特有的属性和能力：
+ * - 玩家尺寸常量（宽度、高度、眼睛高度）
+ * - 游戏模式、生命值、饥饿值
+ * - 经验系统
+ * - 能力标志（飞行、无敌等）
+ * - 物理移动支持（步进、跳跃）
+ */
 class Player : public Entity {
 public:
     // 玩家尺寸常量
@@ -122,6 +132,7 @@ public:
     static constexpr f32 PLAYER_EYE_HEIGHT = 1.62f;
     static constexpr f32 PLAYER_CROUCH_HEIGHT = 1.5f;
     static constexpr f32 PLAYER_SWIM_HEIGHT = 0.6f;
+    static constexpr f32 PLAYER_STEP_HEIGHT = 0.6f;  // 步进高度
 
     Player(EntityId id, const String& username);
     ~Player() override = default;
@@ -134,7 +145,8 @@ public:
     Player(Player&&) = default;
     Player& operator=(Player&&) = default;
 
-    // 玩家特有属性
+    // ========== 玩家特有属性 ==========
+
     [[nodiscard]] const String& username() const { return m_username; }
     [[nodiscard]] PlayerId playerId() const { return m_playerId; }
     void setPlayerId(PlayerId id) { m_playerId = id; }
@@ -182,26 +194,73 @@ public:
     void setSwimming(bool swimming);
     void setSleeping(bool sleeping);
 
-    // 重写尺寸
+    // ========== 重写尺寸方法 ==========
+
     [[nodiscard]] f32 width() const override { return PLAYER_WIDTH; }
     [[nodiscard]] f32 height() const override;
     [[nodiscard]] f32 eyeHeight() const override;
+    [[nodiscard]] f32 stepHeight() const override { return PLAYER_STEP_HEIGHT; }
 
-    // 重写更新
+    // ========== 更新 ==========
+
     void tick() override;
     void update() override;
 
-    // 网络同步位置
+    // ========== 物理/移动 ==========
+
+    /**
+     * @brief 处理移动输入
+     *
+     * 根据玩家输入计算速度向量。考虑：
+     * - 行走/奔跑/潜行速度
+     * - 飞行模式
+     * - 游泳状态
+     *
+     * @param forward 前后移动 (-1到1，负为后退)
+     * @param strafe 左右移动 (-1到1，负为左)
+     * @param jumping 是否跳跃
+     * @param sneaking 是否潜行
+     */
+    void handleMovementInput(f32 forward, f32 strafe, bool jumping, bool sneaking);
+
+    /**
+     * @brief 执行跳跃
+     *
+     * 只有在地面上时才能跳跃。
+     * 跳跃速度为 JUMP_VELOCITY (0.42)。
+     */
+    void jump();
+
+    /**
+     * @brief 更新玩家物理
+     *
+     * 每帧调用，处理：
+     * - 应用速度到位置（带碰撞检测）
+     * - 重力
+     * - 跳跃
+     * - 阻力
+     */
+    void updatePhysics();
+
+    // ========== 网络同步 ==========
+
     [[nodiscard]] network::PlayerPosition playerPosition() const;
 
-    // 重生
+    // ========== 重生 ==========
+
     void respawn();
 
-    // 序列化
+    // ========== 序列化 ==========
+
     void serialize(network::PacketSerializer& ser) const;
     [[nodiscard]] static Result<std::unique_ptr<Player>> deserialize(network::PacketDeserializer& deser);
 
 private:
+    /**
+     * @brief 应用移动速度修正
+     */
+    void applyMovementSpeed(f32& speed, bool sneaking) const;
+
     String m_username;
     PlayerId m_playerId = 0;
     GameMode m_gameMode = GameMode::Survival;
