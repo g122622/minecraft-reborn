@@ -506,12 +506,9 @@ void NetworkClient::handleTeleport(network::PacketDeserializer& deser) {
     }
 
     auto& packet = result.value();
-    spdlog::info("Received teleport: ({}, {}, {}) yaw={} pitch={} id={}",
-                 packet.x(), packet.y(), packet.z(), packet.yaw(), packet.pitch(), packet.teleportId());
 
     // 发送确认
     sendTeleportConfirm(packet.teleportId());
-    spdlog::info("Sent teleport confirm: id={}", packet.teleportId());
 
     // 回调通知
     if (m_callbacks.onTeleport) {
@@ -531,7 +528,7 @@ void NetworkClient::handleChunkData(network::PacketDeserializer& deser) {
     }
 
     auto& packet = result.value();
-    spdlog::info("Received chunk data: ({}, {}) size: {} bytes", packet.x(), packet.z(), packet.data().size());
+    spdlog::debug("Received chunk data: ({}, {}) size: {} bytes", packet.x(), packet.z(), packet.data().size());
 
     if (m_callbacks.onChunkData) {
         m_callbacks.onChunkData(packet.x(), packet.z(), packet.data());

@@ -351,16 +351,14 @@ void IntegratedServer::handleTeleportConfirm(const u8* data, size_t size) {
     }
 
     auto& packet = result.value();
-    spdlog::info("Teleport confirm received: id={}, expected={}, waiting={}",
-                 packet.teleportId(), m_client.pendingTeleportId, m_client.waitingTeleportConfirm);
+    spdlog::debug("Teleport confirm received: id={}, expected={}",
+                 packet.teleportId(), m_client.pendingTeleportId);
 
     if (m_client.waitingTeleportConfirm && packet.teleportId() == m_client.pendingTeleportId) {
         m_client.waitingTeleportConfirm = false;
-        spdlog::info("Teleport confirmed, sending initial chunks...");
 
         // 传送确认后发送初始区块
         updateChunkSubscription();
-        spdlog::info("Initial chunks sent, loadedChunks count: {}", m_client.loadedChunks.size());
     } else {
         spdlog::warn("Unexpected teleport confirm: id={}, expected={}",
                      packet.teleportId(), m_client.pendingTeleportId);

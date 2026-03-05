@@ -17,6 +17,7 @@ add_executable(mr_tests
     common/test_chunksync.cpp
     common/test_localconnection.cpp
     server/ServerWorldTest.cpp
+    server/test_integrated_server.cpp
 )
 
 # 添加服务端源文件
@@ -25,6 +26,14 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpServer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpSession.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/network/LocalConnection.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/network/ChunkSync.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/network/PacketSerializer.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/network/Packet.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/ChunkData.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/TerrainGenerator.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/entity/Player.cpp
 )
 
 target_link_libraries(mr_tests
