@@ -176,17 +176,23 @@ public:
         if (maxZ <= other.minZ || minZ >= other.maxZ) return offsetX;
 
         if (offsetX > 0.0f) {
-            // 向正X方向移动，计算与other左边的最大距离
-            f32 maxMove = other.minX - maxX;
-            // 如果已经重叠或移动距离小于最大可移动距离，返回原值
-            if (maxMove >= offsetX) return offsetX;
-            return maxMove;
+            // 仅当other在当前包围盒右侧时才可能阻挡
+            if (other.minX >= maxX) {
+                f32 maxMove = other.minX - maxX;
+                if (maxMove < offsetX) {
+                    offsetX = maxMove;
+                }
+            }
+            return offsetX;
         } else if (offsetX < 0.0f) {
-            // 向负X方向移动，计算与other右边的最大距离
-            f32 maxMove = other.maxX - minX;
-            // 如果已经重叠或移动距离大于最大可移动距离，返回原值
-            if (maxMove <= offsetX) return offsetX;
-            return maxMove;
+            // 仅当other在当前包围盒左侧时才可能阻挡
+            if (other.maxX <= minX) {
+                f32 maxMove = other.maxX - minX;
+                if (maxMove > offsetX) {
+                    offsetX = maxMove;
+                }
+            }
+            return offsetX;
         }
         return offsetX;
     }
@@ -203,15 +209,23 @@ public:
         if (maxZ <= other.minZ || minZ >= other.maxZ) return offsetY;
 
         if (offsetY > 0.0f) {
-            // 向上移动
-            f32 maxMove = other.minY - maxY;
-            if (maxMove >= offsetY) return offsetY;
-            return maxMove;
+            // 仅当other在当前包围盒上方时才可能阻挡
+            if (other.minY >= maxY) {
+                f32 maxMove = other.minY - maxY;
+                if (maxMove < offsetY) {
+                    offsetY = maxMove;
+                }
+            }
+            return offsetY;
         } else if (offsetY < 0.0f) {
-            // 向下移动（重力）
-            f32 maxMove = other.maxY - minY;
-            if (maxMove <= offsetY) return offsetY;
-            return maxMove;
+            // 仅当other在当前包围盒下方时才可能阻挡
+            if (other.maxY <= minY) {
+                f32 maxMove = other.maxY - minY;
+                if (maxMove > offsetY) {
+                    offsetY = maxMove;
+                }
+            }
+            return offsetY;
         }
         return offsetY;
     }
@@ -228,15 +242,23 @@ public:
         if (maxY <= other.minY || minY >= other.maxY) return offsetZ;
 
         if (offsetZ > 0.0f) {
-            // 向正Z方向移动
-            f32 maxMove = other.minZ - maxZ;
-            if (maxMove >= offsetZ) return offsetZ;
-            return maxMove;
+            // 仅当other在当前包围盒前方时才可能阻挡
+            if (other.minZ >= maxZ) {
+                f32 maxMove = other.minZ - maxZ;
+                if (maxMove < offsetZ) {
+                    offsetZ = maxMove;
+                }
+            }
+            return offsetZ;
         } else if (offsetZ < 0.0f) {
-            // 向负Z方向移动
-            f32 maxMove = other.maxZ - minZ;
-            if (maxMove <= offsetZ) return offsetZ;
-            return maxMove;
+            // 仅当other在当前包围盒后方时才可能阻挡
+            if (other.maxZ <= minZ) {
+                f32 maxMove = other.maxZ - minZ;
+                if (maxMove > offsetZ) {
+                    offsetZ = maxMove;
+                }
+            }
+            return offsetZ;
         }
         return offsetZ;
     }

@@ -72,12 +72,17 @@ public:
  * - JUMP_VELOCITY = 0.42 blocks/tick
  * - DRAG = 0.98（空气阻力）
  * - STEP_HEIGHT = 0.6（玩家步进高度）
+ *
+ * 参考MC源码：
+ * - Entity.move() - 核心移动逻辑
+ * - Entity.getAllowedMovement() - 碰撞解决和步进
+ * - Entity.collideBoundingBox() - 逐轴碰撞计算
  */
 class PhysicsEngine {
 public:
     // MC物理常量
-    static constexpr f32 GRAVITY = 0.08f;            // blocks/tick²
-    static constexpr f32 JUMP_VELOCITY = 0.42f;     // blocks/tick
+    static constexpr f32 GRAVITY = 0.055f;           // blocks/tick²（调低，提升滞空体验）
+    static constexpr f32 JUMP_VELOCITY = 0.48f;      // blocks/tick（调高，提升单次跳跃高度）
     static constexpr f32 DRAG = 0.98f;               // 空气阻力
     static constexpr f32 STEP_HEIGHT = 0.6f;         // 最大步进高度
     static constexpr f32 PLAYER_WIDTH = 0.6f;        // 玩家宽度
@@ -93,7 +98,7 @@ public:
      * 2. Y轴优先处理（重力/跳跃）
      * 3. X/Z按移动幅度排序处理
      * 4. 尝试step-up（如果水平碰撞且在地面）
-     * 5. 更新onGround状态
+     * 5. 更新碰撞状态
      *
      * @param entityBox 实体碰撞箱（会被修改）
      * @param movement 期望移动向量
@@ -127,9 +132,34 @@ public:
      */
     [[nodiscard]] ICollisionWorld* getWorld() const { return m_world; }
 
+    /**
+     * @brief 检测上次移动是否有垂直碰撞
+     */
+    [[nodiscard]] bool collidedVertically() const { return m_collidedVertically; }
+
+    /**
+     * @brief 检测上次移动是否有水平碰撞
+     */
+    [[nodiscard]] bool collidedHorizontally() const { return m_collidedHorizontally; }
+
 private:
     /**
+     * @brief 尝试将实体从初始重叠中向上推出
+     *
+     * 逐轴碰撞算法假设初始时不与方块重叠。
+     * 当浮点误差导致实体轻微嵌入地面时，先做一次向上去重叠，
+     * 避免后续 calculateYOffset 无法修正而持续下陷。
+     */
+    [[nodiscard]] f32 resolveInitialOverlaps(AxisAlignedBB& entityBox,
+                                             const std::vector<AxisAlignedBB>& boxes) const;
+
+    /**
      * @brief 核心碰撞解决（MC的collideBoundingBox）
+     *
+     * 逐轴处理碰撞：
+     * 1. Y轴优先（重力）
+     * 2. X/Z按移动幅度排序
+     * 3. 每次移动后更新entityBox位置
      *
      * @param entityBox 实体碰撞箱（会被修改）
      * @param movement 期望移动向量
@@ -141,22 +171,26 @@ private:
                              const std::vector<AxisAlignedBB>& boxes);
 
     /**
-     * @brief 尝试步进
+     * @brief 尝试步进（MC的auto-step）
      *
      * 当水平方向移动受阻时，尝试抬起实体继续移动。
+     * 算法：
+     * 1. 向上移动stepHeight
+     * 2. 尝试水平移动
+     * 3. 向下移动直到碰到地面
+     * 4. 比较水平移动距离，选择更优的结果
      *
      * @param entityBox 实体碰撞箱（会被修改）
+     * @param originalBox 移动前的原始碰撞箱
      * @param movement 期望移动向量
-     * @param resolvedMovement 碰撞后的移动向量
-     * @param boxes 碰撞箱列表
      * @param stepHeight 步进高度
      * @return 实际移动向量
      */
     Vector3 attemptStepUp(AxisAlignedBB& entityBox,
+                          const AxisAlignedBB& originalBox,
                           const Vector3& movement,
-                          const Vector3& resolvedMovement,
-                          const std::vector<AxisAlignedBB>& boxes,
-                          f32 stepHeight);
+                          f32 stepHeight,
+                          const Vector3& fallbackResult);
 
     /**
      * @brief 获取方块碰撞箱
@@ -167,6 +201,8 @@ private:
                                 std::vector<AxisAlignedBB>& boxes) const;
 
     ICollisionWorld* m_world;
+    bool m_collidedVertically = false;
+    bool m_collidedHorizontally = false;
 };
 
 } // namespace mr

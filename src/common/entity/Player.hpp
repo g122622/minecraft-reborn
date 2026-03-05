@@ -123,6 +123,11 @@ struct FoodStats {
  * - 经验系统
  * - 能力标志（飞行、无敌等）
  * - 物理移动支持（步进、跳跃）
+ *
+ * 物理系统参考MC Java版实现：
+ * - LivingEntity.aiStep() - 主tick循环
+ * - LivingEntity.travel() - 物理更新
+ * - Entity.move() - 碰撞检测
  */
 class Player : public Entity {
 public:
@@ -133,6 +138,11 @@ public:
     static constexpr f32 PLAYER_CROUCH_HEIGHT = 1.5f;
     static constexpr f32 PLAYER_SWIM_HEIGHT = 0.6f;
     static constexpr f32 PLAYER_STEP_HEIGHT = 0.6f;  // 步进高度
+
+    // MC物理常量
+    static constexpr f32 MOTION_THRESHOLD = 0.003f;  // 速度阈值，低于此值归零
+    static constexpr i32 JUMP_COOLDOWN = 10;          // 跳跃冷却(ticks)
+    static constexpr f32 SNEAK_EDGE_DISTANCE = 0.05f; // 潜行边缘检测距离
 
     Player(EntityId id, const String& username);
     ~Player() override = default;
@@ -188,6 +198,7 @@ public:
     [[nodiscard]] bool isSwimming() const { return m_isSwimming; }
     [[nodiscard]] bool isSleeping() const { return m_isSleeping; }
     [[nodiscard]] bool isDead() const { return m_health <= 0.0f; }
+    [[nodiscard]] bool isJumping() const { return m_isJumping; }
 
     void setSprinting(bool sprinting);
     void setSneaking(bool sneaking);
@@ -211,10 +222,10 @@ public:
     /**
      * @brief 处理移动输入
      *
-     * 根据玩家输入计算速度向量。考虑：
-     * - 行走/奔跑/潜行速度
-     * - 飞行模式
-     * - 游泳状态
+     * 根据MC Java版 Entity.getAbsoluteMotion() 的逻辑：
+     * - MC坐标系: yaw=0 看向 +Z, yaw=90 看向 -X
+     * - forward: 正值向前走, 负值向后走
+     * - strafe: 正值向右走, 负值向左走
      *
      * @param forward 前后移动 (-1到1，负为后退)
      * @param strafe 左右移动 (-1到1，负为左)
@@ -226,8 +237,9 @@ public:
     /**
      * @brief 执行跳跃
      *
-     * 只有在地面上时才能跳跃。
+     * 只有在地面上且跳跃冷却为0时才能跳跃。
      * 跳跃速度为 JUMP_VELOCITY (0.42)。
+     * 跳跃后设置冷却为 JUMP_COOLDOWN (10 ticks)。
      */
     void jump();
 
@@ -239,8 +251,21 @@ public:
      * - 重力
      * - 跳跃
      * - 阻力
+     * - 速度阈值处理
+     * - 跳跃冷却
      */
     void updatePhysics();
+
+    /**
+     * @brief 检查潜行时是否可以移动到边缘
+     *
+     * 参考MC的 maybeBackOffFromEdge
+     * 潜行时防止玩家走到方块边缘掉落
+     *
+     * @param movement 期望移动向量
+     * @return 修正后的移动向量
+     */
+    [[nodiscard]] Vector3 maybeBackOffFromEdge(const Vector3& movement) const;
 
     // ========== 网络同步 ==========
 
@@ -260,6 +285,12 @@ private:
      * @brief 应用移动速度修正
      */
     void applyMovementSpeed(f32& speed, bool sneaking) const;
+
+    /**
+     * @brief 重置过小的速度为零
+     * 参考MC: if (Math.abs(motion) < 0.003) motion = 0
+     */
+    void clampMotion();
 
     String m_username;
     PlayerId m_playerId = 0;
@@ -281,7 +312,9 @@ private:
     bool m_isSneaking = false;
     bool m_isSwimming = false;
     bool m_isSleeping = false;
+    bool m_isJumping = false;        // 当前帧是否在跳跃
 
+    i32 m_jumpTicks = 0;             // 跳跃冷却
     i32 sleepTimer = 0;
     i32 hurtTime = 0;
     i32 deathTime = 0;

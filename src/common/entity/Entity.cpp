@@ -75,9 +75,17 @@ void Entity::rotate(f32 deltaYaw, f32 deltaPitch) {
     while (m_yaw >= 360.0f) m_yaw -= 360.0f;
 }
 
+/**
+ * @brief 带碰撞检测的移动
+ *
+ * 参考MC的Entity.move()实现。
+ * 核心流程：
+ * 1. 使用物理引擎执行碰撞检测和移动
+ * 2. 更新实体位置（从碰撞箱计算）
+ * 3. 更新碰撞状态和地面状态
+ * 4. 更新坠落距离
+ */
 Vector3 Entity::moveWithCollision(f64 dx, f64 dy, f64 dz) {
-    // 保存原始位置
-    Vector3 originalPos = m_position;
     Vector3 desiredMovement(static_cast<f32>(dx), static_cast<f32>(dy), static_cast<f32>(dz));
 
     // 重置碰撞状态
@@ -90,40 +98,39 @@ Vector3 Entity::moveWithCollision(f64 dx, f64 dy, f64 dz) {
         return desiredMovement;
     }
 
-    // 获取碰撞箱
+    // 获取当前碰撞箱
     AxisAlignedBB entityBox = boundingBox();
 
-    // 使用物理引擎移动
+    // 使用物理引擎执行碰撞检测移动
+    // 参考MC: Entity.move() -> getAllowedMovement()
     Vector3 actualMovement = m_physicsEngine->moveEntity(entityBox, desiredMovement, stepHeight());
 
-    // 更新位置
+    // 从碰撞箱更新位置
+    // 实体位置 = 碰撞箱底部中心
     m_position = Vector3(
         (entityBox.minX + entityBox.maxX) / 2.0f,  // 中心X
         entityBox.minY,                             // 底部Y
         (entityBox.minZ + entityBox.maxZ) / 2.0f   // 中心Z
     );
 
-    // 更新碰撞状态
-    m_onGround = m_physicsEngine->isOnGround(entityBox);
+    // 更新碰撞状态（从物理引擎获取）
+    m_collidedHorizontally = m_physicsEngine->collidedHorizontally();
+    m_collidedVertically = m_physicsEngine->collidedVertically();
 
-    // 检测碰撞方向
-    if (std::abs(actualMovement.x - desiredMovement.x) > 1e-6f ||
-        std::abs(actualMovement.z - desiredMovement.z) > 1e-6f) {
-        m_collidedHorizontally = true;
-    }
-    if (std::abs(actualMovement.y - desiredMovement.y) > 1e-6f) {
-        m_collidedVertically = true;
-    }
+    // 更新地面状态
+    // 优先使用“向下移动时发生垂直碰撞”的判定，避免纯接触检测抖动。
+    bool groundedByCollision = m_collidedVertically && desiredMovement.y < 0.0f;
+    bool groundedByContact = m_physicsEngine->isOnGround(entityBox);
+    m_onGround = groundedByCollision || groundedByContact;
 
     // 更新坠落距离
-    if (!m_onGround && m_velocity.y < 0.0f) {
+    // 参考MC: 如果在空中且向下移动，累积坠落距离
+    if (!m_onGround && actualMovement.y < 0.0f) {
         m_fallDistance -= actualMovement.y;
-    } else {
-        // 如果着地或向上移动，重置坠落距离
-        if (m_onGround && m_fallDistance > 0.0f) {
-            // TODO: 处理摔落伤害
-            m_fallDistance = 0.0f;
-        }
+    } else if (m_onGround && m_fallDistance > 0.0f) {
+        // 着地，处理摔落伤害
+        // TODO: 处理摔落伤害
+        m_fallDistance = 0.0f;
     }
 
     return actualMovement;

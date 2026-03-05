@@ -307,9 +307,9 @@ void IntegratedServer::handleLoginRequest(const u8* data, size_t size) {
     m_client.loggedIn = true;
 
     // 设置初始位置（出生点）
-    m_client.x = 8.0;
+    m_client.x = 0.0;
     m_client.y = 128.0;
-    m_client.z = 8.0;
+    m_client.z = 0.0;
 
     // 发送登录成功响应
     sendLoginResponse(true, m_client.playerId, username, "Welcome to singleplayer world!");

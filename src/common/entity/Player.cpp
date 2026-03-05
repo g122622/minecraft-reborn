@@ -196,6 +196,22 @@ void Player::update() {
     Entity::update();
 }
 
+/**
+ * @brief 处理移动输入
+ *
+ * 参考MC Java版 Entity.getAbsoluteMotion() 的逻辑：
+ * - MC坐标系: yaw=0 看向 +Z, yaw=90 看向 -X
+ * - forward: 正值向前走, 负值向后走
+ * - strafe: 正值向右走, 负值向左走
+ *
+ * MC公式:
+ *   sinYaw = sin(yaw * PI/180)
+ *   cosYaw = cos(yaw * PI/180)
+ *   moveX = strafe * cosYaw - forward * sinYaw
+ *   moveZ = forward * cosYaw + strafe * sinYaw
+ *
+ * 参考源码: Entity.java:1171-1180
+ */
 void Player::handleMovementInput(f32 forward, f32 strafe, bool jumping, bool sneaking) {
     // 计算移动速度
     f32 speed = m_abilities.walkSpeed;
@@ -209,41 +225,47 @@ void Player::handleMovementInput(f32 forward, f32 strafe, bool jumping, bool sne
         speed = m_abilities.flySpeed * 2.0f; // 飞行速度
     }
 
-    // 如果没有输入，不移动
-    if (forward == 0.0f && strafe == 0.0f) {
-        // 停止水平移动
+    // 根据朝向计算移动方向（只有有输入时才处理）
+    if (forward != 0.0f || strafe != 0.0f) {
+        // MC坐标系: yaw单位是度，转换为弧度
+        // MC中: yaw=0 看向 -Z, yaw=90 看向 +X
+        f32 yawRad = static_cast<f32>(m_yaw * 3.14159265358979323846 / 180.0);
+        f32 sinYaw = std::sin(yawRad);
+        f32 cosYaw = std::cos(yawRad);
+
+        // MC的getAbsoluteMotion公式
+        // moveX = strafe * cosYaw - forward * sinYaw
+        // moveZ = forward * cosYaw + strafe * sinYaw
+        f32 moveX = strafe * cosYaw - forward * sinYaw;
+        f32 moveZ = forward * cosYaw + strafe * sinYaw;
+
+        // 归一化并应用速度
+        f32 length = std::sqrt(moveX * moveX + moveZ * moveZ);
+        if (length > 0.0f) {
+            moveX = moveX / length * speed;
+            moveZ = moveZ / length * speed;
+        }
+
+        m_velocity.x = moveX;
+        m_velocity.z = moveZ;
+    } else {
+        // 没有水平移动输入，停止水平速度
         m_velocity.x = 0.0f;
         m_velocity.z = 0.0f;
-        return;
     }
 
-    // 根据朝向计算移动方向
-    f32 yawRad = static_cast<f32>(m_yaw * 3.14159265358979323846 / 180.0);
+    // 更新跳跃状态（用于动画等）
+    m_isJumping = jumping;
 
-    // 计算移动向量（相对于玩家朝向）
-    f32 sinYaw = std::sin(yawRad);
-    f32 cosYaw = std::cos(yawRad);
-
-    // forward: Z方向，strafe: X方向
-    f32 moveX = strafe * cosYaw - forward * sinYaw;
-    f32 moveZ = strafe * sinYaw + forward * cosYaw;
-
-    // 归一化并应用速度
-    f32 length = std::sqrt(moveX * moveX + moveZ * moveZ);
-    if (length > 0.0f) {
-        moveX = moveX / length * speed;
-        moveZ = moveZ / length * speed;
-    }
-
-    m_velocity.x = moveX;
-    m_velocity.z = moveZ;
-
-    // 处理跳跃
+    // 处理跳跃（无论是否有水平移动输入都要处理！）
+    // 这是MC的关键逻辑：跳跃是独立于水平移动的
+    // 参考MC: LivingEntity.aiStep() lines 2567-2591
     if (jumping) {
         if (m_abilities.flying) {
             // 飞行模式下向上移动
             m_velocity.y = m_abilities.flySpeed;
-        } else if (m_onGround) {
+        } else if (m_onGround && m_jumpTicks == 0) {
+            // 只有在地面且冷却为0时才能跳跃
             jump();
         }
     } else if (m_abilities.flying) {
@@ -253,40 +275,127 @@ void Player::handleMovementInput(f32 forward, f32 strafe, bool jumping, bool sne
 }
 
 void Player::jump() {
-    if (m_onGround) {
+    if (m_onGround && m_jumpTicks == 0) {
         m_velocity.y = PhysicsEngine::JUMP_VELOCITY;
         m_onGround = false;
+        m_jumpTicks = JUMP_COOLDOWN; // 设置跳跃冷却
     }
 }
 
+/**
+ * @brief 重置过小的速度为零
+ *
+ * 参考MC: LivingEntity.aiStep()
+ * if (Math.abs(motion.x) < 0.003) motion.x = 0;
+ * if (Math.abs(motion.y) < 0.003) motion.y = 0;
+ * if (Math.abs(motion.z) < 0.003) motion.z = 0;
+ */
+void Player::clampMotion() {
+    if (std::abs(m_velocity.x) < MOTION_THRESHOLD) m_velocity.x = 0.0f;
+    if (std::abs(m_velocity.y) < MOTION_THRESHOLD) m_velocity.y = 0.0f;
+    if (std::abs(m_velocity.z) < MOTION_THRESHOLD) m_velocity.z = 0.0f;
+}
+
+/**
+ * @brief 潜行时检查是否可以移动到边缘
+ *
+ * 参考MC: PlayerEntity.maybeBackOffFromEdge()
+ * 当玩家潜行时，检查前方是否有方块支撑，防止掉落。
+ *
+ * @param movement 期望移动向量
+ * @return 修正后的移动向量
+ */
+Vector3 Player::maybeBackOffFromEdge(const Vector3& movement) const {
+    // 只在潜行时检测
+    if (!m_isSneaking) {
+        return movement;
+    }
+
+    // 如果没有物理引擎或向上移动，不检测
+    if (!m_physicsEngine) {
+        return movement;
+    }
+
+    // 只检测水平移动
+    if (movement.x == 0.0f && movement.z == 0.0f) {
+        return movement;
+    }
+
+    // 获取当前碰撞箱
+    AxisAlignedBB box = boundingBox();
+
+    // 计算移动后的位置
+    f32 newX = m_position.x + movement.x;
+    f32 newZ = m_position.z + movement.z;
+
+    // 检查移动后的位置下方是否有方块
+    // 向下检测一小段距离
+    AxisAlignedBB testBox = AxisAlignedBB(
+        newX - PLAYER_WIDTH / 2.0f,
+        m_position.y - SNEAK_EDGE_DISTANCE,
+        newZ - PLAYER_WIDTH / 2.0f,
+        newX + PLAYER_WIDTH / 2.0f,
+        m_position.y,
+        newZ + PLAYER_WIDTH / 2.0f
+    );
+
+    // 检查是否有碰撞
+    std::vector<AxisAlignedBB> boxes;
+    m_physicsEngine->collectCollisionBoxes(testBox, boxes);
+
+    if (boxes.empty()) {
+        // 没有支撑，阻止移动
+        return Vector3(0.0f, movement.y, 0.0f);
+    }
+
+    return movement;
+}
+
 void Player::updatePhysics() {
-    // 如果在飞行模式，不应用重力
+    // 0. 更新跳跃冷却（客户端物理每帧都会调用）
+    // 之前仅在tick()中减少，客户端未调用tick()会导致只能跳一次。
+    if (m_jumpTicks > 0) {
+        m_jumpTicks--;
+    }
+
+    // 1. 重置过小的速度（MC: LivingEntity.aiStep）
+    clampMotion();
+
+    // 2. 应用重力
     if (!m_abilities.flying) {
-        // 应用重力
         if (!m_onGround) {
             m_velocity.y -= PhysicsEngine::GRAVITY;
         }
     }
 
-    // 应用阻力
+    // 3. 应用阻力（MC: moveStrafing *= 0.98F, moveForward *= 0.98F）
+    // 注意：阻力在移动前应用，而不是在移动后
     m_velocity.x *= PhysicsEngine::DRAG;
     m_velocity.y *= PhysicsEngine::DRAG;
     m_velocity.z *= PhysicsEngine::DRAG;
 
-    // 如果在地面，停止Y方向速度
+    // 4. 如果在地面，停止Y方向速度（防止下落速度累积）
     if (m_onGround && m_velocity.y < 0.0f) {
         m_velocity.y = 0.0f;
     }
 
-    // 使用碰撞检测移动
-    if (m_physicsEngine && (m_velocity.x != 0.0f || m_velocity.y != 0.0f || m_velocity.z != 0.0f)) {
+    // 5. 潜行边缘检测
+    Vector3 movement(m_velocity.x, m_velocity.y, m_velocity.z);
+    if (m_isSneaking && !m_abilities.flying) {
+        movement = maybeBackOffFromEdge(movement);
+    }
+
+    // 6. 使用碰撞检测移动
+    if (m_physicsEngine && (movement.x != 0.0f || movement.y != 0.0f || movement.z != 0.0f)) {
         Vector3 actualMovement = moveWithCollision(
-            static_cast<f64>(m_velocity.x),
-            static_cast<f64>(m_velocity.y),
-            static_cast<f64>(m_velocity.z)
+            static_cast<f64>(movement.x),
+            static_cast<f64>(movement.y),
+            static_cast<f64>(movement.z)
         );
 
-        // 如果碰撞停止了移动，重置速度
+        // 7. 碰撞后重置速度（参考MC: Entity.move）
+        // if (pos.x != vector3d.x) setMotion(0, y, z)
+        // if (pos.z != vector3d.z) setMotion(x, y, 0)
         if (m_collidedHorizontally) {
             m_velocity.x = 0.0f;
             m_velocity.z = 0.0f;
@@ -295,6 +404,9 @@ void Player::updatePhysics() {
             m_velocity.y = 0.0f;
         }
     }
+
+    // 8. 再次重置过小的速度
+    clampMotion();
 }
 
 void Player::applyMovementSpeed(f32& speed, bool sneaking) const {
@@ -330,6 +442,7 @@ void Player::respawn() {
     deathTime = 0;
     hurtTime = 0;
     m_isSleeping = false;
+    m_jumpTicks = 0;
     sleepTimer = 0;
     setPose(EntityPose::Standing);
 }

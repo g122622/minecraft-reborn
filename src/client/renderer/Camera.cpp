@@ -153,15 +153,31 @@ void Camera::setConfig(const CameraConfig& config) {
     m_projectionDirty = true;
 }
 
+/**
+ * @brief 更新方向向量
+ *
+ * 使用Minecraft坐标系约定：
+ * - yaw=0: 看向 +Z 方向
+ * - yaw=90: 看向 -X 方向
+ * - yaw=180: 看向 -Z 方向
+ * - yaw=270: 看向 +X 方向
+ *
+ * 这与Entity.getVectorForRotation()一致：
+ *   forward.x = -sin(yaw) * cos(pitch)
+ *   forward.z = cos(yaw) * cos(pitch)
+ *
+ * 参考MC源码: Entity.java:1387-1394
+ */
 void Camera::updateVectors() {
     // 从欧拉角计算方向向量
     f32 pitchRad = math::toRadians(m_rotation.x);
     f32 yawRad = math::toRadians(m_rotation.y);
 
-    // 前向向量
-    m_forward.x = std::cos(yawRad) * std::cos(pitchRad);
+    // 前向向量 - MC坐标系
+    // MC: yaw=0 看向 +Z, yaw=90 看向 -X
+    m_forward.x = -std::sin(yawRad) * std::cos(pitchRad);
     m_forward.y = std::sin(pitchRad);
-    m_forward.z = std::sin(yawRad) * std::cos(pitchRad);
+    m_forward.z = std::cos(yawRad) * std::cos(pitchRad);
     m_forward = glm::normalize(m_forward);
 
     // 右向量和上向量
