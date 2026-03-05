@@ -1,0 +1,83 @@
+#pragma once
+
+#include "Property.hpp"
+#include <unordered_set>
+
+namespace mr {
+
+/**
+ * @brief 布尔属性
+ *
+ * 表示一个布尔类型的方块状态属性，如 lit, powered, open 等。
+ *
+ * 参考: net.minecraft.state.BooleanProperty
+ *
+ * 用法示例:
+ * @code
+ * // 创建属性
+ * auto lit = BooleanProperty::create("lit");
+ *
+ * // 获取值
+ * bool isLit = state.get(*lit);
+ *
+ * // 设置值
+ * const BlockState& newState = state.with(*lit, true);
+ * @endcode
+ */
+class BooleanProperty : public Property<bool> {
+public:
+    /**
+     * @brief 创建布尔属性
+     * @param name 属性名称
+     * @return 属性实例
+     *
+     * 注意: 属性名称应该遵循MC命名约定，使用小写字母和下划线
+     */
+    [[nodiscard]] static std::unique_ptr<BooleanProperty> create(const String& name) {
+        return std::unique_ptr<BooleanProperty>(new BooleanProperty(name));
+    }
+
+    /**
+     * @brief 获取允许的值（true和false）
+     */
+    [[nodiscard]] const std::vector<bool>& allowedValues() const {
+        return m_values;
+    }
+
+    /**
+     * @brief 将布尔值转换为字符串
+     */
+    [[nodiscard]] String valueToString(const bool& value) const override {
+        return value ? "true" : "false";
+    }
+
+    /**
+     * @brief 解析字符串为布尔值
+     */
+    [[nodiscard]] Optional<bool> parseValue(StringView str) const override {
+        if (str == "true") return true;
+        if (str == "false") return false;
+        return std::nullopt;
+    }
+
+    /**
+     * @brief 计算哈希值
+     */
+    [[nodiscard]] size_t hashCode() const override {
+        return std::hash<String>{}(m_name) ^ (std::hash<String>{}("BooleanProperty") << 1);
+    }
+
+    /**
+     * @brief 获取类型名称
+     */
+    [[nodiscard]] const char* typeName() const override {
+        return "BooleanProperty";
+    }
+
+private:
+    explicit BooleanProperty(const String& name)
+        : Property<bool>(name, {false, true}) {
+    }
+};
+
+} // namespace mr

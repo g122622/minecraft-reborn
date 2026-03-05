@@ -1,19 +1,13 @@
 #pragma once
 
 #include "../../util/AxisAlignedBB.hpp"
+#include "../../util/Direction.hpp"
 #include "../../core/Types.hpp"
 #include <vector>
 
 namespace mr {
 
-/**
- * @brief 坐标轴枚举
- */
-enum class Axis : u8 {
-    X = 0,
-    Y = 1,
-    Z = 2
-};
+// Axis 枚举已移至 Direction.hpp
 
 /**
  * @brief 碰撞形状

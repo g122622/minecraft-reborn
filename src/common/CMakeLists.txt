@@ -20,11 +20,18 @@ add_library(mr_common STATIC
     entity/Player.cpp
     entity/PlayerManager.cpp
 
-    # World
-    world/BlockID.cpp
+    # World - Block System
+    world/block/Material.cpp
+    world/block/Block.cpp
+    world/block/BlockRegistry.cpp
+    world/block/VanillaBlocks.cpp
+    world/block/blocks/AirBlock.cpp
+    world/block/blocks/SimpleBlock.cpp
+    world/block/blocks/RotatedPillarBlock.cpp
+
+    # World - Chunk
     world/chunk/ChunkData.cpp
     world/TerrainGenerator.cpp
-    world/BlockProperties.cpp
     world/chunk/ChunkDistanceGraph.cpp
     world/chunk/ChunkLoadTicketManager.cpp
 

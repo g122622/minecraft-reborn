@@ -262,7 +262,6 @@ inline const Vector3 Vector3::BACK{0.0f, 0.0f, -1.0f};
 
 // 类型别名
 using Position = Vector3;
-using Direction = Vector3;
 using Velocity = Vector3;
 
 } // namespace mr

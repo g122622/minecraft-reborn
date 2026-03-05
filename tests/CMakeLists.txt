@@ -18,6 +18,8 @@ add_executable(mr_tests
     common/test_localconnection.cpp
     common/test_chunkloadticket.cpp
     common/test_collision.cpp
+    common/test_property.cpp
+    common/test_block.cpp
     server/ServerWorldTest.cpp
     server/test_integrated_server.cpp
 )
@@ -42,6 +44,14 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/entity/Entity.cpp
         ${CMAKE_SOURCE_DIR}/src/common/physics/PhysicsEngine.cpp
         ${CMAKE_SOURCE_DIR}/src/common/physics/collision/BlockCollision.cpp
+        # 新的方块系统源文件
+        ${CMAKE_SOURCE_DIR}/src/common/world/block/Material.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/block/Block.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/block/BlockRegistry.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/block/VanillaBlocks.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/block/blocks/AirBlock.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/block/blocks/SimpleBlock.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/block/blocks/RotatedPillarBlock.cpp
 )
 
 target_link_libraries(mr_tests

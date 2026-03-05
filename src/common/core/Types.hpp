@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <string>
 #include <string_view>
+#include <optional>
 
 namespace mr {
 
@@ -37,6 +38,10 @@ using char32 = char32_t;
 // 字符串类型
 using String = std::string;
 using StringView = std::string_view;
+
+// Optional 类型
+template<typename T>
+using Optional = std::optional<T>;
 
 // 尺寸类型
 using Size = std::size_t;

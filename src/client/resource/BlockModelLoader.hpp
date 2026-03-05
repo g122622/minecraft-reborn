@@ -3,6 +3,7 @@
 #include "../common/core/Types.hpp"
 #include "../common/core/Result.hpp"
 #include "../common/resource/ResourceLocation.hpp"
+#include "../common/util/Direction.hpp"
 #include <glm/glm.hpp>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -12,18 +13,7 @@
 
 namespace mr {
 
-/**
- * @brief 方块朝向枚举 (对应JSON中的方向)
- */
-enum class Direction : u8 {
-    Down = 0,   // y-
-    Up = 1,     // y+
-    North = 2,  // z-
-    South = 3,  // z+
-    West = 4,   // x-
-    East = 5,   // x+
-    None = 255  // 无方向
-};
+// Direction 枚举已在 util/Direction.hpp 中定义
 
 /**
  * @brief 从字符串解析方向

@@ -1,0 +1,449 @@
+#pragma once
+
+/**
+ * @file BlockStateProperties.hpp
+ * @brief 预定义的方块状态属性
+ *
+ * 参考: net.minecraft.state.properties.BlockStateProperties
+ *
+ * 这个文件包含所有方块状态常用的属性定义。
+ * 属性是静态单例，应该通过引用访问。
+ */
+
+#include "BooleanProperty.hpp"
+#include "IntegerProperty.hpp"
+#include "EnumProperty.hpp"
+#include "DirectionProperty.hpp"
+#include "../Direction.hpp"
+
+namespace mr {
+
+/**
+ * @brief 预定义的方块状态属性集合
+ *
+ * 提供所有标准方块状态属性的静态访问。
+ * 所有属性都是懒加载的单例。
+ *
+ * 用法示例:
+ * @code
+ * // 获取属性引用
+ * const BooleanProperty& lit = BlockStateProperties::LIT;
+ * const DirectionProperty& facing = BlockStateProperties::FACING;
+ *
+ * // 使用属性
+ * bool isLit = state.get(lit);
+ * const BlockState& newState = state.with(facing, Direction::North);
+ * @endcode
+ */
+class BlockStateProperties {
+public:
+    // ========================================================================
+    // 布尔属性
+    // ========================================================================
+
+    /**
+     * @brief 是否被激活（绊线钩、绊线等）
+     */
+    static const BooleanProperty& ATTACHED() {
+        static auto prop = BooleanProperty::create("attached");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否在底部（门、活板门等的下半部分）
+     */
+    static const BooleanProperty& BOTTOM() {
+        static auto prop = BooleanProperty::create("bottom");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否有条件（命令方块）
+     */
+    static const BooleanProperty& CONDITIONAL() {
+        static auto prop = BooleanProperty::create("conditional");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否已被拆除（绊线）
+     */
+    static const BooleanProperty& DISARMED() {
+        static auto prop = BooleanProperty::create("disarmed");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否有拖拽（灵魂沙上的水）
+     */
+    static const BooleanProperty& DRAG() {
+        static auto prop = BooleanProperty::create("drag");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否启用（漏斗、活塞等）
+     */
+    static const BooleanProperty& ENABLED() {
+        static auto prop = BooleanProperty::create("enabled");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否伸出（活塞）
+     */
+    static const BooleanProperty& EXTENDED() {
+        static auto prop = BooleanProperty::create("extended");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否有眼（末地传送门框架）
+     */
+    static const BooleanProperty& EYE() {
+        static auto prop = BooleanProperty::create("eye");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否正在下落（沙子、砾石等）
+     */
+    static const BooleanProperty& FALLING() {
+        static auto prop = BooleanProperty::create("falling");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否悬挂（灯笼等）
+     */
+    static const BooleanProperty& HANGING() {
+        static auto prop = BooleanProperty::create("hanging");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否点亮（火把、熔炉等）
+     */
+    static const BooleanProperty& LIT() {
+        static auto prop = BooleanProperty::create("lit");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否锁定（比较器）
+     */
+    static const BooleanProperty& LOCKED() {
+        static auto prop = BooleanProperty::create("locked");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否被占用（床）
+     */
+    static const BooleanProperty& OCCUPIED() {
+        static auto prop = BooleanProperty::create("occupied");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否打开（门、活板门、栅栏门等）
+     */
+    static const BooleanProperty& OPEN() {
+        static auto prop = BooleanProperty::create("open");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否持久（树叶）
+     */
+    static const BooleanProperty& PERSISTENT() {
+        static auto prop = BooleanProperty::create("persistent");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否被充能
+     */
+    static const BooleanProperty& POWERED() {
+        static auto prop = BooleanProperty::create("powered");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否积雪（草方块等）
+     */
+    static const BooleanProperty& SNOWY() {
+        static auto prop = BooleanProperty::create("snowy");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否被触发（命令方块）
+     */
+    static const BooleanProperty& TRIGGERED() {
+        static auto prop = BooleanProperty::create("triggered");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否不稳定（TNT）
+     */
+    static const BooleanProperty& UNSTABLE() {
+        static auto prop = BooleanProperty::create("unstable");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否含水（栅栏、台阶等）
+     */
+    static const BooleanProperty& WATERLOGGED() {
+        static auto prop = BooleanProperty::create("waterlogged");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否向上（栅栏、墙等）
+     */
+    static const BooleanProperty& UP() {
+        static auto prop = BooleanProperty::create("up");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否向下
+     */
+    static const BooleanProperty& DOWN() {
+        static auto prop = BooleanProperty::create("down");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否向北
+     */
+    static const BooleanProperty& NORTH() {
+        static auto prop = BooleanProperty::create("north");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否向南
+     */
+    static const BooleanProperty& SOUTH() {
+        static auto prop = BooleanProperty::create("south");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否向东
+     */
+    static const BooleanProperty& EAST() {
+        static auto prop = BooleanProperty::create("east");
+        return *prop;
+    }
+
+    /**
+     * @brief 是否向西
+     */
+    static const BooleanProperty& WEST() {
+        static auto prop = BooleanProperty::create("west");
+        return *prop;
+    }
+
+    // ========================================================================
+    // 方向属性
+    // ========================================================================
+
+    /**
+     * @brief 朝向属性（所有6个方向）
+     */
+    static const DirectionProperty& FACING() {
+        static auto prop = DirectionProperty::create("facing");
+        return *prop;
+    }
+
+    /**
+     * @brief 朝向属性（仅水平方向）
+     */
+    static const DirectionProperty& HORIZONTAL_FACING() {
+        static auto prop = DirectionProperty::createHorizontal("facing");
+        return *prop;
+    }
+
+    /**
+     * @brief 朝向属性（除上之外的所有方向）
+     */
+    static const DirectionProperty& FACING_EXCEPT_UP() {
+        static auto prop = DirectionProperty::create("facing", [](Direction d) {
+            return d != Direction::Up;
+        });
+        return *prop;
+    }
+
+    // ========================================================================
+    // 坐标轴属性
+    // ========================================================================
+
+    /**
+     * @brief 坐标轴属性（所有三个轴）
+     */
+    static const EnumProperty<Axis>& AXIS() {
+        static auto prop = EnumProperty<Axis>::createAll("axis");
+        return *prop;
+    }
+
+    /**
+     * @brief 坐标轴属性（仅水平轴X和Z）
+     */
+    static const EnumProperty<Axis>& HORIZONTAL_AXIS() {
+        static auto prop = EnumProperty<Axis>::create("axis", Axis::X, Axis::Z);
+        return *prop;
+    }
+
+    // ========================================================================
+    // 整数属性
+    // ========================================================================
+
+    /**
+     * @brief 年龄属性 (0-1)
+     */
+    static const IntegerProperty& AGE_0_1() {
+        static auto prop = IntegerProperty::create("age", 0, 1);
+        return *prop;
+    }
+
+    /**
+     * @brief 年龄属性 (0-2)
+     */
+    static const IntegerProperty& AGE_0_2() {
+        static auto prop = IntegerProperty::create("age", 0, 2);
+        return *prop;
+    }
+
+    /**
+     * @brief 年龄属性 (0-3)
+     */
+    static const IntegerProperty& AGE_0_3() {
+        static auto prop = IntegerProperty::create("age", 0, 3);
+        return *prop;
+    }
+
+    /**
+     * @brief 年龄属性 (0-5)
+     */
+    static const IntegerProperty& AGE_0_5() {
+        static auto prop = IntegerProperty::create("age", 0, 5);
+        return *prop;
+    }
+
+    /**
+     * @brief 年龄属性 (0-7)
+     */
+    static const IntegerProperty& AGE_0_7() {
+        static auto prop = IntegerProperty::create("age", 0, 7);
+        return *prop;
+    }
+
+    /**
+     * @brief 年龄属性 (0-15)
+     */
+    static const IntegerProperty& AGE_0_15() {
+        static auto prop = IntegerProperty::create("age", 0, 15);
+        return *prop;
+    }
+
+    /**
+     * @brief 年龄属性 (0-25)
+     */
+    static const IntegerProperty& AGE_0_25() {
+        static auto prop = IntegerProperty::create("age", 0, 25);
+        return *prop;
+    }
+
+    /**
+     * @brief 层数属性 (1-8)
+     */
+    static const IntegerProperty& LAYERS_1_8() {
+        static auto prop = IntegerProperty::create("layers", 1, 8);
+        return *prop;
+    }
+
+    /**
+     * @brief 液体等级属性 (0-8)
+     */
+    static const IntegerProperty& LEVEL_0_8() {
+        static auto prop = IntegerProperty::create("level", 0, 8);
+        return *prop;
+    }
+
+    /**
+     * @brief 液体等级属性 (0-15)
+     */
+    static const IntegerProperty& LEVEL_0_15() {
+        static auto prop = IntegerProperty::create("level", 0, 15);
+        return *prop;
+    }
+
+    /**
+     * @brief 红石信号强度属性 (0-15)
+     */
+    static const IntegerProperty& POWER_0_15() {
+        static auto prop = IntegerProperty::create("power", 0, 15);
+        return *prop;
+    }
+
+    /**
+     * @brief 延迟属性 (1-4)
+     */
+    static const IntegerProperty& DELAY_1_4() {
+        static auto prop = IntegerProperty::create("delay", 1, 4);
+        return *prop;
+    }
+
+    /**
+     * @brief 距离属性 (1-7)
+     */
+    static const IntegerProperty& DISTANCE_1_7() {
+        static auto prop = IntegerProperty::create("distance", 1, 7);
+        return *prop;
+    }
+
+    /**
+     * @brief 湿度属性 (0-7)
+     */
+    static const IntegerProperty& MOISTURE_0_7() {
+        static auto prop = IntegerProperty::create("moisture", 0, 7);
+        return *prop;
+    }
+
+    /**
+     * @brief 音符属性 (0-24)
+     */
+    static const IntegerProperty& NOTE_0_24() {
+        static auto prop = IntegerProperty::create("note", 0, 24);
+        return *prop;
+    }
+
+    /**
+     * @brief 旋转属性 (0-15)
+     */
+    static const IntegerProperty& ROTATION_0_15() {
+        static auto prop = IntegerProperty::create("rotation", 0, 15);
+        return *prop;
+    }
+
+    /**
+     * @brief 阶段属性 (0-1)
+     */
+    static const IntegerProperty& STAGE_0_1() {
+        static auto prop = IntegerProperty::create("stage", 0, 1);
+        return *prop;
+    }
+
+private:
+    // 禁止实例化
+    BlockStateProperties() = delete;
+    BlockStateProperties(const BlockStateProperties&) = delete;
+    BlockStateProperties& operator=(const BlockStateProperties&) = delete;
+};
+
+} // namespace mr
