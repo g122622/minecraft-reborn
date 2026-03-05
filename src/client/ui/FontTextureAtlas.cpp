@@ -82,34 +82,34 @@ FontTextureAtlas::Node* FontTextureAtlas::splitNode(Node* node, u32 width, u32 h
     // 标记节点为已使用
     node->used = true;
 
-    // 分割剩余空间为两个子节点
-    // 参考: MC的FontTexture.Entry实现
+    // 计算剩余空间
     u32 remainingWidth = node->width - width;
     u32 remainingHeight = node->height - height;
 
-    if (remainingWidth > remainingHeight) {
-        // 水平分割：右边和下边
-        node->left = new Node(node->x, node->y, width, node->height);
-        node->right = new Node(
-            node->x + width + m_padding,
+    // 创建两个子节点存储剩余空间（Shelf NFD算法）
+    // 右边：同行剩余宽度区域（高度与分配区域相同）
+    // 下边：下方剩余高度区域（宽度为节点原始宽度）
+
+    if (remainingWidth > 0) {
+        node->left = new Node(
+            node->x + width,
             node->y,
-            remainingWidth - m_padding,
-            node->height
-        );
-    } else {
-        // 垂直分割：上边和右边
-        node->left = new Node(node->x, node->y, node->width, height);
-        node->right = new Node(
-            node->x,
-            node->y + height + m_padding,
-            node->width,
-            remainingHeight - m_padding
+            remainingWidth,
+            height
         );
     }
 
-    // 返回左子节点（正好是我们需要的大小）
-    node->left->used = true;
-    return node->left;
+    if (remainingHeight > 0) {
+        node->right = new Node(
+            node->x,
+            node->y + height,
+            node->width,
+            remainingHeight
+        );
+    }
+
+    // 返回原节点，其 (x, y) 就是分配区域的起点
+    return node;
 }
 
 void FontTextureAtlas::copyPixels(u32 x, u32 y, u32 width, u32 height, const u8* pixels) {
@@ -139,22 +139,21 @@ Result<Glyph> FontTextureAtlas::addGlyph(u32 codepoint,
         return Error(ErrorCode::AlreadyExists, "Glyph already exists");
     }
 
-    // 添加padding防止纹理bleeding
-    u32 paddedWidth = width + m_padding * 2;
-    u32 paddedHeight = height + m_padding * 2;
+    // 找到合适的空间（包含padding的空间）
+    u32 paddedWidth = width + m_padding;
+    u32 paddedHeight = height + m_padding;
 
-    // 找到合适的空间
     Node* node = findNode(m_root, paddedWidth, paddedHeight);
     if (node == nullptr) {
         return Error(ErrorCode::CapacityExceeded, "Font texture atlas is full");
     }
 
-    // 分割节点
+    // 分割节点（使用带padding的大小）
     node = splitNode(node, paddedWidth, paddedHeight);
 
-    // 实际绘制位置（跳过padding）
-    u32 drawX = node->x + m_padding;
-    u32 drawY = node->y + m_padding;
+    // 绘制位置就是节点位置（不需要额外偏移padding）
+    u32 drawX = node->x;
+    u32 drawY = node->y;
 
     // 复制像素数据到纹理
     copyPixels(drawX, drawY, width, height, pixels);
