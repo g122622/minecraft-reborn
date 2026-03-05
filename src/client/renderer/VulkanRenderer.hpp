@@ -3,7 +3,6 @@
 #include "../../common/core/Types.hpp"
 #include "../../common/core/Result.hpp"
 #include "../../common/renderer/MeshTypes.hpp"
-#include "../../common/world/chunk/ChunkData.hpp"
 #include "VulkanContext.hpp"
 #include "VulkanSwapchain.hpp"
 #include "VulkanPipeline.hpp"
@@ -42,15 +41,6 @@ struct FrameSync {
 
 // GUI渲染回调类型
 using GuiRenderCallback = std::function<void()>;
-
-// 测试三角形顶点
-struct TestVertex {
-    float pos[3];
-    float normal[3];
-    float texCoord[2];
-    float color[4];
-    float light;
-};
 
 // 渲染器
 class VulkanRenderer {
@@ -164,18 +154,6 @@ private:
     bool m_frameStarted = false;
     RendererConfig m_config;
 
-    // 测试三角形
-    std::unique_ptr<VulkanPipeline> m_testPipeline;
-    VulkanBuffer m_testVertexBuffer;
-    VulkanBuffer m_testIndexBuffer;
-    std::vector<VkDescriptorSet> m_testDescriptorSets;  // 每帧一个
-    u32 m_testIndexCount = 0;
-
-    // 测试纹理
-    VulkanTexture m_testTexture;
-    VkDescriptorSetLayout m_textureDescriptorSetLayout = VK_NULL_HANDLE;
-    VkDescriptorSet m_testTextureDescriptorSet = VK_NULL_HANDLE;
-
     // 区块渲染
     std::unique_ptr<VulkanPipeline> m_chunkPipeline;
     std::vector<VkDescriptorSet> m_chunkDescriptorSets;  // 每帧一个
@@ -203,9 +181,6 @@ private:
     [[nodiscard]] Result<void> createPipelineLayout();
     [[nodiscard]] Result<void> createDescriptorPool();
     [[nodiscard]] Result<void> createUniformBuffers();
-    [[nodiscard]] Result<void> createTestPipeline();
-    [[nodiscard]] Result<void> createTestTriangle();
-    [[nodiscard]] Result<void> createTestTexture();
     [[nodiscard]] Result<void> createChunkPipeline();
     [[nodiscard]] Result<void> createChunkTextureAtlas();
     [[nodiscard]] Result<void> createGuiRenderer();
@@ -217,7 +192,6 @@ private:
     void destroyFramebuffers();
     void destroySyncObjects();
     void destroyDescriptors();
-    void destroyTestResources();
     void destroyChunkResources();
     void destroyGuiResources();
 
@@ -227,14 +201,7 @@ private:
 
     // 渲染函数
     void renderChunks(VkCommandBuffer cmd);
-    void renderTestTriangle(VkCommandBuffer cmd);
     void renderGui(VkCommandBuffer cmd);
-
-    // 测试区块
-    [[nodiscard]] Result<void> createTestChunk();
-    void generateChunkMesh(const ChunkData& chunk, MeshData& outMesh);
-    void addBlockFace(MeshData& mesh, BlockId blockId, Face face, f32 x, f32 y, f32 z);
-    TextureRegion getBlockTexture(BlockId blockId, Face face);
 };
 
 } // namespace mr::client
