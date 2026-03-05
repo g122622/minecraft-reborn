@@ -1,0 +1,146 @@
+#pragma once
+
+#include "Font.hpp"
+#include "Glyph.hpp"
+#include "../../common/core/Result.hpp"
+#include <vector>
+#include <string>
+
+namespace mr::client {
+
+// 前向声明
+class VulkanContext;
+class VulkanPipeline;
+class VulkanBuffer;
+class VulkanTexture;
+
+/**
+ * @brief 文本渲染器
+ *
+ * 负责将文本渲染到屏幕上，支持：
+ * - 阴影
+ * - 粗体
+ * - 斜体
+ * - 颜色
+ * - UTF-8文本
+ *
+ * 参考Minecraft的FontRenderer实现。
+ */
+class FontRenderer {
+public:
+    FontRenderer();
+    ~FontRenderer();
+
+    // 禁止拷贝
+    FontRenderer(const FontRenderer&) = delete;
+    FontRenderer& operator=(const FontRenderer&) = delete;
+
+    /**
+     * @brief 初始化字体渲染器
+     * @param font 字体对象
+     * @return 成功或错误
+     */
+    [[nodiscard]] Result<void> initialize(Font* font);
+
+    /**
+     * @brief 销毁资源
+     */
+    void destroy();
+
+    /**
+     * @brief 开始文本批次
+     *
+     * 清空顶点缓冲区，准备接收新的文本
+     */
+    void beginBatch();
+
+    /**
+     * @brief 添加文本到批次
+     * @param text 文本内容（UTF-8）
+     * @param x 屏幕X坐标
+     * @param y 屏幕Y坐标
+     * @param style 文本样式
+     * @return 实际渲染宽度
+     */
+    f32 addText(const std::string& text, f32 x, f32 y, const TextStyle& style = {});
+
+    /**
+     * @brief 添加带阴影的文本到批次
+     * @param text 文本内容（UTF-8）
+     * @param x 屏幕X坐标
+     * @param y 屏幕Y坐标
+     * @param color 文本颜色
+     * @return 实际渲染宽度
+     */
+    f32 addTextWithShadow(const std::string& text, f32 x, f32 y, u32 color = Colors::WHITE);
+
+    /**
+     * @brief 结束文本批次
+     *
+     * 返回所有文本的顶点数据，供GPU渲染使用
+     */
+    void endBatch();
+
+    /**
+     * @brief 获取顶点数据
+     */
+    [[nodiscard]] const std::vector<GuiVertex>& vertices() const { return m_vertices; }
+    [[nodiscard]] std::vector<GuiVertex>& vertices() { return m_vertices; }
+
+    /**
+     * @brief 获取索引数据
+     */
+    [[nodiscard]] const std::vector<u32>& indices() const { return m_indices; }
+    [[nodiscard]] std::vector<u32>& indices() { return m_indices; }
+
+    /**
+     * @brief 获取关联的字体
+     */
+    [[nodiscard]] Font* font() const { return m_font; }
+
+    /**
+     * @brief 获取文本宽度
+     * @param text 文本内容
+     * @return 宽度（像素）
+     */
+    [[nodiscard]] f32 getTextWidth(const std::string& text);
+
+    /**
+     * @brief 获取字体高度
+     */
+    [[nodiscard]] u32 getFontHeight() const;
+
+    /**
+     * @brief 计算绘制文本所需的顶点数
+     */
+    [[nodiscard]] size_t estimateVertexCount(const std::string& text) const;
+
+private:
+    /**
+     * @brief 添加单个字形顶点
+     */
+    void addGlyphVertices(const Glyph& glyph, f32 x, f32 y, u32 color, bool italic);
+
+    /**
+     * @brief 添加装饰效果（删除线、下划线）
+     */
+    void addDecoration(f32 x, f32 y, f32 width, u32 color,
+                       bool strikethrough, bool underline);
+
+    /**
+     * @brief 从UTF-8字符串解码码点
+     * @param text UTF-8文本
+     * @param pos 当前位置（会被更新）
+     * @return 解码的码点
+     */
+    [[nodiscard]] u32 decodeCodepoint(const std::string& text, size_t& pos) const;
+
+    Font* m_font = nullptr;
+    std::vector<GuiVertex> m_vertices;   // 顶点缓冲
+    std::vector<u32> m_indices;          // 索引缓冲
+    f32 m_currentX = 0.0f;               // 当前X位置
+    f32 m_currentY = 0.0f;               // 当前Y位置
+    bool m_inBatch = false;              // 是否在批次中
+};
+
+} // namespace mr::client

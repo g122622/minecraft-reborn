@@ -141,6 +141,11 @@ public:
     [[nodiscard]] ITerrainGenerator* terrainGenerator() { return m_terrainGenerator.get(); }
 
     /**
+     * @brief 获取世界种子
+     */
+    [[nodiscard]] u64 seed() const { return m_seed; }
+
+    /**
      * @brief 设置网络模式
      *
      * 网络模式下，区块从服务端接收，不使用本地生成器

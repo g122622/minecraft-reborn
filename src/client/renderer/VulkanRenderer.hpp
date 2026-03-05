@@ -13,8 +13,11 @@
 #include "UniformBuffer.hpp"
 #include "Descriptor.hpp"
 #include "Camera.hpp"
+#include "../ui/Font.hpp"
+#include "../ui/GuiRenderer.hpp"
 #include <vulkan/vulkan.h>
 #include <vector>
+#include <functional>
 #include <memory>
 
 // 前置声明
@@ -36,6 +39,9 @@ struct FrameSync {
     VkSemaphore renderFinishedSemaphore = VK_NULL_HANDLE;
     VkFence inFlightFence = VK_NULL_HANDLE;
 };
+
+// GUI渲染回调类型
+using GuiRenderCallback = std::function<void()>;
 
 // 测试三角形顶点
 struct TestVertex {
@@ -77,6 +83,18 @@ public:
     ChunkRenderer& chunkRenderer() { return m_chunkRenderer; }
     const ChunkRenderer& chunkRenderer() const { return m_chunkRenderer; }
     bool isChunkRendererInitialized() const { return m_chunkRendererInitialized; }
+
+    // GUI渲染
+    GuiRenderer& guiRenderer() { return *m_guiRenderer; }
+    const GuiRenderer& guiRenderer() const { return *m_guiRenderer; }
+    Font& font() { return m_font; }
+    const Font& font() const { return m_font; }
+    bool isGuiRendererInitialized() const { return m_guiRendererInitialized; }
+    /**
+     * @brief 设置GUI渲染回调
+     * 回调会在每帧的GUI渲染阶段被调用，用于绘制自定义GUI元素
+     */
+    void setGuiRenderCallback(GuiRenderCallback callback) { m_guiRenderCallback = std::move(callback); }
 
     // 状态
     bool isInitialized() const { return m_initialized; }
@@ -166,6 +184,14 @@ private:
     ChunkRenderer m_chunkRenderer;
     bool m_chunkRendererInitialized = false;
 
+    // GUI渲染
+    std::unique_ptr<GuiRenderer> m_guiRenderer;
+    Font m_font;
+    bool m_guiRendererInitialized = false;
+    
+    // GUI渲染回调
+    GuiRenderCallback m_guiRenderCallback;
+
     // 创建函数
     [[nodiscard]] Result<void> createRenderPass();
     [[nodiscard]] Result<void> createDepthResources();
@@ -182,6 +208,7 @@ private:
     [[nodiscard]] Result<void> createTestTexture();
     [[nodiscard]] Result<void> createChunkPipeline();
     [[nodiscard]] Result<void> createChunkTextureAtlas();
+    [[nodiscard]] Result<void> createGuiRenderer();
 
     void destroyRenderPass();
     void destroyDepthResources();
@@ -192,6 +219,7 @@ private:
     void destroyDescriptors();
     void destroyTestResources();
     void destroyChunkResources();
+    void destroyGuiResources();
 
     // 辅助函数
     [[nodiscard]] Result<void> recreateSwapchain();
@@ -200,6 +228,7 @@ private:
     // 渲染函数
     void renderChunks(VkCommandBuffer cmd);
     void renderTestTriangle(VkCommandBuffer cmd);
+    void renderGui(VkCommandBuffer cmd);
 
     // 测试区块
     [[nodiscard]] Result<void> createTestChunk();

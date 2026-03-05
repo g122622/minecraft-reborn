@@ -1,6 +1,7 @@
 #include "VulkanRenderer.hpp"
 #include "VulkanBuffer.hpp"
 #include "DefaultTextureAtlas.hpp"
+#include "../ui/DefaultAsciiFont.hpp"
 #include "../../common/renderer/ChunkMesher.hpp"
 #include "../../common/renderer/MeshTypes.hpp"
 #include "../../common/world/WorldConstants.hpp"
@@ -160,6 +161,12 @@ Result<void> VulkanRenderer::initialize(GLFWwindow* window, const RendererConfig
         spdlog::warn("Failed to create chunk texture atlas: {}", chunkAtlasResult.error().toString());
     }
 
+    // 创建GUI渲染器
+    auto guiResult = createGuiRenderer();
+    if (guiResult.failed()) {
+        spdlog::warn("Failed to create GUI renderer: {}", guiResult.error().toString());
+    }
+
     // 注意：区块由 ClientWorld 管理，不再自动创建测试区块
 
     m_initialized = true;
@@ -174,6 +181,7 @@ void VulkanRenderer::destroy() {
 
     m_context->waitIdle();
 
+    destroyGuiResources();
     destroyChunkResources();
     destroyTestResources();
 
@@ -266,6 +274,11 @@ Result<void> VulkanRenderer::beginFrame() {
     clearValues[1].depthStencil.stencil = 0;
     renderPassInfo.clearValueCount = static_cast<u32>(clearValues.size());
     renderPassInfo.pClearValues = clearValues.data();
+
+    // 在渲染通道开始前准备GUI帧数据（更新字体纹理等）
+    if (m_guiRendererInitialized && m_guiRenderer) {
+        m_guiRenderer->prepareFrame(cmd);
+    }
 
     vkCmdBeginRenderPass(cmd, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -365,6 +378,11 @@ Result<void> VulkanRenderer::render() {
     // 渲染区块
     if (m_chunkRendererInitialized && m_chunkRenderer.chunkCount() > 0) {
         renderChunks(cmd);
+    }
+
+    // 渲染GUI
+    if (m_guiRendererInitialized) {
+        renderGui(cmd);
     }
 
     return endFrame();
@@ -2037,6 +2055,68 @@ TextureRegion VulkanRenderer::getBlockTexture(BlockId blockId, Face face) {
     }
 
     return m_chunkTextureAtlas.getRegion(tileIndex);
+}
+
+// ============================================================================
+// GUI渲染
+// ============================================================================
+
+Result<void> VulkanRenderer::createGuiRenderer() {
+    spdlog::info("Creating GUI renderer...");
+
+    // 创建GUI渲染器
+    m_guiRenderer = std::make_unique<GuiRenderer>();
+
+    // 初始化GUI渲染器
+    auto result = m_guiRenderer->initialize(m_context.get(), m_renderPass);
+    if (result.failed()) {
+        m_guiRenderer.reset();
+        return result.error();
+    }
+
+    // 初始化默认字体
+    auto fontResult = DefaultAsciiFont::create(m_font);
+    if (fontResult.failed()) {
+        spdlog::warn("Failed to create default font: {}", fontResult.error().toString());
+    } else {
+        m_guiRenderer->setFont(&m_font);
+        spdlog::info("Default ASCII font loaded");
+    }
+
+    m_guiRendererInitialized = true;
+    spdlog::info("GUI renderer created successfully");
+    return Result<void>::ok();
+}
+void VulkanRenderer::destroyGuiResources() {
+    if (!m_guiRendererInitialized) {
+        return;
+    }
+
+    m_guiRenderer.reset();
+    m_font.destroy();
+    m_guiRendererInitialized = false;
+    spdlog::info("GUI renderer destroyed");
+}
+
+void VulkanRenderer::renderGui(VkCommandBuffer cmd) {
+    if (!m_guiRenderer || !m_guiRendererInitialized) {
+        return;
+    }
+
+    // 获取屏幕尺寸
+    f32 screenW = static_cast<f32>(m_swapchain->extent().width);
+    f32 screenH = static_cast<f32>(m_swapchain->extent().height);
+
+    // 开始GUI帧
+    m_guiRenderer->beginFrame(screenW, screenH);
+
+    // 调用GUI渲染回调，让外部绘制GUI内容
+    if (m_guiRenderCallback) {
+        m_guiRenderCallback();
+    }
+
+    // 渲染GUI（顶点数据使用HOST_VISIBLE内存直接上传）
+    m_guiRenderer->render(cmd);
 }
 
 } // namespace mr::client

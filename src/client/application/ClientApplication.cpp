@@ -155,7 +155,22 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
     spdlog::info("Client initialized successfully");
     spdlog::info("Window: {}x{}", m_window.width(), m_window.height());
     spdlog::info("Controls: WASD to move, Space to go up, Shift to go down, mouse to look");
+    spdlog::info("Press F3 to toggle debug screen");
     spdlog::info("Press ALT to toggle mouse capture");
+
+    // 初始化调试屏幕
+    if (m_renderer->isGuiRendererInitialized()) {
+        m_debugScreen.initialize(&m_renderer->guiRenderer());
+        m_debugScreen.setCamera(&m_camera);
+        m_debugScreen.setWorld(&m_world);
+        spdlog::info("Debug screen initialized");
+        // 设置GUI渲染回调
+        m_renderer->setGuiRenderCallback([this]() {
+            if (m_debugScreenVisible) {
+                m_debugScreen.render();
+            }
+        });
+    }
 
     m_initialized = true;
     return Result<void>::ok();
@@ -303,6 +318,9 @@ void ClientApplication::update(f32 deltaTime)
         }
     }
 
+    // 更新调试屏幕
+    m_debugScreen.update(deltaTime);
+
     // 更新世界（根据相机位置加载/卸载区块）
     m_world.update(m_camera.position(), m_config.renderDistance);
 
@@ -392,10 +410,16 @@ Result<void> ClientConfig::save(const String& path) const
 void ClientApplication::setupInputBindings()
 {
     m_input.bindKeyAction(GLFW_KEY_ESCAPE, "exit");
+    m_input.bindKeyAction(GLFW_KEY_F3, "toggle_debug");
 
     m_input.bindActionCallback("exit", [this]() {
         spdlog::info("Exit key pressed");
         stop();
+    });
+
+    m_input.bindActionCallback("toggle_debug", [this]() {
+        m_debugScreenVisible = !m_debugScreenVisible;
+        m_debugScreen.setVisible(m_debugScreenVisible);
     });
 }
 

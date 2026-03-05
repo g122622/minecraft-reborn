@@ -8,6 +8,7 @@
 #include "../renderer/Camera.hpp"
 #include "../world/ClientWorld.hpp"
 #include "../network/NetworkClient.hpp"
+#include "../ui/DebugScreen.hpp"
 #include "server/application/IntegratedServer.hpp"
 
 #include <string>
@@ -150,6 +151,10 @@ private:
 
     // 世界
     ClientWorld m_world;
+
+    // 调试屏幕
+    DebugScreen m_debugScreen;
+    bool m_debugScreenVisible = false;
 
     // 内置服务端
     std::unique_ptr<server::IntegratedServer> m_integratedServer;

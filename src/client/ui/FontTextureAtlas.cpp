@@ -1,0 +1,191 @@
+#include "FontTextureAtlas.hpp"
+#include <algorithm>
+#include <cstring>
+
+namespace mr::client {
+
+FontTextureAtlas::FontTextureAtlas() = default;
+
+FontTextureAtlas::~FontTextureAtlas() {
+    destroy();
+}
+
+FontTextureAtlas::FontTextureAtlas(FontTextureAtlas&& other) noexcept
+    : m_textureSize(other.m_textureSize)
+    , m_pixels(std::move(other.m_pixels))
+    , m_glyphs(std::move(other.m_glyphs))
+    , m_root(other.m_root)
+    , m_padding(other.m_padding) {
+    other.m_root = nullptr;
+    other.m_textureSize = 0;
+}
+
+FontTextureAtlas& FontTextureAtlas::operator=(FontTextureAtlas&& other) noexcept {
+    if (this != &other) {
+        destroy();
+        m_textureSize = other.m_textureSize;
+        m_pixels = std::move(other.m_pixels);
+        m_glyphs = std::move(other.m_glyphs);
+        m_root = other.m_root;
+        m_padding = other.m_padding;
+        other.m_root = nullptr;
+        other.m_textureSize = 0;
+    }
+    return *this;
+}
+
+Result<void> FontTextureAtlas::create(u32 textureSize) {
+    if (textureSize == 0) {
+        return Error(ErrorCode::InvalidArgument, "Texture size must be positive");
+    }
+
+    m_textureSize = textureSize;
+    m_pixels.resize(static_cast<size_t>(textureSize) * textureSize, 0);
+
+    // 创建根节点（整个纹理区域）
+    m_root = new Node(0, 0, textureSize, textureSize);
+
+    return {};
+}
+
+void FontTextureAtlas::destroy() {
+    delete m_root;
+    m_root = nullptr;
+    m_pixels.clear();
+    m_glyphs.clear();
+    m_textureSize = 0;
+}
+
+FontTextureAtlas::Node* FontTextureAtlas::findNode(Node* node, u32 width, u32 height) {
+    if (node == nullptr) {
+        return nullptr;
+    }
+
+    // 如果节点已被使用，递归查找子节点
+    if (node->used) {
+        Node* found = findNode(node->left, width, height);
+        if (found != nullptr) {
+            return found;
+        }
+        return findNode(node->right, width, height);
+    }
+
+    // 检查节点大小是否合适
+    if (width <= node->width && height <= node->height) {
+        return node;
+    }
+
+    return nullptr;
+}
+
+FontTextureAtlas::Node* FontTextureAtlas::splitNode(Node* node, u32 width, u32 height) {
+    // 标记节点为已使用
+    node->used = true;
+
+    // 分割剩余空间为两个子节点
+    // 参考: MC的FontTexture.Entry实现
+    u32 remainingWidth = node->width - width;
+    u32 remainingHeight = node->height - height;
+
+    if (remainingWidth > remainingHeight) {
+        // 水平分割：右边和下边
+        node->left = new Node(node->x, node->y, width, node->height);
+        node->right = new Node(
+            node->x + width + m_padding,
+            node->y,
+            remainingWidth - m_padding,
+            node->height
+        );
+    } else {
+        // 垂直分割：上边和右边
+        node->left = new Node(node->x, node->y, node->width, height);
+        node->right = new Node(
+            node->x,
+            node->y + height + m_padding,
+            node->width,
+            remainingHeight - m_padding
+        );
+    }
+
+    // 返回左子节点（正好是我们需要的大小）
+    node->left->used = true;
+    return node->left;
+}
+
+void FontTextureAtlas::copyPixels(u32 x, u32 y, u32 width, u32 height, const u8* pixels) {
+    for (u32 row = 0; row < height; ++row) {
+        u32 dstOffset = (y + row) * m_textureSize + x;
+        u32 srcOffset = row * width;
+        std::memcpy(m_pixels.data() + dstOffset, pixels + srcOffset, width);
+    }
+}
+
+Result<Glyph> FontTextureAtlas::addGlyph(u32 codepoint,
+                                          const u8* pixels,
+                                          u32 width, u32 height,
+                                          f32 advance,
+                                          f32 bearingX,
+                                          f32 bearingY) {
+    if (!isValid()) {
+        return Error(ErrorCode::NotInitialized, "FontTextureAtlas not initialized");
+    }
+
+    if (pixels == nullptr || width == 0 || height == 0) {
+        return Error(ErrorCode::InvalidArgument, "Invalid glyph data");
+    }
+
+    // 检查是否已存在
+    if (hasGlyph(codepoint)) {
+        return Error(ErrorCode::AlreadyExists, "Glyph already exists");
+    }
+
+    // 添加padding防止纹理bleeding
+    u32 paddedWidth = width + m_padding * 2;
+    u32 paddedHeight = height + m_padding * 2;
+
+    // 找到合适的空间
+    Node* node = findNode(m_root, paddedWidth, paddedHeight);
+    if (node == nullptr) {
+        return Error(ErrorCode::CapacityExceeded, "Font texture atlas is full");
+    }
+
+    // 分割节点
+    node = splitNode(node, paddedWidth, paddedHeight);
+
+    // 实际绘制位置（跳过padding）
+    u32 drawX = node->x + m_padding;
+    u32 drawY = node->y + m_padding;
+
+    // 复制像素数据到纹理
+    copyPixels(drawX, drawY, width, height, pixels);
+
+    // 计算UV坐标
+    f32 texSize = static_cast<f32>(m_textureSize);
+    f32 u0 = static_cast<f32>(drawX) / texSize;
+    f32 v0 = static_cast<f32>(drawY) / texSize;
+    f32 u1 = static_cast<f32>(drawX + width) / texSize;
+    f32 v1 = static_cast<f32>(drawY + height) / texSize;
+
+    // 创建字形
+    Glyph glyph(codepoint, u0, v0, u1, v1, advance, bearingX, bearingY,
+                static_cast<f32>(width), static_cast<f32>(height));
+
+    // 存储字形
+    m_glyphs[codepoint] = glyph;
+
+    return glyph;
+}
+
+const Glyph* FontTextureAtlas::getGlyph(u32 codepoint) const {
+    auto it = m_glyphs.find(codepoint);
+    if (it != m_glyphs.end()) {
+        return &it->second;
+    }
+    return nullptr;
+}
+
+bool FontTextureAtlas::hasGlyph(u32 codepoint) const {
+    return m_glyphs.find(codepoint) != m_glyphs.end();
+}
+
+} // namespace mr::client
