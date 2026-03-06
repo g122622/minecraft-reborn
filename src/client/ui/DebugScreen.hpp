@@ -92,7 +92,7 @@ private:
     Camera* m_camera = nullptr;
     ClientWorld* m_world = nullptr;
 
-    bool m_visible = false;
+    bool m_visible = true;
     bool m_initialized = false;
 
     // FPS统计
