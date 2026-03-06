@@ -46,7 +46,7 @@ TEST_F(ChunkTest, ChunkSection_SetGetBlock) {
 
     // 边界检查 - 返回空气
     const BlockState* outOfBounds = section.getBlock(16, 0, 0);
-    EXPECT_TRUE(outOfBounds->isAir());
+    EXPECT_EQ(outOfBounds, nullptr);
 }
 
 TEST_F(ChunkTest, ChunkSection_FastAccess) {
@@ -169,11 +169,11 @@ TEST_F(ChunkTest, ChunkData_SetGetBlock) {
 
     // 边界检查
     const BlockState* outOfBounds = chunk.getBlock(-1, 0, 0);
-    ASSERT_NE(outOfBounds, nullptr);
-    EXPECT_TRUE(outOfBounds->isAir());
+    // 返回 nullptr 表示越界
+    EXPECT_EQ(outOfBounds, nullptr);
     outOfBounds = chunk.getBlock(0, 500, 0);
-    ASSERT_NE(outOfBounds, nullptr);
-    EXPECT_TRUE(outOfBounds->isAir());
+    // 返回 nullptr 表示越界
+    EXPECT_EQ(outOfBounds, nullptr);
 }
 
 TEST_F(ChunkTest, ChunkData_SectionManagement) {

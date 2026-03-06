@@ -19,7 +19,7 @@ TEST(BooleanPropertyTest, CreateAndBasicOperations) {
 
     EXPECT_EQ(prop->name(), "lit");
     EXPECT_EQ(prop->valueCount(), 2);
-    EXPECT_EQ(prop->typeName(), "BooleanProperty");
+    EXPECT_STREQ(prop->typeName(), "BooleanProperty");
 }
 
 TEST(BooleanPropertyTest, AllowedValues) {
@@ -62,9 +62,9 @@ TEST(BooleanPropertyTest, ValueToString) {
 TEST(BooleanPropertyTest, ParseValue) {
     auto prop = BooleanProperty::create("active");
 
-    auto trueValue = prop->parseValue("true");
-    auto falseValue = prop->parseValue("false");
-    auto invalid = prop->parseValue("invalid");
+    auto trueValue = prop->parse("true");
+    auto falseValue = prop->parse("false");
+    auto invalid = prop->parse("invalid");
 
     ASSERT_TRUE(trueValue.has_value());
     EXPECT_TRUE(trueValue.value());
@@ -119,7 +119,7 @@ TEST(IntegerPropertyTest, CreateAndBasicOperations) {
     EXPECT_EQ(prop->valueCount(), 8);
     EXPECT_EQ(prop->minValue(), 0);
     EXPECT_EQ(prop->maxValue(), 7);
-    EXPECT_EQ(prop->typeName(), "IntegerProperty");
+    EXPECT_STREQ(prop->typeName(), "IntegerProperty");
 }
 
 TEST(IntegerPropertyTest, AllowedValues) {
@@ -166,11 +166,11 @@ TEST(IntegerPropertyTest, ValueToString) {
 TEST(IntegerPropertyTest, ParseValue) {
     auto prop = IntegerProperty::create("delay", 1, 4);
 
-    auto val1 = prop->parseValue("1");
-    auto val4 = prop->parseValue("4");
-    auto invalid1 = prop->parseValue("0");   // out of range
-    auto invalid2 = prop->parseValue("5");   // out of range
-    auto invalid3 = prop->parseValue("abc"); // not a number
+    auto val1 = prop->parse("1");
+    auto val4 = prop->parse("4");
+    auto invalid1 = prop->parse("0");   // out of range
+    auto invalid2 = prop->parse("5");   // out of range
+    auto invalid3 = prop->parse("abc"); // not a number
 
     ASSERT_TRUE(val1.has_value());
     EXPECT_EQ(val1.value(), 1);
@@ -302,7 +302,7 @@ TEST(DirectionPropertyTest, CreateAll) {
 
     EXPECT_EQ(prop->name(), "facing");
     EXPECT_EQ(prop->valueCount(), 6);
-    EXPECT_EQ(prop->typeName(), "DirectionProperty");
+    EXPECT_STREQ(prop->typeName(), "DirectionProperty");
 }
 
 TEST(DirectionPropertyTest, CreateHorizontal) {

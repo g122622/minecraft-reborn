@@ -160,9 +160,8 @@ TEST_F(ServerWorldTest, SetBlock_GetBlock) {
 
 TEST_F(ServerWorldTest, GetBlock_NonExistentChunk) {
     const BlockState* block = world->getBlockState(1000, 64, 1000);
-    // 不存在的区块应该返回空气
-    ASSERT_NE(block, nullptr);
-    EXPECT_TRUE(block->isAir());
+    // 不存在的区块返回 nullptr (表示空气)
+    EXPECT_EQ(block, nullptr);
 }
 
 TEST_F(ServerWorldTest, SetBlock_NegativeCoordinates) {
