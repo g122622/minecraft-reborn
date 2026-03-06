@@ -1,4 +1,5 @@
 #include "IntegratedServer.hpp"
+#include "common/world/block/VanillaBlocks.hpp"
 #include "common/network/Packet.hpp"
 #include "common/network/ChunkSync.hpp"
 #include "common/world/WorldConstants.hpp"
@@ -24,6 +25,9 @@ Result<void> IntegratedServer::initialize(const IntegratedServerConfig& config) 
     }
 
     m_config = config;
+    // 初始化方块注册表（必须在创建地形生成器之前）
+    VanillaBlocks::initialize();
+    spdlog::info("Vanilla blocks initialized");
 
     spdlog::info("Initializing integrated server...");
     spdlog::info("World: {}, Seed: {}, View distance: {}",

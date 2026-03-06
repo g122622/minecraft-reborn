@@ -1,4 +1,5 @@
 #include "ClientApplication.hpp"
+#include "common/world/block/VanillaBlocks.hpp"
 #include "minecraft-reborn/version.h"
 
 #include <spdlog/spdlog.h>
@@ -42,6 +43,9 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
     spdlog::info("=== Minecraft Reborn Client ===");
     spdlog::info("Version: {}.{}.{}", MR_VERSION_MAJOR, MR_VERSION_MINOR, MR_VERSION_PATCH);
     spdlog::info("Initializing client...");
+    // 初始化方块注册表
+    VanillaBlocks::initialize();
+    spdlog::info("Vanilla blocks initialized");
 
     // 创建窗口
     WindowConfig windowConfig;
