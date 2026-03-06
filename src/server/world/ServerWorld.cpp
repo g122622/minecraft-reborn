@@ -1,4 +1,6 @@
 #include "ServerWorld.hpp"
+#include "ServerChunkManager.hpp"
+#include "common/world/gen/NoiseChunkGenerator.hpp"
 #include "server/network/TcpSession.hpp"
 #include <chrono>
 #include <spdlog/spdlog.h>
@@ -10,14 +12,12 @@ namespace mr::server {
 // ============================================================================
 
 ServerWorld::ServerWorld()
-    : m_terrainGenerator(std::make_unique<StandardTerrainGenerator>())
-    , m_chunkSyncManager()
+    : m_chunkSyncManager()
 {
 }
 
 ServerWorld::ServerWorld(const ServerWorldConfig& config)
     : m_config(config)
-    , m_terrainGenerator(std::make_unique<StandardTerrainGenerator>())
     , m_chunkSyncManager()
 {
     m_chunkSyncManager.setDefaultViewDistance(config.viewDistance);
@@ -28,11 +28,24 @@ ServerWorld::~ServerWorld() {
 }
 
 Result<void> ServerWorld::initialize() {
-    spdlog::info("Initializing server world...");
+    spdlog::info("Initializing server world with seed {}...", m_config.seed);
 
-    // 初始化地形生成器
-    m_terrainGenerator = std::make_unique<StandardTerrainGenerator>();
-    m_terrainGenerator->setSeed(12345);  // 固定种子用于测试
+    // 创建区块生成器
+    auto generator = std::make_unique<NoiseChunkGenerator>(
+        m_config.seed,
+        DimensionSettings::overworld()
+    );
+
+    // 创建区块管理器
+    m_chunkManager = std::make_unique<ServerChunkManager>(*this, std::move(generator));
+
+    auto result = m_chunkManager->initialize();
+    if (result.failed()) {
+        return result;
+    }
+
+    // 启动 Worker 线程
+    m_chunkManager->startWorkers();
 
     m_chunkSyncManager.setDefaultViewDistance(m_config.viewDistance);
 
@@ -43,10 +56,12 @@ Result<void> ServerWorld::initialize() {
 void ServerWorld::shutdown() {
     spdlog::info("Shutting down server world...");
 
-    std::lock_guard<std::mutex> chunkLock(m_chunkMutex);
-    std::lock_guard<std::mutex> playerLock(m_playerMutex);
+    if (m_chunkManager) {
+        m_chunkManager->shutdown();
+        m_chunkManager.reset();
+    }
 
-    m_chunks.clear();
+    std::lock_guard<std::mutex> playerLock(m_playerMutex);
     m_players.clear();
 
     spdlog::info("Server world shut down");
@@ -55,6 +70,10 @@ void ServerWorld::shutdown() {
 void ServerWorld::setConfig(const ServerWorldConfig& config) {
     m_config = config;
     m_chunkSyncManager.setDefaultViewDistance(config.viewDistance);
+
+    if (m_chunkManager) {
+        m_chunkManager->setViewDistance(config.viewDistance);
+    }
 }
 
 // ============================================================================
@@ -62,72 +81,36 @@ void ServerWorld::setConfig(const ServerWorldConfig& config) {
 // ============================================================================
 
 ChunkData* ServerWorld::getChunk(ChunkCoord x, ChunkCoord z) {
-    std::lock_guard<std::mutex> lock(m_chunkMutex);
-
-    ChunkId chunkId(x, z, m_config.dimension);
-    auto it = m_chunks.find(chunkId);
-    if (it == m_chunks.end()) {
-        return nullptr;
+    if (m_chunkManager) {
+        return m_chunkManager->getChunk(x, z);
     }
-
-    it->second.lastAccessTime = m_currentTick;
-    return it->second.chunk.get();
+    return nullptr;
 }
 
 const ChunkData* ServerWorld::getChunk(ChunkCoord x, ChunkCoord z) const {
-    std::lock_guard<std::mutex> lock(m_chunkMutex);
-
-    ChunkId chunkId(x, z, m_config.dimension);
-    auto it = m_chunks.find(chunkId);
-    if (it == m_chunks.end()) {
-        return nullptr;
+    if (m_chunkManager) {
+        return m_chunkManager->getChunk(x, z);
     }
-
-    return it->second.chunk.get();
+    return nullptr;
 }
 
 bool ServerWorld::hasChunk(ChunkCoord x, ChunkCoord z) const {
-    std::lock_guard<std::mutex> lock(m_chunkMutex);
-
-    ChunkId chunkId(x, z, m_config.dimension);
-    return m_chunks.find(chunkId) != m_chunks.end();
+    if (m_chunkManager) {
+        return m_chunkManager->hasChunk(x, z);
+    }
+    return false;
 }
 
 ChunkData* ServerWorld::getOrGenerateChunk(ChunkCoord x, ChunkCoord z) {
-    std::lock_guard<std::mutex> lock(m_chunkMutex);
-
-    ChunkId chunkId(x, z, m_config.dimension);
-    auto it = m_chunks.find(chunkId);
-
-    if (it != m_chunks.end()) {
-        it->second.lastAccessTime = m_currentTick;
-        return it->second.chunk.get();
+    if (m_chunkManager) {
+        return m_chunkManager->getOrGenerateChunk(x, z);
     }
-
-    // 创建新区块
-    auto& entry = m_chunks[chunkId];
-    entry.chunk = std::make_unique<ChunkData>(x, z);
-    entry.lastAccessTime = m_currentTick;
-    entry.isGenerated = false;
-
-    // 生成区块
-    generateChunk(*entry.chunk);
-    entry.isGenerated = true;
-    entry.chunk->setFullyGenerated(true);
-
-    return entry.chunk.get();
+    return nullptr;
 }
 
 void ServerWorld::unloadChunk(ChunkCoord x, ChunkCoord z) {
-    std::lock_guard<std::mutex> lock(m_chunkMutex);
-
-    ChunkId chunkId(x, z, m_config.dimension);
-    m_chunks.erase(chunkId);
-}
-
-void ServerWorld::generateChunk(ChunkData& chunk) {
-    if (m_terrainGenerator) {
-        m_terrainGenerator->generateChunk(chunk);
+    if (m_chunkManager) {
+        m_chunkManager->unloadChunk(x, z);
     }
 }
 
@@ -178,6 +161,11 @@ void ServerWorld::removePlayer(PlayerId playerId) {
                 // session->send(fullPacket.data(), fullPacket.size());
             }
         }
+    }
+
+    // 从区块管理器移除玩家
+    if (m_chunkManager) {
+        m_chunkManager->removePlayer(playerId);
     }
 
     String username = it->second.username;
@@ -243,6 +231,11 @@ void ServerWorld::updatePlayerPosition(PlayerId playerId, f64 x, f64 y, f64 z, f
         if (oldChunkX != newChunkX || oldChunkZ != newChunkZ) {
             // 更新区块同步
             m_chunkSyncManager.updatePlayerPosition(playerId, x, z);
+
+            // 更新区块管理器中的玩家位置
+            if (m_chunkManager) {
+                m_chunkManager->updatePlayerPosition(playerId, x, z);
+            }
 
             // 计算需要发送/卸载的区块
             m_chunkSyncManager.calculateUpdates(playerId, chunksToLoad, chunksToUnload);
@@ -507,6 +500,11 @@ void ServerWorld::broadcastPacketExcept(PlayerId excludePlayerId, const std::vec
 void ServerWorld::tick() {
     m_currentTick++;
 
+    // 更新区块管理器
+    if (m_chunkManager) {
+        m_chunkManager->tick();
+    }
+
     // 检查区块卸载
     if (m_currentTick - m_lastChunkUnloadCheck > 100) {  // 每100tick检查一次
         checkChunkUnloading();
@@ -515,34 +513,21 @@ void ServerWorld::tick() {
 }
 
 void ServerWorld::checkChunkUnloading() {
-    std::lock_guard<std::mutex> lock(m_chunkMutex);
+    // 区块卸载现在由 ServerChunkManager 处理
+}
 
-    auto it = m_chunks.begin();
-    while (it != m_chunks.end()) {
-        auto& entry = it->second;
-
-        // 检查是否没有任何订阅者
-        if (entry.subscribers.empty()) {
-            // 检查是否超时
-            if (m_currentTick - entry.lastAccessTime > 6000) {  // 300秒 = 6000tick
-                spdlog::debug("Unloading chunk ({}, {})", it->first.x, it->first.z);
-                it = m_chunks.erase(it);
-                continue;
-            }
-        }
-        ++it;
+size_t ServerWorld::chunkCount() const {
+    if (m_chunkManager) {
+        return m_chunkManager->holderCount();
     }
+    return 0;
 }
 
 size_t ServerWorld::loadedChunkCount() const {
-    std::lock_guard<std::mutex> lock(m_chunkMutex);
-    size_t count = 0;
-    for (const auto& [id, entry] : m_chunks) {
-        if (entry.chunk && entry.chunk->isLoaded()) {
-            count++;
-        }
+    if (m_chunkManager) {
+        return m_chunkManager->loadedChunkCount();
     }
-    return count;
+    return 0;
 }
 
 } // namespace mr::server

@@ -20,6 +20,7 @@ add_executable(mr_tests
     # common/test_collision.cpp  # 暂时禁用 - 依赖旧的碰撞系统
     common/test_property.cpp
     common/test_block.cpp
+    common/test_chunk_generation.cpp
     server/ServerWorldTest.cpp
     server/test_integrated_server.cpp
 )
@@ -28,6 +29,8 @@ add_executable(mr_tests
 target_sources(mr_tests
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/world/ChunkWorkerPool.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/world/ServerChunkManager.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpServer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpSession.cpp
         ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp
@@ -39,6 +42,15 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/world/TerrainGenerator.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkDistanceGraph.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkLoadTicketManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkStatus.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkPrimer.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/chunk/IChunk.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkHolder.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/ImprovedNoiseGenerator.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/OctavesNoiseGenerator.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/NoiseSettings.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/IChunkGenerator.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/NoiseChunkGenerator.cpp
         # ${CMAKE_SOURCE_DIR}/src/common/world/BlockID.cpp  # 已移除 - 使用新的方块系统
         ${CMAKE_SOURCE_DIR}/src/common/entity/Player.cpp
         ${CMAKE_SOURCE_DIR}/src/common/entity/Entity.cpp

@@ -132,6 +132,24 @@ public:
         return m_statesById.size();
     }
 
+    /**
+     * @brief 根据方块ID获取方块状态（便捷方法）
+     * @param blockId 方块ID（枚举值）
+     * @return 默认方块状态，如果不存在返回空气状态
+     */
+    [[nodiscard]] const BlockState* get(BlockId blockId) const {
+        Block* block = getBlock(static_cast<u32>(blockId));
+        return block ? &block->defaultState() : airState();
+    }
+
+    /**
+     * @brief 获取空气方块状态
+     */
+    [[nodiscard]] const BlockState* airState() const {
+        auto* air = getBlock(static_cast<u32>(BlockId::Air));
+        return air ? &air->defaultState() : nullptr;
+    }
+
 private:
     BlockRegistry() = default;
 

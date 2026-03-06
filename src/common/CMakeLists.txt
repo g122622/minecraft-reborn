@@ -34,6 +34,17 @@ add_library(mr_common STATIC
     world/TerrainGenerator.cpp
     world/chunk/ChunkDistanceGraph.cpp
     world/chunk/ChunkLoadTicketManager.cpp
+    world/chunk/ChunkStatus.cpp
+    world/chunk/ChunkPrimer.cpp
+    world/chunk/IChunk.cpp
+    world/chunk/ChunkHolder.cpp
+
+    # World - Generation
+    world/gen/ImprovedNoiseGenerator.cpp
+    world/gen/OctavesNoiseGenerator.cpp
+    world/gen/NoiseSettings.cpp
+    world/gen/IChunkGenerator.cpp
+    world/gen/NoiseChunkGenerator.cpp
 
     # Physics
     physics/PhysicsEngine.cpp

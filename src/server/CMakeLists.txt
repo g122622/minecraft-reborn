@@ -8,6 +8,8 @@ add_executable(minecraft-server
     network/TcpServer.cpp
     network/TcpSession.cpp
     world/ServerWorld.cpp
+    world/ChunkWorkerPool.cpp
+    world/ServerChunkManager.cpp
 )
 
 target_link_libraries(minecraft-server

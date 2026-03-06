@@ -1,0 +1,226 @@
+#pragma once
+
+#include "IChunkGenerator.hpp"
+#include "OctavesNoiseGenerator.hpp"
+#include "NoiseSettings.hpp"
+#include "../chunk/ChunkPrimer.hpp"
+#include "../WorldConstants.hpp"
+#include <memory>
+#include <random>
+
+namespace mr {
+
+// 前向声明
+class BiomeProvider;
+
+/**
+ * @brief 噪声区块生成器
+ *
+ * 参考 MC NoiseChunkGenerator，使用多层噪声生成地形。
+ * 这是主世界和下界的标准地形生成器。
+ *
+ * 使用方法：
+ * @code
+ * DimensionSettings settings = DimensionSettings::overworld();
+ * NoiseChunkGenerator generator(seed, std::move(settings));
+ *
+ * ChunkPrimer primer(chunkX, chunkZ);
+ * generator.generateBiomes(region, primer);
+ * generator.generateNoise(region, primer);
+ * generator.buildSurface(region, primer);
+ * @endcode
+ *
+ * @note 参考 MC 1.16.5 NoiseChunkGenerator 实现
+ */
+class NoiseChunkGenerator : public BaseChunkGenerator {
+public:
+    /**
+     * @brief 构造噪声区块生成器
+     * @param seed 世界种子
+     * @param settings 维度设置
+     */
+    NoiseChunkGenerator(u64 seed, DimensionSettings settings);
+
+    /**
+     * @brief 构造噪声区块生成器（带生物群系提供者）
+     * @param seed 世界种子
+     * @param settings 维度设置
+     * @param biomeProvider 生物群系提供者
+     */
+    NoiseChunkGenerator(u64 seed, DimensionSettings settings, std::unique_ptr<class BiomeProvider> biomeProvider);
+
+    ~NoiseChunkGenerator() override;
+
+    // === IChunkGenerator 接口 ===
+
+    void generateBiomes(WorldGenRegion& region, ChunkPrimer& chunk) override;
+    void generateNoise(WorldGenRegion& region, ChunkPrimer& chunk) override;
+    void buildSurface(WorldGenRegion& region, ChunkPrimer& chunk) override;
+    void applyCarvers(WorldGenRegion& region, ChunkPrimer& chunk, bool isLiquid) override;
+    void placeFeatures(WorldGenRegion& region, ChunkPrimer& chunk) override;
+
+    [[nodiscard]] BiomeId getBiome(i32 x, i32 y, i32 z) const override;
+    [[nodiscard]] BiomeId getNoiseBiome(i32 noiseX, i32 noiseY, i32 noiseZ) const override;
+    [[nodiscard]] i32 getHeight(i32 x, i32 z, HeightmapType type) const override;
+    [[nodiscard]] i32 getGroundHeight() const override { return 64; }
+
+    // === 噪声参数 ===
+
+    [[nodiscard]] const NoiseSettings& noiseSettings() const { return m_settings.noise; }
+    [[nodiscard]] i32 noiseSizeX() const { return m_noiseSizeX; }
+    [[nodiscard]] i32 noiseSizeY() const { return m_noiseSizeY; }
+    [[nodiscard]] i32 noiseSizeZ() const { return m_noiseSizeZ; }
+
+private:
+    // === 噪声生成器 ===
+    std::unique_ptr<OctavesNoiseGenerator> m_mainDensityNoise;      // 主密度噪声 (16倍频)
+    std::unique_ptr<OctavesNoiseGenerator> m_secondaryDensityNoise; // 次密度噪声 (16倍频)
+    std::unique_ptr<OctavesNoiseGenerator> m_weightNoise;           // 权重噪声 (8倍频)
+    std::unique_ptr<PerlinNoiseGenerator> m_surfaceDepthNoise;      // 地表深度噪声
+    std::unique_ptr<SimplexNoiseGenerator> m_endNoise;              // 末地噪声（用于末地维度）
+
+    // === 生物群系 ===
+    std::unique_ptr<BiomeProvider> m_biomeProvider;
+
+    // === 缓存的噪声参数 ===
+    i32 m_noiseSizeX;
+    i32 m_noiseSizeY;
+    i32 m_noiseSizeZ;
+    i32 m_verticalNoiseGranularity;
+    i32 m_horizontalNoiseGranularity;
+
+    // === 随机数生成 ===
+    mutable std::mt19937_64 m_random;
+
+    // === 5x5 权重查找表（参考 MC field_236081_j_）===
+    std::array<f32, 25> m_biomeWeights;
+
+    // === 核心生成方法 ===
+
+    /**
+     * @brief 填充噪声列
+     *
+     * 参考 MC fillNoiseColumn，计算噪声柱的高度值。
+     * 这是地形生成的核心算法。
+     */
+    void fillNoiseColumn(std::vector<f64>& column, i32 noiseX, i32 noiseZ);
+
+    /**
+     * @brief 计算噪声密度
+     *
+     * 参考 MC func_222552_a，计算 3D 噪声采样值。
+     */
+    [[nodiscard]] f64 calculateNoiseDensity(i32 noiseX, i32 noiseY, i32 noiseZ,
+                                             f64 xzScale, f64 yScale,
+                                             f64 xzFactor, f64 yFactor) const;
+
+    /**
+     * @brief 计算生物群系深度和比例
+     *
+     * 参考 MC fillNoiseColumn 中的生物群系权重计算。
+     */
+    [[nodiscard]] void calculateBiomeDepthAndScale(i32 noiseX, i32 noiseZ,
+                                                    f64& outDepth, f64& outScale) const;
+
+    /**
+     * @brief 计算随机密度偏移
+     *
+     * 参考 MC func_236095_c_，用于增加地形的随机变化。
+     */
+    [[nodiscard]] f64 calculateRandomDensityOffset(i32 noiseX, i32 noiseZ) const;
+
+    /**
+     * @brief 判断密度值对应的方块
+     */
+    [[nodiscard]] BlockId getBlockForDensity(f64 density, i32 y) const;
+
+    // === 初始化方法 ===
+
+    void initNoiseGenerators();
+    void initBiomeWeights();
+
+    // === 地表生成 ===
+
+    void buildSurfaceForColumn(ChunkPrimer& chunk, i32 x, i32 z,
+                                i32 surfaceHeight, f64 surfaceNoise, BiomeId biome);
+};
+
+// ============================================================================
+// 生物群系提供者
+// ============================================================================
+
+/**
+ * @brief 生物群系提供者基类
+ *
+ * 参考 MC BiomeProvider，负责提供世界中的生物群系信息。
+ */
+class BiomeProvider {
+public:
+    explicit BiomeProvider(u64 seed);
+    virtual ~BiomeProvider() = default;
+
+    /**
+     * @brief 获取世界坐标处的生物群系
+     */
+    [[nodiscard]] virtual BiomeId getBiome(i32 x, i32 y, i32 z) const = 0;
+
+    /**
+     * @brief 获取噪声坐标处的生物群系
+     *
+     * 噪声坐标是 4x4 方块一个大块
+     */
+    [[nodiscard]] virtual BiomeId getNoiseBiome(i32 noiseX, i32 noiseY, i32 noiseZ) const = 0;
+
+    /**
+     * @brief 获取生物群系的深度参数
+     */
+    [[nodiscard]] virtual f32 getDepth(i32 x, i32 z) const = 0;
+
+    /**
+     * @brief 获取生物群系的比例参数
+     */
+    [[nodiscard]] virtual f32 getScale(i32 x, i32 z) const = 0;
+
+    /**
+     * @brief 获取生物群系定义
+     */
+    [[nodiscard]] virtual const BiomeDefinition& getBiomeDefinition(BiomeId id) const = 0;
+
+    [[nodiscard]] u64 seed() const { return m_seed; }
+
+protected:
+    u64 m_seed;
+};
+
+/**
+ * @brief 简单的生物群系提供者
+ *
+ * 使用噪声生成生物群系分布。
+ */
+class SimpleBiomeProvider : public BiomeProvider {
+public:
+    SimpleBiomeProvider(u64 seed, const std::vector<BiomeDefinition>& biomes);
+    ~SimpleBiomeProvider() override = default;
+
+    [[nodiscard]] BiomeId getBiome(i32 x, i32 y, i32 z) const override;
+    [[nodiscard]] BiomeId getNoiseBiome(i32 noiseX, i32 noiseY, i32 noiseZ) const override;
+    [[nodiscard]] f32 getDepth(i32 x, i32 z) const override;
+    [[nodiscard]] f32 getScale(i32 x, i32 z) const override;
+    [[nodiscard]] const BiomeDefinition& getBiomeDefinition(BiomeId id) const override;
+
+private:
+    std::vector<BiomeDefinition> m_biomes;
+    std::unique_ptr<PerlinNoiseGenerator> m_temperatureNoise;
+    std::unique_ptr<PerlinNoiseGenerator> m_humidityNoise;
+    std::unique_ptr<PerlinNoiseGenerator> m_continentalnessNoise;
+    std::unique_ptr<PerlinNoiseGenerator> m_erosionNoise;
+    std::unique_ptr<PerlinNoiseGenerator> m_depthNoise;
+    std::unique_ptr<PerlinNoiseGenerator> m_scaleNoise;
+
+    // 缓存的默认生物群系定义
+    BiomeDefinition m_defaultBiome;
+
+    [[nodiscard]] BiomeId selectBiome(f32 temperature, f32 humidity, f32 depth, f32 scale) const;
+};
+
+} // namespace mr

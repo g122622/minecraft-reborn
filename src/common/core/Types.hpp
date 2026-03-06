@@ -164,4 +164,42 @@ enum class BlockShape : u8 {
     Custom = 3
 };
 
+/**
+ * @brief 方块ID枚举
+ *
+ * 预定义的方块ID，用于地形生成等场景。
+ * 实际方块通过 BlockRegistry 动态注册。
+ */
+enum class BlockId : u32 {
+    Air = 0,
+    Stone = 1,
+    Grass = 2,
+    Dirt = 3,
+    Cobblestone = 4,
+    OakPlanks = 5,
+    OakSapling = 6,
+    Bedrock = 7,
+    Water = 8,
+    Lava = 9,
+    Sand = 10,
+    Gravel = 11,
+    GoldOre = 12,
+    IronOre = 13,
+    CoalOre = 14,
+    OakLog = 15,
+    OakLeaves = 16,
+    Sponge = 17,
+    Glass = 18,
+    Netherrack = 19,
+    SoulSand = 20,
+    Glowstone = 21,
+    EndStone = 22,
+    Terracotta = 23,
+    RedSand = 24,
+    Snow = 25,
+    Ice = 26,
+    // 可扩展...
+    Unknown = 0xFFFFFFFF
+};
+
 } // namespace mr

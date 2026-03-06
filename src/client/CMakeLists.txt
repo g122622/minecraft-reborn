@@ -35,6 +35,8 @@ add_executable(minecraft-client
     # 内置服务端支持
     ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/world/ChunkWorkerPool.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/world/ServerChunkManager.cpp
 )
 
 target_link_libraries(minecraft-client

@@ -3,7 +3,6 @@
 #include "common/core/Types.hpp"
 #include "common/core/Result.hpp"
 #include "common/world/chunk/ChunkData.hpp"
-#include "common/world/TerrainGenerator.hpp"
 #include "common/entity/PlayerManager.hpp"
 #include "common/network/ChunkSync.hpp"
 #include "common/network/ProtocolPackets.hpp"
@@ -14,6 +13,9 @@
 #include <mutex>
 
 namespace mr::server {
+
+// 前向声明
+class ServerChunkManager;
 
 // ============================================================================
 // 服务端玩家数据
@@ -70,6 +72,7 @@ struct ServerWorldConfig {
     i32 keepAliveInterval = 15000;        // 心跳间隔（毫秒）
     i32 keepAliveTimeout = 30000;         // 心跳超时（毫秒）
     DimensionId dimension = 0;            // 维度ID
+    u64 seed = 12345;                     // 世界种子
 };
 
 // ============================================================================
@@ -129,7 +132,7 @@ public:
     void tick();
 
     // 统计
-    [[nodiscard]] size_t chunkCount() const { return m_chunks.size(); }
+    [[nodiscard]] size_t chunkCount() const;
     [[nodiscard]] size_t loadedChunkCount() const;
 
     // 区块坐标转换
@@ -137,25 +140,22 @@ public:
         return static_cast<ChunkCoord>(std::floor(blockCoord / 16.0));
     }
 
+    // 获取区块管理器
+    [[nodiscard]] ServerChunkManager* chunkManager() { return m_chunkManager.get(); }
+    [[nodiscard]] const ServerChunkManager* chunkManager() const { return m_chunkManager.get(); }
+
 private:
     // 内部方法
     void sendChunkToPlayer(PlayerId playerId, ChunkCoord x, ChunkCoord z);
     void sendUnloadChunkToPlayer(PlayerId playerId, ChunkCoord x, ChunkCoord z);
     void broadcastBlockUpdate(i32 x, i32 y, i32 z, u32 blockStateId);
 
-    // 生成区块
-    void generateChunk(ChunkData& chunk);
-
     // 卸载检查
     void checkChunkUnloading();
 
 private:
     ServerWorldConfig m_config;
-    std::unique_ptr<StandardTerrainGenerator> m_terrainGenerator;
-
-    // 区块存储
-    mutable std::mutex m_chunkMutex;
-    std::unordered_map<ChunkId, ChunkCacheEntry> m_chunks;
+    std::unique_ptr<ServerChunkManager> m_chunkManager;
 
     // 玩家存储
     mutable std::mutex m_playerMutex;

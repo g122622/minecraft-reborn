@@ -47,8 +47,25 @@ src/
 │   ├── core/        # Types, Result, Constants
 │   ├── math/        # Vector3, MathUtils, PerlinNoise, SimplexNoise
 │   ├── network/     # Packet, PacketSerializer
-│   ├── world/       # BlockID, ChunkPos, BlockPos, ChunkData, TerrainGenerator
-│   ├── resource/    # Resource system (NEW)
+│   ├── world/       # World generation and chunk management
+│   │   ├── block/   # Block system (Block, BlockState, BlockRegistry)
+│   │   ├── chunk/   # Chunk data structures
+│   │   │   ├── ChunkData.hpp       # Final chunk data
+│   │   │   ├── ChunkPos.hpp        # Chunk position
+│   │   │   ├── ChunkStatus.hpp     # Generation stages (NEW)
+│   │   │   ├── ChunkPrimer.hpp     # Intermediate chunk state (NEW)
+│   │   │   ├── ChunkHolder.hpp     # Chunk state management (NEW)
+│   │   │   ├── IChunk.hpp          # Chunk interface (NEW)
+│   │   │   └── ChunkLoadTicketManager.hpp
+│   │   └── gen/     # World generation (NEW)
+│   │       ├── ImprovedNoiseGenerator.hpp  # MC-style Perlin noise
+│   │       ├── OctavesNoiseGenerator.hpp   # Multi-octave noise
+│   │       ├── NoiseSettings.hpp           # Noise configuration
+│   │       ├── IChunkGenerator.hpp         # Generator interface
+│   │       ├── NoiseChunkGenerator.hpp     # MC-style terrain generator
+│   │       ├── BiomeProvider.hpp           # Biome distribution
+│   │       └── WorldGenRegion.hpp          # Limited world view
+│   ├── resource/    # Resource system
 │   │   ├── ResourceLocation.hpp   # Resource identifier (namespace:path)
 │   │   ├── IResourcePack.hpp      # Resource pack interface
 │   │   ├── FolderResourcePack.hpp # Folder resource pack implementation
@@ -57,7 +74,10 @@ src/
 ├── server/          # Server application
 │   ├── application/ # ServerApplication, ServerLoop
 │   ├── network/     # TcpServer, TcpSession
-│   └── world/       # ServerWorld, ServerChunk
+│   └── world/       # ServerWorld
+│       ├── ServerWorld.hpp
+│       ├── ServerChunkManager.hpp  # Chunk manager (NEW)
+│       └── ChunkWorkerPool.hpp     # Async generation (NEW)
 ├── client/          # Client application
 │   ├── application/ # ClientApplication, GameLoop
 │   ├── window/      # Window (GLFW wrapper)
@@ -70,7 +90,7 @@ src/
 │   │   ├── VulkanBuffer.hpp     # GPU buffer management
 │   │   ├── VulkanTexture.hpp    # Texture and texture atlas
 │   │   └── ChunkRenderer.hpp    # Chunk mesh GPU buffers
-│   └── resource/    # Client resource loading (NEW)
+│   └── resource/    # Client resource loading
 │       ├── BlockModelLoader.hpp    # Model JSON parsing
 │       ├── BlockStateLoader.hpp    # Block state JSON parsing
 │       ├── TextureAtlasBuilder.hpp # Texture atlas construction
@@ -86,11 +106,72 @@ All types are in namespace `mr` (client types in `mr::client`, server types in `
 - **String types**: `String` (std::string), `StringView` (std::string_view)
 - **Game types**: `ChunkCoord`, `BlockCoord`, `BlockId`, `EntityId`, `DimensionId`
 - **World types**: `ChunkId`, `BlockPos`, `ChunkPos`, `BlockState`, `ChunkSection`, `ChunkData`
+- **Chunk generation types** (NEW):
+  - `ChunkStatus`: Generation stages (EMPTY, BIOMES, NOISE, SURFACE, CARVERS, FEATURES, HEIGHTMAPS, FULL)
+  - `ChunkPrimer`: Intermediate chunk state during generation
+  - `ChunkHolder`: Manages chunk loading state and futures
+  - `ChunkTask`: Generation task for worker pool
+  - `BiomeId`, `BiomeDefinition`, `BiomeContainer`: Biome system
+  - `Heightmap`, `HeightmapType`: Height tracking
+  - `NoiseSettings`, `DimensionSettings`: Noise configuration
+  - `IChunkGenerator`, `NoiseChunkGenerator`: Terrain generation
 - **Renderer types**: `Vertex`, `Face`, `MeshData`, `TextureRegion`, `BlockModel`, `TextureAtlas`
 - **Resource types**: `ResourceLocation`, `PackMetadata`, `IResourcePack`, `FolderResourcePack`
 - **Model types**: `Direction`, `ModelElement`, `ModelFace`, `UnbakedBlockModel`, `BakedBlockModel`
 - **Block state types**: `BlockStateVariant`, `VariantList`, `BlockStateDefinition`
 - **Error handling**: `Result<T>` with `Error` class and `ErrorCode` enum
+
+## Chunk Generation System
+
+The chunk generation system follows MC 1.16.5 architecture:
+
+### Generation Stages
+```
+EMPTY → BIOMES → NOISE → SURFACE → CARVERS → FEATURES → HEIGHTMAPS → FULL
+```
+
+Each stage has specific responsibilities:
+- **EMPTY**: Initial state
+- **BIOMES**: Generate biome data
+- **NOISE**: Generate terrain density using multi-octave Perlin noise
+- **SURFACE**: Apply surface blocks (grass, sand, etc.)
+- **CARVERS**: Apply cave carving
+- **FEATURES**: Place trees, ores, structures
+- **HEIGHTMAPS**: Calculate final heightmaps
+- **FULL**: Complete chunk
+
+### Key Classes
+
+```cpp
+// Create a chunk generator
+DimensionSettings settings = DimensionSettings::overworld();
+NoiseChunkGenerator generator(seed, std::move(settings));
+
+// Generate a chunk
+ChunkPrimer primer(chunkX, chunkZ);
+WorldGenRegion region(chunkX, chunkZ, neighbors);
+generator.generateBiomes(region, primer);
+generator.generateNoise(region, primer);
+generator.buildSurface(region, primer);
+
+// Convert to final chunk data
+std::unique_ptr<ChunkData> data = primer.toChunkData();
+```
+
+### Async Generation
+
+```cpp
+// ServerChunkManager handles async generation
+ServerChunkManager manager(world, std::move(generator));
+manager.initialize();
+manager.startWorkers(4);  // 4 worker threads
+
+// Request chunk asynchronously
+auto future = manager.getChunkAsync(x, z, &ChunkStatus::FULL);
+
+// Tick the manager
+manager.tick();
+```
 
 ## Chunk Mesh Generation
 
@@ -261,10 +342,20 @@ Managed via vcpkg:
 - **Core**: Complete (types, math, error handling)
 - **Network**: Basic implementation (TCP server, packet serialization)
 - **World**: Complete (chunk storage, terrain generation)
+- **Chunk Generation**: Complete (NEW)
+  - ChunkStatus: Generation stages (EMPTY → BIOMES → NOISE → SURFACE → CARVERS → FEATURES → HEIGHTMAPS → FULL)
+  - ChunkPrimer: Intermediate chunk state during generation
+  - ChunkHolder: Future-based chunk state management
+  - ImprovedNoiseGenerator: MC-style Perlin noise
+  - OctavesNoiseGenerator: Multi-octave noise (16 octaves)
+  - NoiseChunkGenerator: Reference MC 1.16.5 terrain generation
+  - SimpleBiomeProvider: Biome distribution
+  - ChunkWorkerPool: Async generation thread pool
+  - ServerChunkManager: Central chunk coordination
 - **Renderer**: In progress (Vulkan context, basic mesh generation)
 - **Resource Pack System**: Complete (model/blockstate parsing, texture atlas)
 - **Block Properties**: Complete (property encoding, variant mapping)
-- **Tests**: 190+ tests passing (163 common + 27 resource)
+- **Tests**: 250+ tests (163 common + 27 resource + 60+ chunk generation)
 
 ## Self-Maintenance Rule
 
