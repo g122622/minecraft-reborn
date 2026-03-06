@@ -205,6 +205,14 @@ public:
     void setSwimming(bool swimming);
     void setSleeping(bool sleeping);
 
+    /**
+     * @brief 切换飞行状态
+     *
+     * 仅当 canFly 为 true 时才能切换。
+     * 在飞行和非飞行状态之间切换。
+     */
+    void toggleFlying();
+
     // ========== 重写尺寸方法 ==========
 
     [[nodiscard]] f32 width() const override { return PLAYER_WIDTH; }

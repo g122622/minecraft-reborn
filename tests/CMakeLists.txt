@@ -33,7 +33,6 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/ChunkWorkerPool.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/ServerChunkManager.cpp
-        ${CMAKE_SOURCE_DIR}/src/server/world/SimpleChunkGenerator.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpServer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpSession.cpp
         ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp
@@ -42,7 +41,6 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/network/PacketSerializer.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/Packet.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkData.cpp
-        ${CMAKE_SOURCE_DIR}/src/common/world/TerrainGenerator.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkDistanceGraph.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkLoadTicketManager.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkStatus.cpp

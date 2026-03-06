@@ -138,8 +138,6 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
             return clientResult.error();
         }
 
-        // 设置世界为网络模式
-        m_world.setNetworkMode(true);
         spdlog::info("Connected to integrated server");
     }
 
@@ -166,13 +164,15 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
     m_player = std::make_unique<Player>(static_cast<EntityId>(1), m_config.username);
     m_player->setPosition(8.0, 50.0, 8.0);  // 初始位置在地面上方
     m_player->setPhysicsEngine(m_physicsEngine.get());
+    // 默认创造模式并启用飞行
+    m_player->setGameMode(GameMode::Creative);
+    m_player->abilities().flying = true;
     spdlog::info("Player created at (8, 50, 8)");
 
     spdlog::info("Client initialized successfully");
     spdlog::info("Window: {}x{}", m_window.width(), m_window.height());
-    spdlog::info("Controls: WASD to move, Space to jump, Shift to sneak, mouse to look");
-    spdlog::info("Press F3 to toggle debug screen");
-    spdlog::info("Press ALT to toggle mouse capture");
+    spdlog::info("Controls: WASD to move, Space to jump/fly up, Shift to sneak/fly down, mouse to look");
+    spdlog::info("Press F to toggle flying, F3 to toggle debug screen, ALT to toggle mouse capture");
 
     // 初始化调试屏幕
     if (m_renderer->isGuiRendererInitialized()) {
@@ -275,6 +275,13 @@ void ClientApplication::handleEvents()
     if (m_input.isKeyJustPressed(GLFW_KEY_LEFT_ALT) ||
         m_input.isKeyJustPressed(GLFW_KEY_RIGHT_ALT)) {
         toggleMouseCapture();
+    }
+
+    // 飞行模式切换（F键）
+    if (m_input.isKeyJustPressed(GLFW_KEY_F)) {
+        if (m_player && m_player->abilities().canFly) {
+            m_player->toggleFlying();
+        }
     }
 
     // 传递键盘输入到玩家和鼠标控制

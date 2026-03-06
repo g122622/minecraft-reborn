@@ -18,19 +18,12 @@ ClientWorld::~ClientWorld() {
 
 Result<void> ClientWorld::initialize(u64 seed) {
     m_seed = seed;
-
-    // 网络模式下不创建本地地形生成器
-    if (!m_networkMode) {
-        m_terrainGenerator = TerrainGenFactory::createStandard(seed);
-    }
-
-    spdlog::info("ClientWorld initialized with seed: {} (networkMode: {})", seed, m_networkMode);
+    spdlog::info("ClientWorld initialized with seed: {}", seed);
     return Result<void>::ok();
 }
 
 void ClientWorld::destroy() {
     m_chunks.clear();
-    m_terrainGenerator.reset();
 
     while (!m_loadQueue.empty()) {
         m_loadQueue.pop();
@@ -42,12 +35,7 @@ void ClientWorld::destroy() {
 
 void ClientWorld::update(const glm::vec3& cameraPosition, i32 renderDistance) {
     m_renderDistance = renderDistance;
-
-    // 网络模式下，区块加载由服务端控制，客户端只处理卸载
-    if (!m_networkMode) {
-        loadChunksInRange(cameraPosition, renderDistance);
-        processLoadQueue();
-    }
+    // 区块加载由服务端控制，客户端只处理卸载
     unloadChunksOutOfRange(cameraPosition, renderDistance + 2); // 多保留2个区块的缓冲
 }
 
@@ -271,10 +259,9 @@ void ClientWorld::processLoadQueue() {
 }
 
 void ClientWorld::generateChunk(ClientChunk& chunk) {
-    if (chunk.data && m_terrainGenerator) {
-        m_terrainGenerator->generateChunk(*chunk.data);
-        chunk.isGenerating = false;
-    }
+    // 客户端不再本地生成地形
+    // 区块数据从服务端接收，通过 onChunkData() 方法传入
+    chunk.isGenerating = false;
 }
 
 void ClientWorld::rebuildMesh(ClientChunk& chunk) {

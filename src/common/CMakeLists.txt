@@ -31,7 +31,6 @@ add_library(mr_common STATIC
 
     # World - Chunk
     world/chunk/ChunkData.cpp
-    world/TerrainGenerator.cpp
     world/chunk/ChunkDistanceGraph.cpp
     world/chunk/ChunkLoadTicketManager.cpp
     world/chunk/ChunkStatus.cpp

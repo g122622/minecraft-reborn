@@ -125,6 +125,13 @@ void Player::setSwimming(bool swimming) {
     }
 }
 
+void Player::toggleFlying() {
+    if (!m_abilities.canFly) {
+        return; // 不允许飞行则无法切换
+    }
+    m_abilities.flying = !m_abilities.flying;
+}
+
 void Player::setSleeping(bool sleeping) {
     m_isSleeping = sleeping;
     if (sleeping) {
@@ -262,15 +269,18 @@ void Player::handleMovementInput(f32 forward, f32 strafe, bool jumping, bool sne
     // 参考MC: LivingEntity.aiStep() lines 2567-2591
     if (jumping) {
         if (m_abilities.flying) {
-            // 飞行模式下向上移动
-            m_velocity.y = m_abilities.flySpeed;
+            // 飞行模式下向上移动（3倍速度）
+            m_velocity.y = m_abilities.flySpeed * 3.0f;
         } else if (m_onGround && m_jumpTicks == 0) {
-            // 只有在地面且冷却为0时才能跳跃
             jump();
         }
     } else if (m_abilities.flying) {
-        // 飞行模式下不自动下降
-        m_velocity.y *= 0.6f; // 阻力
+        // 飞行模式下按Shift下降（3倍速度）
+        if (sneaking) {
+            m_velocity.y = -m_abilities.flySpeed * 3.0f;
+        } else {
+            m_velocity.y *= 0.6f; // 阻力
+        }
     }
 }
 

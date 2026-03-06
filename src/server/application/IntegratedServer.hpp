@@ -27,7 +27,7 @@ struct IntegratedServerConfig {
     String worldName = "singleplayer";
     i64 seed = 0;
     GameMode defaultGameMode = GameMode::Survival;
-    i32 viewDistance = 10;
+    i32 viewDistance = 6;
     i32 tickRate = 20;  // TPS
 };
 

@@ -32,7 +32,7 @@ struct ClientConfig {
     i32 samples = 4;
 
     // 渲染配置
-    i32 renderDistance = 12;
+    i32 renderDistance = 6;
     i32 maxFps = 60;
     bool vsyncEnabled = true;
 

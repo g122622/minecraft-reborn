@@ -1,5 +1,6 @@
 #include "IntegratedServer.hpp"
-#include "server/world/SimpleChunkGenerator.hpp"
+#include "common/world/gen/NoiseChunkGenerator.hpp"
+#include "common/world/gen/NoiseSettings.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
 #include "common/network/Packet.hpp"
 #include "common/network/ChunkSync.hpp"
@@ -39,8 +40,9 @@ Result<void> IntegratedServer::initialize(const IntegratedServerConfig& config) 
     m_connectionPair->connect();
     m_serverEndpoint = &m_connectionPair->serverEndpoint();
 
-    // 创建区块管理器（使用 SimpleChunkGenerator 适配现有的 ITerrainGenerator）
-    auto generator = std::make_unique<SimpleChunkGenerator>(m_config.seed);
+    // 创建区块管理器（使用 MC 1.16.5 风格噪声生成器）
+    DimensionSettings settings = DimensionSettings::overworld();
+    auto generator = std::make_unique<NoiseChunkGenerator>(m_config.seed, std::move(settings));
     m_chunkManager = std::make_unique<ServerChunkManager>(std::move(generator));
     m_chunkManager->initialize();
     m_chunkManager->startWorkers();
@@ -346,7 +348,7 @@ void IntegratedServer::handleLoginRequest(const u8* data, size_t size) {
 
     // 设置初始位置（出生点）
     m_client.x = 0.0;
-    m_client.y = 128.0;
+    m_client.y = 90.0;
     m_client.z = 0.0;
 
     // 发送登录成功响应

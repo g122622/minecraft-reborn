@@ -3,7 +3,6 @@
 #include "../../common/core/Types.hpp"
 #include "../../common/core/Result.hpp"
 #include "../../common/world/chunk/ChunkData.hpp"
-#include "../../common/world/TerrainGenerator.hpp"
 #include "../../common/world/WorldConstants.hpp"
 #include "../../common/renderer/MeshTypes.hpp"
 #include "../../common/network/ChunkSync.hpp"
@@ -164,22 +163,9 @@ public:
     [[nodiscard]] i32 renderDistance() const { return m_renderDistance; }
 
     /**
-     * @brief 获取地形生成器
-     */
-    [[nodiscard]] ITerrainGenerator* terrainGenerator() { return m_terrainGenerator.get(); }
-
-    /**
      * @brief 获取世界种子
      */
     [[nodiscard]] u64 seed() const { return m_seed; }
-
-    /**
-     * @brief 设置网络模式
-     *
-     * 网络模式下，区块从服务端接收，不使用本地生成器
-     */
-    void setNetworkMode(bool networkMode) { m_networkMode = networkMode; }
-    [[nodiscard]] bool isNetworkMode() const { return m_networkMode; }
 
     /**
      * @brief 接收服务端区块数据
@@ -209,7 +195,6 @@ private:
 
 private:
     std::unordered_map<ChunkId, std::unique_ptr<ClientChunk>> m_chunks;
-    std::unique_ptr<ITerrainGenerator> m_terrainGenerator;
 
     // 加载队列
     std::priority_queue<ChunkLoadRequest> m_loadQueue;
@@ -219,7 +204,6 @@ private:
     i32 m_renderDistance = 12;
     i32 m_maxChunksPerFrame = 4;  // 每帧最多加载的区块数
     u64 m_seed = 0;
-    bool m_networkMode = false;  // 网络模式标志
 
     // 世界边界
     i32 m_minBuildHeight = 0;
