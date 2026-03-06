@@ -10,7 +10,7 @@ namespace mr {
 
 namespace {
     CollisionShape g_emptyShape = CollisionShape::empty();
-    CollisionShape g_fullCubeShape = CollisionShape::fullCube();
+    CollisionShape g_fullBlockShape = CollisionShape::fullBlock();
 }
 
 const CollisionShape& VoxelShapes::empty() {
@@ -18,7 +18,7 @@ const CollisionShape& VoxelShapes::empty() {
 }
 
 const CollisionShape& VoxelShapes::fullCube() {
-    return g_fullCubeShape;
+    return g_fullBlockShape;
 }
 
 CollisionShape VoxelShapes::cube(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2) {

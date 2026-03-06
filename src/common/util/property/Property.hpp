@@ -96,13 +96,13 @@ public:
      * @param str 字符串
      * @return 解析后的值，失败返回nullopt
      */
-    [[nodiscard]] virtual Optional<T> parseValue(StringView str) const = 0;
+    [[nodiscard]] virtual Optional<T> parse(StringView str) const = 0;
 
     /**
-     * @brief 解析字符串为值索引
+     * @brief 解析字符串为值索引（实现IProperty接口）
      */
     [[nodiscard]] Optional<size_t> parseValue(StringView str) const override {
-        auto value = parseValue(str);
+        auto value = parse(str);
         if (value) {
             return indexOf(*value);
         }

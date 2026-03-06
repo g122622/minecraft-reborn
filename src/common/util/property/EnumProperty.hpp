@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Property.hpp"
+#include "../../util/Direction.hpp"
 #include <functional>
 
 namespace mr {
@@ -13,21 +14,8 @@ namespace mr {
  *
  * 参考: net.minecraft.state.EnumProperty
  *
- * 用法示例:
- * @code
- * // 定义枚举类型的字符串序列化
- * template<>
- * struct EnumTraits<Axis> {
- *     static String toString(Axis value) { return Axes::toString(value); }
- *     static Optional<Axis> fromName(StringView name) { return Axes::fromName(name); }
- * };
- *
- * // 创建枚举属性
- * auto axis = EnumProperty<Axis>::create("axis", {Axis::X, Axis::Y, Axis::Z});
- * @endcode
- *
  * 注意:
- * - 枚举类型需要特化 EnumTraits 或提供 toString/fromName 方法
+ * - 枚举类型需要特化 EnumProperty<E>::Traits 或提供 toString/fromName 方法
  * - 属性名称应该遵循MC命名约定
  */
 template<typename E>
@@ -49,30 +37,9 @@ public:
      * @param values 允许的枚举值列表
      * @return 属性实例
      */
-    template<typename... Values>
-    [[nodiscard]] static std::unique_ptr<EnumProperty<E>> create(const String& name, Values... values) {
-        return create(name, std::vector<E>{values...});
-    }
-
-    /**
-     * @brief 创建枚举属性
-     * @param name 属性名称
-     * @param values 允许的枚举值列表
-     * @return 属性实例
-     */
     [[nodiscard]] static std::unique_ptr<EnumProperty<E>> create(const String& name, const std::vector<E>& values) {
         return std::unique_ptr<EnumProperty<E>>(new EnumProperty<E>(name, values));
     }
-
-    /**
-     * @brief 创建包含所有枚举值的属性
-     * @param name 属性名称
-     * @return 属性实例
-     *
-     * 注意: 枚举类型E必须支持 for_each 或有 all() 方法
-     */
-    template<typename = std::enable_if_t<std::is_enum_v<E>>>
-    [[nodiscard]] static std::unique_ptr<EnumProperty<E>> createAll(const String& name);
 
     /**
      * @brief 将枚举值转换为字符串
@@ -84,7 +51,7 @@ public:
     /**
      * @brief 解析字符串为枚举值
      */
-    [[nodiscard]] Optional<E> parseValue(StringView str) const override {
+    [[nodiscard]] Optional<E> parse(StringView str) const override {
         auto value = Traits::fromName(str);
         if (value && this->indexOf(*value)) {
             return value;
@@ -111,7 +78,7 @@ public:
         return "EnumProperty";
     }
 
-private:
+protected:
     EnumProperty(const String& name, const std::vector<E>& values)
         : Property<E>(name, values) {
     }
@@ -131,11 +98,6 @@ struct EnumProperty<Direction>::Traits {
     }
 };
 
-template<>
-inline std::unique_ptr<EnumProperty<Direction>> EnumProperty<Direction>::createAll<Direction>(const String& name) {
-    return create(name, Directions::all());
-}
-
 // ============================================================================
 // 枚举特征特化 - Axis
 // ============================================================================
@@ -149,10 +111,5 @@ struct EnumProperty<Axis>::Traits {
         return Axes::fromName(name);
     }
 };
-
-template<>
-inline std::unique_ptr<EnumProperty<Axis>> EnumProperty<Axis>::createAll<Axis>(const String& name) {
-    return create(name, Axes::all());
-}
 
 } // namespace mr

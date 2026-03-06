@@ -9,7 +9,7 @@ namespace {
 
 const EnumProperty<Axis>& RotatedPillarBlock::AXIS() {
     if (!g_axisProperty) {
-        g_axisProperty = EnumProperty<Axis>::createAll("axis");
+        g_axisProperty = AxisProperty::create("axis");
     }
     return *g_axisProperty;
 }

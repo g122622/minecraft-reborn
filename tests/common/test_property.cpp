@@ -208,14 +208,14 @@ TEST(IntegerPropertyTest, Equals) {
 // ============================================================================
 
 TEST(EnumPropertyDirectionTest, CreateAll) {
-    auto prop = EnumProperty<Direction>::createAll("facing");
+    auto prop = DirectionProperty::create("facing");
 
     EXPECT_EQ(prop->name(), "facing");
     EXPECT_EQ(prop->valueCount(), 6);
 }
 
 TEST(EnumPropertyDirectionTest, ValueToString) {
-    auto prop = EnumProperty<Direction>::createAll("facing");
+    auto prop = DirectionProperty::create("facing");
 
     EXPECT_EQ(prop->valueToString(Direction::Down), "down");
     EXPECT_EQ(prop->valueToString(Direction::Up), "up");
@@ -226,11 +226,11 @@ TEST(EnumPropertyDirectionTest, ValueToString) {
 }
 
 TEST(EnumPropertyDirectionTest, ParseValue) {
-    auto prop = EnumProperty<Direction>::createAll("facing");
+    auto prop = DirectionProperty::create("facing");
 
-    auto north = prop->parseValue("north");
-    auto south = prop->parseValue("south");
-    auto invalid = prop->parseValue("invalid");
+    auto north = prop->parse("north");
+    auto south = prop->parse("south");
+    auto invalid = prop->parse("invalid");
 
     ASSERT_TRUE(north.has_value());
     EXPECT_EQ(north.value(), Direction::North);
@@ -242,8 +242,8 @@ TEST(EnumPropertyDirectionTest, ParseValue) {
 }
 
 TEST(EnumPropertyDirectionTest, Subset) {
-    auto prop = EnumProperty<Direction>::create("horizontal_facing",
-        Direction::North, Direction::South, Direction::East, Direction::West);
+    auto prop = DirectionProperty::create("horizontal_facing",
+        {Direction::North, Direction::South, Direction::East, Direction::West});
 
     EXPECT_EQ(prop->valueCount(), 4);
 
@@ -259,14 +259,14 @@ TEST(EnumPropertyDirectionTest, Subset) {
 // ============================================================================
 
 TEST(EnumPropertyAxisTest, CreateAll) {
-    auto prop = EnumProperty<Axis>::createAll("axis");
+    auto prop = AxisProperty::create("axis");
 
     EXPECT_EQ(prop->name(), "axis");
     EXPECT_EQ(prop->valueCount(), 3);
 }
 
 TEST(EnumPropertyAxisTest, ValueToString) {
-    auto prop = EnumProperty<Axis>::createAll("axis");
+    auto prop = AxisProperty::create("axis");
 
     EXPECT_EQ(prop->valueToString(Axis::X), "x");
     EXPECT_EQ(prop->valueToString(Axis::Y), "y");
@@ -274,12 +274,12 @@ TEST(EnumPropertyAxisTest, ValueToString) {
 }
 
 TEST(EnumPropertyAxisTest, ParseValue) {
-    auto prop = EnumProperty<Axis>::createAll("axis");
+    auto prop = AxisProperty::create("axis");
 
-    auto x = prop->parseValue("x");
-    auto y = prop->parseValue("y");
-    auto z = prop->parseValue("z");
-    auto invalid = prop->parseValue("w");
+    auto x = prop->parse("x");
+    auto y = prop->parse("y");
+    auto z = prop->parse("z");
+    auto invalid = prop->parse("w");
 
     ASSERT_TRUE(x.has_value());
     EXPECT_EQ(x.value(), Axis::X);

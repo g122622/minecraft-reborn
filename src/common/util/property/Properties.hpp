@@ -287,7 +287,7 @@ public:
      * @brief 坐标轴属性（所有三个轴）
      */
     static const EnumProperty<Axis>& AXIS() {
-        static auto prop = EnumProperty<Axis>::createAll("axis");
+        static auto prop = AxisProperty::create("axis");
         return *prop;
     }
 
@@ -295,7 +295,7 @@ public:
      * @brief 坐标轴属性（仅水平轴X和Z）
      */
     static const EnumProperty<Axis>& HORIZONTAL_AXIS() {
-        static auto prop = EnumProperty<Axis>::create("axis", Axis::X, Axis::Z);
+        static auto prop = EnumProperty<Axis>::create("axis", {Axis::X, Axis::Z});
         return *prop;
     }
 

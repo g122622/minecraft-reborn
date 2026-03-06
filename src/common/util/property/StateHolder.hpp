@@ -1,6 +1,6 @@
 #pragma once
 
-#include "IProperty.hpp"
+#include "Property.hpp"
 #include <unordered_map>
 #include <memory>
 #include <sstream>
@@ -19,24 +19,6 @@ namespace mr {
  * @tparam Owner 拥有此状态的类型（如Block）
  * @tparam State 具体状态类型（如BlockState，CRTP模式）
  *
- * 用法示例:
- * @code
- * class BlockState : public StateHolder<Block, BlockState> {
- *     // ...
- * };
- *
- * // 获取属性值
- * bool lit = state.get(BlockStateProperties::LIT());
- *
- * // 设置属性值，返回新状态
- * const BlockState& newState = state.with(BlockStateProperties::LIT(), true);
- *
- * // 检查是否有属性
- * if (state.hasProperty(BlockStateProperties::FACING())) {
- *     Direction facing = state.get(BlockStateProperties::FACING());
- * }
- * @endcode
- *
  * 注意:
  * - 状态是不可变的，with()方法返回新状态引用
  * - 所有状态在StateContainer构建时预计算
@@ -54,9 +36,6 @@ public:
 
     /**
      * @brief 获取属性值
-     * @param prop 属性引用
-     * @return 属性值
-     * @throws std::invalid_argument 如果状态没有此属性
      */
     template<typename T>
     [[nodiscard]] const T& get(const Property<T>& prop) const {
@@ -71,8 +50,6 @@ public:
 
     /**
      * @brief 尝试获取属性值
-     * @param prop 属性引用
-     * @return 属性值，如果不存在返回nullopt
      */
     template<typename T>
     [[nodiscard]] Optional<T> getOptional(const Property<T>& prop) const {
@@ -85,14 +62,9 @@ public:
 
     /**
      * @brief 设置属性值，返回新状态
-     * @param prop 属性引用
-     * @param value 新值
-     * @return 新状态引用
-     * @throws std::invalid_argument 如果状态没有此属性或值不合法
      */
     template<typename T>
     [[nodiscard]] const State& with(const Property<T>& prop, const T& value) const {
-        // 检查属性是否存在
         auto it = m_values.find(&prop);
         if (it == m_values.end()) {
             throw std::invalid_argument(
@@ -100,19 +72,15 @@ public:
             );
         }
 
-        // 如果值相同，返回当前状态
         auto optIndex = prop.indexOf(value);
         if (!optIndex) {
-            throw std::invalid_argument(
-                "Invalid value for property " + prop.name()
-            );
+            throw std::invalid_argument("Invalid value for property " + prop.name());
         }
 
         if (it->second == *optIndex) {
             return static_cast<const State&>(*this);
         }
 
-        // 从转换表获取新状态
         auto transIt = m_transitions.find(&prop);
         if (transIt == m_transitions.end() || transIt->second.size() <= *optIndex) {
             throw std::invalid_argument(
@@ -126,8 +94,6 @@ public:
 
     /**
      * @brief 循环切换到下一个属性值
-     * @param prop 属性引用
-     * @return 新状态引用
      */
     template<typename T>
     [[nodiscard]] const State& cycle(const Property<T>& prop) const {
@@ -147,8 +113,6 @@ public:
 
     /**
      * @brief 检查是否有此属性
-     * @param prop 属性引用
-     * @return 是否有此属性
      */
     template<typename T>
     [[nodiscard]] bool hasProperty(const Property<T>& prop) const {
@@ -200,12 +164,6 @@ public:
     }
 
 protected:
-    /**
-     * @brief 构造状态持有者
-     * @param owner 拥有者指针
-     * @param values 属性值映射
-     * @param stateId 状态ID
-     */
     StateHolder(const Owner* owner,
                 std::unordered_map<const IProperty*, size_t> values,
                 u32 stateId)
@@ -222,6 +180,13 @@ protected:
     }
 
     /**
+     * @brief 设置状态ID（由BlockRegistry调用）
+     */
+    void setStateId(u32 id) {
+        m_stateId = id;
+    }
+
+    /**
      * @brief 获取拥有者名称（子类可重写）
      */
     [[nodiscard]] virtual String ownerName() const {
@@ -233,9 +198,10 @@ protected:
     u32 m_stateId;
     std::unordered_map<const IProperty*, std::vector<const State*>> m_transitions;
 
-    // 允许StateContainer访问
+    // 允许StateContainer和BlockRegistry访问
     template<typename O, typename S>
     friend class StateContainer;
+    friend class BlockRegistry;
 };
 
 } // namespace mr

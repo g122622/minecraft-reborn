@@ -21,9 +21,8 @@ namespace mr {
  * auto horizontalFacing = DirectionProperty::createHorizontal("facing");
  *
  * // 创建特定方向集合的属性
- * auto facingExceptUp = DirectionProperty::create("facing", [](Direction d) {
- *     return d != Direction::Up;
- * });
+ * std::vector<Direction> dirs = {Direction::North, Direction::South};
+ * auto facing = DirectionProperty::create("facing", dirs);
  * @endcode
  */
 class DirectionProperty : public EnumProperty<Direction> {
@@ -34,11 +33,12 @@ public:
      * @return 属性实例
      */
     [[nodiscard]] static std::unique_ptr<DirectionProperty> create(const String& name) {
-        return create(name, Directions::all());
+        auto all = Directions::all();
+        return create(name, std::vector<Direction>(all.begin(), all.end()));
     }
 
     /**
-     * @brief 创建包含所有方向的方向属性
+     * @brief 创建包含特定方向的方向属性
      * @param name 属性名称
      * @param values 方向列表
      * @return 属性实例
@@ -48,23 +48,13 @@ public:
     }
 
     /**
-     * @brief 创建包含特定方向的方向属性
-     * @param name 属性名称
-     * @param values 方向列表（可变参数）
-     * @return 属性实例
-     */
-    template<typename... Dirs>
-    [[nodiscard]] static std::unique_ptr<DirectionProperty> create(const String& name, Dirs... values) {
-        return create(name, std::vector<Direction>{values...});
-    }
-
-    /**
      * @brief 创建只包含水平方向的方向属性 (NORTH, EAST, SOUTH, WEST)
      * @param name 属性名称
      * @return 属性实例
      */
     [[nodiscard]] static std::unique_ptr<DirectionProperty> createHorizontal(const String& name) {
-        return create(name, Directions::horizontal());
+        auto horiz = Directions::horizontal();
+        return create(name, std::vector<Direction>(horiz.begin(), horiz.end()));
     }
 
     /**
@@ -93,6 +83,24 @@ public:
 private:
     DirectionProperty(const String& name, const std::vector<Direction>& values)
         : EnumProperty<Direction>(name, values) {
+    }
+};
+
+/**
+ * @brief Axis属性工具类
+ *
+ * 用于创建包含所有轴的属性。
+ */
+class AxisProperty {
+public:
+    /**
+     * @brief 创建包含所有轴的属性
+     * @param name 属性名称
+     * @return 属性实例
+     */
+    [[nodiscard]] static std::unique_ptr<EnumProperty<Axis>> create(const String& name) {
+        auto all = Axes::all();
+        return EnumProperty<Axis>::create(name, std::vector<Axis>(all.begin(), all.end()));
     }
 };
 
