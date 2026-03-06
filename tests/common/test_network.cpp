@@ -604,7 +604,7 @@ TEST(PlayerDespawnPacket, SerializeDeserialize) {
 }
 
 TEST(BlockUpdatePacket, SerializeDeserialize) {
-    BlockUpdatePacket original(100, 64, -200, 1u, 3);
+    BlockUpdatePacket original(100, 64, -200, 42u);  // 使用 blockStateId
 
     PacketSerializer ser;
     original.serialize(ser);
@@ -616,7 +616,7 @@ TEST(BlockUpdatePacket, SerializeDeserialize) {
     EXPECT_EQ(result.value().x(), 100);
     EXPECT_EQ(result.value().y(), 64);
     EXPECT_EQ(result.value().z(), -200);
-    EXPECT_EQ(result.value().blockId(), 1u);
+    EXPECT_EQ(result.value().blockStateId(), 42u);
 }
 
 TEST(ChatMessagePacket, SerializeDeserialize) {

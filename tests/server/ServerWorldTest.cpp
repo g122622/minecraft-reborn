@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "server/world/ServerWorld.hpp"
 #include "common/network/ProtocolPackets.hpp"
+#include "common/world/block/VanillaBlocks.hpp"
 #include <thread>
 #include <atomic>
 
@@ -14,6 +15,9 @@ using namespace mr::server;
 class ServerWorldTest : public ::testing::Test {
 protected:
     void SetUp() override {
+        // 初始化方块注册表
+        VanillaBlocks::initialize();
+
         ServerWorldConfig config;
         config.viewDistance = 10;
         config.dimension = 0;
@@ -139,39 +143,56 @@ TEST_F(ServerWorldTest, MultipleChunks) {
 // ============================================================================
 
 TEST_F(ServerWorldTest, SetBlock_CreatesChunk) {
-    world->setBlock(0, 64, 0, &VanillaBlocks::STONE->defaultState());
+    const BlockState* stoneState = &VanillaBlocks::STONE->defaultState();
+    world->setBlock(0, 64, 0, stoneState);
 
     EXPECT_TRUE(world->hasChunk(0, 0));
 }
 
 TEST_F(ServerWorldTest, SetBlock_GetBlock) {
-    world->setBlock(10, 50, 20, BlockId::Dirt, 5);
+    const BlockState* stoneState = &VanillaBlocks::STONE->defaultState();
+    world->setBlock(10, 50, 20, stoneState);
 
-    BlockState block = world->getBlock(10, 50, 20);
-    EXPECT_EQ(block.id(), BlockId::Dirt);
-    EXPECT_EQ(block.data(), 5);
+    const BlockState* block = world->getBlockState(10, 50, 20);
+    ASSERT_NE(block, nullptr);
+    EXPECT_EQ(block->blockId(), VanillaBlocks::STONE->blockId());
 }
 
 TEST_F(ServerWorldTest, GetBlock_NonExistentChunk) {
-    BlockState block = world->getBlock(1000, 64, 1000);
-    EXPECT_EQ(block.id(), BlockId::Air);
+    const BlockState* block = world->getBlockState(1000, 64, 1000);
+    // 不存在的区块应该返回空气
+    ASSERT_NE(block, nullptr);
+    EXPECT_TRUE(block->isAir());
 }
 
 TEST_F(ServerWorldTest, SetBlock_NegativeCoordinates) {
-    world->setBlock(-10, 64, -20, BlockId::GrassBlock, 0);
+    const BlockState* grassState = &VanillaBlocks::GRASS_BLOCK->defaultState();
+    world->setBlock(-10, 64, -20, grassState);
 
-    BlockState block = world->getBlock(-10, 64, -20);
-    EXPECT_EQ(block.id(), BlockId::GrassBlock);
+    const BlockState* block = world->getBlockState(-10, 64, -20);
+    ASSERT_NE(block, nullptr);
+    EXPECT_EQ(block->blockId(), VanillaBlocks::GRASS_BLOCK->blockId());
 }
 
 TEST_F(ServerWorldTest, SetBlock_MultipleBlocks) {
-    world->setBlock(0, 64, 0, &VanillaBlocks::STONE->defaultState());
-    world->setBlock(1, 64, 0, BlockId::Dirt, 0);
-    world->setBlock(0, 65, 0, BlockId::GrassBlock, 0);
+    const BlockState* stoneState = &VanillaBlocks::STONE->defaultState();
+    const BlockState* dirtState = &VanillaBlocks::DIRT->defaultState();
+    const BlockState* grassState = &VanillaBlocks::GRASS_BLOCK->defaultState();
 
-    EXPECT_EQ(world->getBlock(0, 64, 0).id(), BlockId::Stone);
-    EXPECT_EQ(world->getBlock(1, 64, 0).id(), BlockId::Dirt);
-    EXPECT_EQ(world->getBlock(0, 65, 0).id(), BlockId::GrassBlock);
+    world->setBlock(0, 64, 0, stoneState);
+    world->setBlock(1, 64, 0, dirtState);
+    world->setBlock(0, 65, 0, grassState);
+
+    const BlockState* block0 = world->getBlockState(0, 64, 0);
+    const BlockState* block1 = world->getBlockState(1, 64, 0);
+    const BlockState* block2 = world->getBlockState(0, 65, 0);
+
+    ASSERT_NE(block0, nullptr);
+    ASSERT_NE(block1, nullptr);
+    ASSERT_NE(block2, nullptr);
+    EXPECT_EQ(block0->blockId(), VanillaBlocks::STONE->blockId());
+    EXPECT_EQ(block1->blockId(), VanillaBlocks::DIRT->blockId());
+    EXPECT_EQ(block2->blockId(), VanillaBlocks::GRASS_BLOCK->blockId());
 }
 
 // ============================================================================

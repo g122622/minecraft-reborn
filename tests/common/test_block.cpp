@@ -133,7 +133,7 @@ TEST(MaterialTest, MaterialBuilder) {
 // ============================================================================
 
 TEST(BlockPropertiesTest, BasicProperties) {
-    BlockProperties props(Material::ROCK);
+    BlockProperties props{Material::ROCK};
 
     EXPECT_EQ(&props.material(), &Material::ROCK);
     EXPECT_EQ(props.hardness(), 0.0f);
@@ -145,7 +145,7 @@ TEST(BlockPropertiesTest, BasicProperties) {
 }
 
 TEST(BlockPropertiesTest, ChainProperties) {
-    BlockProperties props = BlockProperties(Material::WOOD)
+    BlockProperties props = BlockProperties{Material::WOOD}
         .hardness(2.0f)
         .resistance(3.0f)
         .lightLevel(15)
@@ -158,18 +158,18 @@ TEST(BlockPropertiesTest, ChainProperties) {
 }
 
 TEST(BlockPropertiesTest, SpecialFlags) {
-    BlockProperties noCollision = BlockProperties(Material::ROCK).noCollision();
+    BlockProperties noCollision = BlockProperties{Material::ROCK}.noCollision();
     EXPECT_FALSE(noCollision.hasCollision());
 
-    BlockProperties notSolid = BlockProperties(Material::GLASS).notSolid();
+    BlockProperties notSolid = BlockProperties{Material::GLASS}.notSolid();
     EXPECT_FALSE(notSolid.isSolid());
 
-    BlockProperties replaceable = BlockProperties(Material::PLANT).replaceable();
+    BlockProperties replaceable = BlockProperties{Material::PLANT}.replaceable();
     EXPECT_TRUE(replaceable.isReplaceable());
 }
 
 TEST(BlockPropertiesTest, Strength) {
-    BlockProperties props = BlockProperties(Material::ROCK).strength(2.5f);
+    BlockProperties props = BlockProperties{Material::ROCK}.strength(2.5f);
 
     EXPECT_EQ(props.hardness(), 2.5f);
     EXPECT_EQ(props.resistance(), 2.5f);
@@ -180,7 +180,7 @@ TEST(BlockPropertiesTest, Strength) {
 // ============================================================================
 
 TEST(StateContainerTest, EmptyContainer) {
-    TestBlock block(BlockProperties(Material::ROCK).hardness(1.0f));
+    TestBlock block{BlockProperties{Material::ROCK}.hardness(1.0f)};
 
     const auto& container = block.stateContainer();
 
@@ -193,7 +193,7 @@ TEST(StateContainerTest, EmptyContainer) {
 }
 
 TEST(StateContainerTest, SingleProperty) {
-    TestBlockWithAxis block(BlockProperties(Material::WOOD));
+    TestBlockWithAxis block{BlockProperties{Material::WOOD}};
 
     const auto& container = block.stateContainer();
 
@@ -211,7 +211,7 @@ TEST(StateContainerTest, SingleProperty) {
 }
 
 TEST(StateContainerTest, MultipleProperties) {
-    TestBlockWithMultiple block(BlockProperties(Material::ROCK));
+    TestBlockWithMultiple block{BlockProperties{Material::ROCK}};
 
     const auto& container = block.stateContainer();
 
@@ -220,7 +220,7 @@ TEST(StateContainerTest, MultipleProperties) {
 }
 
 TEST(StateContainerTest, GetProperty) {
-    TestBlockWithFacing block(BlockProperties(Material::ROCK));
+    TestBlockWithFacing block{BlockProperties{Material::ROCK}};
 
     const auto& container = block.stateContainer();
 
@@ -238,7 +238,7 @@ TEST(StateContainerTest, GetProperty) {
 // ============================================================================
 
 TEST(BlockStateTest, GetProperty) {
-    TestBlockWithAxis block(BlockProperties(Material::WOOD));
+    TestBlockWithAxis block{BlockProperties{Material::WOOD}};
     const auto& state = block.defaultState();
 
     Axis axis = state.get(TestBlockWithAxis::AXIS());
@@ -247,7 +247,7 @@ TEST(BlockStateTest, GetProperty) {
 }
 
 TEST(BlockStateTest, SetProperty) {
-    TestBlockWithAxis block(BlockProperties(Material::WOOD));
+    TestBlockWithAxis block{BlockProperties{Material::WOOD}};
     const auto& state = block.defaultState();
 
     // 设置新值
@@ -260,7 +260,7 @@ TEST(BlockStateTest, SetProperty) {
 }
 
 TEST(BlockStateTest, SetPropertySameValue) {
-    TestBlockWithAxis block(BlockProperties(Material::WOOD));
+    TestBlockWithAxis block{BlockProperties{Material::WOOD}};
     const auto& state = block.defaultState();
 
     // 设置相同的值应该返回同一个状态
@@ -269,7 +269,7 @@ TEST(BlockStateTest, SetPropertySameValue) {
 }
 
 TEST(BlockStateTest, CycleProperty) {
-    TestBlockWithAxis block(BlockProperties(Material::WOOD));
+    TestBlockWithAxis block{BlockProperties{Material::WOOD}};
     const auto& state = block.defaultState();
 
     // 循环: X -> Y
@@ -286,7 +286,7 @@ TEST(BlockStateTest, CycleProperty) {
 }
 
 TEST(BlockStateTest, HasProperty) {
-    TestBlockWithAxis block(BlockProperties(Material::WOOD));
+    TestBlockWithAxis block{BlockProperties{Material::WOOD}};
     const auto& state = block.defaultState();
 
     EXPECT_TRUE(state.hasProperty(TestBlockWithAxis::AXIS()));
@@ -294,19 +294,19 @@ TEST(BlockStateTest, HasProperty) {
 }
 
 TEST(BlockStateTest, StateId) {
-    TestBlockWithAxis block(BlockProperties(Material::WOOD));
+    TestBlockWithAxis block{BlockProperties{Material::WOOD}};
     const auto& states = block.stateContainer().validStates();
 
     // 每个状态应该有不同的ID
     std::set<u32> ids;
-    for (const auto& state : states) {
-        ids.insert(state->stateId());
+    for (const auto& s : states) {
+        ids.insert(s->stateId());
     }
     EXPECT_EQ(ids.size(), states.size());
 }
 
 TEST(BlockStateTest, ToString) {
-    TestBlockWithAxis block(BlockProperties(Material::WOOD));
+    TestBlockWithAxis block{BlockProperties{Material::WOOD}};
     const auto& state = block.defaultState();
 
     String str = state.toString();
@@ -315,7 +315,7 @@ TEST(BlockStateTest, ToString) {
 }
 
 TEST(BlockStateTest, MultiplePropertiesInteraction) {
-    TestBlockWithMultiple block(BlockProperties(Material::ROCK));
+    TestBlockWithMultiple block{BlockProperties{Material::ROCK}};
     const auto& state = block.defaultState();
 
     // 获取并设置多个属性
@@ -336,7 +336,7 @@ TEST(BlockStateTest, MultiplePropertiesInteraction) {
 // ============================================================================
 
 TEST(BlockTest, BasicProperties) {
-    TestBlock block(BlockProperties(Material::ROCK).hardness(1.5f).resistance(6.0f));
+    TestBlock block{BlockProperties{Material::ROCK}.hardness(1.5f).resistance(6.0f)};
 
     EXPECT_EQ(block.hardness(), 1.5f);
     EXPECT_EQ(block.resistance(), 6.0f);
@@ -344,7 +344,7 @@ TEST(BlockTest, BasicProperties) {
 }
 
 TEST(BlockTest, DefaultState) {
-    TestBlock block(BlockProperties(Material::ROCK));
+    TestBlock block{BlockProperties{Material::ROCK}};
 
     const auto& state = block.defaultState();
     EXPECT_EQ(&state.owner(), &block);
@@ -352,12 +352,12 @@ TEST(BlockTest, DefaultState) {
 
 TEST(BlockTest, IsAir) {
     // 普通方块
-    TestBlock normalBlock(BlockProperties(Material::ROCK));
+    TestBlock normalBlock{BlockProperties{Material::ROCK}};
     EXPECT_FALSE(normalBlock.isAir(normalBlock.defaultState()));
 }
 
 TEST(BlockTest, StateCount) {
-    TestBlockWithMultiple block(BlockProperties(Material::ROCK));
+    TestBlockWithMultiple block{BlockProperties{Material::ROCK}};
 
     // 4 directions * 2 lit values = 8 states
     EXPECT_EQ(block.stateContainer().stateCount(), 8u);
@@ -369,19 +369,19 @@ TEST(BlockTest, StateCount) {
 
 TEST(BlockRegistryTest, RegisterBlock) {
     auto& block = BlockRegistry::instance().registerBlock<TestBlock>(
-        ResourceLocation("test:test_block"),
-        BlockProperties(Material::ROCK)
+        ResourceLocation("test:test_block_reg1"),
+        BlockProperties{Material::ROCK}
     );
 
     EXPECT_NE(&block, nullptr);
-    EXPECT_EQ(block.blockLocation(), ResourceLocation("test:test_block"));
+    EXPECT_EQ(block.blockLocation(), ResourceLocation("test:test_block_reg1"));
     EXPECT_EQ(block.blockId(), 1u);  // ID 0 is reserved for air
 }
 
 TEST(BlockRegistryTest, GetBlockById) {
     auto& registered = BlockRegistry::instance().registerBlock<TestBlock>(
-        ResourceLocation("test:test_block2"),
-        BlockProperties(Material::ROCK)
+        ResourceLocation("test:test_block_reg2"),
+        BlockProperties{Material::ROCK}
     );
 
     Block* retrieved = BlockRegistry::instance().getBlock(registered.blockId());
@@ -390,18 +390,18 @@ TEST(BlockRegistryTest, GetBlockById) {
 
 TEST(BlockRegistryTest, GetBlockByLocation) {
     auto& registered = BlockRegistry::instance().registerBlock<TestBlock>(
-        ResourceLocation("test:test_block3"),
-        BlockProperties(Material::ROCK)
+        ResourceLocation("test:test_block_reg3"),
+        BlockProperties{Material::ROCK}
     );
 
-    Block* retrieved = BlockRegistry::instance().getBlock(ResourceLocation("test:test_block3"));
+    Block* retrieved = BlockRegistry::instance().getBlock(ResourceLocation("test:test_block_reg3"));
     EXPECT_EQ(retrieved, &registered);
 }
 
 TEST(BlockRegistryTest, GetBlockState) {
     auto& block = BlockRegistry::instance().registerBlock<TestBlockWithAxis>(
-        ResourceLocation("test:block_with_axis"),
-        BlockProperties(Material::WOOD)
+        ResourceLocation("test:block_with_axis_reg"),
+        BlockProperties{Material::WOOD}
     );
 
     // 获取默认状态
@@ -412,12 +412,12 @@ TEST(BlockRegistryTest, GetBlockState) {
 
 TEST(BlockRegistryTest, ForEachBlock) {
     BlockRegistry::instance().registerBlock<TestBlock>(
-        ResourceLocation("test:blockA"),
-        BlockProperties(Material::ROCK)
+        ResourceLocation("test:blockA_reg"),
+        BlockProperties{Material::ROCK}
     );
     BlockRegistry::instance().registerBlock<TestBlock>(
-        ResourceLocation("test:blockB"),
-        BlockProperties(Material::WOOD)
+        ResourceLocation("test:blockB_reg"),
+        BlockProperties{Material::WOOD}
     );
 
     int count = 0;
@@ -430,8 +430,8 @@ TEST(BlockRegistryTest, ForEachBlock) {
 
 TEST(BlockRegistryTest, ForEachBlockState) {
     BlockRegistry::instance().registerBlock<TestBlockWithAxis>(
-        ResourceLocation("test:block_with_axis2"),
-        BlockProperties(Material::WOOD)
+        ResourceLocation("test:block_with_axis_reg2"),
+        BlockProperties{Material::WOOD}
     );
 
     int count = 0;
@@ -469,7 +469,7 @@ TEST(VanillaBlocksTest, Initialization) {
 TEST(BlockStateTest, Caching) {
     auto& block = BlockRegistry::instance().registerBlock<TestBlockWithMultiple>(
         ResourceLocation("test:block_caching"),
-        BlockProperties(Material::ROCK)
+        BlockProperties{Material::ROCK}
     );
 
     const auto& state1 = block.defaultState();

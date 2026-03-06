@@ -3,7 +3,7 @@
 
 #include "common/renderer/MeshTypes.hpp"
 #include "common/renderer/ChunkMesher.hpp"
-#include "common/world/BlockID.hpp"
+#include "common/world/block/VanillaBlocks.hpp"
 
 using namespace mr;
 
@@ -329,7 +329,7 @@ TEST(ChunkMeshCache, Clear) {
 class ChunkMesherTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        BlockRegistry::instance().initialize();
+        VanillaBlocks::initialize();
 
         // 创建一个简单的测试区块
         testChunk = std::make_unique<ChunkData>(0, 0);
@@ -353,7 +353,7 @@ TEST_F(ChunkMesherTest, GenerateEmptyChunk) {
 
 TEST_F(ChunkMesherTest, GenerateSingleBlock) {
     // 放置一个方块
-    testChunk->setBlock(8, 64, 8, BlockState(BlockId::Stone));
+    testChunk->setBlock(8, 64, 8, &VanillaBlocks::STONE->defaultState());
 
     MeshData mesh;
     ChunkMesher::generateMesh(*testChunk, mesh, nullptr);
@@ -365,8 +365,8 @@ TEST_F(ChunkMesherTest, GenerateSingleBlock) {
 
 TEST_F(ChunkMesherTest, GenerateTwoAdjacentBlocks) {
     // 放置两个相邻的方块
-    testChunk->setBlock(8, 64, 8, BlockState(BlockId::Stone));
-    testChunk->setBlock(9, 64, 8, BlockState(BlockId::Stone));
+    testChunk->setBlock(8, 64, 8, &VanillaBlocks::STONE->defaultState());
+    testChunk->setBlock(9, 64, 8, &VanillaBlocks::STONE->defaultState());
 
     MeshData mesh;
     ChunkMesher::generateMesh(*testChunk, mesh, nullptr);
@@ -382,7 +382,7 @@ TEST_F(ChunkMesherTest, GenerateLayer) {
     // 创建一个16x16的层
     for (int x = 0; x < 16; ++x) {
         for (int z = 0; z < 16; ++z) {
-            testChunk->setBlock(x, 64, z, BlockState(BlockId::Stone));
+            testChunk->setBlock(x, 64, z, &VanillaBlocks::STONE->defaultState());
         }
     }
 

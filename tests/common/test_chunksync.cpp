@@ -2,6 +2,7 @@
 
 #include "common/network/ChunkSync.hpp"
 #include "common/world/chunk/ChunkData.hpp"
+#include "common/world/block/VanillaBlocks.hpp"
 
 using namespace mr;
 using namespace mr::network;
@@ -301,7 +302,14 @@ TEST(ChunkSyncManager, BlockToChunk) {
 // ChunkSerializer 测试
 // ============================================================================
 
-TEST(ChunkSerializer, SerializeEmptyChunk) {
+class ChunkSerializerTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        VanillaBlocks::initialize();
+    }
+};
+
+TEST_F(ChunkSerializerTest, SerializeEmptyChunk) {
     ChunkData chunk(10, -5);
 
     auto result = ChunkSerializer::serializeChunk(chunk);
@@ -311,16 +319,17 @@ TEST(ChunkSerializer, SerializeEmptyChunk) {
     EXPECT_FALSE(data.empty());
 }
 
-TEST(ChunkSerializer, SerializeChunkWithBlocks) {
+TEST_F(ChunkSerializerTest, SerializeChunkWithBlocks) {
     ChunkData chunk(0, 0);
 
     // 填充一些方块
     auto section = chunk.createSection(0);
     ASSERT_NE(section, nullptr);
 
+    u32 stoneStateId = VanillaBlocks::STONE->defaultState().stateId();
     for (i32 x = 0; x < 16; ++x) {
         for (i32 z = 0; z < 16; ++z) {
-            section->setBlock(x, 0, z, BlockState(BlockId::Stone, 0));
+            section->setBlockStateId(x, 0, z, stoneStateId);
         }
     }
 
@@ -335,7 +344,7 @@ TEST(ChunkSerializer, SerializeChunkWithBlocks) {
     EXPECT_EQ(data.size(), expectedSize);
 }
 
-TEST(ChunkSerializer, DeserializeChunk) {
+TEST_F(ChunkSerializerTest, DeserializeChunk) {
     // 创建并序列化一个区块
     ChunkData original(100, -200);
 
@@ -343,8 +352,10 @@ TEST(ChunkSerializer, DeserializeChunk) {
     ASSERT_NE(section, nullptr);
 
     // 设置一些方块
-    section->setBlock(5, 5, 5, BlockState(BlockId::Stone, 0));
-    section->setBlock(10, 10, 10, BlockState(BlockId::Dirt, 2));
+    u32 stoneStateId = VanillaBlocks::STONE->defaultState().stateId();
+    u32 dirtStateId = VanillaBlocks::DIRT->defaultState().stateId();
+    section->setBlockStateId(5, 5, 5, stoneStateId);
+    section->setBlockStateId(10, 10, 10, dirtStateId);
 
     auto serializeResult = ChunkSerializer::serializeChunk(original);
     ASSERT_TRUE(serializeResult.success());
@@ -359,7 +370,7 @@ TEST(ChunkSerializer, DeserializeChunk) {
     EXPECT_TRUE(restored->isFullyGenerated());
 }
 
-TEST(ChunkSerializer, SectionMask) {
+TEST_F(ChunkSerializerTest, SectionMask) {
     ChunkData chunk(0, 0);
 
     // 空区块，位掩码应为0
@@ -368,16 +379,17 @@ TEST(ChunkSerializer, SectionMask) {
 
     // 创建一个非空区块段
     auto section = chunk.createSection(5);
-    section->setBlock(0, 0, 0, BlockState(BlockId::Stone, 0));
+    u32 stoneStateId = VanillaBlocks::STONE->defaultState().stateId();
+    section->setBlockStateId(0, 0, 0, stoneStateId);
 
     mask = ChunkSerializer::calculateSectionMask(chunk);
     EXPECT_EQ(mask, (1 << 5));  // 第5位应该被设置
 }
 
-TEST(ChunkSerializer, SectionSize) {
+TEST_F(ChunkSerializerTest, SectionSize) {
     ChunkSection section;
 
     size_t size = ChunkSerializer::calculateSectionSize(section);
-    // 简化版：方块数据 (4096 * 2) + 天空光照 (2048) + 方块光照 (2048) + 计数 (2)
-    EXPECT_EQ(size, 2 + 4096 * 2 + 2048 + 2048);
+    // 新格式: 方块数据 (4096 * 4) + 天空光照 (2048) + 方块光照 (2048) + 计数 (2)
+    EXPECT_EQ(size, 2 + ChunkSection::VOLUME * 4 + 2048 + 2048);
 }
