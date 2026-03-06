@@ -9,7 +9,21 @@ namespace mr::server {
 // ============================================================================
 
 ServerChunkManager::ServerChunkManager(ServerWorld& world, std::unique_ptr<IChunkGenerator> generator)
-    : m_world(world)
+    : m_world(&world)
+    , m_generator(std::move(generator))
+    , m_workerPool(-1)  // 自动检测线程数
+{
+    // 设置票据管理器回调
+    m_ticketManager.setLevelChangeCallback([this](ChunkCoord x, ChunkCoord z, i32 oldLevel, i32 newLevel) {
+        // 级别变化时创建或更新 ChunkHolder
+        if (newLevel <= world::ChunkLoadTicketManager::MAX_LOADED_LEVEL) {
+            getOrCreateHolder(x, z);
+        }
+    });
+}
+
+ServerChunkManager::ServerChunkManager(std::unique_ptr<IChunkGenerator> generator)
+    : m_world(nullptr)
     , m_generator(std::move(generator))
     , m_workerPool(-1)  // 自动检测线程数
 {

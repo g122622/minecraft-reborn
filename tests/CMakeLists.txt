@@ -33,6 +33,7 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/ChunkWorkerPool.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/ServerChunkManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/world/SimpleChunkGenerator.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpServer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpSession.cpp
         ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp

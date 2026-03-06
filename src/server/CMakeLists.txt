@@ -10,6 +10,7 @@ add_executable(minecraft-server
     world/ServerWorld.cpp
     world/ChunkWorkerPool.cpp
     world/ServerChunkManager.cpp
+    world/SimpleChunkGenerator.cpp
 )
 
 target_link_libraries(minecraft-server

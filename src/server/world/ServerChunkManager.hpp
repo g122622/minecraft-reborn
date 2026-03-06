@@ -48,11 +48,17 @@ public:
     // ============================================================================
 
     /**
-     * @brief 创建区块管理器
+     * @brief 创建区块管理器（带 ServerWorld）
      * @param world 服务端世界引用
      * @param generator 区块生成器
      */
     ServerChunkManager(ServerWorld& world, std::unique_ptr<IChunkGenerator> generator);
+
+    /**
+     * @brief 创建区块管理器（无 ServerWorld，用于 IntegratedServer）
+     * @param generator 区块生成器
+     */
+    explicit ServerChunkManager(std::unique_ptr<IChunkGenerator> generator);
 
     ~ServerChunkManager();
 
@@ -289,7 +295,7 @@ private:
     // 成员变量
     // ============================================================================
 
-    ServerWorld& m_world;
+    ServerWorld* m_world = nullptr;  // 可选，IntegratedServer 不需要
     std::unique_ptr<IChunkGenerator> m_generator;
 
     // 区块持有者

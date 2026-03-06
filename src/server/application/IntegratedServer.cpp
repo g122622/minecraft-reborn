@@ -1,4 +1,5 @@
 #include "IntegratedServer.hpp"
+#include "server/world/SimpleChunkGenerator.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
 #include "common/network/Packet.hpp"
 #include "common/network/ChunkSync.hpp"
@@ -38,8 +39,12 @@ Result<void> IntegratedServer::initialize(const IntegratedServerConfig& config) 
     m_connectionPair->connect();
     m_serverEndpoint = &m_connectionPair->serverEndpoint();
 
-    // 初始化地形生成器
-    m_terrainGenerator = TerrainGenFactory::createStandard(m_config.seed);
+    // 创建区块管理器（使用 SimpleChunkGenerator 适配现有的 ITerrainGenerator）
+    auto generator = std::make_unique<SimpleChunkGenerator>(m_config.seed);
+    m_chunkManager = std::make_unique<ServerChunkManager>(std::move(generator));
+    m_chunkManager->initialize();
+    m_chunkManager->startWorkers();
+    m_chunkManager->setViewDistance(m_config.viewDistance);
 
     // 初始化票据管理器
     m_ticketManager = std::make_unique<world::ChunkLoadTicketManager>();
@@ -70,16 +75,32 @@ void IntegratedServer::stop() {
     spdlog::info("Stopping integrated server...");
     m_running = false;
 
-    // 断开连接以唤醒可能阻塞的线程
+    // 1. 停止 Worker 线程（立即取消未完成任务）
+    if (m_chunkManager) {
+        m_chunkManager->stopWorkers();
+    }
+
+    // 2. 断开连接以唤醒可能阻塞的线程
     if (m_connectionPair) {
         m_connectionPair->disconnect();
     }
 
-    // 等待服务端线程结束
+    // 3. 等待服务端线程结束
     if (m_serverThread && m_serverThread->joinable()) {
         m_serverThread->join();
     }
     m_serverThread.reset();
+
+    // 4. 清理待发送队列
+    {
+        std::lock_guard<std::mutex> lock(m_pendingSendsMutex);
+        m_pendingSends.clear();
+    }
+
+    // 5. 关闭区块管理器
+    if (m_chunkManager) {
+        m_chunkManager->shutdown();
+    }
 
     shutdown();
     spdlog::info("Integrated server stopped");
@@ -98,7 +119,7 @@ void IntegratedServer::mainLoop() {
 
     spdlog::info("Integrated server started ({} TPS)", m_config.tickRate);
 
-    while (m_running) {
+    while (m_running.load(std::memory_order_acquire)) {
         auto startTime = clock::now();
 
         tick();
@@ -110,7 +131,7 @@ void IntegratedServer::mainLoop() {
         }
     }
 
-    shutdown();
+    // 注意：不要在这里调用 shutdown()，stop() 方法会处理清理
 }
 
 void IntegratedServer::tick() {
@@ -130,9 +151,17 @@ void IntegratedServer::tick() {
         return;
     }
 
+    // 处理待发送区块（从 Worker 线程推送）
+    processPendingChunkSends();
+
     // 更新票据管理器（清理过期票据等）
     if (m_ticketManager) {
         m_ticketManager->tick();
+    }
+
+    // 更新区块管理器
+    if (m_chunkManager) {
+        m_chunkManager->tick();
     }
 
     // 心跳（每 15 秒）
@@ -146,8 +175,8 @@ void IntegratedServer::tick() {
 }
 
 void IntegratedServer::shutdown() {
-    m_chunks.clear();
-    m_terrainGenerator.reset();
+    // 清理区块管理器
+    m_chunkManager.reset();
 
     if (m_connectionPair) {
         m_connectionPair->disconnect();
@@ -158,44 +187,76 @@ void IntegratedServer::shutdown() {
     m_initialized = false;
 }
 
-ChunkData* IntegratedServer::getChunkSync(ChunkCoord x, ChunkCoord z) {
-    // 如果服务器已停止，返回 nullptr
-    if (!m_running.load()) {
-        return nullptr;
-    }
+void IntegratedServer::requestChunkAsync(ChunkCoord x, ChunkCoord z) {
+    if (!m_running.load()) return;
 
     ChunkId id(x, z);
-
-    auto it = m_chunks.find(id);
-    if (it != m_chunks.end()) {
-        return it->second.data.get();
+    {
+        std::lock_guard<std::mutex> lock(m_clientMutex);
+        if (m_client.loadedChunks.count(id)) return;  // 已发送
     }
 
-    // 再次检查服务器是否仍在运行（生成前检查）
-    if (!m_running.load()) {
-        return nullptr;
+    if (!m_chunkManager) return;
+
+    // 异步请求区块
+    m_chunkManager->getChunkAsync(x, z,
+        [this, x, z, id](bool success, ChunkData* chunk) {
+            // Worker 线程回调
+            if (!m_running.load() || !success || !chunk) return;
+
+            // 检查是否已发送
+            {
+                std::lock_guard<std::mutex> lock(m_clientMutex);
+                if (m_client.loadedChunks.count(id)) return;
+            }
+
+            // 序列化区块数据
+            auto result = network::ChunkSerializer::serializeChunk(*chunk);
+            if (result.failed()) {
+                spdlog::error("Failed to serialize chunk ({}, {}): {}", x, z, result.error().message());
+                return;
+            }
+
+            // 推送到主线程队列
+            std::lock_guard<std::mutex> lock(m_pendingSendsMutex);
+            m_pendingSends.push_back({x, z, std::move(result.value())});
+        },
+        &ChunkStatus::FULL
+    );
+}
+
+void IntegratedServer::processPendingChunkSends() {
+    // 移动待发送队列到本地
+    std::vector<PendingChunkSend> sends;
+    {
+        std::lock_guard<std::mutex> lock(m_pendingSendsMutex);
+        sends = std::move(m_pendingSends);
+        m_pendingSends.clear();
     }
 
-    // 创建新区块
-    IntegratedChunk chunk;
-    chunk.data = std::make_unique<ChunkData>(x, z);
+    // 发送所有待发送区块
+    for (const auto& send : sends) {
+        if (!m_running.load()) return;
 
-    // 生成地形
-    if (m_terrainGenerator) {
-        m_terrainGenerator->generateChunk(*chunk.data);
+        // 检查客户端是否仍然登录
+        bool loggedIn;
+        {
+            std::lock_guard<std::mutex> lock(m_clientMutex);
+            loggedIn = m_client.loggedIn;
+        }
+        if (!loggedIn) return;
+
+        ChunkId id(send.x, send.z);
+        {
+            std::lock_guard<std::mutex> lock(m_clientMutex);
+            if (m_client.loadedChunks.count(id)) continue;  // 已发送
+            m_client.loadedChunks.insert(id);
+        }
+
+        spdlog::debug("Sending chunk ({}, {}) to client, size: {} bytes",
+                      send.x, send.z, send.serializedData.size());
+        sendChunkData(send.x, send.z, send.serializedData);
     }
-    chunk.isGenerated = true;
-
-    // 最后检查服务器是否仍在运行（生成后检查）
-    if (!m_running.load()) {
-        return nullptr;
-    }
-
-    auto* ptr = chunk.data.get();
-    m_chunks[id] = std::move(chunk);
-
-    spdlog::debug("Generated chunk ({}, {})", x, z);
-    return ptr;
 }
 
 void IntegratedServer::sendChunkToClient(ChunkCoord x, ChunkCoord z) {
@@ -207,85 +268,15 @@ void IntegratedServer::sendChunkToClient(ChunkCoord x, ChunkCoord z) {
     ChunkId id(x, z);
 
     // 检查是否已发送
-    if (m_client.loadedChunks.find(id) != m_client.loadedChunks.end()) {
-        return;
-    }
-
-    // 获取或生成区块
-    ChunkData* chunk = getChunkSync(x, z);
-    if (!chunk) {
-        spdlog::error("Failed to get/generate chunk ({}, {})", x, z);
-        return;
-    }
-
-    // 再次检查服务器是否仍在运行
-    if (!m_running.load()) {
-        return;
-    }
-
-    // 序列化区块数据
-    auto result = network::ChunkSerializer::serializeChunk(*chunk);
-    if (result.failed()) {
-        spdlog::error("Failed to serialize chunk ({}, {}): {}", x, z, result.error().message());
-        return;
-    }
-
-    spdlog::debug("Sending chunk ({}, {}) to client, size: {} bytes", x, z, result.value().size());
-    sendChunkData(x, z, result.value());
-    m_client.loadedChunks.insert(id);
-}
-
-void IntegratedServer::updateChunkSubscription() {
-    // 如果服务器已停止，跳过
-    if (!m_running.load()) {
-        return;
-    }
-
-    // 计算玩家当前区块
-    ChunkCoord playerChunkX = static_cast<ChunkCoord>(std::floor(m_client.x / 16.0));
-    ChunkCoord playerChunkZ = static_cast<ChunkCoord>(std::floor(m_client.z / 16.0));
-
-    // 需要加载的区块
-    std::vector<ChunkPos> chunksToLoad;
-    for (i32 dx = -m_config.viewDistance; dx <= m_config.viewDistance; ++dx) {
-        for (i32 dz = -m_config.viewDistance; dz <= m_config.viewDistance; ++dz) {
-            f32 dist = std::sqrt(static_cast<f32>(dx * dx + dz * dz));
-            if (dist <= static_cast<f32>(m_config.viewDistance)) {
-                ChunkCoord cx = playerChunkX + dx;
-                ChunkCoord cz = playerChunkZ + dz;
-                chunksToLoad.emplace_back(cx, cz);
-            }
-        }
-    }
-
-    // 发送需要加载的区块（检查服务器是否仍在运行）
-    for (const auto& pos : chunksToLoad) {
-        if (!m_running.load()) {
+    {
+        std::lock_guard<std::mutex> lock(m_clientMutex);
+        if (m_client.loadedChunks.find(id) != m_client.loadedChunks.end()) {
             return;
         }
-        sendChunkToClient(pos.x, pos.z);
     }
 
-    // 需要卸载的区块
-    std::vector<ChunkId> chunksToUnload;
-    for (const auto& id : m_client.loadedChunks) {
-        bool found = false;
-        for (const auto& pos : chunksToLoad) {
-            if (id.x == pos.x && id.z == pos.z) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            chunksToUnload.push_back(id);
-        }
-    }
-
-    // 发送卸载区块
-    for (const auto& id : chunksToUnload) {
-        sendUnloadChunk(id.x, id.z);
-        m_client.loadedChunks.erase(id);
-    }
+    // 异步请求区块
+    requestChunkAsync(x, z);
 }
 
 void IntegratedServer::onPacketReceived(const u8* data, size_t size) {
@@ -434,12 +425,13 @@ void IntegratedServer::onChunkLevelChanged(ChunkCoord x, ChunkCoord z, i32 oldLe
     bool isLoaded = world::shouldChunkLoad(newLevel);
 
     if (!wasLoaded && isLoaded) {
-        // 区块从卸载变为加载
+        // 区块从卸载变为加载 - 异步请求
         spdlog::debug("Chunk ({}, {}) loading: level {} -> {}", x, z, oldLevel, newLevel);
-        sendChunkToClient(x, z);
+        requestChunkAsync(x, z);
     } else if (wasLoaded && !isLoaded) {
         // 区块从加载变为卸载
         spdlog::debug("Chunk ({}, {}) unloading: level {} -> {}", x, z, oldLevel, newLevel);
+        std::lock_guard<std::mutex> lock(m_clientMutex);
         if (m_client.loadedChunks.count(id) > 0) {
             sendUnloadChunk(x, z);
             m_client.loadedChunks.erase(id);

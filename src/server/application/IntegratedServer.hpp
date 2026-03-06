@@ -5,16 +5,18 @@
 #include "common/network/LocalConnection.hpp"
 #include "common/network/ProtocolPackets.hpp"
 #include "common/network/ChunkSync.hpp"
-#include "common/world/TerrainGenerator.hpp"
-#include "common/world/chunk/ChunkData.hpp"
+#include "common/world/chunk/ChunkStatus.hpp"
 #include "common/world/chunk/ChunkLoadTicketManager.hpp"
 #include "common/entity/Player.hpp"
+#include "server/world/ServerChunkManager.hpp"
 #include <memory>
 #include <thread>
 #include <atomic>
 #include <functional>
 #include <unordered_map>
 #include <unordered_set>
+#include <mutex>
+#include <vector>
 
 namespace mr::server {
 
@@ -30,11 +32,14 @@ struct IntegratedServerConfig {
 };
 
 /**
- * @brief 简化的区块数据
+ * @brief 待发送区块数据
+ *
+ * 用于从 Worker 线程传递序列化后的区块数据到主线程。
  */
-struct IntegratedChunk {
-    std::unique_ptr<ChunkData> data;
-    bool isGenerated = false;
+struct PendingChunkSend {
+    ChunkCoord x;
+    ChunkCoord z;
+    std::vector<u8> serializedData;
 };
 
 /**
@@ -92,9 +97,9 @@ private:
     void shutdown();
 
     // 区块管理
-    ChunkData* getChunkSync(ChunkCoord x, ChunkCoord z);
+    void requestChunkAsync(ChunkCoord x, ChunkCoord z);
+    void processPendingChunkSends();
     void sendChunkToClient(ChunkCoord x, ChunkCoord z);
-    void updateChunkSubscription();
 
     // 票据系统
     void handlePlayerChunkMove(ChunkCoord newChunkX, ChunkCoord newChunkZ);
@@ -122,11 +127,12 @@ private:
     std::atomic<bool> m_running{false};
     std::atomic<bool> m_initialized{false};
 
-    // 地形生成器
-    std::unique_ptr<ITerrainGenerator> m_terrainGenerator;
+    // 区块管理器（异步生成）
+    std::unique_ptr<ServerChunkManager> m_chunkManager;
 
-    // 区块存储
-    std::unordered_map<ChunkId, IntegratedChunk> m_chunks;
+    // 跨线程发送队列
+    std::vector<PendingChunkSend> m_pendingSends;
+    std::mutex m_pendingSendsMutex;
 
     // 服务端线程
     std::unique_ptr<std::thread> m_serverThread;
@@ -152,6 +158,9 @@ private:
         std::unordered_set<ChunkId> loadedChunks;
     };
     ClientInfo m_client;
+
+    // 客户端状态保护（用于跨线程访问）
+    mutable std::mutex m_clientMutex;
 
     // 玩家ID生成
     PlayerId m_nextPlayerId = 1;
