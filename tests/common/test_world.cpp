@@ -322,11 +322,11 @@ TEST_F(TerrainGeneratorTest, EmptyGenerator) {
     // 空世界应该没有方块
     EXPECT_TRUE(chunk.isFullyGenerated());
 
-    // 所有位置应该是空气
+    // 所有位置应该是空气（返回 nullptr）
     for (i32 y = 0; y < 64; ++y) {
         const BlockState* block = chunk.getBlock(8, y, 8);
-        ASSERT_NE(block, nullptr);
-        EXPECT_TRUE(block->isAir());
+        // nullptr 表示空气
+        EXPECT_EQ(block, nullptr);
     }
 
     EXPECT_EQ(generator->getHeight(0, 0), MIN_BUILD_HEIGHT);

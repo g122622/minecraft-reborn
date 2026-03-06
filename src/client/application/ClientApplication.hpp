@@ -162,7 +162,7 @@ private:
 
     // 调试屏幕
     DebugScreen m_debugScreen;
-    bool m_debugScreenVisible = false;
+    bool m_debugScreenVisible = true;
 
     // 内置服务端
     std::unique_ptr<server::IntegratedServer> m_integratedServer;

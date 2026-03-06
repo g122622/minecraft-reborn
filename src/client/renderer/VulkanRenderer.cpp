@@ -1384,6 +1384,8 @@ Result<void> VulkanRenderer::createGuiRenderer() {
         spdlog::warn("Failed to create default font: {}", fontResult.error().toString());
     } else {
         m_guiRenderer->setFont(&m_font);
+        // 设置字体缩放为1.5倍，让调试屏幕文字更清晰可读
+        m_guiRenderer->setFontScale(1.5f);
         spdlog::info("Default ASCII font loaded");
     }
 

@@ -65,7 +65,11 @@ public:
         }
 
         BlockType* ptr = block.get();
-        m_blocksById.push_back(ptr);
+        // 确保 vector 大小足够，用 blockId 作为索引
+        if (m_blocksById.size() <= block->m_blockId) {
+            m_blocksById.resize(block->m_blockId + 1, nullptr);
+        }
+        m_blocksById[block->m_blockId] = ptr;
         m_blocks[id] = std::move(block);
         return *ptr;
     }

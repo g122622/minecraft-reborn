@@ -111,6 +111,17 @@ public:
     [[nodiscard]] u32 getFontHeight() const;
 
     /**
+     * @brief 设置缩放因子
+     * @param scale 缩放因子（默认1.0）
+     */
+    void setScale(f32 scale) { m_scale = scale; }
+
+    /**
+     * @brief 获取缩放因子
+     */
+    [[nodiscard]] f32 scale() const { return m_scale; }
+
+    /**
      * @brief 计算绘制文本所需的顶点数
      */
     [[nodiscard]] size_t estimateVertexCount(const std::string& text) const;
@@ -140,6 +151,7 @@ private:
     std::vector<u32> m_indices;          // 索引缓冲
     f32 m_currentX = 0.0f;               // 当前X位置
     f32 m_currentY = 0.0f;               // 当前Y位置
+    f32 m_scale = 1.0f;                  // 缩放因子
     bool m_inBatch = false;              // 是否在批次中
 };
 

@@ -109,6 +109,17 @@ public:
      */
     [[nodiscard]] u32 getFontHeight() const;
 
+    /**
+     * @brief 设置字体缩放因子
+     * @param scale 缩放因子（默认1.0）
+     */
+    void setFontScale(f32 scale);
+
+    /**
+     * @brief 获取字体缩放因子
+     */
+    [[nodiscard]] f32 getFontScale() const;
+
     // ==================== 矩形绘制 ====================
 
     /**

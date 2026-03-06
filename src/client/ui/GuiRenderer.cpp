@@ -253,6 +253,14 @@ u32 GuiRenderer::getFontHeight() const {
     return m_fontRenderer.getFontHeight();
 }
 
+void GuiRenderer::setFontScale(f32 scale) {
+    m_fontRenderer.setScale(scale);
+}
+
+f32 GuiRenderer::getFontScale() const {
+    return m_fontRenderer.scale();
+}
+
 void GuiRenderer::fillRect(f32 x, f32 y, f32 width, f32 height, u32 color) {
     u32 baseIndex = static_cast<u32>(m_vertices.size());
 

@@ -41,7 +41,7 @@ f32 FontRenderer::addText(const std::string& text, f32 x, f32 y, const TextStyle
     }
 
     f32 startX = x;
-    f32 shadowOffset = Glyph::getShadowOffset();
+    f32 shadowOffset = Glyph::getShadowOffset() * m_scale;
 
     // 如果需要阴影，先绘制阴影
     if (style.shadow) {
@@ -55,19 +55,19 @@ f32 FontRenderer::addText(const std::string& text, f32 x, f32 y, const TextStyle
 
             if (codepoint == '\n') {
                 shadowX = startX + shadowOffset;
-                shadowY += m_font->getFontHeight();
+                shadowY += m_font->getFontHeight() * m_scale;
                 continue;
             }
 
             const Glyph* glyph = m_font->getGlyph(codepoint);
             if (glyph != nullptr) {
                 addGlyphVertices(*glyph, shadowX, shadowY, shadowColor, false);
-                shadowX += glyph->advance;
+                shadowX += glyph->advance * m_scale;
                 if (style.bold) {
-                    shadowX += Glyph::getBoldOffset();
+                    shadowX += Glyph::getBoldOffset() * m_scale;
                 }
             } else {
-                shadowX += 4.0f; // 默认宽度
+                shadowX += 4.0f * m_scale; // 默认宽度
             }
         }
     }
@@ -79,7 +79,7 @@ f32 FontRenderer::addText(const std::string& text, f32 x, f32 y, const TextStyle
 
         if (codepoint == '\n') {
             x = startX;
-            y += m_font->getFontHeight();
+            y += m_font->getFontHeight() * m_scale;
             continue;
         }
 
@@ -89,22 +89,22 @@ f32 FontRenderer::addText(const std::string& text, f32 x, f32 y, const TextStyle
 
             // 粗体：额外绘制一次偏移后的字形
             if (style.bold) {
-                f32 boldOffset = Glyph::getBoldOffset();
+                f32 boldOffset = Glyph::getBoldOffset() * m_scale;
                 addGlyphVertices(*glyph, x + boldOffset, y, style.color, style.italic);
             }
 
             // 添加装饰效果
             if (style.strikethrough || style.underline) {
-                addDecoration(x, y, glyph->advance, style.color,
+                addDecoration(x, y, glyph->advance * m_scale, style.color,
                              style.strikethrough, style.underline);
             }
 
-            x += glyph->advance;
+            x += glyph->advance * m_scale;
             if (style.bold) {
-                x += Glyph::getBoldOffset();
+                x += Glyph::getBoldOffset() * m_scale;
             }
         } else {
-            x += 4.0f; // 默认宽度
+            x += 4.0f * m_scale; // 默认宽度
         }
     }
 
@@ -145,9 +145,9 @@ f32 FontRenderer::getTextWidth(const std::string& text) {
 
         const Glyph* glyph = m_font->getGlyph(codepoint);
         if (glyph != nullptr) {
-            width += glyph->advance;
+            width += glyph->advance * m_scale;
         } else {
-            width += 4.0f;
+            width += 4.0f * m_scale;
         }
     }
 
@@ -156,9 +156,9 @@ f32 FontRenderer::getTextWidth(const std::string& text) {
 
 u32 FontRenderer::getFontHeight() const {
     if (m_font == nullptr) {
-        return 9; // 默认高度
+        return static_cast<u32>(9 * m_scale); // 默认高度
     }
-    return m_font->getFontHeight();
+    return static_cast<u32>(m_font->getFontHeight() * m_scale);
 }
 
 size_t FontRenderer::estimateVertexCount(const std::string& text) const {
@@ -188,13 +188,19 @@ void FontRenderer::addGlyphVertices(const Glyph& glyph, f32 x, f32 y, u32 color,
     // 注意：bearingY是从基线到字形顶部的距离
     // 屏幕坐标系中Y向下，所以需要调整
 
-    f32 glyphTop = y - glyph.bearingY + m_font->getFontHeight();
-    f32 glyphBottom = glyphTop + glyph.height;
-    f32 glyphLeft = x + glyph.bearingX;
-    f32 glyphRight = glyphLeft + glyph.width;
+    // 应用缩放因子
+    f32 scaledBearingY = glyph.bearingY * m_scale;
+    f32 scaledHeight = glyph.height * m_scale;
+    f32 scaledBearingX = glyph.bearingX * m_scale;
+    f32 scaledWidth = glyph.width * m_scale;
+
+    f32 glyphTop = y - scaledBearingY + static_cast<f32>(m_font->getFontHeight()) * m_scale;
+    f32 glyphBottom = glyphTop + scaledHeight;
+    f32 glyphLeft = x + scaledBearingX;
+    f32 glyphRight = glyphLeft + scaledWidth;
 
     // 斜体偏移（顶部向右倾斜）
-    f32 italicOffset = italic ? (glyph.height * 0.25f) : 0.0f;
+    f32 italicOffset = italic ? (scaledHeight * 0.25f) : 0.0f;
 
     // 添加4个顶点
     // 注意：纹理坐标V轴需要翻转，因为屏幕Y轴向下，纹理V轴向下（v=0是顶部）
@@ -242,12 +248,12 @@ void FontRenderer::addGlyphVertices(const Glyph& glyph, f32 x, f32 y, u32 color,
 void FontRenderer::addDecoration(f32 x, f32 y, f32 width, u32 color,
                                   bool strikethrough, bool underline) {
     u32 baseIndex = static_cast<u32>(m_vertices.size());
-    f32 fontHeight = static_cast<f32>(m_font->getFontHeight());
+    f32 fontHeight = static_cast<f32>(m_font->getFontHeight()) * m_scale;
 
     // 删除线
     if (strikethrough) {
         f32 strikeY = y + fontHeight * 0.5f;
-        f32 strikeHeight = 1.0f;
+        f32 strikeHeight = 1.0f * m_scale;
 
         // 左上
         m_vertices.emplace_back(x, strikeY, 0.0f, 0.0f, color);
@@ -271,7 +277,7 @@ void FontRenderer::addDecoration(f32 x, f32 y, f32 width, u32 color,
     // 下划线
     if (underline) {
         f32 underlineY = y + fontHeight;
-        f32 underlineHeight = 1.0f;
+        f32 underlineHeight = 1.0f * m_scale;
 
         // 左上
         m_vertices.emplace_back(x, underlineY, 0.0f, 0.0f, color);

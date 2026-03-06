@@ -1,5 +1,6 @@
 #include "Block.hpp"
 #include "BlockRegistry.hpp"
+#include "Material.hpp"
 #include <sstream>
 
 namespace mr {
@@ -211,7 +212,9 @@ const CollisionShape& Block::getOcclusionShape(const BlockState& state) const {
 
 bool Block::isAir(const BlockState& state) const {
     (void)state;
-    return m_blockId == 0; // Air block ID is 0
+    // 基类默认返回 false
+    // AirBlock 会覆盖此方法返回 true
+    return false;
 }
 
 bool Block::isSolid(const BlockState& state) const {
