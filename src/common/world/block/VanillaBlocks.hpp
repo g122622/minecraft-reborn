@@ -25,7 +25,9 @@ public:
      */
     static void initialize();
 
+    // ========================================================================
     // 基础方块
+    // ========================================================================
     static Block* AIR;
     static Block* STONE;
     static Block* GRASS_BLOCK;
@@ -38,18 +40,99 @@ public:
     static Block* SAND;
     static Block* GRAVEL;
 
+    // ========================================================================
+    // 石头变种
+    // ========================================================================
+    static Block* GRANITE;
+    static Block* POLISHED_GRANITE;
+    static Block* DIORITE;
+    static Block* POLISHED_DIORITE;
+    static Block* ANDESITE;
+    static Block* POLISHED_ANDESITE;
+
+    // ========================================================================
+    // 泥土变种
+    // ========================================================================
+    static Block* COARSE_DIRT;
+    static Block* PODZOL;
+
+    // ========================================================================
+    // 砂岩系列
+    // ========================================================================
+    static Block* SANDSTONE;
+    static Block* CHISELED_SANDSTONE;
+    static Block* CUT_SANDSTONE;
+    static Block* RED_SANDSTONE;
+
+    // ========================================================================
     // 矿石方块
+    // ========================================================================
     static Block* GOLD_ORE;
     static Block* IRON_ORE;
     static Block* COAL_ORE;
     static Block* DIAMOND_ORE;
     static Block* DIAMOND_BLOCK;
+    static Block* EMERALD_ORE;
+    static Block* LAPIS_ORE;
+    static Block* REDSTONE_ORE;
 
+    // ========================================================================
+    // 矿物方块
+    // ========================================================================
+    static Block* GOLD_BLOCK;
+    static Block* IRON_BLOCK;
+    static Block* LAPIS_BLOCK;
+    static Block* EMERALD_BLOCK;
+    static Block* REDSTONE_BLOCK;
+
+    // ========================================================================
+    // 建筑方块
+    // ========================================================================
+    static Block* BRICKS;
+    static Block* MOSSY_COBBLESTONE;
+    static Block* BOOKSHELF;
+    static Block* TNT;
+    static Block* SPONGE;
+    static Block* WET_SPONGE;
+
+    // ========================================================================
+    // 羊毛 (16色)
+    // ========================================================================
+    static Block* WHITE_WOOL;
+    static Block* ORANGE_WOOL;
+    static Block* MAGENTA_WOOL;
+    static Block* LIGHT_BLUE_WOOL;
+    static Block* YELLOW_WOOL;
+    static Block* LIME_WOOL;
+    static Block* PINK_WOOL;
+    static Block* GRAY_WOOL;
+    static Block* LIGHT_GRAY_WOOL;
+    static Block* CYAN_WOOL;
+    static Block* PURPLE_WOOL;
+    static Block* BLUE_WOOL;
+    static Block* BROWN_WOOL;
+    static Block* GREEN_WOOL;
+    static Block* RED_WOOL;
+    static Block* BLACK_WOOL;
+
+    // ========================================================================
+    // 木板变种
+    // ========================================================================
+    static Block* SPRUCE_PLANKS;
+    static Block* BIRCH_PLANKS;
+    static Block* JUNGLE_PLANKS;
+    static Block* ACACIA_PLANKS;
+    static Block* DARK_OAK_PLANKS;
+
+    // ========================================================================
     // 原木和树叶
+    // ========================================================================
     static Block* OAK_LOG;
     static Block* OAK_LEAVES;
 
+    // ========================================================================
     // 其他方块
+    // ========================================================================
     static Block* SNOW;
     static Block* ICE;
     static Block* NETHERRACK;
@@ -57,12 +140,31 @@ public:
     static Block* END_STONE;
     static Block* OBSIDIAN;
 
+    // ========================================================================
+    // 下界方块
+    // ========================================================================
+    static Block* SOUL_SAND;
+    static Block* SOUL_SOIL;
+    static Block* BASALT;
+    static Block* POLISHED_BASALT;
+    static Block* BLACKSTONE;
+    static Block* POLISHED_BLACKSTONE;
+    static Block* CRYING_OBSIDIAN;
+
 private:
     static bool s_initialized;
 
     static void registerBaseBlocks();
     static void registerOreBlocks();
     static void registerLogBlocks();
+    static void registerStoneVariants();
+    static void registerDirtVariants();
+    static void registerSandstones();
+    static void registerMineralBlocks();
+    static void registerBuildingBlocks();
+    static void registerWoolBlocks();
+    static void registerPlanksVariants();
+    static void registerNetherBlocks();
 };
 
 } // namespace mr

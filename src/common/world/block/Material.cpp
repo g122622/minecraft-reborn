@@ -209,6 +209,13 @@ namespace {
             .build();
     }
 
+    Material makeSpongeMaterial() {
+        return MaterialBuilder()
+            .solid()
+            .opaque()
+            .build();
+    }
+
     Material makeCoralMaterial() {
         return MaterialBuilder()
             .solid()
@@ -341,6 +348,11 @@ const Material& Material::SLIME = []() -> const Material& {
 
 const Material& Material::TNT = []() -> const Material& {
     static Material material = makeTNTMaterial();
+    return material;
+}();
+
+const Material& Material::SPONGE = []() -> const Material& {
+    static Material material = makeSpongeMaterial();
     return material;
 }();
 

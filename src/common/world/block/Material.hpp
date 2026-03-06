@@ -138,6 +138,9 @@ public:
     /** TNT材质 */
     static const Material& TNT;
 
+    /** 海绵材质 */
+    static const Material& SPONGE;
+
     /** 珊瑚材质 */
     static const Material& CORAL;
 

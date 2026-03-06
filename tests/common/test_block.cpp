@@ -478,6 +478,35 @@ TEST(VanillaBlocksTest, Initialization) {
     // 检查原木有轴属性
     const auto& logState = VanillaBlocks::OAK_LOG->defaultState();
     EXPECT_TRUE(logState.hasProperty(RotatedPillarBlock::AXIS()));
+
+    // 检查新增的石头变种
+    EXPECT_NE(VanillaBlocks::GRANITE, nullptr);
+    EXPECT_NE(VanillaBlocks::DIORITE, nullptr);
+    EXPECT_NE(VanillaBlocks::ANDESITE, nullptr);
+    EXPECT_NE(VanillaBlocks::POLISHED_GRANITE, nullptr);
+
+    // 检查新增的矿物方块
+    EXPECT_NE(VanillaBlocks::GOLD_BLOCK, nullptr);
+    EXPECT_NE(VanillaBlocks::IRON_BLOCK, nullptr);
+    EXPECT_NE(VanillaBlocks::EMERALD_BLOCK, nullptr);
+    EXPECT_NE(VanillaBlocks::REDSTONE_BLOCK, nullptr);
+
+    // 检查新增的羊毛
+    EXPECT_NE(VanillaBlocks::WHITE_WOOL, nullptr);
+    EXPECT_NE(VanillaBlocks::BLACK_WOOL, nullptr);
+
+    // 检查新增的下界方块
+    EXPECT_NE(VanillaBlocks::SOUL_SAND, nullptr);
+    EXPECT_NE(VanillaBlocks::BASALT, nullptr);
+    EXPECT_NE(VanillaBlocks::BLACKSTONE, nullptr);
+    EXPECT_NE(VanillaBlocks::CRYING_OBSIDIAN, nullptr);
+
+    // 检查玄武岩是轴向方块
+    const auto& basaltState = VanillaBlocks::BASALT->defaultState();
+    EXPECT_TRUE(basaltState.hasProperty(RotatedPillarBlock::AXIS()));
+
+    // 检查哭泣的黑曜石发光
+    EXPECT_EQ(VanillaBlocks::CRYING_OBSIDIAN->defaultState().lightLevel(), 10);
 }
 
 TEST(BlockStateTest, Caching) {
