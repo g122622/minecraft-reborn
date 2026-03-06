@@ -147,7 +147,7 @@ bool ServerChunkManager::hasChunk(ChunkCoord x, ChunkCoord z) const
     return m_chunks.find(key) != m_chunks.end();
 }
 
-ChunkData* ServerChunkManager::getOrGenerateChunk(ChunkCoord x, ChunkCoord z)
+ChunkData* ServerChunkManager::getChunkSync(ChunkCoord x, ChunkCoord z)
 {
     // 先检查缓存
     if (ChunkData* cached = getChunk(x, z)) {
@@ -165,9 +165,8 @@ ChunkData* ServerChunkManager::getOrGenerateChunk(ChunkCoord x, ChunkCoord z)
         return data;
     }
 
-    // 同步路径使用轻量生成，避免主线程阻塞过久。
-    // 完整地形可通过异步流程逐步生成。
-    executeGenerationTask(*holder, ChunkStatus::EMPTY);
+    // 同步生成到 FULL 状态，确保与异步路径结果一致
+    executeGenerationTask(*holder, ChunkStatus::FULL);
 
     // 返回缓存中的结果
     return getChunk(x, z);
@@ -236,6 +235,48 @@ std::future<ChunkData*> ServerChunkManager::getChunkAsync(ChunkCoord x, ChunkCoo
     );
 
     return future;
+}
+
+void ServerChunkManager::getChunkAsync(ChunkCoord x, ChunkCoord z, ChunkCallback callback,
+                                        const ChunkStatus* targetStatus)
+{
+    // 获取或创建持有者
+    ChunkHolder* holder = getOrCreateHolder(x, z);
+    if (!holder) {
+        if (callback) callback(false, nullptr);
+        return;
+    }
+
+    // 如果已完成
+    if (ChunkData* data = holder->getChunkData()) {
+        if (callback) callback(true, data);
+        return;
+    }
+
+    // 调度异步生成
+    const ChunkStatus& target = targetStatus ? *targetStatus : ChunkStatus::FULL;
+
+    m_workerPool.submitGenerate(x, z, target,
+        [this, callback, x, z](bool success, ChunkPrimer* primer) {
+            if (success && primer) {
+                // 完成生成
+                auto data = primer->toChunkData();
+
+                // 存入缓存
+                ChunkData* result = nullptr;
+                {
+                    std::lock_guard<std::mutex> lock(m_chunksMutex);
+                    m_chunks[posToKey(x, z)] = std::make_unique<ChunkData>(std::move(*data));
+                    result = m_chunks[posToKey(x, z)].get();
+                }
+
+                if (callback) callback(true, result);
+            } else {
+                if (callback) callback(false, nullptr);
+            }
+        },
+        holder->getLevel()  // 使用加载级别作为优先级
+    );
 }
 
 // ============================================================================

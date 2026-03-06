@@ -156,79 +156,86 @@ void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chu
     const i32 startX = chunkX << 4;
     const i32 startZ = chunkZ << 4;
 
-    const NoiseSettings& noise = m_settings.noise;
+    // === 参考 MC NoiseChunkGenerator.func_230352_b_ ===
+    // 使用双缓冲噪声缓存，只需要两列 X 的数据
+    // 缓存结构：double[2][noiseSizeZ+1][noiseSizeY+1]
+    std::vector<std::vector<f64>> noiseCache[2];
+    noiseCache[0].resize(m_noiseSizeZ + 1, std::vector<f64>(m_noiseSizeY + 1));
+    noiseCache[1].resize(m_noiseSizeZ + 1, std::vector<f64>(m_noiseSizeY + 1));
 
-    // 噪声列缓存（用于三线性插值）
-    std::vector<std::vector<f64>> noiseColumns(m_noiseSizeZ + 1, std::vector<f64>(m_noiseSizeY + 1));
-
-    // 填充噪声列
+    // 初始化第一列噪声数据
     for (i32 noiseZ = 0; noiseZ <= m_noiseSizeZ; ++noiseZ) {
-        for (i32 noiseX = 0; noiseX <= m_noiseSizeX; ++noiseX) {
-            const i32 globalNoiseX = chunkX * m_noiseSizeX + noiseX;
-            const i32 globalNoiseZ = chunkZ * m_noiseSizeZ + noiseZ;
-            fillNoiseColumn(noiseColumns[noiseZ], globalNoiseX, globalNoiseZ);
-        }
+        const i32 globalNoiseZ = chunkZ * m_noiseSizeZ + noiseZ;
+        fillNoiseColumn(noiseCache[0][noiseZ], chunkX * m_noiseSizeX, globalNoiseZ);
     }
 
-    // 生成实际的方块
-    for (i32 noiseZ = 0; noiseZ < m_noiseSizeZ; ++noiseZ) {
-        for (i32 noiseX = 0; noiseX < m_noiseSizeX; ++noiseX) {
-            // 三线性插值生成方块
-            for (i32 localZ = 0; localZ < m_horizontalNoiseGranularity; ++localZ) {
-                for (i32 noiseY = m_noiseSizeY - 1; noiseY >= 0; --noiseY) {
-                    const f64 d0 = noiseColumns[noiseZ][noiseY];
-                    const f64 d1 = noiseColumns[noiseZ + 1][noiseY];
-                    const f64 d2 = noiseColumns[noiseZ][noiseY + 1];
-                    const f64 d3 = noiseColumns[noiseZ + 1][noiseY + 1];
+    // 遍历每个噪声单元
+    for (i32 noiseX = 0; noiseX < m_noiseSizeX; ++noiseX) {
+        // 预计算下一列 X 的噪声数据
+        for (i32 noiseZ = 0; noiseZ <= m_noiseSizeZ; ++noiseZ) {
+            const i32 globalNoiseX = chunkX * m_noiseSizeX + noiseX + 1;
+            const i32 globalNoiseZ = chunkZ * m_noiseSizeZ + noiseZ;
+            fillNoiseColumn(noiseCache[1][noiseZ], globalNoiseX, globalNoiseZ);
+        }
 
-                    for (i32 localY = m_verticalNoiseGranularity - 1; localY >= 0; --localY) {
-                        const f64 yLerp = static_cast<f64>(localY) / static_cast<f64>(m_verticalNoiseGranularity);
+        // 处理当前噪声单元
+        for (i32 noiseZ = 0; noiseZ < m_noiseSizeZ; ++noiseZ) {
+            // 获取三线性插值所需的 8 个角点
+            // 8 个角点：(x0,y0,z0), (x0,y0,z1), (x0,y1,z0), (x0,y1,z1),
+            //          (x1,y0,z0), (x1,y0,z1), (x1,y1,z0), (x1,y1,z1)
+            for (i32 noiseY = m_noiseSizeY - 1; noiseY >= 0; --noiseY) {
+                // 从当前列和下一列获取密度值
+                const f64 d0 = noiseCache[0][noiseZ][noiseY];           // (x0, z0, y0)
+                const f64 d1 = noiseCache[0][noiseZ + 1][noiseY];       // (x0, z1, y0)
+                const f64 d2 = noiseCache[1][noiseZ][noiseY];           // (x1, z0, y0)
+                const f64 d3 = noiseCache[1][noiseZ + 1][noiseY];       // (x1, z1, y0)
+                const f64 d4 = noiseCache[0][noiseZ][noiseY + 1];       // (x0, z0, y1)
+                const f64 d5 = noiseCache[0][noiseZ + 1][noiseY + 1];   // (x0, z1, y1)
+                const f64 d6 = noiseCache[1][noiseZ][noiseY + 1];       // (x1, z0, y1)
+                const f64 d7 = noiseCache[1][noiseZ + 1][noiseY + 1];   // (x1, z1, y1)
 
-                        // Y 轴插值
-                        const f64 y0 = math::lerp(yLerp, d0, d2);
-                        const f64 y1 = math::lerp(yLerp, d1, d3);
+                // Y 轴细分
+                for (i32 localY = m_verticalNoiseGranularity - 1; localY >= 0; --localY) {
+                    const i32 worldY = noiseY * m_verticalNoiseGranularity + localY;
+                    const f64 yLerp = static_cast<f64>(localY) / static_cast<f64>(m_verticalNoiseGranularity);
 
-                        for (i32 localX = 0; localX < m_horizontalNoiseGranularity; ++localX) {
-                            const f64 xLerp = static_cast<f64>(localX) / static_cast<f64>(m_horizontalNoiseGranularity);
+                    // Y 轴插值
+                    const f64 y0 = math::lerp(yLerp, d0, d4); // (x0, z0)
+                    const f64 y1 = math::lerp(yLerp, d1, d5); // (x0, z1)
+                    const f64 y2 = math::lerp(yLerp, d2, d6); // (x1, z0)
+                    const f64 y3 = math::lerp(yLerp, d3, d7); // (x1, z1)
 
-                            // X 轴插值
-                            const f64 x0 = math::lerp(xLerp, y0, y1);
+                    // X 轴细分
+                    for (i32 localX = 0; localX < m_horizontalNoiseGranularity; ++localX) {
+                        const i32 worldX = startX + noiseX * m_horizontalNoiseGranularity + localX;
+                        const f64 xLerp = static_cast<f64>(localX) / static_cast<f64>(m_horizontalNoiseGranularity);
 
-                            // 计算 X+1 处的插值
-                            // 先获取 noiseX+1 处的噪声列
-                            std::vector<f64> nextColumn(m_noiseSizeY + 1);
-                            const i32 nextNoiseX = noiseX + 1;
-                            if (nextNoiseX <= m_noiseSizeX) {
-                                const i32 globalNextX = chunkX * m_noiseSizeX + nextNoiseX;
-                                fillNoiseColumn(nextColumn, globalNextX, chunkZ * m_noiseSizeZ + noiseZ);
-                            }
+                        // X 轴插值
+                        const f64 x0 = math::lerp(xLerp, y0, y2); // (z0)
+                        const f64 x1 = math::lerp(xLerp, y1, y3); // (z1)
 
-                            for (i32 actualZ = 0; actualZ < m_horizontalNoiseGranularity; ++actualZ) {
-                                const f64 zLerp = static_cast<f64>(actualZ) / static_cast<f64>(m_horizontalNoiseGranularity);
+                        // Z 轴细分
+                        for (i32 localZ = 0; localZ < m_horizontalNoiseGranularity; ++localZ) {
+                            const i32 worldZ = startZ + noiseZ * m_horizontalNoiseGranularity + localZ;
+                            const f64 zLerp = static_cast<f64>(localZ) / static_cast<f64>(m_horizontalNoiseGranularity);
 
-                                // Z 轴插值
-                                const f64 density = x0; // 简化：暂时不进行完整的 3D 插值
+                            // Z 轴插值 - 最终密度值
+                            const f64 density = math::lerp(zLerp, x0, x1);
 
-                                // 计算世界坐标
-                                const i32 worldX = startX + noiseX * m_horizontalNoiseGranularity + localX;
-                                const i32 worldY = noiseY * m_verticalNoiseGranularity + localY;
-                                const i32 worldZ = startZ + noiseZ * m_horizontalNoiseGranularity + actualZ;
+                            // 确定方块
+                            const BlockId block = getBlockForDensity(density, worldY);
 
-                                // 确定方块
-                                const BlockId block = getBlockForDensity(density, worldY);
+                            if (block != BlockId::Air) {
+                                const BlockState* state = BlockRegistry::instance().get(block);
+                                if (state) {
+                                    const i32 localBlockX = worldX & 15;
+                                    const i32 localBlockZ = worldZ & 15;
+                                    chunk.setBlock(localBlockX, worldY, localBlockZ, state);
 
-                                if (block != BlockId::Air) {
-                                    const BlockState* state = BlockRegistry::instance().get(block);
-                                    if (state) {
-                                        const i32 localBlockX = worldX & 15;
-                                        const i32 localBlockZ = worldZ & 15;
-                                        chunk.setBlock(localBlockX, worldY, localBlockZ, state);
-
-                                        // 更新高度图
-                                        chunk.updateHeightmap(HeightmapType::WorldSurfaceWG, localBlockX, worldY, localBlockZ, state);
-                                        if (state->isSolid()) {
-                                            chunk.updateHeightmap(HeightmapType::OceanFloorWG, localBlockX, worldY, localBlockZ, state);
-                                        }
+                                    // 更新高度图
+                                    chunk.updateHeightmap(HeightmapType::WorldSurfaceWG, localBlockX, worldY, localBlockZ, state);
+                                    if (state->isSolid()) {
+                                        chunk.updateHeightmap(HeightmapType::OceanFloorWG, localBlockX, worldY, localBlockZ, state);
                                     }
                                 }
                             }
@@ -237,6 +244,9 @@ void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chu
                 }
             }
         }
+
+        // 交换缓存（swap 比 copy 更高效）
+        std::swap(noiseCache[0], noiseCache[1]);
     }
 
     // 标记阶段完成

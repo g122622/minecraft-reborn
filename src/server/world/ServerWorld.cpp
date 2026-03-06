@@ -111,9 +111,9 @@ bool ServerWorld::hasChunk(ChunkCoord x, ChunkCoord z) const {
     return false;
 }
 
-ChunkData* ServerWorld::getOrGenerateChunk(ChunkCoord x, ChunkCoord z) {
+ChunkData* ServerWorld::getChunkSync(ChunkCoord x, ChunkCoord z) {
     if (m_chunkManager) {
-        return m_chunkManager->getOrGenerateChunk(x, z);
+        return m_chunkManager->getChunkSync(x, z);
     }
     return nullptr;
 }
@@ -349,43 +349,48 @@ void ServerWorld::sendInitialChunks(PlayerId playerId) {
 }
 
 void ServerWorld::sendChunkToPlayer(PlayerId playerId, ChunkCoord x, ChunkCoord z) {
-    // 获取或生成区块
-    ChunkData* chunk = getOrGenerateChunk(x, z);
-    if (!chunk) return;
+    // 异步获取或生成区块
+    m_chunkManager->getChunkAsync(x, z,
+        [this, playerId, x, z](bool success, ChunkData* chunk) {
+            if (!success || !chunk) {
+                spdlog::warn("Failed to generate chunk ({}, {}) for player {}", x, z, playerId);
+                return;
+            }
 
-    // 序列化区块
-    auto result = network::ChunkSerializer::serializeChunk(*chunk);
-    if (result.failed()) {
-        spdlog::error("Failed to serialize chunk ({}, {}): {}", x, z, result.error().message());
-        return;
-    }
+            // 序列化区块
+            auto result = network::ChunkSerializer::serializeChunk(*chunk);
+            if (result.failed()) {
+                spdlog::error("Failed to serialize chunk ({}, {}): {}", x, z, result.error().message());
+                return;
+            }
 
-    // 标记为已发送
-    m_chunkSyncManager.markChunkSent(playerId, x, z);
+            // 标记为已发送
+            m_chunkSyncManager.markChunkSent(playerId, x, z);
 
-    // 发送区块数据包
-    network::ChunkDataPacket chunkPacket(x, z, std::move(result.value()));
-    network::PacketSerializer ser;
-    chunkPacket.serialize(ser);
+            // 发送区块数据包
+            network::ChunkDataPacket chunkPacket(x, z, std::move(result.value()));
+            network::PacketSerializer ser;
+            chunkPacket.serialize(ser);
 
-    network::PacketSerializer fullPacket;
-    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
-    fullPacket.writeU16(static_cast<u16>(network::PacketType::ChunkData));
-    fullPacket.writeU16(0);
-    fullPacket.writeU16(0);
-    fullPacket.writeU16(0);
-    fullPacket.writeBytes(ser.buffer());
+            network::PacketSerializer fullPacket;
+            fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
+            fullPacket.writeU16(static_cast<u16>(network::PacketType::ChunkData));
+            fullPacket.writeU16(0);
+            fullPacket.writeU16(0);
+            fullPacket.writeU16(0);
+            fullPacket.writeBytes(ser.buffer());
 
-    std::lock_guard<std::mutex> lock(m_playerMutex);
-    auto it = m_players.find(playerId);
-    if (it != m_players.end()) {
-        auto session = it->second.session.lock();
-        if (session) {
-            // session->send(fullPacket.data(), fullPacket.size());
-        }
-    }
+            std::lock_guard<std::mutex> lock(m_playerMutex);
+            auto it = m_players.find(playerId);
+            if (it != m_players.end()) {
+                auto session = it->second.session.lock();
+                if (session) {
+                    // session->send(fullPacket.data(), fullPacket.size());
+                }
+            }
 
-    spdlog::debug("Sent chunk ({}, {}) to player {}", x, z, playerId);
+            spdlog::debug("Sent chunk ({}, {}) to player {}", x, z, playerId);
+        });
 }
 
 void ServerWorld::sendUnloadChunkToPlayer(PlayerId playerId, ChunkCoord x, ChunkCoord z) {
@@ -421,7 +426,7 @@ void ServerWorld::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {
     ChunkCoord chunkX = blockToChunk(static_cast<f64>(x));
     ChunkCoord chunkZ = blockToChunk(static_cast<f64>(z));
 
-    ChunkData* chunk = getOrGenerateChunk(chunkX, chunkZ);
+    ChunkData* chunk = getChunkSync(chunkX, chunkZ);
     if (!chunk) return;
 
     i32 localX = x - chunkX * 16;

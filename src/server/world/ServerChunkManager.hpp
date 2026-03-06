@@ -117,11 +117,13 @@ public:
     [[nodiscard]] bool hasChunk(ChunkCoord x, ChunkCoord z) const;
 
     /**
-     * @brief 获取或生成区块（同步）
+     * @brief 获取或生成区块（同步，阻塞直到完成）
      *
-     * 如果区块不存在，会阻塞生成。
+     * 如果区块不存在，会阻塞生成到 FULL 状态。
+     * 注意：此方法会阻塞调用线程，建议仅用于必要场景。
+     * 优先使用 getChunkAsync() 进行异步生成。
      */
-    [[nodiscard]] ChunkData* getOrGenerateChunk(ChunkCoord x, ChunkCoord z);
+    [[nodiscard]] ChunkData* getChunkSync(ChunkCoord x, ChunkCoord z);
 
     /**
      * @brief 卸载区块
@@ -133,6 +135,13 @@ public:
     // ============================================================================
 
     /**
+     * @brief 区块生成回调类型
+     * @param success 是否成功
+     * @param chunk 生成的区块数据（如果成功）
+     */
+    using ChunkCallback = std::function<void(bool success, ChunkData* chunk)>;
+
+    /**
      * @brief 获取区块 Future
      * @param x 区块 X 坐标
      * @param z 区块 Z 坐标
@@ -141,6 +150,16 @@ public:
      */
     [[nodiscard]] std::future<ChunkData*> getChunkAsync(ChunkCoord x, ChunkCoord z,
                                                          const ChunkStatus* targetStatus = &ChunkStatus::FULL);
+
+    /**
+     * @brief 异步获取区块（回调版本）
+     * @param x 区块 X 坐标
+     * @param z 区块 Z 坐标
+     * @param callback 完成回调
+     * @param targetStatus 目标状态
+     */
+    void getChunkAsync(ChunkCoord x, ChunkCoord z, ChunkCallback callback,
+                       const ChunkStatus* targetStatus = &ChunkStatus::FULL);
 
     // ============================================================================
     // 区块持有者

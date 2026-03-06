@@ -148,7 +148,7 @@ void IntegratedServer::shutdown() {
     m_initialized = false;
 }
 
-ChunkData* IntegratedServer::getOrGenerateChunk(ChunkCoord x, ChunkCoord z) {
+ChunkData* IntegratedServer::getChunkSync(ChunkCoord x, ChunkCoord z) {
     ChunkId id(x, z);
 
     auto it = m_chunks.find(id);
@@ -182,7 +182,7 @@ void IntegratedServer::sendChunkToClient(ChunkCoord x, ChunkCoord z) {
     }
 
     // 获取或生成区块
-    ChunkData* chunk = getOrGenerateChunk(x, z);
+    ChunkData* chunk = getChunkSync(x, z);
     if (!chunk) {
         spdlog::error("Failed to get/generate chunk ({}, {})", x, z);
         return;

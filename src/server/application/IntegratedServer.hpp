@@ -92,7 +92,7 @@ private:
     void shutdown();
 
     // 区块管理
-    ChunkData* getOrGenerateChunk(ChunkCoord x, ChunkCoord z);
+    ChunkData* getChunkSync(ChunkCoord x, ChunkCoord z);
     void sendChunkToClient(ChunkCoord x, ChunkCoord z);
     void updateChunkSubscription();
 

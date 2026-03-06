@@ -97,7 +97,7 @@ public:
     [[nodiscard]] ChunkData* getChunk(ChunkCoord x, ChunkCoord z);
     [[nodiscard]] const ChunkData* getChunk(ChunkCoord x, ChunkCoord z) const;
     [[nodiscard]] bool hasChunk(ChunkCoord x, ChunkCoord z) const;
-    [[nodiscard]] ChunkData* getOrGenerateChunk(ChunkCoord x, ChunkCoord z);
+    [[nodiscard]] ChunkData* getChunkSync(ChunkCoord x, ChunkCoord z);
     void unloadChunk(ChunkCoord x, ChunkCoord z);
 
     // 玩家管理

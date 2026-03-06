@@ -23,6 +23,8 @@ add_executable(mr_tests
     common/test_chunk_generation.cpp
     server/ServerWorldTest.cpp
     server/test_integrated_server.cpp
+    server/test_chunk_worker_pool.cpp
+    server/test_server_chunk_manager.cpp
 )
 
 # 添加服务端源文件

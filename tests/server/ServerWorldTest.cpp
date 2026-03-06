@@ -76,23 +76,23 @@ TEST_F(ServerWorldTest, HasChunk_NotExists) {
     EXPECT_FALSE(world->hasChunk(100, 100));
 }
 
-TEST_F(ServerWorldTest, GetOrGenerateChunk_CreatesChunk) {
-    ChunkData* chunk = world->getOrGenerateChunk(0, 0);
+TEST_F(ServerWorldTest, GetChunkSync_CreatesChunk) {
+    ChunkData* chunk = world->getChunkSync(0, 0);
     ASSERT_NE(chunk, nullptr);
     EXPECT_EQ(chunk->x(), 0);
     EXPECT_EQ(chunk->z(), 0);
     EXPECT_TRUE(world->hasChunk(0, 0));
 }
 
-TEST_F(ServerWorldTest, GetOrGenerateChunk_ReturnsSameChunk) {
-    ChunkData* chunk1 = world->getOrGenerateChunk(5, 10);
-    ChunkData* chunk2 = world->getOrGenerateChunk(5, 10);
+TEST_F(ServerWorldTest, GetChunkSync_ReturnsSameChunk) {
+    ChunkData* chunk1 = world->getChunkSync(5, 10);
+    ChunkData* chunk2 = world->getChunkSync(5, 10);
 
     EXPECT_EQ(chunk1, chunk2);
 }
 
 TEST_F(ServerWorldTest, GetChunk_AfterGeneration) {
-    world->getOrGenerateChunk(3, 7);
+    world->getChunkSync(3, 7);
 
     ChunkData* chunk = world->getChunk(3, 7);
     ASSERT_NE(chunk, nullptr);
@@ -101,7 +101,7 @@ TEST_F(ServerWorldTest, GetChunk_AfterGeneration) {
 }
 
 TEST_F(ServerWorldTest, UnloadChunk) {
-    world->getOrGenerateChunk(0, 0);
+    world->getChunkSync(0, 0);
     EXPECT_TRUE(world->hasChunk(0, 0));
 
     world->unloadChunk(0, 0);
@@ -111,11 +111,11 @@ TEST_F(ServerWorldTest, UnloadChunk) {
 TEST_F(ServerWorldTest, ChunkCount) {
     EXPECT_EQ(world->chunkCount(), 0);
 
-    world->getOrGenerateChunk(0, 0);
+    world->getChunkSync(0, 0);
     EXPECT_EQ(world->chunkCount(), 1);
 
-    world->getOrGenerateChunk(1, 0);
-    world->getOrGenerateChunk(0, 1);
+    world->getChunkSync(1, 0);
+    world->getChunkSync(0, 1);
     EXPECT_EQ(world->chunkCount(), 3);
 
     world->unloadChunk(1, 0);
@@ -125,7 +125,7 @@ TEST_F(ServerWorldTest, ChunkCount) {
 TEST_F(ServerWorldTest, MultipleChunks) {
     for (int x = -2; x <= 2; ++x) {
         for (int z = -2; z <= 2; ++z) {
-            world->getOrGenerateChunk(x, z);
+            world->getChunkSync(x, z);
         }
     }
 
@@ -379,7 +379,7 @@ TEST_F(ServerWorldTest, ChunkUnloading) {
     world->initialize();
 
     // 创建一个区块
-    world->getOrGenerateChunk(100, 100);
+    world->getChunkSync(100, 100);
 
     // 执行多次 tick 触发卸载检查
     for (int i = 0; i < 200; ++i) {
@@ -405,7 +405,7 @@ TEST_F(ServerWorldTest, ConcurrentChunkAccess) {
             for (int j = 0; j < 100; ++j) {
                 int x = (i * 100 + j) % 20 - 10;
                 int z = (i * 100 + j + 50) % 20 - 10;
-                world->getOrGenerateChunk(x, z);
+                world->getChunkSync(x, z);
                 world->hasChunk(x, z);
             }
         });
