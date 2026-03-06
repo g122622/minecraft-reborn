@@ -114,10 +114,20 @@ void IntegratedServer::mainLoop() {
 }
 
 void IntegratedServer::tick() {
+    // 如果已停止，跳过处理
+    if (!m_running.load()) {
+        return;
+    }
+
     // 处理网络数据包
     std::vector<u8> packetData;
-    while (m_serverEndpoint && m_serverEndpoint->receive(packetData)) {
+    while (m_running.load() && m_serverEndpoint && m_serverEndpoint->receive(packetData)) {
         onPacketReceived(packetData.data(), packetData.size());
+    }
+
+    // 如果已停止，跳过更新
+    if (!m_running.load()) {
+        return;
     }
 
     // 更新票据管理器（清理过期票据等）
@@ -149,11 +159,21 @@ void IntegratedServer::shutdown() {
 }
 
 ChunkData* IntegratedServer::getChunkSync(ChunkCoord x, ChunkCoord z) {
+    // 如果服务器已停止，返回 nullptr
+    if (!m_running.load()) {
+        return nullptr;
+    }
+
     ChunkId id(x, z);
 
     auto it = m_chunks.find(id);
     if (it != m_chunks.end()) {
         return it->second.data.get();
+    }
+
+    // 再次检查服务器是否仍在运行（生成前检查）
+    if (!m_running.load()) {
+        return nullptr;
     }
 
     // 创建新区块
@@ -166,6 +186,11 @@ ChunkData* IntegratedServer::getChunkSync(ChunkCoord x, ChunkCoord z) {
     }
     chunk.isGenerated = true;
 
+    // 最后检查服务器是否仍在运行（生成后检查）
+    if (!m_running.load()) {
+        return nullptr;
+    }
+
     auto* ptr = chunk.data.get();
     m_chunks[id] = std::move(chunk);
 
@@ -174,6 +199,11 @@ ChunkData* IntegratedServer::getChunkSync(ChunkCoord x, ChunkCoord z) {
 }
 
 void IntegratedServer::sendChunkToClient(ChunkCoord x, ChunkCoord z) {
+    // 如果服务器已停止，跳过
+    if (!m_running.load()) {
+        return;
+    }
+
     ChunkId id(x, z);
 
     // 检查是否已发送
@@ -185,6 +215,11 @@ void IntegratedServer::sendChunkToClient(ChunkCoord x, ChunkCoord z) {
     ChunkData* chunk = getChunkSync(x, z);
     if (!chunk) {
         spdlog::error("Failed to get/generate chunk ({}, {})", x, z);
+        return;
+    }
+
+    // 再次检查服务器是否仍在运行
+    if (!m_running.load()) {
         return;
     }
 
@@ -201,6 +236,11 @@ void IntegratedServer::sendChunkToClient(ChunkCoord x, ChunkCoord z) {
 }
 
 void IntegratedServer::updateChunkSubscription() {
+    // 如果服务器已停止，跳过
+    if (!m_running.load()) {
+        return;
+    }
+
     // 计算玩家当前区块
     ChunkCoord playerChunkX = static_cast<ChunkCoord>(std::floor(m_client.x / 16.0));
     ChunkCoord playerChunkZ = static_cast<ChunkCoord>(std::floor(m_client.z / 16.0));
@@ -218,8 +258,11 @@ void IntegratedServer::updateChunkSubscription() {
         }
     }
 
-    // 发送需要加载的区块
+    // 发送需要加载的区块（检查服务器是否仍在运行）
     for (const auto& pos : chunksToLoad) {
+        if (!m_running.load()) {
+            return;
+        }
         sendChunkToClient(pos.x, pos.z);
     }
 
@@ -381,6 +424,11 @@ void IntegratedServer::handlePlayerChunkMove(ChunkCoord newChunkX, ChunkCoord ne
 }
 
 void IntegratedServer::onChunkLevelChanged(ChunkCoord x, ChunkCoord z, i32 oldLevel, i32 newLevel) {
+    // 如果服务器已停止，跳过
+    if (!m_running.load()) {
+        return;
+    }
+
     ChunkId id(x, z);
     bool wasLoaded = world::shouldChunkLoad(oldLevel);
     bool isLoaded = world::shouldChunkLoad(newLevel);
