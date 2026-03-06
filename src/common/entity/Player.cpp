@@ -229,7 +229,7 @@ void Player::handleMovementInput(f32 forward, f32 strafe, bool jumping, bool sne
         speed *= 0.3f; // 潜行速度倍率
     }
     if (m_abilities.flying) {
-        speed = m_abilities.flySpeed * 2.0f; // 飞行速度
+        speed = m_abilities.flySpeed; // 飞行速度
     }
 
     // 根据朝向计算移动方向（只有有输入时才处理）
@@ -270,14 +270,14 @@ void Player::handleMovementInput(f32 forward, f32 strafe, bool jumping, bool sne
     if (jumping) {
         if (m_abilities.flying) {
             // 飞行模式下向上移动（3倍速度）
-            m_velocity.y = m_abilities.flySpeed * 3.0f;
+            m_velocity.y = m_abilities.flySpeed;
         } else if (m_onGround && m_jumpTicks == 0) {
             jump();
         }
     } else if (m_abilities.flying) {
         // 飞行模式下按Shift下降（3倍速度）
         if (sneaking) {
-            m_velocity.y = -m_abilities.flySpeed * 3.0f;
+            m_velocity.y = -m_abilities.flySpeed;
         } else {
             m_velocity.y *= 0.6f; // 阻力
         }
