@@ -117,8 +117,8 @@ public:
     void updateChunkSubscription(PlayerId playerId);
 
     // 方块操作
-    void setBlock(i32 x, i32 y, i32 z, BlockId blockId, u16 blockData = 0);
-    [[nodiscard]] BlockState getBlock(i32 x, i32 y, i32 z) const;
+    void setBlock(i32 x, i32 y, i32 z, const BlockState* state);
+    [[nodiscard]] const BlockState* getBlockState(i32 x, i32 y, i32 z) const;
 
     // 发送数据包给玩家
     void sendPacket(PlayerId playerId, const std::vector<u8>& data);
@@ -141,7 +141,7 @@ private:
     // 内部方法
     void sendChunkToPlayer(PlayerId playerId, ChunkCoord x, ChunkCoord z);
     void sendUnloadChunkToPlayer(PlayerId playerId, ChunkCoord x, ChunkCoord z);
-    void broadcastBlockUpdate(i32 x, i32 y, i32 z, BlockId blockId, u16 blockData);
+    void broadcastBlockUpdate(i32 x, i32 y, i32 z, u32 blockStateId);
 
     // 生成区块
     void generateChunk(ChunkData& chunk);

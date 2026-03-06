@@ -1,4 +1,5 @@
 #include "ChunkSync.hpp"
+#include "../world/block/Block.hpp"
 #include <spdlog/spdlog.h>
 #include <cmath>
 #include <algorithm>
@@ -26,7 +27,7 @@ Result<std::vector<u8>> ChunkSerializer::serializeChunk(const ChunkData& chunk) 
     }
 
     // 写入生物群系（简化版，暂不实现）
-    ser.writeU8(0); // 生物群系数量 = 0
+    ser.writeU8(0); // 生物群落数量 = 0
 
     // 写入区块段数据
     for (i32 i = 0; i < ChunkData::SECTIONS; ++i) {
@@ -55,13 +56,14 @@ std::vector<u8> ChunkSerializer::serializeSection(const ChunkSection& section) {
     data.push_back(static_cast<u8>(blockCount >> 8));
     data.push_back(static_cast<u8>(blockCount & 0xFF));
 
-    // 简化版：直接写入方块数据
-    // 格式：每个方块2字节 (方块ID + 元数据)
+    // 写入方块状态ID (u32格式)
     for (i32 i = 0; i < ChunkSection::VOLUME; ++i) {
-        BlockState block = section.getBlockFast(i);
-        u16 blockData = static_cast<u16>(block.id()) | (block.data() << 12);
-        data.push_back(static_cast<u8>(blockData & 0xFF));
-        data.push_back(static_cast<u8>((blockData >> 8) & 0xFF));
+        u32 stateId = section.getBlockStateIdFast(i);
+        // 写入4字节
+        data.push_back(static_cast<u8>(stateId & 0xFF));
+        data.push_back(static_cast<u8>((stateId >> 8) & 0xFF));
+        data.push_back(static_cast<u8>((stateId >> 16) & 0xFF));
+        data.push_back(static_cast<u8>((stateId >> 24) & 0xFF));
     }
 
     // 写入光照数据（简化版：全亮）
@@ -142,28 +144,31 @@ Result<std::unique_ptr<ChunkData>> ChunkSerializer::deserializeChunk(
             return Error(ErrorCode::OutOfMemory, "Failed to create section");
         }
 
-        // 简化版解析
+        // 解析段数据
         const auto& sectionData = sectionDataResult.value();
         if (sectionData.size() < 2) {
             return Error(ErrorCode::InvalidData, "Section data too small");
         }
 
-        // 读取方块数据
+        // 读取方块数据 (u32状态ID格式)
         size_t offset = 2;  // 跳过 blockCount
         int sectionBlocks = 0;
-        for (i32 j = 0; j < ChunkSection::VOLUME && offset + 1 < sectionData.size(); ++j) {
-            u16 blockData = static_cast<u16>(sectionData[offset]) |
-                           (static_cast<u16>(sectionData[offset + 1]) << 8);
-            BlockId id = static_cast<BlockId>(blockData & 0xFFF);
-            u16 meta = (blockData >> 12) & 0xF;
-            section->setBlockFast(j, BlockState(id, meta));
-            if (id != BlockId::Air) {
+        for (i32 j = 0; j < ChunkSection::VOLUME && offset + 3 < sectionData.size(); ++j) {
+            u32 stateId = static_cast<u32>(sectionData[offset]) |
+                         (static_cast<u32>(sectionData[offset + 1]) << 8) |
+                         (static_cast<u32>(sectionData[offset + 2]) << 16) |
+                         (static_cast<u32>(sectionData[offset + 3]) << 24);
+            section->setBlockStateIdFast(j, stateId);
+
+            // 检查是否为非空气方块
+            const BlockState* state = Block::getBlockState(stateId);
+            if (state && !state->isAir()) {
                 sectionBlocks++;
             }
-            offset += 2;
+            offset += 4;
         }
 
-        // 更新 blockCount（setBlockFast 不会自动更新）
+        // 更新 blockCount
         section->setBlockCount(static_cast<u16>(sectionBlocks));
     }
 
@@ -185,16 +190,18 @@ Result<std::unique_ptr<ChunkSection>> ChunkSerializer::deserializeChunkSection(
     // 读取非空方块数量
     u16 blockCount = (static_cast<u16>(data[0]) << 8) | data[1];
 
-    // 读取方块数据
+    // 读取方块数据 (u32状态ID格式)
     size_t offset = 2;
-    for (i32 j = 0; j < ChunkSection::VOLUME && offset + 1 < size; ++j) {
-        u16 blockData = static_cast<u16>(data[offset]) |
-                       (static_cast<u16>(data[offset + 1]) << 8);
-        BlockId id = static_cast<BlockId>(blockData & 0xFFF);
-        u16 meta = (blockData >> 12) & 0xF;
-        section->setBlockFast(j, BlockState(id, meta));
-        offset += 2;
+    for (i32 j = 0; j < ChunkSection::VOLUME && offset + 3 < size; ++j) {
+        u32 stateId = static_cast<u32>(data[offset]) |
+                     (static_cast<u32>(data[offset + 1]) << 8) |
+                     (static_cast<u32>(data[offset + 2]) << 16) |
+                     (static_cast<u32>(data[offset + 3]) << 24);
+        section->setBlockStateIdFast(j, stateId);
+        offset += 4;
     }
+
+    section->setBlockCount(blockCount);
 
     return section;
 }
@@ -212,8 +219,9 @@ size_t ChunkSerializer::calculateChunkSize(const ChunkData& chunk) {
 }
 
 size_t ChunkSerializer::calculateSectionSize(const ChunkSection& section) {
-    // 简化版：方块数据 (4096 * 2) + 天空光照 (2048) + 方块光照 (2048)
-    return 2 + ChunkSection::VOLUME * 2 + 2048 + 2048;
+    // 新格式: 方块数据 (4096 * 4) + 天空光照 (2048) + 方块光照 (2048)
+    (void)section;
+    return 2 + ChunkSection::VOLUME * 4 + 2048 + 2048;
 }
 
 u16 ChunkSerializer::calculateSectionMask(const ChunkData& chunk) {

@@ -37,7 +37,7 @@ add_library(mr_common STATIC
 
     # Physics
     physics/PhysicsEngine.cpp
-    physics/collision/BlockCollision.cpp
+    # physics/collision/BlockCollision.cpp  # 已移除 - 使用新的方块系统
 
     # Resource
     resource/ResourceLocation.cpp

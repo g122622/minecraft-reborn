@@ -1,6 +1,8 @@
 #include "TerrainGenerator.hpp"
+#include "block/VanillaBlocks.hpp"
 #include <cmath>
 #include <algorithm>
+#include <random>
 
 namespace mr {
 
@@ -10,21 +12,17 @@ namespace mr {
 
 namespace {
 
-BiomeInfo createDefaultBiomes[] = {
-    // type, minHeight, maxHeight, temp, humidity, surface, subsurface, fill
-    {BiomeType::Plains, 0.0f, 10.0f, 0.5f, 0.5f, BlockId::GrassBlock, BlockId::Dirt, BlockId::Air},
-    {BiomeType::Forest, 0.0f, 15.0f, 0.6f, 0.7f, BlockId::GrassBlock, BlockId::Dirt, BlockId::Air},
-    {BiomeType::Desert, -5.0f, 5.0f, 2.0f, 0.0f, BlockId::Sand, BlockId::Sand, BlockId::Air},
-    {BiomeType::Mountains, 30.0f, 80.0f, 0.3f, 0.4f, BlockId::Stone, BlockId::Stone, BlockId::Air},
-    {BiomeType::Ocean, -30.0f, -5.0f, 0.5f, 0.8f, BlockId::Sand, BlockId::Sand, BlockId::Water},
-    {BiomeType::Snow, 5.0f, 25.0f, -0.5f, 0.6f, BlockId::Snow, BlockId::Dirt, BlockId::Air},
-    {BiomeType::Jungle, 5.0f, 20.0f, 0.9f, 0.9f, BlockId::GrassBlock, BlockId::Dirt, BlockId::Air},
-    {BiomeType::Swamp, -5.0f, 5.0f, 0.7f, 0.9f, BlockId::GrassBlock, BlockId::Dirt, BlockId::Water},
-    {BiomeType::Taiga, 5.0f, 20.0f, -0.2f, 0.6f, BlockId::GrassBlock, BlockId::Dirt, BlockId::Air},
-    {BiomeType::Savanna, 0.0f, 10.0f, 1.5f, 0.2f, BlockId::GrassBlock, BlockId::Dirt, BlockId::Air},
-    {BiomeType::Badlands, 10.0f, 30.0f, 1.8f, 0.1f, BlockId::Sand, BlockId::Sand, BlockId::Air},
-    {BiomeType::Plains, 0.0f, 10.0f, 0.5f, 0.5f, BlockId::GrassBlock, BlockId::Dirt, BlockId::Air}, // fallback
-};
+// 生物群系信息初始化函数
+BiomeInfo createBiomeInfo(BiomeType type, f32 minH, f32 maxH, f32 temp, f32 hum) {
+    BiomeInfo info;
+    info.type = type;
+    info.minHeight = minH;
+    info.maxHeight = maxH;
+    info.temperature = temp;
+    info.humidity = hum;
+    // 方块指针在 initializeBiomes() 中设置
+    return info;
+}
 
 } // anonymous namespace
 
@@ -90,6 +88,16 @@ void StandardTerrainGenerator::generateBaseTerrain(ChunkData& chunk) {
     i32 chunkX = chunk.x() * world::CHUNK_WIDTH;
     i32 chunkZ = chunk.z() * world::CHUNK_WIDTH;
 
+    // 获取方块指针
+    const BlockState* grassState = VanillaBlocks::GRASS_BLOCK ? &VanillaBlocks::GRASS_BLOCK->defaultState() : nullptr;
+    const BlockState* dirtState = VanillaBlocks::DIRT ? &VanillaBlocks::DIRT->defaultState() : nullptr;
+    const BlockState* stoneState = VanillaBlocks::STONE ? &VanillaBlocks::STONE->defaultState() : nullptr;
+    const BlockState* bedrockState = VanillaBlocks::BEDROCK ? &VanillaBlocks::BEDROCK->defaultState() : nullptr;
+    const BlockState* sandState = VanillaBlocks::SAND ? &VanillaBlocks::SAND->defaultState() : nullptr;
+    const BlockState* waterState = VanillaBlocks::WATER ? &VanillaBlocks::WATER->defaultState() : nullptr;
+    const BlockState* snowState = VanillaBlocks::SNOW ? &VanillaBlocks::SNOW->defaultState() : nullptr;
+    const BlockState* airState = nullptr; // 空气用 nullptr
+
     for (i32 lx = 0; lx < world::CHUNK_WIDTH; ++lx) {
         for (i32 lz = 0; lz < world::CHUNK_WIDTH; ++lz) {
             i32 worldX = chunkX + lx;
@@ -105,32 +113,42 @@ void StandardTerrainGenerator::generateBaseTerrain(ChunkData& chunk) {
             // 确保高度在有效范围内
             height = std::max(1, std::min(height, world::MAX_BUILD_HEIGHT - 1));
 
+            // 选择表面方块
+            const BlockState* surfaceBlock = grassState;
+            const BlockState* subsurfaceBlock = dirtState;
+            const BlockState* fillBlock = airState;
+
+            // 根据生物群系设置方块
+            if (biomeInfo.surfaceBlock) surfaceBlock = biomeInfo.surfaceBlock;
+            if (biomeInfo.subsurfaceBlock) subsurfaceBlock = biomeInfo.subsurfaceBlock;
+            if (biomeInfo.fillBlock) fillBlock = biomeInfo.fillBlock;
+
             // 填充方块
             for (i32 y = world::MIN_BUILD_HEIGHT; y < height; ++y) {
-                BlockId block;
+                const BlockState* block = nullptr;
 
                 if (y == height - 1) {
                     // 地表
-                    block = biomeInfo.surfaceBlock;
+                    block = surfaceBlock;
                 } else if (y >= height - 4) {
                     // 次地表
-                    block = biomeInfo.subsurfaceBlock;
+                    block = subsurfaceBlock;
                 } else {
                     // 基岩层
                     if (y <= world::MIN_BUILD_HEIGHT + 4) {
-                        block = BlockId::Bedrock;
+                        block = bedrockState;
                     } else {
-                        block = BlockId::Stone;
+                        block = stoneState;
                     }
                 }
 
-                chunk.setBlock(lx, y, lz, BlockState(block));
+                chunk.setBlock(lx, y, lz, block);
             }
 
             // 如果在海平面以下，填充水
             if (height < m_config.seaLevel) {
                 for (i32 y = height; y <= m_config.seaLevel; ++y) {
-                    chunk.setBlock(lx, y, lz, BlockState(biomeInfo.fillBlock));
+                    chunk.setBlock(lx, y, lz, fillBlock);
                 }
             }
         }
@@ -144,6 +162,9 @@ void StandardTerrainGenerator::generateCaves(ChunkData& chunk) {
     i32 chunkX = chunk.x() * world::CHUNK_WIDTH;
     i32 chunkZ = chunk.z() * world::CHUNK_WIDTH;
 
+    const BlockState* airState = nullptr;
+    const BlockState* bedrockState = VanillaBlocks::BEDROCK ? &VanillaBlocks::BEDROCK->defaultState() : nullptr;
+
     // 使用3D噪声生成洞穴
     for (i32 lx = 0; lx < world::CHUNK_WIDTH; ++lx) {
         for (i32 lz = 0; lz < world::CHUNK_WIDTH; ++lz) {
@@ -155,9 +176,9 @@ void StandardTerrainGenerator::generateCaves(ChunkData& chunk) {
 
                 // 如果噪声值超过阈值，挖空方块
                 if (caveValue > m_config.caveThreshold) {
-                    BlockState current = chunk.getBlock(lx, y, lz);
-                    if (!current.isAir() && current.id() != BlockId::Bedrock) {
-                        chunk.setBlock(lx, y, lz, BlockState(BlockId::Air));
+                    const BlockState* current = chunk.getBlock(lx, y, lz);
+                    if (current && !current->isAir() && current != bedrockState) {
+                        chunk.setBlock(lx, y, lz, airState);
                     }
                 }
             }
@@ -166,61 +187,67 @@ void StandardTerrainGenerator::generateCaves(ChunkData& chunk) {
 }
 
 void StandardTerrainGenerator::generateOres(ChunkData& chunk) {
+    // 简化的矿石生成 - 如果方块系统未初始化则跳过
+    if (!VanillaBlocks::STONE) return;
+
     i32 chunkX = chunk.x() * world::CHUNK_WIDTH;
     i32 chunkZ = chunk.z() * world::CHUNK_WIDTH;
 
-    // 简化的矿石生成
-    // TODO: 使用更真实的矿石团簇生成
-
-    std::mt19937 rng(static_cast<u32>(m_config.seed ^ chunkX ^ (chunkZ << 16)));
+    std::mt19937 rng(static_cast<u32>(m_config.seed ^ static_cast<u64>(chunkX) ^ (static_cast<u64>(chunkZ) << 16)));
     std::uniform_int_distribution<i32> heightDist(0, 60);
     std::uniform_int_distribution<i32> countDist(0, 100);
 
+    const BlockState* stoneState = &VanillaBlocks::STONE->defaultState();
+    const BlockState* coalOreState = VanillaBlocks::COAL_ORE ? &VanillaBlocks::COAL_ORE->defaultState() : nullptr;
+    const BlockState* ironOreState = VanillaBlocks::IRON_ORE ? &VanillaBlocks::IRON_ORE->defaultState() : nullptr;
+    const BlockState* goldOreState = VanillaBlocks::GOLD_ORE ? &VanillaBlocks::GOLD_ORE->defaultState() : nullptr;
+    const BlockState* diamondOreState = VanillaBlocks::DIAMOND_ORE ? &VanillaBlocks::DIAMOND_ORE->defaultState() : nullptr;
+
     // 煤矿 (高度 0-80)
-    if (countDist(rng) < 20) {
+    if (coalOreState && countDist(rng) < 20) {
         i32 x = rng() % world::CHUNK_WIDTH;
         i32 z = rng() % world::CHUNK_WIDTH;
         i32 y = 5 + heightDist(rng) % 75;
 
-        BlockState current = chunk.getBlock(x, y, z);
-        if (current.id() == BlockId::Stone) {
-            chunk.setBlock(x, y, z, BlockState(BlockId::CoalOre));
+        const BlockState* current = chunk.getBlock(x, y, z);
+        if (current == stoneState) {
+            chunk.setBlock(x, y, z, coalOreState);
         }
     }
 
     // 铁矿 (高度 0-64)
-    if (countDist(rng) < 15) {
+    if (ironOreState && countDist(rng) < 15) {
         i32 x = rng() % world::CHUNK_WIDTH;
         i32 z = rng() % world::CHUNK_WIDTH;
         i32 y = 5 + heightDist(rng) % 59;
 
-        BlockState current = chunk.getBlock(x, y, z);
-        if (current.id() == BlockId::Stone) {
-            chunk.setBlock(x, y, z, BlockState(BlockId::IronOre));
+        const BlockState* current = chunk.getBlock(x, y, z);
+        if (current == stoneState) {
+            chunk.setBlock(x, y, z, ironOreState);
         }
     }
 
     // 金矿 (高度 0-32)
-    if (countDist(rng) < 5) {
+    if (goldOreState && countDist(rng) < 5) {
         i32 x = rng() % world::CHUNK_WIDTH;
         i32 z = rng() % world::CHUNK_WIDTH;
         i32 y = 5 + heightDist(rng) % 27;
 
-        BlockState current = chunk.getBlock(x, y, z);
-        if (current.id() == BlockId::Stone) {
-            chunk.setBlock(x, y, z, BlockState(BlockId::GoldOre));
+        const BlockState* current = chunk.getBlock(x, y, z);
+        if (current == stoneState) {
+            chunk.setBlock(x, y, z, goldOreState);
         }
     }
 
     // 钻石矿 (高度 0-16)
-    if (countDist(rng) < 2) {
+    if (diamondOreState && countDist(rng) < 2) {
         i32 x = rng() % world::CHUNK_WIDTH;
         i32 z = rng() % world::CHUNK_WIDTH;
         i32 y = 5 + heightDist(rng) % 11;
 
-        BlockState current = chunk.getBlock(x, y, z);
-        if (current.id() == BlockId::Stone) {
-            chunk.setBlock(x, y, z, BlockState(BlockId::DiamondOre));
+        const BlockState* current = chunk.getBlock(x, y, z);
+        if (current == stoneState) {
+            chunk.setBlock(x, y, z, diamondOreState);
         }
     }
 }
@@ -269,8 +296,36 @@ i32 StandardTerrainGenerator::calculateHeight(i32 x, i32 z) const {
 }
 
 void StandardTerrainGenerator::initializeBiomes() {
-    for (size_t i = 0; i < m_biomes.size() && i < 12; ++i) {
-        m_biomes[i] = createDefaultBiomes[i];
+    // 初始化生物群系信息
+    // 注意：方块指针在 VanillaBlocks::initialize() 调用后才能使用
+
+    m_biomes[static_cast<size_t>(BiomeType::Plains)] = createBiomeInfo(BiomeType::Plains, 0.0f, 10.0f, 0.5f, 0.5f);
+    m_biomes[static_cast<size_t>(BiomeType::Forest)] = createBiomeInfo(BiomeType::Forest, 0.0f, 15.0f, 0.6f, 0.7f);
+    m_biomes[static_cast<size_t>(BiomeType::Desert)] = createBiomeInfo(BiomeType::Desert, -5.0f, 5.0f, 2.0f, 0.0f);
+    m_biomes[static_cast<size_t>(BiomeType::Mountains)] = createBiomeInfo(BiomeType::Mountains, 30.0f, 80.0f, 0.3f, 0.4f);
+    m_biomes[static_cast<size_t>(BiomeType::Ocean)] = createBiomeInfo(BiomeType::Ocean, -30.0f, -5.0f, 0.5f, 0.8f);
+    m_biomes[static_cast<size_t>(BiomeType::Snow)] = createBiomeInfo(BiomeType::Snow, 5.0f, 25.0f, -0.5f, 0.6f);
+    m_biomes[static_cast<size_t>(BiomeType::Jungle)] = createBiomeInfo(BiomeType::Jungle, 5.0f, 20.0f, 0.9f, 0.9f);
+    m_biomes[static_cast<size_t>(BiomeType::Swamp)] = createBiomeInfo(BiomeType::Swamp, -5.0f, 5.0f, 0.7f, 0.9f);
+    m_biomes[static_cast<size_t>(BiomeType::Taiga)] = createBiomeInfo(BiomeType::Taiga, 5.0f, 20.0f, -0.2f, 0.6f);
+    m_biomes[static_cast<size_t>(BiomeType::Savanna)] = createBiomeInfo(BiomeType::Savanna, 0.0f, 10.0f, 1.5f, 0.2f);
+    m_biomes[static_cast<size_t>(BiomeType::Badlands)] = createBiomeInfo(BiomeType::Badlands, 10.0f, 30.0f, 1.8f, 0.1f);
+
+    // 设置方块指针（在方块系统初始化后）
+    if (VanillaBlocks::GRASS_BLOCK) {
+        m_biomes[static_cast<size_t>(BiomeType::Plains)].surfaceBlock = &VanillaBlocks::GRASS_BLOCK->defaultState();
+        m_biomes[static_cast<size_t>(BiomeType::Plains)].subsurfaceBlock = &VanillaBlocks::DIRT->defaultState();
+    }
+    if (VanillaBlocks::SAND) {
+        m_biomes[static_cast<size_t>(BiomeType::Desert)].surfaceBlock = &VanillaBlocks::SAND->defaultState();
+        m_biomes[static_cast<size_t>(BiomeType::Desert)].subsurfaceBlock = &VanillaBlocks::SAND->defaultState();
+    }
+    if (VanillaBlocks::STONE) {
+        m_biomes[static_cast<size_t>(BiomeType::Mountains)].surfaceBlock = &VanillaBlocks::STONE->defaultState();
+        m_biomes[static_cast<size_t>(BiomeType::Mountains)].subsurfaceBlock = &VanillaBlocks::STONE->defaultState();
+    }
+    if (VanillaBlocks::WATER) {
+        m_biomes[static_cast<size_t>(BiomeType::Ocean)].fillBlock = &VanillaBlocks::WATER->defaultState();
     }
 }
 
@@ -286,9 +341,6 @@ BiomeType StandardTerrainGenerator::calculateBiome(i32 x, i32 z) const {
     );
 
     // 根据温度和湿度决定生物群系
-    // 温度: 0 = 冷, 1 = 热
-    // 湿度: 0 = 干, 1 = 湿
-
     if (temperature < 0.2f) {
         // 寒冷生物群系
         if (humidity > 0.5f) {
@@ -327,15 +379,22 @@ BiomeType StandardTerrainGenerator::calculateBiome(i32 x, i32 z) const {
 }
 
 void StandardTerrainGenerator::generateTrees(ChunkData& chunk, ChunkData* neighbors[8]) {
+    // 如果方块系统未初始化则跳过
+    if (!VanillaBlocks::GRASS_BLOCK || !VanillaBlocks::OAK_LOG || !VanillaBlocks::OAK_LEAVES) return;
+
     // 使用确定性随机
     i32 chunkX = chunk.x() * world::CHUNK_WIDTH;
     i32 chunkZ = chunk.z() * world::CHUNK_WIDTH;
 
-    std::mt19937 rng(static_cast<u32>(m_config.seed ^ chunkX ^ (chunkZ << 16)));
+    std::mt19937 rng(static_cast<u32>(m_config.seed ^ static_cast<u64>(chunkX) ^ (static_cast<u64>(chunkZ) << 16)));
     std::uniform_int_distribution<i32> xDist(2, world::CHUNK_WIDTH - 3);
     std::uniform_int_distribution<i32> zDist(2, world::CHUNK_WIDTH - 3);
     std::uniform_int_distribution<i32> heightDist(4, 7);
     std::uniform_int_distribution<i32> countDist(0, 100);
+
+    const BlockState* grassState = &VanillaBlocks::GRASS_BLOCK->defaultState();
+    const BlockState* logState = &VanillaBlocks::OAK_LOG->defaultState();
+    const BlockState* leavesState = &VanillaBlocks::OAK_LEAVES->defaultState();
 
     // 根据生物群系决定树木数量
     i32 treeCount = 0;
@@ -370,14 +429,14 @@ void StandardTerrainGenerator::generateTrees(ChunkData& chunk, ChunkData* neighb
         if (groundY < 0 || groundY >= world::MAX_BUILD_HEIGHT - 8) continue;
 
         // 检查是否是草地
-        BlockState surface = chunk.getBlock(lx, groundY, lz);
-        if (surface.id() != BlockId::GrassBlock) continue;
+        const BlockState* surface = chunk.getBlock(lx, groundY, lz);
+        if (surface != grassState) continue;
 
         i32 treeHeight = heightDist(rng);
 
         // 生成树干
         for (i32 h = 0; h < treeHeight; ++h) {
-            chunk.setBlock(lx, groundY + 1 + h, lz, BlockState(BlockId::OakLog));
+            chunk.setBlock(lx, groundY + 1 + h, lz, logState);
         }
 
         // 生成树叶 (简单球形)
@@ -395,9 +454,9 @@ void StandardTerrainGenerator::generateTrees(ChunkData& chunk, ChunkData* neighb
 
                     if (leafX >= 0 && leafX < world::CHUNK_WIDTH &&
                         leafZ >= 0 && leafZ < world::CHUNK_WIDTH) {
-                        BlockState current = chunk.getBlock(leafX, leafY, leafZ);
-                        if (current.isAir()) {
-                            chunk.setBlock(leafX, leafY, leafZ, BlockState(BlockId::OakLeaves));
+                        const BlockState* current = chunk.getBlock(leafX, leafY, leafZ);
+                        if (!current || current->isAir()) {
+                            chunk.setBlock(leafX, leafY, leafZ, leavesState);
                         }
                     }
                 }
@@ -420,25 +479,34 @@ void StandardTerrainGenerator::generateGrass(ChunkData& chunk) {
 // FlatTerrainGenerator 实现
 // ============================================================================
 
-FlatTerrainGenerator::FlatTerrainGenerator(i32 layers, BlockId block)
+FlatTerrainGenerator::FlatTerrainGenerator(i32 layers)
     : m_layers(layers)
-    , m_block(block)
 {
     m_config.seed = 0;
     m_config.terrainHeight = static_cast<f32>(layers);
     m_config.terrainVariation = 0.0f;
 
-    m_defaultBiome = {BiomeType::Plains, 0.0f, 0.0f, 0.5f, 0.5f, BlockId::GrassBlock, BlockId::Dirt, BlockId::Air};
+    m_defaultBiome = createBiomeInfo(BiomeType::Plains, 0.0f, 0.0f, 0.5f, 0.5f);
+    if (VanillaBlocks::GRASS_BLOCK) {
+        m_defaultBiome.surfaceBlock = &VanillaBlocks::GRASS_BLOCK->defaultState();
+        m_defaultBiome.subsurfaceBlock = &VanillaBlocks::DIRT->defaultState();
+    }
 }
 
 void FlatTerrainGenerator::generateChunk(ChunkData& chunk) {
+    // 获取方块指针
+    const BlockState* bedrockState = VanillaBlocks::BEDROCK ? &VanillaBlocks::BEDROCK->defaultState() : nullptr;
+    const BlockState* dirtState = VanillaBlocks::DIRT ? &VanillaBlocks::DIRT->defaultState() : nullptr;
+    const BlockState* grassState = VanillaBlocks::GRASS_BLOCK ? &VanillaBlocks::GRASS_BLOCK->defaultState() : nullptr;
+    const BlockState* fillState = m_block ? m_block : (VanillaBlocks::STONE ? &VanillaBlocks::STONE->defaultState() : nullptr);
+
     // 生成平坦地形
     i32 startY = world::MIN_BUILD_HEIGHT + 1;
 
     // 基岩层
     for (i32 lx = 0; lx < world::CHUNK_WIDTH; ++lx) {
         for (i32 lz = 0; lz < world::CHUNK_WIDTH; ++lz) {
-            chunk.setBlock(lx, world::MIN_BUILD_HEIGHT, lz, BlockState(BlockId::Bedrock));
+            chunk.setBlock(lx, world::MIN_BUILD_HEIGHT, lz, bedrockState);
         }
     }
 
@@ -446,7 +514,7 @@ void FlatTerrainGenerator::generateChunk(ChunkData& chunk) {
     for (i32 y = startY; y < startY + m_layers - 2; ++y) {
         for (i32 lx = 0; lx < world::CHUNK_WIDTH; ++lx) {
             for (i32 lz = 0; lz < world::CHUNK_WIDTH; ++lz) {
-                chunk.setBlock(lx, y, lz, BlockState(m_block));
+                chunk.setBlock(lx, y, lz, fillState);
             }
         }
     }
@@ -455,7 +523,7 @@ void FlatTerrainGenerator::generateChunk(ChunkData& chunk) {
     i32 subsurfaceY = startY + m_layers - 2;
     for (i32 lx = 0; lx < world::CHUNK_WIDTH; ++lx) {
         for (i32 lz = 0; lz < world::CHUNK_WIDTH; ++lz) {
-            chunk.setBlock(lx, subsurfaceY, lz, BlockState(BlockId::Dirt));
+            chunk.setBlock(lx, subsurfaceY, lz, dirtState);
         }
     }
 
@@ -463,7 +531,7 @@ void FlatTerrainGenerator::generateChunk(ChunkData& chunk) {
     i32 surfaceY = startY + m_layers - 1;
     for (i32 lx = 0; lx < world::CHUNK_WIDTH; ++lx) {
         for (i32 lz = 0; lz < world::CHUNK_WIDTH; ++lz) {
-            chunk.setBlock(lx, surfaceY, lz, BlockState(BlockId::GrassBlock));
+            chunk.setBlock(lx, surfaceY, lz, grassState);
         }
     }
 

@@ -2,8 +2,7 @@
 
 #include "../core/Types.hpp"
 #include "../world/chunk/ChunkData.hpp"
-#include "../world/BlockID.hpp"
-#include "../world/BlockProperties.hpp"
+#include "../world/block/Block.hpp"
 #include "MeshTypes.hpp"
 #include <memory>
 #include <functional>
@@ -47,12 +46,12 @@ public:
 
 private:
     // 检查方块是否应该渲染
-    static bool shouldRenderBlock(BlockState block);
+    static bool shouldRenderBlock(const BlockState* state);
 
     // 检查面是否应该渲染
     static bool shouldRenderFace(
-        BlockState block,
-        BlockState neighbor
+        const BlockState* block,
+        const BlockState* neighbor
     );
 
     // 获取方块光照
@@ -62,27 +61,14 @@ private:
         const ChunkData* neighborChunks[6]
     );
 
-    // 获取方块属性
-    static BlockProperties getBlockProperties(BlockState block);
-
     // 添加单个面的顶点
     static void addFace(
         MeshData& mesh,
         Face face,
         f32 x, f32 y, f32 z,
-        BlockState block,
+        const BlockState* state,
         u8 light,
         const BlockModel* model
-    );
-
-    // 添加单个面的顶点（带属性）
-    static void addFaceWithProperties(
-        MeshData& mesh,
-        Face face,
-        f32 x, f32 y, f32 z,
-        BlockState block,
-        const BlockProperties& properties,
-        u8 light
     );
 
     // 贪婪网格合并

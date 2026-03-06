@@ -47,24 +47,25 @@ void ChunkMesher::generateSectionMesh(
     }
 }
 
-bool ChunkMesher::shouldRenderBlock(BlockState block) {
+bool ChunkMesher::shouldRenderBlock(const BlockState* state) {
     // 空气和液体不渲染实体网格
-    return !block.isAir();
+    if (!state) return false;
+    return !state->isAir();
 }
 
-bool ChunkMesher::shouldRenderFace(BlockState block, BlockState neighbor) {
+bool ChunkMesher::shouldRenderFace(const BlockState* block, const BlockState* neighbor) {
     // 如果邻居是空气，渲染面
-    if (neighbor.isAir()) {
+    if (!neighbor || neighbor->isAir()) {
         return true;
     }
 
     // 如果邻居是液体，渲染面
-    if (neighbor.isLiquid()) {
+    if (neighbor->isLiquid()) {
         return true;
     }
 
     // 如果邻居是透明的（如玻璃、树叶），渲染面
-    if (neighbor.isTransparent()) {
+    if (neighbor->isTransparent()) {
         return true;
     }
 
@@ -78,6 +79,8 @@ u8 ChunkMesher::getBlockLight(
     const ChunkData* neighborChunks[6]
 ) {
     // 获取方块光照 (天空光照和方块光照的最大值)
+    (void)neighborChunks; // 暂时不使用邻居区块
+
     const ChunkSection* section = chunk.getSection(y / world::CHUNK_SECTION_HEIGHT);
     if (!section) {
         return 15; // 默认全亮
@@ -90,21 +93,18 @@ u8 ChunkMesher::getBlockLight(
     return std::max(skyLight, blockLight);
 }
 
-BlockProperties ChunkMesher::getBlockProperties(BlockState block) {
-    // 从BlockState的data字段解码属性
-    return BlockProperties(block.data());
-}
-
 void ChunkMesher::addFace(
     MeshData& mesh,
     Face face,
     f32 x, f32 y, f32 z,
-    BlockState block,
+    const BlockState* state,
     u8 light,
     const BlockModel* model
 ) {
+    if (!state) return;
+
     if (!model) {
-        model = BlockModelRegistry::instance().getModel(block.id());
+        model = BlockModelRegistry::instance().getModel(state);
     }
     if (!model) return;
 
@@ -148,26 +148,6 @@ void ChunkMesher::addFace(
     }
 }
 
-void ChunkMesher::addFaceWithProperties(
-    MeshData& mesh,
-    Face face,
-    f32 x, f32 y, f32 z,
-    BlockState block,
-    const BlockProperties& properties,
-    u8 light
-) {
-    // 获取模型
-    const BlockModel* model = BlockModelRegistry::instance().getModel(block.id());
-
-    if (!model) return;
-
-    // TODO: 根据属性选择正确的模型变体
-    // 目前使用基本模型，未来可以通过s_useResourceModels标志
-    // 调用client模块的资源系统获取正确的模型变体
-
-    addFace(mesh, face, x, y, z, block, light, model);
-}
-
 void ChunkMesher::simpleMeshSection(
     const ChunkData& chunk,
     i32 sectionIndex,
@@ -187,7 +167,7 @@ void ChunkMesher::simpleMeshSection(
     for (i32 y = 0; y < SIZE; ++y) {
         for (i32 z = 0; z < SIZE; ++z) {
             for (i32 x = 0; x < SIZE; ++x) {
-                BlockState block = section->getBlock(x, y, z);
+                const BlockState* block = section->getBlock(x, y, z);
                 if (!shouldRenderBlock(block)) {
                     continue;
                 }
@@ -202,8 +182,7 @@ void ChunkMesher::simpleMeshSection(
                     i32 ny = y + dir[1];
                     i32 nz = z + dir[2];
 
-                    BlockState neighbor;
-                    bool hasNeighbor = true;
+                    const BlockState* neighbor = nullptr;
 
                     // 检查是否在当前区块内
                     if (nx >= 0 && nx < SIZE && ny >= 0 && ny < SIZE && nz >= 0 && nz < SIZE) {
@@ -216,8 +195,7 @@ void ChunkMesher::simpleMeshSection(
 
                         // 处理Y方向跨段
                         if (worldY < 0 || worldY >= world::CHUNK_HEIGHT) {
-                            hasNeighbor = false;
-                            neighbor = BlockState(BlockId::Air);
+                            neighbor = nullptr; // 空气
                         } else if (worldX >= 0 && worldX < world::CHUNK_WIDTH &&
                                    worldZ >= 0 && worldZ < world::CHUNK_WIDTH) {
                             // 仍在当前区块内
@@ -236,12 +214,10 @@ void ChunkMesher::simpleMeshSection(
                                 i32 lz = (worldZ + SIZE) % SIZE;
                                 neighbor = neighborChunks[neighborIdx]->getBlock(lx, worldY, lz);
                             } else {
-                                hasNeighbor = false;
-                                neighbor = BlockState(BlockId::Air);
+                                neighbor = nullptr;
                             }
                         } else {
-                            hasNeighbor = false;
-                            neighbor = BlockState(BlockId::Air);
+                            neighbor = nullptr;
                         }
                     }
 
@@ -252,14 +228,11 @@ void ChunkMesher::simpleMeshSection(
                             light = getBlockLight(chunk, x, baseY + y, z, neighborChunks);
                         }
 
-                        // 获取方块属性
-                        BlockProperties properties = getBlockProperties(block);
-
-                        addFaceWithProperties(outMesh, face,
+                        addFace(outMesh, face,
                                 static_cast<f32>(x),
                                 static_cast<f32>(baseY + y),
                                 static_cast<f32>(z),
-                                block, properties, light);
+                                block, light, nullptr);
                     }
                 }
             }

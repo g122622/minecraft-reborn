@@ -83,12 +83,12 @@ public:
     /**
      * @brief 获取方块
      */
-    [[nodiscard]] BlockState getBlock(i32 x, i32 y, i32 z) const override;
+    [[nodiscard]] const BlockState* getBlockState(i32 x, i32 y, i32 z) const override;
 
     /**
      * @brief 设置方块
      */
-    void setBlock(i32 x, i32 y, i32 z, BlockState block);
+    void setBlock(i32 x, i32 y, i32 z, const BlockState* state);
 
     // ========== ICollisionWorld 接口实现 ==========
 

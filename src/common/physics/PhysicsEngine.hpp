@@ -2,9 +2,8 @@
 
 #include "../util/AxisAlignedBB.hpp"
 #include "../math/Vector3.hpp"
-#include "../world/BlockID.hpp"
+#include "../world/block/Block.hpp"
 #include "../world/chunk/ChunkData.hpp"
-#include "collision/BlockCollision.hpp"
 #include <vector>
 
 namespace mr {
@@ -24,9 +23,9 @@ public:
     /**
      * @brief 获取指定位置的方块状态
      * @param x, y, z 方块坐标
-     * @return 方块状态（如果超出世界范围，返回空气）
+     * @return 方块状态指针（如果超出世界范围或空气，返回nullptr）
      */
-    [[nodiscard]] virtual BlockState getBlock(i32 x, i32 y, i32 z) const = 0;
+    [[nodiscard]] virtual const BlockState* getBlockState(i32 x, i32 y, i32 z) const = 0;
 
     /**
      * @brief 检查位置是否在世界范围内

@@ -1,9 +1,9 @@
 #pragma once
 
 #include "../core/Types.hpp"
-#include "../world/BlockID.hpp"
-#include "../world/chunk/ChunkData.hpp"
-#include "../world/WorldConstants.hpp"
+#include "block/Block.hpp"
+#include "chunk/ChunkData.hpp"
+#include "WorldConstants.hpp"
 #include "../math/Noise.hpp"
 #include <memory>
 #include <functional>
@@ -39,9 +39,9 @@ struct BiomeInfo {
     f32 maxHeight;      // 最高高度偏移
     f32 temperature;    // 温度 (0-1)
     f32 humidity;       // 湿度 (0-1)
-    BlockId surfaceBlock;    // 地表方块
-    BlockId subsurfaceBlock; // 次地表方块
-    BlockId fillBlock;       // 填充方块 (如水)
+    const BlockState* surfaceBlock = nullptr;    // 地表方块
+    const BlockState* subsurfaceBlock = nullptr; // 次地表方块
+    const BlockState* fillBlock = nullptr;       // 填充方块 (如水)
 };
 
 // ============================================================================
@@ -159,7 +159,7 @@ private:
 
 class FlatTerrainGenerator : public ITerrainGenerator {
 public:
-    explicit FlatTerrainGenerator(i32 layers = 4, BlockId block = BlockId::Stone);
+    explicit FlatTerrainGenerator(i32 layers = 4);
     ~FlatTerrainGenerator() override = default;
 
     void generateChunk(ChunkData& chunk) override;
@@ -170,11 +170,11 @@ public:
     [[nodiscard]] const WorldGenConfig& getConfig() const override { return m_config; }
 
     void setLayers(i32 layers) { m_layers = layers; }
-    void setBlock(BlockId block) { m_block = block; }
+    void setBlock(const BlockState* block) { m_block = block; }
 
 private:
     i32 m_layers;
-    BlockId m_block;
+    const BlockState* m_block = nullptr;
     WorldGenConfig m_config;
     BiomeInfo m_defaultBiome;
 };

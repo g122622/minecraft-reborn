@@ -1,4 +1,6 @@
 #include "MeshTypes.hpp"
+#include "../world/block/Block.hpp"
+#include "../world/block/VanillaBlocks.hpp"
 #include <memory>
 
 namespace mr {
@@ -92,6 +94,7 @@ std::array<i32, 3> getFaceDirection(Face face) {
 
 bool shouldRenderFace(Face face, bool neighborOpaque) {
     // 如果邻居不透明，不渲染该面
+    (void)face;
     return !neighborOpaque;
 }
 
@@ -156,10 +159,15 @@ void BlockModelRegistry::initialize(const TextureAtlas& atlas) {
     m_initialized = true;
 }
 
-const BlockModel* BlockModelRegistry::getModel(BlockId blockId) const {
-    size_t index = static_cast<size_t>(blockId);
-    if (index < m_models.size()) {
-        return m_models[index].get();
+const BlockModel* BlockModelRegistry::getModel(const BlockState* state) const {
+    if (!state) return nullptr;
+    return getModel(state->blockId());
+}
+
+const BlockModel* BlockModelRegistry::getModel(u32 blockId) const {
+    auto it = m_models.find(blockId);
+    if (it != m_models.end()) {
+        return it->second.get();
     }
     return nullptr;
 }
@@ -169,108 +177,94 @@ void BlockModelRegistry::registerVanillaModels() {
     // 简化版: 所有方块使用相同的纹理位置
     // TODO: 实际加载纹理图集时更新这些值
 
-    // 空气 - 无模型
-    m_models[static_cast<size_t>(BlockId::Air)] = nullptr;
+    // 注册基础方块模型 - 使用 VanillaBlocks 中的方块ID
+    auto registerSimple = [this](u32 blockId, u32 tileX, u32 tileY) {
+        m_models[blockId] = std::make_unique<SimpleBlockModel>(m_atlas->getRegion(tileX, tileY));
+    };
 
-    // 石头
-    m_models[static_cast<size_t>(BlockId::Stone)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(1, 0));
-
-    // 草地 - 不同面不同纹理
-    m_models[static_cast<size_t>(BlockId::GrassBlock)] =
-        std::make_unique<CubeBlockModel>(
-            m_atlas->getRegion(0, 0),  // 顶部 (草地)
-            m_atlas->getRegion(2, 0),  // 底部 (泥土)
-            m_atlas->getRegion(3, 0),  // 北面 (侧面)
-            m_atlas->getRegion(3, 0),  // 南面 (侧面)
-            m_atlas->getRegion(3, 0),  // 西面 (侧面)
-            m_atlas->getRegion(3, 0)   // 东面 (侧面)
+    auto registerCube = [this](u32 blockId, u32 topX, u32 topY,
+                               u32 bottomX, u32 bottomY,
+                               u32 sideX, u32 sideY) {
+        m_models[blockId] = std::make_unique<CubeBlockModel>(
+            m_atlas->getRegion(topX, topY),
+            m_atlas->getRegion(bottomX, bottomY),
+            m_atlas->getRegion(sideX, sideY),
+            m_atlas->getRegion(sideX, sideY),
+            m_atlas->getRegion(sideX, sideY),
+            m_atlas->getRegion(sideX, sideY)
         );
+    };
 
-    // 泥土
-    m_models[static_cast<size_t>(BlockId::Dirt)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(2, 0));
-
-    // 圆石
-    m_models[static_cast<size_t>(BlockId::Cobblestone)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(4, 0));
-
-    // 木板
-    m_models[static_cast<size_t>(BlockId::OakPlanks)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(5, 0));
-
-    // 水 - 使用简化模型
-    m_models[static_cast<size_t>(BlockId::Water)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(6, 0));
-
-    // 岩浆
-    m_models[static_cast<size_t>(BlockId::Lava)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(7, 0));
-
-    // 基岩
-    m_models[static_cast<size_t>(BlockId::Bedrock)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(8, 0));
-
-    // 沙子
-    m_models[static_cast<size_t>(BlockId::Sand)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(9, 0));
-
-    // 沙砾
-    m_models[static_cast<size_t>(BlockId::Gravel)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(10, 0));
-
-    // 矿石类
-    m_models[static_cast<size_t>(BlockId::GoldOre)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(11, 0));
-    m_models[static_cast<size_t>(BlockId::IronOre)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(12, 0));
-    m_models[static_cast<size_t>(BlockId::CoalOre)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(13, 0));
-    m_models[static_cast<size_t>(BlockId::DiamondOre)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(14, 0));
-
-    // 钻石块
-    m_models[static_cast<size_t>(BlockId::DiamondBlock)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(15, 0));
-
-    // 原木
-    m_models[static_cast<size_t>(BlockId::OakLog)] =
-        std::make_unique<CubeBlockModel>(
-            m_atlas->getRegion(16, 0),  // 顶部
-            m_atlas->getRegion(16, 0),  // 底部
-            m_atlas->getRegion(17, 0),  // 侧面
-            m_atlas->getRegion(17, 0),
-            m_atlas->getRegion(17, 0),
-            m_atlas->getRegion(17, 0)
-        );
-
-    // 树叶
-    m_models[static_cast<size_t>(BlockId::OakLeaves)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(18, 0));
-
-    // 雪
-    m_models[static_cast<size_t>(BlockId::Snow)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(19, 0));
-
-    // 冰
-    m_models[static_cast<size_t>(BlockId::Ice)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(20, 0));
-
-    // 地狱岩
-    m_models[static_cast<size_t>(BlockId::Netherrack)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(21, 0));
-
-    // 荧石
-    m_models[static_cast<size_t>(BlockId::Glowstone)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(22, 0));
-
-    // 末地石
-    m_models[static_cast<size_t>(BlockId::EndStone)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(23, 0));
-
-    // 黑曜石
-    m_models[static_cast<size_t>(BlockId::Obsidian)] =
-        std::make_unique<SimpleBlockModel>(m_atlas->getRegion(24, 0));
+    // 注册原版方块模型（如果已初始化）
+    if (VanillaBlocks::STONE) {
+        registerSimple(VanillaBlocks::STONE->blockId(), 1, 0);
+    }
+    if (VanillaBlocks::GRASS_BLOCK) {
+        registerCube(VanillaBlocks::GRASS_BLOCK->blockId(), 0, 0, 2, 0, 3, 0);
+    }
+    if (VanillaBlocks::DIRT) {
+        registerSimple(VanillaBlocks::DIRT->blockId(), 2, 0);
+    }
+    if (VanillaBlocks::COBBLESTONE) {
+        registerSimple(VanillaBlocks::COBBLESTONE->blockId(), 4, 0);
+    }
+    if (VanillaBlocks::OAK_PLANKS) {
+        registerSimple(VanillaBlocks::OAK_PLANKS->blockId(), 5, 0);
+    }
+    if (VanillaBlocks::WATER) {
+        registerSimple(VanillaBlocks::WATER->blockId(), 6, 0);
+    }
+    if (VanillaBlocks::LAVA) {
+        registerSimple(VanillaBlocks::LAVA->blockId(), 7, 0);
+    }
+    if (VanillaBlocks::BEDROCK) {
+        registerSimple(VanillaBlocks::BEDROCK->blockId(), 8, 0);
+    }
+    if (VanillaBlocks::SAND) {
+        registerSimple(VanillaBlocks::SAND->blockId(), 9, 0);
+    }
+    if (VanillaBlocks::GRAVEL) {
+        registerSimple(VanillaBlocks::GRAVEL->blockId(), 10, 0);
+    }
+    if (VanillaBlocks::GOLD_ORE) {
+        registerSimple(VanillaBlocks::GOLD_ORE->blockId(), 11, 0);
+    }
+    if (VanillaBlocks::IRON_ORE) {
+        registerSimple(VanillaBlocks::IRON_ORE->blockId(), 12, 0);
+    }
+    if (VanillaBlocks::COAL_ORE) {
+        registerSimple(VanillaBlocks::COAL_ORE->blockId(), 13, 0);
+    }
+    if (VanillaBlocks::DIAMOND_ORE) {
+        registerSimple(VanillaBlocks::DIAMOND_ORE->blockId(), 14, 0);
+    }
+    if (VanillaBlocks::DIAMOND_BLOCK) {
+        registerSimple(VanillaBlocks::DIAMOND_BLOCK->blockId(), 15, 0);
+    }
+    if (VanillaBlocks::OAK_LOG) {
+        registerCube(VanillaBlocks::OAK_LOG->blockId(), 16, 0, 16, 0, 17, 0);
+    }
+    if (VanillaBlocks::OAK_LEAVES) {
+        registerSimple(VanillaBlocks::OAK_LEAVES->blockId(), 18, 0);
+    }
+    if (VanillaBlocks::SNOW) {
+        registerSimple(VanillaBlocks::SNOW->blockId(), 19, 0);
+    }
+    if (VanillaBlocks::ICE) {
+        registerSimple(VanillaBlocks::ICE->blockId(), 20, 0);
+    }
+    if (VanillaBlocks::NETHERRACK) {
+        registerSimple(VanillaBlocks::NETHERRACK->blockId(), 21, 0);
+    }
+    if (VanillaBlocks::GLOWSTONE) {
+        registerSimple(VanillaBlocks::GLOWSTONE->blockId(), 22, 0);
+    }
+    if (VanillaBlocks::END_STONE) {
+        registerSimple(VanillaBlocks::END_STONE->blockId(), 23, 0);
+    }
+    if (VanillaBlocks::OBSIDIAN) {
+        registerSimple(VanillaBlocks::OBSIDIAN->blockId(), 24, 0);
+    }
 }
 
 } // namespace mr

@@ -67,10 +67,10 @@ const ClientChunk* ClientWorld::getChunk(const ChunkId& id) const {
     return nullptr;
 }
 
-BlockState ClientWorld::getBlock(i32 x, i32 y, i32 z) const {
+const BlockState* ClientWorld::getBlockState(i32 x, i32 y, i32 z) const {
     // 检查Y范围
     if (!isValidY(y)) {
-        return BlockState(BlockId::Air);
+        return nullptr;
     }
 
     // 获取区块
@@ -80,7 +80,7 @@ BlockState ClientWorld::getBlock(i32 x, i32 y, i32 z) const {
 
     const ClientChunk* chunk = getChunk(id);
     if (!chunk || !chunk->data) {
-        return BlockState(BlockId::Air);
+        return nullptr;
     }
 
     // 转换为本地坐标
@@ -90,7 +90,7 @@ BlockState ClientWorld::getBlock(i32 x, i32 y, i32 z) const {
     return chunk->data->getBlock(localX, y, localZ);
 }
 
-void ClientWorld::setBlock(i32 x, i32 y, i32 z, BlockState block) {
+void ClientWorld::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {
     // 检查Y范围
     if (!isValidY(y)) {
         return;
@@ -110,7 +110,7 @@ void ClientWorld::setBlock(i32 x, i32 y, i32 z, BlockState block) {
     i32 localX = toLocalCoord(x);
     i32 localZ = toLocalCoord(z);
 
-    chunk->data->setBlock(localX, y, localZ, block);
+    chunk->data->setBlock(localX, y, localZ, state);
     chunk->needsMeshUpdate = true;
     chunk->data->setDirty(true);
 

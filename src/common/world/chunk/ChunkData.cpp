@@ -1,4 +1,5 @@
 #include "ChunkData.hpp"
+#include "../block/BlockRegistry.hpp"
 #include <algorithm>
 #include <stdexcept>
 
@@ -9,38 +10,51 @@ namespace mr {
 // ============================================================================
 
 ChunkSection::ChunkSection()
-    : m_blocks(VOLUME, 0)
-    , m_metadata(VOLUME, 0)
+    : m_blockStates(VOLUME, 0)  // 默认所有方块为空气 (stateId = 0)
     , m_skyLight(VOLUME / 2, 0xFF)  // 默认全亮
     , m_blockLight(VOLUME / 2, 0)    // 默认无光
 {
 }
 
-BlockState ChunkSection::getBlock(i32 x, i32 y, i32 z) const {
+u32 ChunkSection::getBlockStateId(i32 x, i32 y, i32 z) const {
     if (x < 0 || x >= SIZE || y < 0 || y >= SIZE || z < 0 || z >= SIZE) {
-        return BlockState(BlockId::Air);
+        return 0;  // 空气
     }
-    i32 index = blockIndex(x, y, z);
-    return BlockState(static_cast<BlockId>(m_blocks[index]), m_metadata[index]);
+    return m_blockStates[blockIndex(x, y, z)];
 }
 
-void ChunkSection::setBlock(i32 x, i32 y, i32 z, BlockState block) {
+void ChunkSection::setBlockStateId(i32 x, i32 y, i32 z, u32 stateId) {
     if (x < 0 || x >= SIZE || y < 0 || y >= SIZE || z < 0 || z >= SIZE) {
         return;
     }
     i32 index = blockIndex(x, y, z);
+    u32 oldStateId = m_blockStates[index];
 
-    BlockState oldBlock(static_cast<BlockId>(m_blocks[index]), m_metadata[index]);
+    // 获取旧状态和新状态来判断是否是空气
+    const BlockState* oldState = Block::getBlockState(oldStateId);
+    const BlockState* newState = Block::getBlockState(stateId);
 
-    if (oldBlock.isAir() && !block.isAir()) {
+    bool oldIsAir = oldState ? oldState->isAir() : true;
+    bool newIsAir = newState ? newState->isAir() : true;
+
+    if (oldIsAir && !newIsAir) {
         m_blockCount++;
-    } else if (!oldBlock.isAir() && block.isAir()) {
+    } else if (!oldIsAir && newIsAir) {
         m_blockCount--;
     }
 
-    m_blocks[index] = static_cast<u16>(block.id());
-    m_metadata[index] = block.data();
+    m_blockStates[index] = stateId;
     m_needsRecalculate = true;
+}
+
+const BlockState* ChunkSection::getBlock(i32 x, i32 y, i32 z) const {
+    u32 stateId = getBlockStateId(x, y, z);
+    return Block::getBlockState(stateId);
+}
+
+void ChunkSection::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {
+    u32 stateId = state ? state->stateId() : 0;
+    setBlockStateId(x, y, z, stateId);
 }
 
 u8 ChunkSection::getSkyLight(i32 x, i32 y, i32 z) const {
@@ -99,23 +113,19 @@ void ChunkSection::setBlockLight(i32 x, i32 y, i32 z, u8 light) {
 
 std::vector<u8> ChunkSection::serialize() const {
     std::vector<u8> data;
-    // 简单格式: 块数量 + 块数据 + 元数据 + 光照
-    data.reserve(2 + m_blocks.size() * 2 + m_skyLight.size() * 2);
+    // 格式: 块数量 + 方块状态ID + 光照
+    data.reserve(2 + m_blockStates.size() * 4 + m_skyLight.size() * 2);
 
     // 块数量
     data.push_back(static_cast<u8>(m_blockCount >> 8));
     data.push_back(static_cast<u8>(m_blockCount & 0xFF));
 
-    // 方块ID
-    for (u16 id : m_blocks) {
-        data.push_back(static_cast<u8>(id >> 8));
-        data.push_back(static_cast<u8>(id & 0xFF));
-    }
-
-    // 元数据
-    for (u16 meta : m_metadata) {
-        data.push_back(static_cast<u8>(meta >> 8));
-        data.push_back(static_cast<u8>(meta & 0xFF));
+    // 方块状态ID (u32)
+    for (u32 stateId : m_blockStates) {
+        data.push_back(static_cast<u8>(stateId >> 24));
+        data.push_back(static_cast<u8>(stateId >> 16));
+        data.push_back(static_cast<u8>(stateId >> 8));
+        data.push_back(static_cast<u8>(stateId & 0xFF));
     }
 
     // 光照
@@ -126,7 +136,9 @@ std::vector<u8> ChunkSection::serialize() const {
 }
 
 Result<std::unique_ptr<ChunkSection>> ChunkSection::deserialize(const u8* data, size_t size) {
-    if (size < 2 + VOLUME * 4 + VOLUME) {
+    // 新格式大小: 2 + VOLUME * 4 + VOLUME
+    size_t expectedSize = 2 + VOLUME * 4 + VOLUME;
+    if (size < expectedSize) {
         return Error(ErrorCode::InvalidArgument, "Invalid section data size");
     }
 
@@ -137,16 +149,13 @@ Result<std::unique_ptr<ChunkSection>> ChunkSection::deserialize(const u8* data, 
     section->m_blockCount = (static_cast<u16>(data[offset]) << 8) | data[offset + 1];
     offset += 2;
 
-    // 方块ID
+    // 方块状态ID
     for (size_t i = 0; i < VOLUME; ++i) {
-        section->m_blocks[i] = (static_cast<u16>(data[offset]) << 8) | data[offset + 1];
-        offset += 2;
-    }
-
-    // 元数据
-    for (size_t i = 0; i < VOLUME; ++i) {
-        section->m_metadata[i] = (static_cast<u16>(data[offset]) << 8) | data[offset + 1];
-        offset += 2;
+        section->m_blockStates[i] = (static_cast<u32>(data[offset]) << 24) |
+                                    (static_cast<u32>(data[offset + 1]) << 16) |
+                                    (static_cast<u32>(data[offset + 2]) << 8) |
+                                    static_cast<u32>(data[offset + 3]);
+        offset += 4;
     }
 
     // 天空光照
@@ -159,13 +168,13 @@ Result<std::unique_ptr<ChunkSection>> ChunkSection::deserialize(const u8* data, 
     return section;
 }
 
-void ChunkSection::fill(BlockState block) {
-    u16 blockId = static_cast<u16>(block.id());
+void ChunkSection::fill(u32 stateId) {
     for (size_t i = 0; i < VOLUME; ++i) {
-        m_blocks[i] = blockId;
-        m_metadata[i] = block.data();
+        m_blockStates[i] = stateId;
     }
-    m_blockCount = block.isAir() ? 0 : VOLUME;
+
+    const BlockState* state = Block::getBlockState(stateId);
+    m_blockCount = (state && !state->isAir()) ? VOLUME : 0;
     m_needsRecalculate = true;
 }
 
@@ -184,23 +193,23 @@ ChunkData::ChunkData(ChunkCoord x, ChunkCoord z)
     m_heightMap.fill(0);
 }
 
-BlockState ChunkData::getBlock(BlockCoord x, BlockCoord y, BlockCoord z) const {
+const BlockState* ChunkData::getBlock(BlockCoord x, BlockCoord y, BlockCoord z) const {
     if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT || z < 0 || z >= WIDTH) {
-        return BlockState(BlockId::Air);
+        return nullptr;  // 空气
     }
 
     i32 sectionIndex = y / world::CHUNK_SECTION_HEIGHT;
     const auto& section = m_sections[sectionIndex];
 
     if (!section) {
-        return BlockState(BlockId::Air);
+        return nullptr;  // 空气
     }
 
     i32 localY = y % world::CHUNK_SECTION_HEIGHT;
     return section->getBlock(x, localY, z);
 }
 
-void ChunkData::setBlock(BlockCoord x, BlockCoord y, BlockCoord z, BlockState block) {
+void ChunkData::setBlock(BlockCoord x, BlockCoord y, BlockCoord z, const BlockState* state) {
     if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT || z < 0 || z >= WIDTH) {
         return;
     }
@@ -209,14 +218,55 @@ void ChunkData::setBlock(BlockCoord x, BlockCoord y, BlockCoord z, BlockState bl
     auto& section = m_sections[sectionIndex];
 
     if (!section) {
-        if (block.isAir()) {
+        if (!state || state->isAir()) {
             return; // 不需要创建段来设置空气
         }
         section = std::make_unique<ChunkSection>();
     }
 
     i32 localY = y % world::CHUNK_SECTION_HEIGHT;
-    section->setBlock(x, localY, z, block);
+    section->setBlock(x, localY, z, state);
+    m_dirty = true;
+
+    // 更新高度图
+    if (y >= m_heightMap[x * WIDTH + z]) {
+        updateHeightMap(x, z);
+    }
+}
+
+u32 ChunkData::getBlockStateId(BlockCoord x, BlockCoord y, BlockCoord z) const {
+    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT || z < 0 || z >= WIDTH) {
+        return 0;  // 空气
+    }
+
+    i32 sectionIndex = y / world::CHUNK_SECTION_HEIGHT;
+    const auto& section = m_sections[sectionIndex];
+
+    if (!section) {
+        return 0;  // 空气
+    }
+
+    i32 localY = y % world::CHUNK_SECTION_HEIGHT;
+    return section->getBlockStateId(x, localY, z);
+}
+
+void ChunkData::setBlockStateId(BlockCoord x, BlockCoord y, BlockCoord z, u32 stateId) {
+    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT || z < 0 || z >= WIDTH) {
+        return;
+    }
+
+    i32 sectionIndex = y / world::CHUNK_SECTION_HEIGHT;
+    auto& section = m_sections[sectionIndex];
+
+    if (!section) {
+        if (stateId == 0) {
+            return; // 不需要创建段来设置空气
+        }
+        section = std::make_unique<ChunkSection>();
+    }
+
+    i32 localY = y % world::CHUNK_SECTION_HEIGHT;
+    section->setBlockStateId(x, localY, z, stateId);
     m_dirty = true;
 
     // 更新高度图
@@ -235,7 +285,8 @@ BlockCoord ChunkData::getHighestBlock(BlockCoord x, BlockCoord z) const {
 void ChunkData::updateHeightMap(BlockCoord x, BlockCoord z) {
     // 从上向下查找最高的非空气方块
     for (BlockCoord y = HEIGHT - 1; y >= 0; --y) {
-        if (!getBlock(x, y, z).isAir()) {
+        const BlockState* state = getBlock(x, y, z);
+        if (state && !state->isAir()) {
             m_heightMap[x * WIDTH + z] = y;
             return;
         }
@@ -404,13 +455,13 @@ Result<std::unique_ptr<ChunkData>> ChunkData::deserialize(const u8* data, size_t
     return chunk;
 }
 
-void ChunkData::fill(BlockCoord minY, BlockCoord maxY, BlockState block) {
+void ChunkData::fill(BlockCoord minY, BlockCoord maxY, u32 stateId) {
     for (BlockCoord y = minY; y < maxY; y += world::CHUNK_SECTION_HEIGHT) {
         i32 sectionIndex = y / world::CHUNK_SECTION_HEIGHT;
         if (sectionIndex >= 0 && sectionIndex < SECTIONS) {
             auto* section = createSection(sectionIndex);
             if (section) {
-                section->fill(block);
+                section->fill(stateId);
             }
         }
     }

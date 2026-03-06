@@ -3,7 +3,6 @@
 #include "../core/Types.hpp"
 #include "../core/Result.hpp"
 #include "../math/Vector3.hpp"
-#include "../world/BlockID.hpp"
 #include "PacketSerializer.hpp"
 #include <memory>
 
@@ -697,33 +696,29 @@ private:
 class BlockUpdatePacket {
 public:
     BlockUpdatePacket() = default;
-    BlockUpdatePacket(i32 x, i32 y, i32 z, mr::BlockId blockId, u16 blockData = 0)
+    BlockUpdatePacket(i32 x, i32 y, i32 z, u32 blockStateId)
         : m_x(x), m_y(y), m_z(z)
-        , m_blockId(blockId)
-        , m_blockData(blockData)
+        , m_blockStateId(blockStateId)
     {}
 
     // Getters
     i32 x() const { return m_x; }
     i32 y() const { return m_y; }
     i32 z() const { return m_z; }
-    mr::BlockId blockId() const { return m_blockId; }
-    u16 blockData() const { return m_blockData; }
+    u32 blockStateId() const { return m_blockStateId; }
 
     // Setters
     void setX(i32 x) { m_x = x; }
     void setY(i32 y) { m_y = y; }
     void setZ(i32 z) { m_z = z; }
-    void setBlockId(mr::BlockId id) { m_blockId = id; }
-    void setBlockData(u16 data) { m_blockData = data; }
+    void setBlockStateId(u32 id) { m_blockStateId = id; }
 
     // 序列化
     void serialize(PacketSerializer& ser) const {
         ser.writeI32(m_x);
         ser.writeI32(m_y);
         ser.writeI32(m_z);
-        ser.writeVarUInt(static_cast<u32>(m_blockId));
-        ser.writeU16(m_blockData);
+        ser.writeVarUInt(m_blockStateId);
     }
 
     [[nodiscard]] static Result<BlockUpdatePacket> deserialize(PacketDeserializer& deser) {
@@ -743,11 +738,7 @@ public:
 
         auto idResult = deser.readVarUInt();
         if (idResult.failed()) return idResult.error();
-        packet.m_blockId = static_cast<mr::BlockId>(idResult.value());
-
-        auto dataResult = deser.readU16();
-        if (dataResult.failed()) return dataResult.error();
-        packet.m_blockData = dataResult.value();
+        packet.m_blockStateId = idResult.value();
 
         return packet;
     }
@@ -756,8 +747,7 @@ private:
     i32 m_x = 0;
     i32 m_y = 0;
     i32 m_z = 0;
-    mr::BlockId m_blockId = mr::BlockId::Air;
-    u16 m_blockData = 0;
+    u32 m_blockStateId = 0;  // 使用状态ID替代旧的BlockId
 };
 
 // ============================================================================

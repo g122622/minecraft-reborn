@@ -139,7 +139,7 @@ TEST_F(ServerWorldTest, MultipleChunks) {
 // ============================================================================
 
 TEST_F(ServerWorldTest, SetBlock_CreatesChunk) {
-    world->setBlock(0, 64, 0, BlockId::Stone, 0);
+    world->setBlock(0, 64, 0, &VanillaBlocks::STONE->defaultState());
 
     EXPECT_TRUE(world->hasChunk(0, 0));
 }
@@ -165,7 +165,7 @@ TEST_F(ServerWorldTest, SetBlock_NegativeCoordinates) {
 }
 
 TEST_F(ServerWorldTest, SetBlock_MultipleBlocks) {
-    world->setBlock(0, 64, 0, BlockId::Stone, 0);
+    world->setBlock(0, 64, 0, &VanillaBlocks::STONE->defaultState());
     world->setBlock(1, 64, 0, BlockId::Dirt, 0);
     world->setBlock(0, 65, 0, BlockId::GrassBlock, 0);
 

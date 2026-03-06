@@ -154,7 +154,6 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
 
     // 初始化方块碰撞注册表
     spdlog::info("Initializing block collision registry...");
-    BlockCollisionRegistry::instance().initialize();
 
     // 创建物理引擎
     m_physicsEngine = std::make_unique<PhysicsEngine>(m_world);
@@ -504,8 +503,8 @@ void ClientApplication::setupNetworkCallbacks()
         // 注意：sendTeleportConfirm 已在 NetworkClient::handleTeleport 中调用
     };
 
-    callbacks.onBlockUpdate = [this](i32 bx, i32 by, i32 bz, BlockId blockId, u16 blockData) {
-        m_world.setBlock(bx, by, bz, BlockState(blockId, blockData));
+    callbacks.onBlockUpdate = [this](i32 bx, i32 by, i32 bz, u32 blockStateId) {
+        m_world.setBlock(bx, by, bz, Block::getBlockState(blockStateId));
     };
 
     m_networkClient->setCallbacks(callbacks);

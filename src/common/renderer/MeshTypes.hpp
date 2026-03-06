@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../core/Types.hpp"
-#include "../world/BlockID.hpp"
+#include "../world/block/Block.hpp"
 #include <array>
 #include <vector>
 #include <memory>
@@ -212,14 +212,18 @@ public:
 
     void initialize(const TextureAtlas& atlas);
 
-    [[nodiscard]] const BlockModel* getModel(BlockId blockId) const;
+    // 使用方块ID获取模型（方块ID从Block::blockId()获取）
+    [[nodiscard]] const BlockModel* getModel(u32 blockId) const;
+
+    // 使用方块状态获取模型
+    [[nodiscard]] const BlockModel* getModel(const BlockState* state) const;
 
 private:
     BlockModelRegistry() = default;
 
     void registerVanillaModels();
 
-    std::array<std::unique_ptr<BlockModel>, 256> m_models;
+    std::unordered_map<u32, std::unique_ptr<BlockModel>> m_models;
     bool m_initialized = false;
     const TextureAtlas* m_atlas = nullptr;
 };

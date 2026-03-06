@@ -62,7 +62,7 @@ struct NetworkClientCallbacks {
     std::function<void(ChunkCoord x, ChunkCoord z)> onChunkUnload;
     std::function<void(PlayerId playerId, const String& username, f64 x, f64 y, f64 z)> onPlayerSpawn;
     std::function<void(PlayerId playerId)> onPlayerDespawn;
-    std::function<void(i32 x, i32 y, i32 z, BlockId blockId, u16 blockData)> onBlockUpdate;
+    std::function<void(i32 x, i32 y, i32 z, u32 blockStateId)> onBlockUpdate;
     std::function<void(const String& message, PlayerId senderId)> onChatMessage;
     std::function<void(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch)> onPlayerMove;
 };

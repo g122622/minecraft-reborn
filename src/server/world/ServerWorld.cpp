@@ -414,7 +414,7 @@ void ServerWorld::sendUnloadChunkToPlayer(PlayerId playerId, ChunkCoord x, Chunk
 // 方块操作
 // ============================================================================
 
-void ServerWorld::setBlock(i32 x, i32 y, i32 z, BlockId blockId, u16 blockData) {
+void ServerWorld::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {
     ChunkCoord chunkX = blockToChunk(static_cast<f64>(x));
     ChunkCoord chunkZ = blockToChunk(static_cast<f64>(z));
 
@@ -424,19 +424,19 @@ void ServerWorld::setBlock(i32 x, i32 y, i32 z, BlockId blockId, u16 blockData) 
     i32 localX = x - chunkX * 16;
     i32 localZ = z - chunkZ * 16;
 
-    chunk->setBlock(localX, y, localZ, BlockState(blockId, blockData));
+    chunk->setBlock(localX, y, localZ, state);
     chunk->setDirty(true);
 
     // 广播方块更新
-    broadcastBlockUpdate(x, y, z, blockId, blockData);
+    broadcastBlockUpdate(x, y, z, state ? state->stateId() : 0);
 }
 
-BlockState ServerWorld::getBlock(i32 x, i32 y, i32 z) const {
+const BlockState* ServerWorld::getBlockState(i32 x, i32 y, i32 z) const {
     ChunkCoord chunkX = blockToChunk(static_cast<f64>(x));
     ChunkCoord chunkZ = blockToChunk(static_cast<f64>(z));
 
     const ChunkData* chunk = getChunk(chunkX, chunkZ);
-    if (!chunk) return BlockState(BlockId::Air, 0);
+    if (!chunk) return nullptr;
 
     i32 localX = x - chunkX * 16;
     i32 localZ = z - chunkZ * 16;
@@ -444,8 +444,8 @@ BlockState ServerWorld::getBlock(i32 x, i32 y, i32 z) const {
     return chunk->getBlock(localX, y, localZ);
 }
 
-void ServerWorld::broadcastBlockUpdate(i32 x, i32 y, i32 z, BlockId blockId, u16 blockData) {
-    network::BlockUpdatePacket blockPacket(x, y, z, blockId, blockData);
+void ServerWorld::broadcastBlockUpdate(i32 x, i32 y, i32 z, u32 blockStateId) {
+    network::BlockUpdatePacket blockPacket(x, y, z, blockStateId);
     network::PacketSerializer ser;
     blockPacket.serialize(ser);
 

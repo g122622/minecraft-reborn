@@ -604,7 +604,7 @@ TEST(PlayerDespawnPacket, SerializeDeserialize) {
 }
 
 TEST(BlockUpdatePacket, SerializeDeserialize) {
-    BlockUpdatePacket original(100, 64, -200, mr::BlockId::Stone, 3);
+    BlockUpdatePacket original(100, 64, -200, 1u, 3);
 
     PacketSerializer ser;
     original.serialize(ser);
@@ -616,8 +616,7 @@ TEST(BlockUpdatePacket, SerializeDeserialize) {
     EXPECT_EQ(result.value().x(), 100);
     EXPECT_EQ(result.value().y(), 64);
     EXPECT_EQ(result.value().z(), -200);
-    EXPECT_EQ(result.value().blockId(), mr::BlockId::Stone);
-    EXPECT_EQ(result.value().blockData(), 3u);
+    EXPECT_EQ(result.value().blockId(), 1u);
 }
 
 TEST(ChatMessagePacket, SerializeDeserialize) {

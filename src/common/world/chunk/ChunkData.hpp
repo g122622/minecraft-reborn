@@ -2,7 +2,7 @@
 
 #include "../../core/Types.hpp"
 #include "../../core/Result.hpp"
-#include "../BlockID.hpp"
+#include "../block/Block.hpp"
 #include "ChunkPos.hpp"
 #include "../WorldConstants.hpp"
 #include <vector>
@@ -24,17 +24,20 @@ public:
     ChunkSection();
     ~ChunkSection() = default;
 
-    // 方块访问
-    [[nodiscard]] BlockState getBlock(i32 x, i32 y, i32 z) const;
-    void setBlock(i32 x, i32 y, i32 z, BlockState block);
+    // 方块访问 (使用状态ID)
+    [[nodiscard]] u32 getBlockStateId(i32 x, i32 y, i32 z) const;
+    void setBlockStateId(i32 x, i32 y, i32 z, u32 stateId);
+
+    // 方块访问 (使用 BlockState 指针)
+    [[nodiscard]] const BlockState* getBlock(i32 x, i32 y, i32 z) const;
+    void setBlock(i32 x, i32 y, i32 z, const BlockState* state);
 
     // 快速访问 (无边界检查)
-    [[nodiscard]] BlockState getBlockFast(i32 index) const {
-        return BlockState(static_cast<BlockId>(m_blocks[index]), m_metadata[index]);
+    [[nodiscard]] u32 getBlockStateIdFast(i32 index) const {
+        return m_blockStates[index];
     }
-    void setBlockFast(i32 index, BlockState block) {
-        m_blocks[index] = static_cast<u16>(block.id());
-        m_metadata[index] = block.data();
+    void setBlockStateIdFast(i32 index, u32 stateId) {
+        m_blockStates[index] = stateId;
     }
 
     // 索引计算
@@ -60,15 +63,14 @@ public:
     [[nodiscard]] static Result<std::unique_ptr<ChunkSection>> deserialize(const u8* data, size_t size);
 
     // 填充
-    void fill(BlockState block);
+    void fill(u32 stateId);
 
 private:
-    // 使用调色板压缩存储
-    std::vector<u16> m_blocks;     // 方块ID数组
-    std::vector<u16> m_metadata;   // 方块元数据
-    std::vector<u8> m_skyLight;    // 天空光照 (4位/方块)
-    std::vector<u8> m_blockLight;  // 方块光照 (4位/方块)
-    u16 m_blockCount = 0;          // 非空气方块数量
+    // 使用状态ID存储 (紧凑格式，后续可改为调色板)
+    std::vector<u32> m_blockStates;  // BlockState::stateId()
+    std::vector<u8> m_skyLight;      // 天空光照 (4位/方块)
+    std::vector<u8> m_blockLight;    // 方块光照 (4位/方块)
+    u16 m_blockCount = 0;            // 非空气方块数量
     bool m_needsRecalculate = false;
 };
 
@@ -99,9 +101,13 @@ public:
     [[nodiscard]] ChunkCoord z() const { return m_z; }
     [[nodiscard]] ChunkPos pos() const { return ChunkPos(m_x, m_z); }
 
-    // 方块访问
-    [[nodiscard]] BlockState getBlock(BlockCoord x, BlockCoord y, BlockCoord z) const;
-    void setBlock(BlockCoord x, BlockCoord y, BlockCoord z, BlockState block);
+    // 方块访问 (使用 BlockState 指针)
+    [[nodiscard]] const BlockState* getBlock(BlockCoord x, BlockCoord y, BlockCoord z) const;
+    void setBlock(BlockCoord x, BlockCoord y, BlockCoord z, const BlockState* state);
+
+    // 方块访问 (使用状态ID，更高效)
+    [[nodiscard]] u32 getBlockStateId(BlockCoord x, BlockCoord y, BlockCoord z) const;
+    void setBlockStateId(BlockCoord x, BlockCoord y, BlockCoord z, u32 stateId);
 
     // 高度图
     [[nodiscard]] BlockCoord getHighestBlock(BlockCoord x, BlockCoord z) const;
@@ -131,7 +137,7 @@ public:
     [[nodiscard]] static Result<std::unique_ptr<ChunkData>> deserialize(const u8* data, size_t size);
 
     // 填充
-    void fill(BlockCoord minY, BlockCoord maxY, BlockState block);
+    void fill(BlockCoord minY, BlockCoord maxY, u32 stateId);
 
 private:
     ChunkCoord m_x = 0;

@@ -592,7 +592,7 @@ void NetworkClient::handleBlockUpdate(network::PacketDeserializer& deser) {
     if (m_callbacks.onBlockUpdate) {
         m_callbacks.onBlockUpdate(
             packet.x(), packet.y(), packet.z(),
-            packet.blockId(), packet.blockData()
+            packet.blockStateId()
         );
     }
 }

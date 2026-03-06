@@ -95,7 +95,7 @@ Vector3 PhysicsEngine::moveEntity(AxisAlignedBB& entityBox, const Vector3& movem
 
 bool PhysicsEngine::isOnGround(const AxisAlignedBB& entityBox) const {
     // 向下微移后检测碰撞。增大探测深度以提高浮点抖动容忍度，
-    // 避免平地移动时偶发“离地一帧”导致累计下沉。
+    // 避免平地移动时偶发"离地一帧"导致累计下沉。
     constexpr f32 GROUND_PROBE_EPSILON = 0.01f;
     AxisAlignedBB testBox = entityBox.offsetted(0.0f, -GROUND_PROBE_EPSILON, 0.0f);
 
@@ -112,10 +112,10 @@ bool PhysicsEngine::isOnGround(const AxisAlignedBB& entityBox) const {
             for (i32 z = minZ; z <= maxZ; ++z) {
                 if (!m_world->isWithinWorldBounds(x, y, z)) continue;
 
-                BlockState block = m_world->getBlock(x, y, z);
-                if (block.isAir()) continue;
+                const BlockState* state = m_world->getBlockState(x, y, z);
+                if (!state || state->isAir()) continue;
 
-                CollisionShape shape = BlockCollisionRegistry::instance().getShape(block);
+                const CollisionShape& shape = state->getCollisionShape();
                 if (shape.isEmpty()) continue;
 
                 // 检测是否与测试框相交
@@ -293,7 +293,7 @@ Vector3 PhysicsEngine::attemptStepUp(AxisAlignedBB& entityBox,
         stepBox.minZ - originalBox.minZ
     );
 
-    // 处理浮点误差：步进结果不应产生“向下位移”。
+    // 处理浮点误差：步进结果不应产生"向下位移"。
     // 否则会在平地行走时以极小概率逐帧累积下沉。
     if (result.y < 0.0f && result.y > -0.01f) {
         stepBox.offset(0.0f, -result.y, 0.0f);
@@ -316,10 +316,10 @@ void PhysicsEngine::getBlockCollisionBoxes(i32 x, i32 y, i32 z,
                                             std::vector<AxisAlignedBB>& boxes) const {
     if (!m_world->isWithinWorldBounds(x, y, z)) return;
 
-    BlockState block = m_world->getBlock(x, y, z);
-    if (block.isAir()) return;
+    const BlockState* state = m_world->getBlockState(x, y, z);
+    if (!state || state->isAir()) return;
 
-    CollisionShape shape = BlockCollisionRegistry::instance().getShape(block);
+    const CollisionShape& shape = state->getCollisionShape();
     if (shape.isEmpty()) return;
 
     // 获取世界坐标碰撞箱
@@ -339,7 +339,7 @@ f32 PhysicsEngine::resolveInitialOverlaps(AxisAlignedBB& entityBox,
             continue;
         }
 
-        // 仅考虑把实体从“地面/下方方块”向上推出
+        // 仅考虑把实体从"地面/下方方块"向上推出
         f32 pushUp = box.maxY - entityBox.minY;
         if (pushUp > 0.0f && pushUp <= MAX_DEPENETRATION_UP) {
             maxPushUp = std::max(maxPushUp, pushUp);
