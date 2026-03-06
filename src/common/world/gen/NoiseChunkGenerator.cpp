@@ -140,6 +140,9 @@ void NoiseChunkGenerator::generateBiomes(WorldGenRegion& region, ChunkPrimer& ch
             }
         }
     }
+
+    // 标记阶段完成
+    chunk.setChunkStatus(ChunkStatus::BIOMES);
 }
 
 // ============================================================================
@@ -235,6 +238,9 @@ void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chu
             }
         }
     }
+
+    // 标记阶段完成
+    chunk.setChunkStatus(ChunkStatus::NOISE);
 }
 
 void NoiseChunkGenerator::fillNoiseColumn(std::vector<f64>& column, i32 noiseX, i32 noiseZ)
@@ -520,6 +526,9 @@ void NoiseChunkGenerator::buildSurface(WorldGenRegion& region, ChunkPrimer& chun
             }
         }
     }
+
+    // 标记阶段完成
+    chunk.setChunkStatus(ChunkStatus::SURFACE);
 }
 
 void NoiseChunkGenerator::buildSurfaceForColumn(ChunkPrimer& chunk, i32 x, i32 z,
@@ -584,12 +593,14 @@ void NoiseChunkGenerator::applyCarvers(WorldGenRegion& region, ChunkPrimer& chun
 {
     // 暂时未实现洞穴雕刻
     // 后续可以添加
+    chunk.setChunkStatus(ChunkStatus::CARVERS);
 }
 
 void NoiseChunkGenerator::placeFeatures(WorldGenRegion& region, ChunkPrimer& chunk)
 {
     // 暂时未实现特性放置
     // 后续可以添加树木、矿石等
+    chunk.setChunkStatus(ChunkStatus::FEATURES);
 }
 
 // ============================================================================

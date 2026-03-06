@@ -14,6 +14,12 @@ namespace mr::server {
 ServerWorld::ServerWorld()
     : m_chunkSyncManager()
 {
+    // 默认创建区块管理器，允许在未显式 initialize() 时也可同步生成区块
+    auto generator = std::make_unique<NoiseChunkGenerator>(
+        m_config.seed,
+        DimensionSettings::overworld()
+    );
+    m_chunkManager = std::make_unique<ServerChunkManager>(*this, std::move(generator));
 }
 
 ServerWorld::ServerWorld(const ServerWorldConfig& config)
@@ -21,6 +27,13 @@ ServerWorld::ServerWorld(const ServerWorldConfig& config)
     , m_chunkSyncManager()
 {
     m_chunkSyncManager.setDefaultViewDistance(config.viewDistance);
+
+    // 默认创建区块管理器，允许在未显式 initialize() 时也可同步生成区块
+    auto generator = std::make_unique<NoiseChunkGenerator>(
+        m_config.seed,
+        DimensionSettings::overworld()
+    );
+    m_chunkManager = std::make_unique<ServerChunkManager>(*this, std::move(generator));
 }
 
 ServerWorld::~ServerWorld() {
@@ -30,22 +43,19 @@ ServerWorld::~ServerWorld() {
 Result<void> ServerWorld::initialize() {
     spdlog::info("Initializing server world with seed {}...", m_config.seed);
 
-    // 创建区块生成器
-    auto generator = std::make_unique<NoiseChunkGenerator>(
-        m_config.seed,
-        DimensionSettings::overworld()
-    );
-
-    // 创建区块管理器
-    m_chunkManager = std::make_unique<ServerChunkManager>(*this, std::move(generator));
+    // 若尚未创建区块管理器，按当前配置创建
+    if (!m_chunkManager) {
+        auto generator = std::make_unique<NoiseChunkGenerator>(
+            m_config.seed,
+            DimensionSettings::overworld()
+        );
+        m_chunkManager = std::make_unique<ServerChunkManager>(*this, std::move(generator));
+    }
 
     auto result = m_chunkManager->initialize();
     if (result.failed()) {
         return result;
     }
-
-    // 启动 Worker 线程
-    m_chunkManager->startWorkers();
 
     m_chunkSyncManager.setDefaultViewDistance(m_config.viewDistance);
 

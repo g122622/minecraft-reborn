@@ -123,7 +123,7 @@ public:
     /**
      * @brief 检查区块是否应该加载
      */
-    [[nodiscard]] bool shouldLoad() const { return getLevel() <= 33; }
+    [[nodiscard]] bool shouldLoad() const { return getLevel() < 33; }
 
     // ============================================================================
     // 区块数据访问

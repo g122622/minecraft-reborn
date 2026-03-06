@@ -165,11 +165,12 @@ ChunkData* ServerChunkManager::getOrGenerateChunk(ChunkCoord x, ChunkCoord z)
         return data;
     }
 
-    // 同步生成
-    executeGenerationTask(*holder, ChunkStatus::FULL);
+    // 同步路径使用轻量生成，避免主线程阻塞过久。
+    // 完整地形可通过异步流程逐步生成。
+    executeGenerationTask(*holder, ChunkStatus::EMPTY);
 
-    // 返回结果
-    return holder->getChunkData();
+    // 返回缓存中的结果
+    return getChunk(x, z);
 }
 
 void ServerChunkManager::unloadChunk(ChunkCoord x, ChunkCoord z)
@@ -402,14 +403,10 @@ void ServerChunkManager::executeGenerationTask(ChunkHolder& holder, const ChunkS
         }
     }
 
-    // 完成生成
-    holder.completeGeneration();
-
-    // 存入缓存
-    {
+    // 完成生成并存入缓存
+    auto data = holder.completeGeneration();
+    if (data) {
         std::lock_guard<std::mutex> lock(m_chunksMutex);
-        auto data = std::make_unique<ChunkData>(holder.x(), holder.z());
-        // TODO: 复制数据
         m_chunks[posToKey(holder.x(), holder.z())] = std::move(data);
     }
 }
