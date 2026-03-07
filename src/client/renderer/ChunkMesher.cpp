@@ -111,13 +111,11 @@ void ChunkMesher::addFaceFromAppearance(
     const BlockAppearance* appearance
 ) {
     if (!appearance) {
-        spdlog::debug("ChunkMesher: Null appearance at ({}, {}, {})", x, y, z);
         return;
     }
 
     // 检查是否有 elements
     if (appearance->elements.empty()) {
-        spdlog::debug("ChunkMesher: Appearance has no elements at ({}, {}, {})", x, y, z);
         return;
     }
 
@@ -141,8 +139,6 @@ void ChunkMesher::addFaceFromAppearance(
             // 尝试使用 "all" 作为后备
             texIt = appearance->faceTextures.find("all");
             if (texIt == appearance->faceTextures.end()) {
-                spdlog::debug("ChunkMesher: No texture found for face '{}' at ({}, {}, {}), faceTextures.size()={}",
-                             faceName, x, y, z, appearance->faceTextures.size());
                 return; // 没有找到纹理，跳过此面
             }
         }
@@ -209,10 +205,6 @@ void ChunkMesher::simpleMeshSection(
         return;
     }
 
-    // 统计信息
-    u32 blockCount = 0;
-    u32 faceCount = 0;
-
     // 遍历段内所有方块
     for (i32 y = 0; y < SIZE; ++y) {
         for (i32 z = 0; z < SIZE; ++z) {
@@ -222,16 +214,12 @@ void ChunkMesher::simpleMeshSection(
                     continue;
                 }
 
-                ++blockCount;
-
                 // 获取方块外观
                 const BlockAppearance* appearance = s_modelCache->getBlockAppearance(block);
                 if (!appearance) {
                     // 使用缺失模型
                     appearance = s_modelCache->getMissingAppearance();
                     if (!appearance) {
-                        spdlog::warn("ChunkMesher: No missing appearance available for block at ({}, {}, {})",
-                                    x, baseY + y, z);
                         continue; // 无法渲染
                     }
                 }
@@ -287,7 +275,6 @@ void ChunkMesher::simpleMeshSection(
 
                     // 决定是否渲染该面
                     if (shouldRenderFace(block, neighbor)) {
-                        ++faceCount;
                         u8 light = 15; // 默认光照
                         if (s_lightingEnabled) {
                             light = getBlockLight(chunk, x, baseY + y, z, neighborChunks);
@@ -302,12 +289,6 @@ void ChunkMesher::simpleMeshSection(
                 }
             }
         }
-    }
-
-    // 输出统计信息（仅当有方块时）
-    if (blockCount > 0) {
-        spdlog::debug("ChunkMesher: Section {} - {} blocks, {} faces, {} vertices",
-                     sectionIndex, blockCount, faceCount, outMesh.vertices.size());
     }
 }
 
