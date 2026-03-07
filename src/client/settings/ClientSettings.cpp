@@ -54,6 +54,10 @@ ClientSettings::ClientSettings()
 
     // 日志设置
     , logLevel("logLevel", "info")
+
+    // 资源包设置
+    , resourcePacks("resourcePacks")
+    , resourcePackDir("resourcePackDir", "resourcepacks")
 {
     // 注册视频设置
     registerOption("video", &renderDistance);
@@ -94,6 +98,10 @@ ClientSettings::ClientSettings()
 
     // 注册日志设置
     registerOption("log", &logLevel);
+
+    // 注册资源包设置
+    registerOption("resourcePacks", &resourcePacks);
+    registerOption("resourcePacks", &resourcePackDir);
 }
 
 void ClientSettings::initializeKeyBindings()

@@ -1,6 +1,6 @@
 #include "VulkanTexture.hpp"
 #include "VulkanBuffer.hpp"
-#include "../../common/renderer/MeshTypes.hpp"
+#include "MeshTypes.hpp"
 #include <spdlog/spdlog.h>
 #include <cstring>
 

@@ -63,10 +63,8 @@ add_library(mr_common STATIC
     resource/PackMetadata.cpp
     resource/IResourcePack.cpp
     resource/FolderResourcePack.cpp
-
-    # Renderer (common)
-    renderer/MeshTypes.cpp
-    renderer/ChunkMesher.cpp
+    resource/ZipResourcePack.cpp
+    resource/ResourcePackList.cpp
 )
 
 target_include_directories(mr_common
@@ -80,6 +78,8 @@ target_link_libraries(mr_common
         glm::glm
         spdlog::spdlog
         nlohmann_json::nlohmann_json
+    PRIVATE
+        ZLIB::ZLIB
 )
 
 mr_set_compiler_warnings(mr_common)

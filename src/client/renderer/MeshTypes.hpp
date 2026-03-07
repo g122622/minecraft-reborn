@@ -1,10 +1,8 @@
 #pragma once
 
-#include "../core/Types.hpp"
-#include "../world/block/Block.hpp"
+#include "../../common/core/Types.hpp"
 #include <array>
 #include <vector>
-#include <memory>
 
 namespace mr {
 
@@ -120,60 +118,6 @@ struct TextureRegion {
 };
 
 // ============================================================================
-// 方块模型
-// ============================================================================
-
-class BlockModel {
-public:
-    virtual ~BlockModel() = default;
-
-    // 获取指定面的纹理区域
-    [[nodiscard]] virtual TextureRegion getFaceTexture(Face face) const = 0;
-
-    // 是否渲染指定面 (某些方块可能没有所有面)
-    [[nodiscard]] virtual bool hasFace(Face face) const { return true; }
-
-    // 是否使用简化渲染 (单面)
-    [[nodiscard]] virtual bool isSimple() const { return true; }
-};
-
-// ============================================================================
-// 标准方块模型 (所有面相同纹理)
-// ============================================================================
-
-class SimpleBlockModel : public BlockModel {
-public:
-    explicit SimpleBlockModel(TextureRegion texture)
-        : m_texture(texture) {}
-
-    [[nodiscard]] TextureRegion getFaceTexture(Face face) const override {
-        (void)face;
-        return m_texture;
-    }
-
-private:
-    TextureRegion m_texture;
-};
-
-// ============================================================================
-// 立方体方块模型 (不同面不同纹理，如草地)
-// ============================================================================
-
-class CubeBlockModel : public BlockModel {
-public:
-    CubeBlockModel(TextureRegion top, TextureRegion bottom, TextureRegion north,
-                   TextureRegion south, TextureRegion west, TextureRegion east)
-        : m_textures{bottom, top, north, south, west, east} {}
-
-    [[nodiscard]] TextureRegion getFaceTexture(Face face) const override {
-        return m_textures[static_cast<size_t>(face)];
-    }
-
-private:
-    std::array<TextureRegion, 6> m_textures;
-};
-
-// ============================================================================
 // 纹理图集
 // ============================================================================
 
@@ -200,32 +144,6 @@ private:
     u32 m_tilesPerRow;
     f32 m_tileU;
     f32 m_tileV;
-};
-
-// ============================================================================
-// 方块模型注册表
-// ============================================================================
-
-class BlockModelRegistry {
-public:
-    static BlockModelRegistry& instance();
-
-    void initialize(const TextureAtlas& atlas);
-
-    // 使用方块ID获取模型（方块ID从Block::blockId()获取）
-    [[nodiscard]] const BlockModel* getModel(u32 blockId) const;
-
-    // 使用方块状态获取模型
-    [[nodiscard]] const BlockModel* getModel(const BlockState* state) const;
-
-private:
-    BlockModelRegistry() = default;
-
-    void registerVanillaModels();
-
-    std::unordered_map<u32, std::unique_ptr<BlockModel>> m_models;
-    bool m_initialized = false;
-    const TextureAtlas* m_atlas = nullptr;
 };
 
 } // namespace mr

@@ -3,7 +3,7 @@
 #include "DefaultTextureAtlas.hpp"
 #include "sky/CelestialCalculations.hpp"
 #include "../ui/DefaultAsciiFont.hpp"
-#include "../../common/renderer/MeshTypes.hpp"
+#include "MeshTypes.hpp"
 #include "../../common/world/WorldConstants.hpp"
 #include <spdlog/spdlog.h>
 #include <array>
@@ -1413,9 +1413,8 @@ Result<void> VulkanRenderer::createChunkTextureAtlas() {
     }
     m_chunkRendererInitialized = true;
 
-    // 初始化方块模型注册表
-    TextureAtlas cpuAtlas(DefaultTextureAtlas::atlasSize(), DefaultTextureAtlas::atlasSize(), DefaultTextureAtlas::tileSize());
-    BlockModelRegistry::instance().initialize(cpuAtlas);
+    // 注意：BlockModelRegistry 已移除，方块模型现在通过 BlockModelCache 从资源包加载
+    // ChunkMesher 需要在初始化时设置 BlockModelCache
 
     spdlog::info("Chunk texture atlas created ({}x{}, tile: {})",
                  DefaultTextureAtlas::atlasSize(), DefaultTextureAtlas::atlasSize(), DefaultTextureAtlas::tileSize());

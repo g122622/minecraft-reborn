@@ -4,7 +4,7 @@
 #include "../../common/core/Result.hpp"
 #include "../../common/world/chunk/ChunkData.hpp"
 #include "../../common/world/WorldConstants.hpp"
-#include "../../common/renderer/MeshTypes.hpp"
+#include "../renderer/MeshTypes.hpp"
 #include "../../common/network/ChunkSync.hpp"
 #include "../../common/physics/PhysicsEngine.hpp"
 #include "../renderer/Camera.hpp"

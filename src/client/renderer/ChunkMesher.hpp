@@ -1,30 +1,69 @@
 #pragma once
 
-#include "../core/Types.hpp"
-#include "../world/chunk/ChunkData.hpp"
-#include "../world/block/Block.hpp"
+#include "../../common/core/Types.hpp"
+#include "../../common/world/chunk/ChunkData.hpp"
+#include "../../common/world/block/Block.hpp"
 #include "MeshTypes.hpp"
 #include <memory>
 #include <functional>
 
 namespace mr {
 
+// 前向声明
+class BlockModelCache;
+class BlockAppearance;
+
 // ============================================================================
 // 区块网格生成器
 // ============================================================================
 
+/**
+ * @brief 区块网格生成器
+ *
+ * 负责将 ChunkData 转换为可渲染的 MeshData。
+ * 使用 BlockModelCache 获取方块外观信息。
+ *
+ * 使用示例:
+ * @code
+ * // 初始化时设置模型缓存
+ * ChunkMesher::setModelCache(&modelCache);
+ *
+ * // 生成网格
+ * MeshData mesh;
+ * ChunkMesher::generateMesh(chunk, mesh, neighbors);
+ *
+ * // 清理
+ * ChunkMesher::setModelCache(nullptr);
+ * @endcode
+ */
 class ChunkMesher {
 public:
-    // 生成区块网格
-    // neighborChunks: 周围6个区块 (用于边界面的剔除)
-    //                 顺序: -X, +X, -Z, +Z, -Y, +Y (可以是nullptr)
+    // ========================================================================
+    // 网格生成
+    // ========================================================================
+
+    /**
+     * @brief 生成区块网格
+     *
+     * @param chunk 区块数据
+     * @param outMesh 输出网格
+     * @param neighbors 周围6个区块 (用于边界面的剔除)
+     *                  顺序: -X, +X, -Z, +Z, -Y, +Y (可以是nullptr)
+     */
     static void generateMesh(
         const ChunkData& chunk,
         MeshData& outMesh,
         const ChunkData* neighbors[6] = nullptr
     );
 
-    // 生成单个区块段的网格 (用于渐进加载)
+    /**
+     * @brief 生成单个区块段的网格 (用于渐进加载)
+     *
+     * @param chunk 区块数据
+     * @param sectionIndex 区段索引 (0-15)
+     * @param outMesh 输出网格
+     * @param neighborChunks 周围区块
+     */
     static void generateSectionMesh(
         const ChunkData& chunk,
         i32 sectionIndex,
@@ -32,17 +71,36 @@ public:
         const ChunkData* neighborChunks[6] = nullptr
     );
 
-    // 设置是否使用贪婪网格合并
+    // ========================================================================
+    // 配置
+    // ========================================================================
+
+    /**
+     * @brief 设置 BlockModelCache
+     *
+     * 必须在使用 ChunkMesher 之前调用。
+     * BlockModelCache 用于获取方块的外观信息（模型、纹理）。
+     *
+     * @param cache 模型缓存指针（可以为 nullptr 禁用渲染）
+     */
+    static void setModelCache(BlockModelCache* cache);
+
+    /**
+     * @brief 获取 BlockModelCache
+     */
+    static BlockModelCache* modelCache() { return s_modelCache; }
+
+    /**
+     * @brief 设置是否使用贪婪网格合并
+     */
     static void setGreedyMeshing(bool enabled) { s_useGreedyMeshing = enabled; }
     static bool isGreedyMeshingEnabled() { return s_useGreedyMeshing; }
 
-    // 设置光照计算
+    /**
+     * @brief 设置光照计算
+     */
     static void setLightingEnabled(bool enabled) { s_lightingEnabled = enabled; }
     static bool isLightingEnabled() { return s_lightingEnabled; }
-
-    // 设置是否使用资源系统获取模型
-    static void setUseResourceModels(bool enabled) { s_useResourceModels = enabled; }
-    static bool isUsingResourceModels() { return s_useResourceModels; }
 
 private:
     // 检查方块是否应该渲染
@@ -61,14 +119,13 @@ private:
         const ChunkData* neighborChunks[6]
     );
 
-    // 添加单个面的顶点
-    static void addFace(
+    // 添加单个面的顶点（使用 BlockAppearance）
+    static void addFaceFromAppearance(
         MeshData& mesh,
         Face face,
         f32 x, f32 y, f32 z,
-        const BlockState* state,
         u8 light,
-        const BlockModel* model
+        const BlockAppearance* appearance
     );
 
     // 贪婪网格合并
@@ -87,9 +144,9 @@ private:
         const ChunkData* neighborChunks[6]
     );
 
+    static BlockModelCache* s_modelCache;
     static bool s_useGreedyMeshing;
     static bool s_lightingEnabled;
-    static bool s_useResourceModels;
 };
 
 // ============================================================================
@@ -98,8 +155,8 @@ private:
 
 struct ChunkRenderData {
     ChunkId chunkId;
-    MeshData solidMesh;      // 实心方块网格
-    MeshData transparentMesh; // 透明方块网格 (水、玻璃等)
+    MeshData solidMesh;       ///< 实心方块网格
+    MeshData transparentMesh; ///< 透明方块网格 (水、玻璃等)
 
     // 渲染状态
     bool needsUpdate = true;
@@ -134,7 +191,7 @@ struct ChunkRenderData {
 
 class ChunkMeshCache {
 public:
-    ChunkMeshCache(size_t maxCachedChunks = 256);
+    explicit ChunkMeshCache(size_t maxCachedChunks = 256);
 
     // 获取或创建区块渲染数据
     [[nodiscard]] ChunkRenderData* getOrCreate(const ChunkId& id);

@@ -2,8 +2,8 @@
 
 #include "../../common/core/Types.hpp"
 #include "../../common/core/Result.hpp"
-#include "../../common/renderer/MeshTypes.hpp"
-#include "../../common/renderer/ChunkMesher.hpp"
+#include "MeshTypes.hpp"
+#include "ChunkMesher.hpp"
 #include "VulkanBuffer.hpp"
 #include "VulkanTexture.hpp"
 #include <vulkan/vulkan.h>

@@ -2,7 +2,7 @@
 
 #include "../../common/core/Types.hpp"
 #include "../../common/world/chunk/ChunkData.hpp"
-#include "../../common/renderer/MeshTypes.hpp"
+#include "MeshTypes.hpp"
 #include <thread>
 #include <mutex>
 #include <condition_variable>

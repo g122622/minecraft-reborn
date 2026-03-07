@@ -12,7 +12,6 @@ add_executable(mr_tests
     common/test_core.cpp
     # common/test_blockid.cpp  # 已移除 - 使用新的方块系统
     common/test_noise.cpp
-    common/test_renderer.cpp
     common/test_entity.cpp
     common/test_chunksync.cpp
     common/test_localconnection.cpp
@@ -28,6 +27,7 @@ add_executable(mr_tests
     server/test_chunk_worker_pool.cpp
     server/test_server_chunk_manager.cpp
     client/test_mesh_worker_pool.cpp
+    client/renderer/test_renderer.cpp
 )
 
 # 添加服务端源文件
@@ -77,8 +77,16 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/client/settings/ClientSettings.cpp
         # 网格构建线程池
         ${CMAKE_SOURCE_DIR}/src/client/renderer/MeshWorkerPool.cpp
-        # 区块网格生成
-        ${CMAKE_SOURCE_DIR}/src/common/renderer/ChunkMesher.cpp
+        # 区块网格生成（已在 client/renderer）
+        ${CMAKE_SOURCE_DIR}/src/client/renderer/ChunkMesher.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/renderer/MeshTypes.cpp
+        # 区块模型缓存
+        ${CMAKE_SOURCE_DIR}/src/client/resource/BlockModelCache.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/resource/ResourceManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/resource/BlockModelLoader.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/resource/BlockStateLoader.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/resource/TextureAtlasBuilder.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/resource/DefaultResources.cpp
 )
 
 target_link_libraries(mr_tests
@@ -87,6 +95,9 @@ target_link_libraries(mr_tests
         GTest::gtest
         GTest::gtest_main
         asio::asio
+        nlohmann_json::nlohmann_json
+        glm::glm
+        spdlog::spdlog
 )
 
 if(WIN32)
@@ -124,6 +135,23 @@ target_sources(mr_resource_tests
         ${CMAKE_SOURCE_DIR}/src/client/resource/BlockStateLoader.cpp
         ${CMAKE_SOURCE_DIR}/src/client/resource/TextureAtlasBuilder.cpp
         ${CMAKE_SOURCE_DIR}/src/client/resource/ResourceManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/resource/BlockModelCache.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/resource/DefaultResources.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/settings/ClientSettings.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/resource/ResourcePackList.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/resource/ZipResourcePack.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/resource/FolderResourcePack.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/resource/IResourcePack.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/resource/PackMetadata.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/resource/ResourceLocation.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/block/Block.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/block/BlockRegistry.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/block/VanillaBlocks.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/block/blocks/AirBlock.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/block/blocks/SimpleBlock.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/block/blocks/RotatedPillarBlock.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/block/Material.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/renderer/MeshTypes.cpp
 )
 
 target_include_directories(mr_resource_tests

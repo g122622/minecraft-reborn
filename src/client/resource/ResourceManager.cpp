@@ -154,6 +154,24 @@ void ResourceManager::clear() {
     m_atlasBuilt = false;
 }
 
+void ResourceManager::clearResourcePacks() {
+    m_resourcePacks.clear();
+}
+
+Result<void> ResourceManager::reload() {
+    // 清除缓存但保留资源包列表
+    m_modelLoader.clearCache();
+    m_blockStateLoader.clearCache();
+    m_bakedModels.clear();
+    m_blockAppearances.clear();
+    m_textureRegions.clear();
+    m_atlasResult = AtlasBuildResult();
+    m_atlasBuilt = false;
+
+    // 重新加载所有资源
+    return loadAllResources();
+}
+
 Result<void> ResourceManager::bakeAllModels() {
     // 获取所有方块状态
     auto blockStates = m_blockStateLoader.getLoadedBlockStates();

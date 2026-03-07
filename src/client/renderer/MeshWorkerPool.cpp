@@ -1,5 +1,5 @@
 #include "MeshWorkerPool.hpp"
-#include "../../common/renderer/ChunkMesher.hpp"
+#include "ChunkMesher.hpp"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 

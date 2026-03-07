@@ -43,6 +43,7 @@ enum class ErrorCode : i32 {
     FileReadFailed = -202,
     FileWriteFailed = -203,
     FileCorrupted = -204,
+    DecompressionFailed = -205,
 
     // 网络错误
     ConnectionFailed = -300,

@@ -1,11 +1,13 @@
 #include "ClientApplication.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
 #include "common/math/ray/Raycast.hpp"
+#include "client/renderer/ChunkMesher.hpp"
 #include "minecraft-reborn/version.h"
 
 #include <spdlog/spdlog.h>
 #include <GLFW/glfw3.h>
 #include <chrono>
+#include <filesystem>
 
 namespace mr::client {
 
@@ -104,6 +106,14 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
     // 初始化方块注册表
     VanillaBlocks::initialize();
     spdlog::info("Vanilla blocks initialized");
+
+    // 初始化资源系统
+    spdlog::info("Initializing resource system...");
+    auto resourceResult = initializeResources();
+    if (resourceResult.failed()) {
+        spdlog::warn("Failed to initialize resource system: {}. Using default rendering.",
+                     resourceResult.error().toString());
+    }
 
     // 初始化按键绑定
     m_settings.initializeKeyBindings();
@@ -779,6 +789,127 @@ void ClientApplication::sendPlayerPosition()
     m_lastSentZ = pos.z;
     m_lastSentYaw = m_player->yaw();
     m_lastSentPitch = m_player->pitch();
+}
+
+Result<void> ClientApplication::initializeResources()
+{
+    // 1. 扫描资源包目录
+    String resourcePackDir = m_settings.resourcePackDir.get();
+    if (resourcePackDir.empty()) {
+        resourcePackDir = "resourcepacks";
+    }
+
+    spdlog::info("Scanning resource pack directory: {}", resourcePackDir);
+    auto scanResult = m_resourcePackList.scanDirectory(std::filesystem::path(resourcePackDir));
+    if (scanResult.success()) {
+        spdlog::info("Found {} resource packs", scanResult.value());
+    } else {
+        spdlog::warn("Failed to scan resource pack directory: {}", scanResult.error().toString());
+    }
+
+    // 2. 从设置加载资源包配置
+    m_resourcePackList.loadFromSettings(m_settings.resourcePacks);
+
+    // 3. 创建 ResourceManager
+    m_resourceManager = std::make_unique<ResourceManager>();
+
+    // 4. 添加启用的资源包
+    auto enabledPacks = m_resourcePackList.getEnabledPacks();
+    for (const auto& pack : enabledPacks) {
+        auto result = m_resourceManager->addResourcePack(pack);
+        if (result.failed()) {
+            spdlog::warn("Failed to add resource pack: {}", result.error().toString());
+        } else {
+            spdlog::info("Added resource pack: {}", pack->name());
+        }
+    }
+
+    // 5. 加载所有资源（如果有资源包）
+    bool hasResources = false;
+    if (m_resourceManager->resourcePackCount() > 0) {
+        auto loadResult = m_resourceManager->loadAllResources();
+        if (loadResult.failed()) {
+            spdlog::warn("Failed to load resources: {}", loadResult.error().toString());
+        } else {
+            hasResources = true;
+            spdlog::info("Loaded {} resource packs", m_resourceManager->resourcePackCount());
+        }
+
+        // 6. 构建纹理图集
+        auto atlasResult = m_resourceManager->buildTextureAtlas();
+        if (atlasResult.failed()) {
+            spdlog::warn("Failed to build texture atlas: {}", atlasResult.error().toString());
+        } else {
+            spdlog::info("Built texture atlas: {}x{}, {} textures",
+                        atlasResult.value().width,
+                        atlasResult.value().height,
+                        atlasResult.value().regions.size());
+        }
+    } else {
+        spdlog::info("No resource packs found, using default resources (missing model)");
+    }
+
+    // 7. 初始化 BlockModelCache（即使没有资源包也要初始化，使用缺失模型）
+    if (m_modelCache.initialize(*m_resourceManager)) {
+        spdlog::info("Block model cache initialized with {} appearances",
+                    m_modelCache.cachedAppearanceCount());
+        // 设置 ChunkMesher 使用 BlockModelCache
+        ChunkMesher::setModelCache(&m_modelCache);
+    } else {
+        spdlog::warn("Failed to initialize block model cache");
+    }
+
+    // 8. 设置资源包变更回调
+    m_resourcePackList.onChange([this]() {
+        spdlog::info("Resource packs changed, reloading...");
+        reloadResources();
+    });
+
+    return Result<void>::ok();
+}
+
+void ClientApplication::reloadResources()
+{
+    if (!m_resourceManager) {
+        return;
+    }
+
+    // 清除资源管理器
+    m_resourceManager->clearResourcePacks();
+
+    // 重新添加启用的资源包
+    auto enabledPacks = m_resourcePackList.getEnabledPacks();
+    for (const auto& pack : enabledPacks) {
+        auto result = m_resourceManager->addResourcePack(pack);
+        if (result.failed()) {
+            spdlog::warn("Failed to add resource pack: {}", result.error().toString());
+        }
+    }
+
+    // 重新加载资源
+    if (m_resourceManager->resourcePackCount() > 0) {
+        auto loadResult = m_resourceManager->reload();
+        if (loadResult.failed()) {
+            spdlog::error("Failed to reload resources: {}", loadResult.error().toString());
+            return;
+        }
+
+        // 重新构建纹理图集
+        auto atlasResult = m_resourceManager->buildTextureAtlas();
+        if (atlasResult.failed()) {
+            spdlog::error("Failed to rebuild texture atlas: {}", atlasResult.error().toString());
+            return;
+        }
+
+        // 重建模型缓存
+        if (m_modelCache.rebuild(*m_resourceManager)) {
+            spdlog::info("Reloaded resources: {} appearances cached",
+                        m_modelCache.cachedAppearanceCount());
+        }
+    }
+
+    // TODO: 通知渲染器重新创建纹理图集
+    // TODO: 通知世界重新生成所有区块网格
 }
 
 } // namespace mr::client

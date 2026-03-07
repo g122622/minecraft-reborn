@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../../common/core/Types.hpp"
-#include "../../common/renderer/MeshTypes.hpp"
+#include "MeshTypes.hpp"
 #include "VulkanTexture.hpp"
 #include <vector>
 #include <unordered_map>

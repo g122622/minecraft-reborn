@@ -3,7 +3,7 @@
 #include "../common/core/Types.hpp"
 #include "../common/core/Result.hpp"
 #include "../common/resource/ResourceLocation.hpp"
-#include "../common/renderer/MeshTypes.hpp"
+#include "../renderer/MeshTypes.hpp"
 #include <vector>
 #include <map>
 #include <set>

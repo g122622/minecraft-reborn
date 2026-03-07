@@ -5,6 +5,7 @@
 #include "common/core/BlockRaycastResult.hpp"
 #include "common/entity/Player.hpp"
 #include "common/physics/PhysicsEngine.hpp"
+#include "common/resource/ResourcePackList.hpp"
 #include "client/settings/ClientSettings.hpp"
 #include "../window/Window.hpp"
 #include "../input/InputManager.hpp"
@@ -14,6 +15,8 @@
 #include "../network/NetworkClient.hpp"
 #include "../ui/DebugScreen.hpp"
 #include "../ui/crosshair/CrosshairRenderer.hpp"
+#include "../resource/ResourceManager.hpp"
+#include "../resource/BlockModelCache.hpp"
 #include "server/application/IntegratedServer.hpp"
 
 #include <string>
@@ -139,10 +142,21 @@ private:
     // 应用设置到系统
     void applySettings();
 
+    // 初始化资源系统
+    [[nodiscard]] Result<void> initializeResources();
+
+    // 重新加载资源
+    void reloadResources();
+
     ClientSettings m_settings;
     Window m_window;
     InputManager m_input;
     std::unique_ptr<VulkanRenderer> m_renderer;
+
+    // 资源系统
+    ResourcePackList m_resourcePackList;
+    std::unique_ptr<ResourceManager> m_resourceManager;
+    BlockModelCache m_modelCache;
 
     // 相机
     Camera m_camera;

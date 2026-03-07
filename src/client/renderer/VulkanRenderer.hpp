@@ -2,7 +2,7 @@
 
 #include "../../common/core/Types.hpp"
 #include "../../common/core/Result.hpp"
-#include "../../common/renderer/MeshTypes.hpp"
+#include "MeshTypes.hpp"
 #include "VulkanContext.hpp"
 #include "VulkanSwapchain.hpp"
 #include "VulkanPipeline.hpp"

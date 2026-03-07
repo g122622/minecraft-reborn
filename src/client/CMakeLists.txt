@@ -18,6 +18,8 @@ add_executable(minecraft-client
     renderer/VulkanTexture.cpp
     renderer/ChunkRenderer.cpp
     renderer/MeshWorkerPool.cpp
+    renderer/MeshTypes.cpp
+    renderer/ChunkMesher.cpp
     renderer/Camera.cpp
     renderer/UniformBuffer.cpp
     renderer/Descriptor.cpp
@@ -28,6 +30,8 @@ add_executable(minecraft-client
     resource/BlockStateLoader.cpp
     resource/TextureAtlasBuilder.cpp
     resource/ResourceManager.cpp
+    resource/BlockModelCache.cpp
+    resource/DefaultResources.cpp
     world/ClientWorld.cpp
     network/NetworkClient.cpp
     ui/FontTextureAtlas.cpp

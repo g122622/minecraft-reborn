@@ -2,6 +2,7 @@
 
 #include "common/core/settings/SettingsBase.hpp"
 #include "common/core/settings/SettingsTypes.hpp"
+#include "common/core/settings/ResourcePackListOption.hpp"
 #include "common/input/KeyBinding.hpp"
 
 #include <memory>
@@ -183,6 +184,16 @@ public:
 
     /// 日志级别
     StringOption logLevel;
+
+    // ========================================================================
+    // 资源包设置
+    // ========================================================================
+
+    /// 资源包列表（按优先级排序，高优先级在前）
+    ResourcePackListOption resourcePacks;
+
+    /// 资源包目录（默认 "resourcepacks"）
+    StringOption resourcePackDir;
 
     // ========================================================================
     // 按键绑定

@@ -4,7 +4,7 @@
 #include "../common/core/Result.hpp"
 #include "../common/resource/ResourceLocation.hpp"
 #include "../common/resource/IResourcePack.hpp"
-#include "../common/renderer/MeshTypes.hpp"
+#include "../renderer/MeshTypes.hpp"
 #include "BlockModelLoader.hpp"
 #include "BlockStateLoader.hpp"
 #include "TextureAtlasBuilder.hpp"
@@ -12,6 +12,9 @@
 #include <map>
 
 namespace mr {
+
+// 前向声明
+class ResourcePackList;
 
 /**
  * @brief 方块外观信息
@@ -36,48 +39,133 @@ public:
     ResourceManager() = default;
     ~ResourceManager() = default;
 
-    // 添加资源包
+    // ========================================================================
+    // 资源包管理
+    // ========================================================================
+
+    /**
+     * @brief 添加资源包
+     * @param resourcePack 资源包指针
+     * @return 成功或错误
+     */
     [[nodiscard]] Result<void> addResourcePack(ResourcePackPtr resourcePack);
 
-    // 加载所有资源
+    /**
+     * @brief 清除所有资源包
+     */
+    void clearResourcePacks();
+
+    /**
+     * @brief 获取资源包数量
+     */
+    [[nodiscard]] size_t resourcePackCount() const { return m_resourcePacks.size(); }
+
+    // ========================================================================
+    // 资源加载
+    // ========================================================================
+
+    /**
+     * @brief 加载所有资源
+     *
+     * 加载方块状态、模型、纹理等。
+     *
+     * @return 成功或错误
+     */
     [[nodiscard]] Result<void> loadAllResources();
 
-    // 构建纹理图集
+    /**
+     * @brief 重新加载所有资源
+     *
+     * 清除缓存并重新加载所有资源。
+     * 在资源包变更后调用。
+     *
+     * @return 成功或错误
+     */
+    [[nodiscard]] Result<void> reload();
+
+    /**
+     * @brief 构建纹理图集
+     * @return 图集构建结果
+     */
     [[nodiscard]] Result<AtlasBuildResult> buildTextureAtlas();
 
-    // 获取方块外观
+    // ========================================================================
+    // 资源查询
+    // ========================================================================
+
+    /**
+     * @brief 获取方块外观
+     * @param blockId 方块资源位置
+     * @param properties 属性映射
+     * @return 方块外观指针，找不到返回 nullptr
+     */
     [[nodiscard]] const BlockAppearance* getBlockAppearance(
         const ResourceLocation& blockId,
         const std::map<String, String>& properties = {}) const;
 
-    // 获取纹理区域
+    /**
+     * @brief 获取纹理区域
+     * @param textureLocation 纹理资源位置
+     * @return 纹理区域指针，找不到返回 nullptr
+     */
     [[nodiscard]] const TextureRegion* getTextureRegion(
         const ResourceLocation& textureLocation) const;
 
-    // 获取已烘焙的模型
+    /**
+     * @brief 获取已烘焙的模型
+     * @param modelLocation 模型资源位置
+     * @return 烘焙模型指针，找不到返回 nullptr
+     */
     [[nodiscard]] const BakedBlockModel* getBakedModel(
         const ResourceLocation& modelLocation);
 
-    // 获取方块状态定义
+    /**
+     * @brief 获取方块状态定义
+     * @param blockId 方块资源位置
+     * @return 方块状态定义指针，找不到返回 nullptr
+     */
     [[nodiscard]] const BlockStateDefinition* getBlockState(
         const ResourceLocation& blockId) const;
 
-    // 获取模型加载器
+    // ========================================================================
+    // 访问器
+    // ========================================================================
+
+    /**
+     * @brief 获取模型加载器
+     */
     [[nodiscard]] BlockModelLoader& modelLoader() { return m_modelLoader; }
     [[nodiscard]] const BlockModelLoader& modelLoader() const { return m_modelLoader; }
 
-    // 获取方块状态加载器
+    /**
+     * @brief 获取方块状态加载器
+     */
     [[nodiscard]] BlockStateLoader& blockStateLoader() { return m_blockStateLoader; }
     [[nodiscard]] const BlockStateLoader& blockStateLoader() const { return m_blockStateLoader; }
 
-    // 清除所有缓存
-    void clear();
+    /**
+     * @brief 获取纹理图集构建结果
+     */
+    [[nodiscard]] const AtlasBuildResult& atlasResult() const { return m_atlasResult; }
 
-    // 获取资源包数量
-    [[nodiscard]] size_t resourcePackCount() const { return m_resourcePacks.size(); }
+    /**
+     * @brief 检查图集是否已构建
+     */
+    [[nodiscard]] bool isAtlasBuilt() const { return m_atlasBuilt; }
 
-    // 设置是否在烘焙模型时自动构建图集
+    // ========================================================================
+    // 配置
+    // ========================================================================
+
+    /**
+     * @brief 设置是否在烘焙模型时自动构建图集
+     */
     void setAutoBuildAtlas(bool enable) { m_autoBuildAtlas = enable; }
+
+    /**
+     * @brief 清除所有缓存
+     */
+    void clear();
 
 private:
     std::vector<ResourcePackPtr> m_resourcePacks;

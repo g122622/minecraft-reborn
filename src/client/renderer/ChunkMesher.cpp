@@ -1,5 +1,6 @@
 #include "ChunkMesher.hpp"
-#include <unordered_map>
+#include "../resource/BlockModelCache.hpp"
+#include <spdlog/spdlog.h>
 #include <algorithm>
 
 namespace mr {
@@ -8,13 +9,22 @@ namespace mr {
 // 静态成员初始化
 // ============================================================================
 
-bool ChunkMesher::s_useGreedyMeshing = false; // 默认使用简单网格
+BlockModelCache* ChunkMesher::s_modelCache = nullptr;
+bool ChunkMesher::s_useGreedyMeshing = false;
 bool ChunkMesher::s_lightingEnabled = true;
-bool ChunkMesher::s_useResourceModels = false; // 默认使用内置模型
 
 // ============================================================================
 // ChunkMesher 实现
 // ============================================================================
+
+void ChunkMesher::setModelCache(BlockModelCache* cache) {
+    s_modelCache = cache;
+    if (cache) {
+        spdlog::info("ChunkMesher: Using BlockModelCache for block appearances");
+    } else {
+        spdlog::warn("ChunkMesher: BlockModelCache set to null, no models will be rendered");
+    }
+}
 
 void ChunkMesher::generateMesh(
     const ChunkData& chunk,
@@ -93,22 +103,41 @@ u8 ChunkMesher::getBlockLight(
     return std::max(skyLight, blockLight);
 }
 
-void ChunkMesher::addFace(
+void ChunkMesher::addFaceFromAppearance(
     MeshData& mesh,
     Face face,
     f32 x, f32 y, f32 z,
-    const BlockState* state,
     u8 light,
-    const BlockModel* model
+    const BlockAppearance* appearance
 ) {
-    if (!state) return;
+    if (!appearance) return;
 
-    if (!model) {
-        model = BlockModelRegistry::instance().getModel(state);
+    // 查找面的纹理
+    String faceName;
+    switch (face) {
+        case Face::Bottom: faceName = "down"; break;
+        case Face::Top: faceName = "up"; break;
+        case Face::North: faceName = "north"; break;
+        case Face::South: faceName = "south"; break;
+        case Face::West: faceName = "west"; break;
+        case Face::East: faceName = "east"; break;
+        default: return;
     }
-    if (!model) return;
 
-    TextureRegion tex = model->getFaceTexture(face);
+    auto texIt = appearance->faceTextures.find(faceName);
+    if (texIt == appearance->faceTextures.end()) {
+        // 尝试使用 "side" 作为后备
+        texIt = appearance->faceTextures.find("side");
+        if (texIt == appearance->faceTextures.end()) {
+            // 尝试使用 "all" 作为后备
+            texIt = appearance->faceTextures.find("all");
+            if (texIt == appearance->faceTextures.end()) {
+                return; // 没有找到纹理，跳过此面
+            }
+        }
+    }
+
+    TextureRegion tex = texIt->second;
     auto normal = BlockGeometry::getFaceNormal(face);
     auto vertices = BlockGeometry::getFaceVertices(face);
 
@@ -154,6 +183,12 @@ void ChunkMesher::simpleMeshSection(
     MeshData& outMesh,
     const ChunkData* neighborChunks[6]
 ) {
+    // 必须有 BlockModelCache
+    if (!s_modelCache) {
+        spdlog::error("ChunkMesher: BlockModelCache not initialized, cannot generate mesh");
+        return;
+    }
+
     constexpr i32 SIZE = ChunkSection::SIZE;
     const i32 baseY = sectionIndex * SIZE;
 
@@ -170,6 +205,16 @@ void ChunkMesher::simpleMeshSection(
                 const BlockState* block = section->getBlock(x, y, z);
                 if (!shouldRenderBlock(block)) {
                     continue;
+                }
+
+                // 获取方块外观
+                const BlockAppearance* appearance = s_modelCache->getBlockAppearance(block);
+                if (!appearance) {
+                    // 使用缺失模型
+                    appearance = s_modelCache->getMissingAppearance();
+                    if (!appearance) {
+                        continue; // 无法渲染
+                    }
                 }
 
                 // 检查每个面
@@ -228,11 +273,11 @@ void ChunkMesher::simpleMeshSection(
                             light = getBlockLight(chunk, x, baseY + y, z, neighborChunks);
                         }
 
-                        addFace(outMesh, face,
+                        addFaceFromAppearance(outMesh, face,
                                 static_cast<f32>(x),
                                 static_cast<f32>(baseY + y),
                                 static_cast<f32>(z),
-                                block, light, nullptr);
+                                light, appearance);
                     }
                 }
             }

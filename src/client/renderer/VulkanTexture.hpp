@@ -2,7 +2,7 @@
 
 #include "../../common/core/Types.hpp"
 #include "../../common/core/Result.hpp"
-#include "../../common/renderer/MeshTypes.hpp"
+#include "MeshTypes.hpp"
 #include <vulkan/vulkan.h>
 #include <memory>
 
