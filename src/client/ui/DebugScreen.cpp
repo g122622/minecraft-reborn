@@ -1,9 +1,11 @@
 #include "DebugScreen.hpp"
 #include "../world/ClientWorld.hpp"
 #include "../../common/world/block/Block.hpp"
+#include "../../common/resource/ResourceLocation.hpp"
 #include "../../common/util/Direction.hpp"
 #include <sstream>
 #include <iomanip>
+#include <spdlog/spdlog.h>
 
 namespace mr::client {
 
@@ -27,6 +29,7 @@ void DebugScreen::update(f32 deltaTime) {
 
     updateFps(deltaTime);
     buildDebugText();
+    logColumnBlocks();
 }
 
 void DebugScreen::render() {
@@ -96,21 +99,21 @@ void DebugScreen::buildDebugText() {
         oss.str("");
         i32 chunkX = static_cast<i32>(std::floor(pos.x / 16.0));
         i32 chunkZ = static_cast<i32>(std::floor(pos.z / 16.0));
-        oss << "Chunk: " << chunkX << ", " << chunkZ;
+        oss << "CHUNK: " << chunkX << ", " << chunkZ;
         m_debugLines.push_back(oss.str());
 
         // 相对于区块的位置
         oss.str("");
         f32 relX = pos.x - chunkX * 16.0f;
         f32 relZ = pos.z - chunkZ * 16.0f;
-        oss << "Relative: " << std::fixed << std::setprecision(1)
+        oss << "RELATIVE: " << std::fixed << std::setprecision(1)
             << relX << ", " << relZ;
         m_debugLines.push_back(oss.str());
 
         // 朝向
         oss.str("");
         const auto& rot = m_camera->rotation();
-        oss << "Facing: " << std::fixed << std::setprecision(1)
+        oss << "FACING: " << std::fixed << std::setprecision(1)
             << rot.x << ", " << rot.y;
         m_debugLines.push_back(oss.str());
     } else {
@@ -123,11 +126,11 @@ void DebugScreen::buildDebugText() {
     // 世界信息
     if (m_world != nullptr) {
         oss.str("");
-        oss << "Loaded chunks: " << m_world->chunkCount();
+        oss << "LOADED CHUNKS: " << m_world->chunkCount();
         m_debugLines.push_back(oss.str());
 
         oss.str("");
-        oss << "Render distance: " << m_world->renderDistance();
+        oss << "RENDER DISTANCE: " << m_world->renderDistance();
         m_debugLines.push_back(oss.str());
     } else {
         m_debugLines.push_back("No world loaded");
@@ -146,6 +149,14 @@ void DebugScreen::buildDebugText() {
 
 void DebugScreen::buildTargetBlockText() {
     if (m_targetBlock == nullptr || m_targetBlock->isMiss()) {
+        if (m_targetBlock == nullptr) {
+            m_debugLines.push_back("No target block");
+        } else if (m_targetBlock->isMiss()) {
+            // 添加射线检测调试信息
+            m_debugLines.push_back("Looking at: miss (raycast returned miss)");
+        } else {
+            m_debugLines.push_back("Looking at: Unknown");
+        }
         return;
     }
 
@@ -154,7 +165,7 @@ void DebugScreen::buildTargetBlockText() {
     // 显示击中的方块坐标
     const auto& blockPos = m_targetBlock->blockPos();
     oss.str("");
-    oss << "Looking at: " << blockPos.x << ", " << blockPos.y << ", " << blockPos.z;
+    oss << "LOOKING AT: " << blockPos.x << ", " << blockPos.y << ", " << blockPos.z;
     m_debugLines.push_back(oss.str());
 
     // 尝试获取方块名称
@@ -163,10 +174,52 @@ void DebugScreen::buildTargetBlockText() {
         if (state != nullptr) {
             const ResourceLocation& loc = state->blockLocation();
             oss.str("");
-            oss << "Block: " << loc.toString();
+            oss << "BLOCK: " << loc.toString();
             m_debugLines.push_back(oss.str());
         }
     }
+}
+
+void DebugScreen::logColumnBlocks() {
+    // 每秒输出一次
+    m_columnLogTimer += m_frameTime;
+    if (m_columnLogTimer < COLUMN_LOG_INTERVAL) {
+        return;
+    }
+    m_columnLogTimer = 0.0f;
+
+    // 检查必要对象
+    if (m_camera == nullptr || m_world == nullptr) {
+        return;
+    }
+
+    const auto& pos = m_camera->position();
+    i32 blockX = static_cast<i32>(std::floor(pos.x));
+    i32 blockZ = static_cast<i32>(std::floor(pos.z));
+
+    // 获取世界高度范围
+    i32 minY = m_world->getMinBuildHeight();
+    i32 maxY = m_world->getMaxBuildHeight();
+
+    spdlog::info("=== Column at X={}, Z={} (Y: {} to {}) ===", blockX, blockZ, minY, maxY - 1);
+
+    // 从 y=0 开始遍历到最顶层
+    for (i32 y = minY; y < maxY; ++y) {
+        const BlockState* state = m_world->getBlockState(blockX, y, blockZ);
+        if (state == nullptr) {
+            continue;  // 区块未加载，跳过
+        }
+
+        // 跳过空气方块
+        if (state->isAir()) {
+            continue;
+        }
+
+        const ResourceLocation& loc = state->blockLocation();
+        spdlog::info("  Y={}: {} (id={})", y, loc.toString(), state->blockId());
+    }
+
+    spdlog::info("=== End of column ===");
 }
 
 } // namespace mr::client

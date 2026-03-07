@@ -9,6 +9,37 @@
 
 namespace mr::client {
 
+namespace {
+
+/**
+ * @brief ClientWorld 到 IBlockReader 的轻量适配器
+ *
+ * 射线检测接口当前要求 IBlockReader，
+ * 而 ClientWorld 实现的是 ICollisionWorld（方法签名兼容）。
+ */
+class ClientWorldBlockReader final : public mr::IBlockReader {
+public:
+    explicit ClientWorldBlockReader(const ClientWorld& world)
+        : m_world(world)
+    {
+    }
+
+    [[nodiscard]] const BlockState* getBlockState(i32 x, i32 y, i32 z) const override
+    {
+        return m_world.getBlockState(x, y, z);
+    }
+
+    [[nodiscard]] bool isWithinWorldBounds(i32 x, i32 y, i32 z) const override
+    {
+        return m_world.isWithinWorldBounds(x, y, z);
+    }
+
+private:
+    const ClientWorld& m_world;
+};
+
+} // namespace
+
 ClientApplication::ClientApplication() = default;
 
 ClientApplication::~ClientApplication()
@@ -416,7 +447,8 @@ void ClientApplication::update(f32 deltaTime)
 
         // 执行射线检测（创造模式使用更远的距离）
         mr::RaycastContext context(ray, 5.0f);  // 生存模式5格
-        m_raycastResult = mr::raycastBlocks(context, m_world);
+        ClientWorldBlockReader blockReader(m_world);
+        m_raycastResult = mr::raycastBlocks(context, blockReader);
 
         // 更新调试屏幕的目标方块
         m_debugScreen.setTargetBlock(&m_raycastResult);

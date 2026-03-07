@@ -265,10 +265,13 @@ void GuiRenderer::fillRect(f32 x, f32 y, f32 width, f32 height, u32 color) {
     u32 baseIndex = static_cast<u32>(m_vertices.size());
 
     // 四个顶点
-    m_vertices.emplace_back(x, y, 0.0f, 0.0f, color);               // 左上
-    m_vertices.emplace_back(x + width, y, 0.0f, 0.0f, color);       // 右上
-    m_vertices.emplace_back(x + width, y + height, 0.0f, 0.0f, color); // 右下
-    m_vertices.emplace_back(x, y + height, 0.0f, 0.0f, color);      // 左下
+    // 注意：使用负UV作为“纯色矩形”标记，片段着色器将跳过字体纹理采样。
+    // 否则会错误地使用字体纹理alpha，导致准星/背景矩形不可见。
+    constexpr f32 SOLID_RECT_UV = -1.0f;
+    m_vertices.emplace_back(x, y, SOLID_RECT_UV, SOLID_RECT_UV, color);                  // 左上
+    m_vertices.emplace_back(x + width, y, SOLID_RECT_UV, SOLID_RECT_UV, color);          // 右上
+    m_vertices.emplace_back(x + width, y + height, SOLID_RECT_UV, SOLID_RECT_UV, color); // 右下
+    m_vertices.emplace_back(x, y + height, SOLID_RECT_UV, SOLID_RECT_UV, color);         // 左下
 
     // 两个三角形
     m_indices.push_back(baseIndex + 0);
@@ -285,10 +288,11 @@ void GuiRenderer::fillGradientRect(f32 x, f32 y, f32 width, f32 height,
     u32 baseIndex = static_cast<u32>(m_vertices.size());
 
     // 四个顶点，顶部和底部不同颜色
-    m_vertices.emplace_back(x, y, 0.0f, 0.0f, colorTop);               // 左上
-    m_vertices.emplace_back(x + width, y, 0.0f, 0.0f, colorTop);       // 右上
-    m_vertices.emplace_back(x + width, y + height, 0.0f, 0.0f, colorBottom); // 右下
-    m_vertices.emplace_back(x, y + height, 0.0f, 0.0f, colorBottom);   // 左下
+    constexpr f32 SOLID_RECT_UV = -1.0f;
+    m_vertices.emplace_back(x, y, SOLID_RECT_UV, SOLID_RECT_UV, colorTop);                  // 左上
+    m_vertices.emplace_back(x + width, y, SOLID_RECT_UV, SOLID_RECT_UV, colorTop);          // 右上
+    m_vertices.emplace_back(x + width, y + height, SOLID_RECT_UV, SOLID_RECT_UV, colorBottom); // 右下
+    m_vertices.emplace_back(x, y + height, SOLID_RECT_UV, SOLID_RECT_UV, colorBottom);      // 左下
 
     m_indices.push_back(baseIndex + 0);
     m_indices.push_back(baseIndex + 1);

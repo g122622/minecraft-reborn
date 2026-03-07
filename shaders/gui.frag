@@ -12,8 +12,13 @@ layout(location = 0) out vec4 outColor;
 layout(set = 0, binding = 0) uniform sampler2D fontSampler;
 
 void main() {
-    // 字体纹理使用R8格式，红色通道包含灰度值
-    float alpha = texture(fontSampler, fragTexCoord).r;
+    // 纯色矩形（如准星/面板背景）使用负UV标记，跳过字体纹理采样。
+    // 文本仍然从字体图集中采样alpha。
+    float alpha = 1.0;
+    if (fragTexCoord.x >= 0.0 && fragTexCoord.y >= 0.0) {
+        // 字体纹理使用R8格式，红色通道包含灰度值
+        alpha = texture(fontSampler, fragTexCoord).r;
+    }
 
     // 输出: 颜色 * 灰度值作为alpha
     outColor = vec4(fragColor.rgb, fragColor.a * alpha);

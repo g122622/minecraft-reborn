@@ -100,6 +100,14 @@ private:
      */
     void buildTargetBlockText();
 
+    /**
+     * @brief 输出玩家当前位置的柱状方块信息（每秒一次）
+     *
+     * 从 y=0 到世界顶层遍历玩家脚下 x,z 位置的所有方块，
+     * 跳过空气方块，输出方块名称和 Y 坐标。
+     */
+    void logColumnBlocks();
+
     GuiRenderer* m_guiRenderer = nullptr;
     Camera* m_camera = nullptr;
     ClientWorld* m_world = nullptr;
@@ -115,6 +123,10 @@ private:
     u32 m_frameCount = 0;
     f32 m_fpsUpdateTimer = 0.0f;
     static constexpr f32 FPS_UPDATE_INTERVAL = 0.5f;
+
+    // 柱状方块输出计时器（每秒输出一次）
+    f32 m_columnLogTimer = 0.0f;
+    static constexpr f32 COLUMN_LOG_INTERVAL = 1.0f;
 
     // 调试文本行
     std::vector<std::string> m_debugLines;

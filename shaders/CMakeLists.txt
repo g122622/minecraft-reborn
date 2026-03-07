@@ -36,6 +36,8 @@ set(SHADER_SOURCES
     block.frag
     debug.vert
     debug.frag
+    gui.vert
+    gui.frag
 )
 
 # 输出目录

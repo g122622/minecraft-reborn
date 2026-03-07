@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../core/Result.hpp"
+#include "common/core/Result.hpp"
 
 namespace mr::client {
 
