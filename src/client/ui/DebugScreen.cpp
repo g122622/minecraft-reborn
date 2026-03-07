@@ -99,21 +99,21 @@ void DebugScreen::buildDebugText() {
         oss.str("");
         i32 chunkX = static_cast<i32>(std::floor(pos.x / 16.0));
         i32 chunkZ = static_cast<i32>(std::floor(pos.z / 16.0));
-        oss << "CHUNK: " << chunkX << ", " << chunkZ;
+        oss << "Chunk: " << chunkX << ", " << chunkZ;
         m_debugLines.push_back(oss.str());
 
         // 相对于区块的位置
         oss.str("");
         f32 relX = pos.x - chunkX * 16.0f;
         f32 relZ = pos.z - chunkZ * 16.0f;
-        oss << "RELATIVE: " << std::fixed << std::setprecision(1)
+        oss << "Relative pos in current chunk: " << std::fixed << std::setprecision(1)
             << relX << ", " << relZ;
         m_debugLines.push_back(oss.str());
 
         // 朝向
         oss.str("");
         const auto& rot = m_camera->rotation();
-        oss << "FACING: " << std::fixed << std::setprecision(1)
+        oss << "Facing: " << std::fixed << std::setprecision(1)
             << rot.x << ", " << rot.y;
         m_debugLines.push_back(oss.str());
     } else {
@@ -126,11 +126,11 @@ void DebugScreen::buildDebugText() {
     // 世界信息
     if (m_world != nullptr) {
         oss.str("");
-        oss << "LOADED CHUNKS: " << m_world->chunkCount();
+        oss << "Loaded Chunks: " << m_world->chunkCount();
         m_debugLines.push_back(oss.str());
 
         oss.str("");
-        oss << "RENDER DISTANCE: " << m_world->renderDistance();
+        oss << "Render Distance: " << m_world->renderDistance();
         m_debugLines.push_back(oss.str());
     } else {
         m_debugLines.push_back("No world loaded");
@@ -165,7 +165,7 @@ void DebugScreen::buildTargetBlockText() {
     // 显示击中的方块坐标
     const auto& blockPos = m_targetBlock->blockPos();
     oss.str("");
-    oss << "LOOKING AT: " << blockPos.x << ", " << blockPos.y << ", " << blockPos.z;
+    oss << "Looking at: " << blockPos.x << ", " << blockPos.y << ", " << blockPos.z;
     m_debugLines.push_back(oss.str());
 
     // 尝试获取方块名称

@@ -5,6 +5,8 @@
 #include <vector>
 #include <memory>
 #include <functional>
+#include <optional>
+#include <algorithm>
 
 namespace mr {
 
@@ -54,7 +56,15 @@ public:
     BlockType& registerBlock(const ResourceLocation& id, Args&&... args) {
         auto block = std::make_unique<BlockType>(std::forward<Args>(args)...);
         block->m_blockLocation = id;
-        block->m_blockId = allocateBlockId();
+
+        // 对预定义方块使用固定 ID，保证与 BlockId 枚举一致。
+        u32 blockId = 0;
+        if (auto fixedId = fixedBlockIdForResource(id); fixedId.has_value()) {
+            blockId = *fixedId;
+        } else {
+            blockId = allocateBlockId();
+        }
+        block->m_blockId = blockId;
 
         // 注册所有状态
         for (const auto& state : block->stateContainer().validStates()) {
@@ -71,6 +81,10 @@ public:
         }
         m_blocksById[block->m_blockId] = ptr;
         m_blocks[id] = std::move(block);
+
+        // 保证动态分配 ID 始终从已用最大值之后开始。
+        m_nextBlockId = std::max(m_nextBlockId, blockId + 1);
+
         return *ptr;
     }
 
@@ -78,7 +92,7 @@ public:
      * @brief 根据ID获取方块
      */
     [[nodiscard]] Block* getBlock(u32 blockId) const {
-        if (blockId == 0 || blockId >= m_blocksById.size()) {
+        if (blockId >= m_blocksById.size()) {
             return nullptr;
         }
         return m_blocksById[blockId];
@@ -157,7 +171,45 @@ private:
      * @brief 分配方块ID
      */
     u32 allocateBlockId() {
+        while (m_nextBlockId < m_blocksById.size() && m_blocksById[m_nextBlockId] != nullptr) {
+            ++m_nextBlockId;
+        }
         return m_nextBlockId++;
+    }
+
+    [[nodiscard]] std::optional<u32> fixedBlockIdForResource(const ResourceLocation& id) const {
+        if (id.namespace_() != "minecraft") {
+            return std::nullopt;
+        }
+
+        const String& path = id.path();
+        if (path == "air") return static_cast<u32>(BlockId::Air);
+        if (path == "stone") return static_cast<u32>(BlockId::Stone);
+        if (path == "grass_block") return static_cast<u32>(BlockId::Grass);
+        if (path == "dirt") return static_cast<u32>(BlockId::Dirt);
+        if (path == "cobblestone") return static_cast<u32>(BlockId::Cobblestone);
+        if (path == "oak_planks") return static_cast<u32>(BlockId::OakPlanks);
+        if (path == "bedrock") return static_cast<u32>(BlockId::Bedrock);
+        if (path == "water") return static_cast<u32>(BlockId::Water);
+        if (path == "lava") return static_cast<u32>(BlockId::Lava);
+        if (path == "sand") return static_cast<u32>(BlockId::Sand);
+        if (path == "gravel") return static_cast<u32>(BlockId::Gravel);
+        if (path == "gold_ore") return static_cast<u32>(BlockId::GoldOre);
+        if (path == "iron_ore") return static_cast<u32>(BlockId::IronOre);
+        if (path == "coal_ore") return static_cast<u32>(BlockId::CoalOre);
+        if (path == "oak_log") return static_cast<u32>(BlockId::OakLog);
+        if (path == "oak_leaves") return static_cast<u32>(BlockId::OakLeaves);
+        if (path == "sponge") return static_cast<u32>(BlockId::Sponge);
+        if (path == "netherrack") return static_cast<u32>(BlockId::Netherrack);
+        if (path == "soul_sand") return static_cast<u32>(BlockId::SoulSand);
+        if (path == "glowstone") return static_cast<u32>(BlockId::Glowstone);
+        if (path == "end_stone") return static_cast<u32>(BlockId::EndStone);
+        if (path == "terracotta") return static_cast<u32>(BlockId::Terracotta);
+        if (path == "red_sand") return static_cast<u32>(BlockId::RedSand);
+        if (path == "snow") return static_cast<u32>(BlockId::Snow);
+        if (path == "ice") return static_cast<u32>(BlockId::Ice);
+
+        return std::nullopt;
     }
 
     /**
@@ -170,8 +222,8 @@ private:
     std::unordered_map<ResourceLocation, std::unique_ptr<Block>> m_blocks;
     std::vector<Block*> m_blocksById;
     std::unordered_map<u32, BlockState*> m_statesById;
-    u32 m_nextBlockId = 1;  // 0 reserved for air
-    u32 m_nextStateId = 1;  // 0 reserved for air state
+    u32 m_nextBlockId = 0;
+    u32 m_nextStateId = 0;
 };
 
 } // namespace mr

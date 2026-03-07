@@ -798,35 +798,26 @@ Result<void> SkyRenderer::createPipelines() {
     };
 
     // 天空穹顶
-    auto skyResult = createPipeline(
-        "shaders/sky.vert.spv",
-        "shaders/sky.frag.spv",
-        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-        VK_FALSE,
-        VK_FALSE,
-        VK_FALSE,
-        &m_skyPipeline);
+    auto skyResult = createPipeline("D:/MiscProjects/minecraft-reborn/shaders/sky.vert.spv",
+                                    "D:/MiscProjects/minecraft-reborn/shaders/sky.frag.spv",
+                                    VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE, VK_FALSE,
+                                    VK_FALSE, &m_skyPipeline);
     if (skyResult.failed()) {
         return skyResult.error();
     }
 
     // 太阳
-    auto sunResult = createPipeline(
-        "shaders/sun.vert.spv",
-        "shaders/sun.frag.spv",
-        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
-        VK_TRUE,
-        VK_FALSE,
-        VK_FALSE,
-        &m_sunPipeline);
+    auto sunResult = createPipeline("D:/MiscProjects/minecraft-reborn/shaders/sun.vert.spv",
+                                    "D:/MiscProjects/minecraft-reborn/shaders/sun.frag.spv", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+                                    VK_TRUE, VK_FALSE, VK_FALSE, &m_sunPipeline);
     if (sunResult.failed()) {
         return sunResult.error();
     }
 
     // 月亮
     auto moonResult = createPipeline(
-        "shaders/moon.vert.spv",
-        "shaders/moon.frag.spv",
+        "D:/MiscProjects/minecraft-reborn/shaders/moon.vert.spv",
+        "D:/MiscProjects/minecraft-reborn/shaders/moon.frag.spv",
         VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
         VK_TRUE,
         VK_FALSE,
@@ -838,8 +829,8 @@ Result<void> SkyRenderer::createPipelines() {
 
     // 星星
     auto starResult = createPipeline(
-        "shaders/star.vert.spv",
-        "shaders/star.frag.spv",
+        "D:/MiscProjects/minecraft-reborn/shaders/star.vert.spv",
+        "D:/MiscProjects/minecraft-reborn/shaders/star.frag.spv",
         VK_PRIMITIVE_TOPOLOGY_POINT_LIST,
         VK_TRUE,
         VK_FALSE,

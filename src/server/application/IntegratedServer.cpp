@@ -348,7 +348,7 @@ void IntegratedServer::handleLoginRequest(const u8* data, size_t size) {
 
     // 设置初始位置（出生点）
     m_client.x = 0.0;
-    m_client.y = 90.0;
+    m_client.y = 70.0;
     m_client.z = 0.0;
 
     // 发送登录成功响应

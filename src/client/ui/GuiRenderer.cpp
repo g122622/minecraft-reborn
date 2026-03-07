@@ -343,9 +343,9 @@ Result<void> GuiRenderer::createPipeline(VkRenderPass renderPass) {
     VkDevice device = m_context->device();
 
     // 加载SPIR-V着色器
-    auto vertCode = loadShaderFile("shaders/gui.vert.spv");
-    auto fragCode = loadShaderFile("shaders/gui.frag.spv");
-    
+    auto vertCode = loadShaderFile("D:/MiscProjects/minecraft-reborn/shaders/gui.vert.spv");
+    auto fragCode = loadShaderFile("D:/MiscProjects/minecraft-reborn/shaders/gui.frag.spv");
+
     if (vertCode.empty()) {
         return Error(ErrorCode::FileNotFound, "Failed to load GUI vertex shader");
     }

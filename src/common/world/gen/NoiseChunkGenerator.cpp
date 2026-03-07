@@ -200,10 +200,10 @@ void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chu
                     const f64 yLerp = static_cast<f64>(localY) / static_cast<f64>(m_verticalNoiseGranularity);
 
                     // Y 轴插值
-                    const f64 y0 = math::lerp(yLerp, d0, d4); // (x0, z0)
-                    const f64 y1 = math::lerp(yLerp, d1, d5); // (x0, z1)
-                    const f64 y2 = math::lerp(yLerp, d2, d6); // (x1, z0)
-                    const f64 y3 = math::lerp(yLerp, d3, d7); // (x1, z1)
+                    const f64 y0 = math::lerp(d0, d4, yLerp); // (x0, z0)
+                    const f64 y1 = math::lerp(d1, d5, yLerp); // (x0, z1)
+                    const f64 y2 = math::lerp(d2, d6, yLerp); // (x1, z0)
+                    const f64 y3 = math::lerp(d3, d7, yLerp); // (x1, z1)
 
                     // X 轴细分
                     for (i32 localX = 0; localX < m_horizontalNoiseGranularity; ++localX) {
@@ -211,8 +211,8 @@ void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chu
                         const f64 xLerp = static_cast<f64>(localX) / static_cast<f64>(m_horizontalNoiseGranularity);
 
                         // X 轴插值
-                        const f64 x0 = math::lerp(xLerp, y0, y2); // (z0)
-                        const f64 x1 = math::lerp(xLerp, y1, y3); // (z1)
+                        const f64 x0 = math::lerp(y0, y2, xLerp); // (z0)
+                        const f64 x1 = math::lerp(y1, y3, xLerp); // (z1)
 
                         // Z 轴细分
                         for (i32 localZ = 0; localZ < m_horizontalNoiseGranularity; ++localZ) {
@@ -220,7 +220,7 @@ void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chu
                             const f64 zLerp = static_cast<f64>(localZ) / static_cast<f64>(m_horizontalNoiseGranularity);
 
                             // Z 轴插值 - 最终密度值
-                            const f64 density = math::lerp(zLerp, x0, x1);
+                            const f64 density = math::lerp(x0, x1, zLerp);
 
                             // 确定方块
                             const BlockId block = getBlockForDensity(density, worldY);
@@ -404,11 +404,14 @@ f64 NoiseChunkGenerator::calculateNoiseDensity(i32 noiseX, i32 noiseY, i32 noise
         }
 
         frequency *= 2.0;
-        amplitude /= 2.0;
+        amplitude *= 2.0;
     }
 
     // 混合密度
-    return math::lerp(density / 512.0, secondaryDensity / 512.0, (weight / 10.0 + 1.0) / 2.0);
+    // math::lerp(a, b, t): t=0 返回 a，t=1 返回 b
+    // 这里使用权重噪声作为插值因子。
+    const f64 blend = std::clamp((weight / 10.0 + 1.0) / 2.0, 0.0, 1.0);
+    return math::lerp(density / 512.0, secondaryDensity / 512.0, blend);
 }
 
 f64 NoiseChunkGenerator::calculateRandomDensityOffset(i32 noiseX, i32 noiseZ) const
@@ -553,6 +556,7 @@ void NoiseChunkGenerator::buildSurfaceForColumn(ChunkPrimer& chunk, i32 x, i32 z
 
     // 从地表向下遍历
     i32 currentDepth = 0;
+    bool processedTopSurfaceRun = false;
     for (i32 y = surfaceHeight; y >= 0; --y) {
         const BlockState* state = chunk.getBlock(x, y, z);
 
@@ -565,6 +569,12 @@ void NoiseChunkGenerator::buildSurfaceForColumn(ChunkPrimer& chunk, i32 x, i32 z
 
         // 只处理默认方块（石头）
         if (blockId != m_settings.defaultBlock) {
+            continue;
+        }
+
+        // 只处理最上层那一段连续实心方块。
+        // 避免在地下洞穴顶面再次刷出 grass/dirt。
+        if (processedTopSurfaceRun && currentDepth == 0) {
             continue;
         }
 
@@ -584,6 +594,7 @@ void NoiseChunkGenerator::buildSurfaceForColumn(ChunkPrimer& chunk, i32 x, i32 z
                 }
             }
             currentDepth++;
+            processedTopSurfaceRun = true;
         } else if (currentDepth < surfaceDepth + 4) {
             // 次地表层
             const BlockState* subSurface = BlockRegistry::instance().get(biomeDef.subSurfaceBlock);
@@ -591,6 +602,7 @@ void NoiseChunkGenerator::buildSurfaceForColumn(ChunkPrimer& chunk, i32 x, i32 z
                 chunk.setBlock(x, y, z, subSurface);
             }
             currentDepth++;
+            processedTopSurfaceRun = true;
         }
     }
 }

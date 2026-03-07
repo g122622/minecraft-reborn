@@ -1147,8 +1147,8 @@ Result<void> VulkanRenderer::createChunkPipeline() {
     PipelineConfig config{};
 
     // 着色器路径 - 使用区块着色器
-    config.vertexShaderPath = "shaders/chunk.vert.spv";
-    config.fragmentShaderPath = "shaders/chunk.frag.spv";
+    config.vertexShaderPath = "D:/MiscProjects/minecraft-reborn/shaders/chunk.vert.spv";
+    config.fragmentShaderPath = "D:/MiscProjects/minecraft-reborn/shaders/chunk.frag.spv";
 
     // 顶点输入描述 - 与Vertex结构匹配
     VkVertexInputBindingDescription bindingDesc{};
