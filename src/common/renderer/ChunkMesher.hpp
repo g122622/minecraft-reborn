@@ -87,6 +87,14 @@ private:
         const ChunkData* neighborChunks[6]
     );
 
+    // 优化的网格生成 (减少函数调用和边界检查)
+    static void optimizedMeshSection(
+        const ChunkData& chunk,
+        i32 sectionIndex,
+        MeshData& outMesh,
+        const ChunkData* neighborChunks[6]
+    );
+
     static bool s_useGreedyMeshing;
     static bool s_lightingEnabled;
     static bool s_useResourceModels;

@@ -40,6 +40,11 @@ public:
         m_blockStates[index] = stateId;
     }
 
+    // 直接访问 stateId 数组 (用于高性能网格生成)
+    [[nodiscard]] const std::vector<u32>& getBlockStates() const {
+        return m_blockStates;
+    }
+
     // 索引计算
     [[nodiscard]] static i32 blockIndex(i32 x, i32 y, i32 z) {
         return y * SIZE * SIZE + z * SIZE + x;
