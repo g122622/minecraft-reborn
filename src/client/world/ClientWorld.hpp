@@ -177,6 +177,38 @@ public:
      */
     void onChunkUnload(ChunkCoord x, ChunkCoord z);
 
+    // ========== 时间管理 ==========
+
+    /**
+     * @brief 处理服务端时间更新
+     * @param gameTime 游戏总 tick 数
+     * @param dayTime 一天内的时间 (0-23999)
+     * @param daylightCycleEnabled 日光周期是否启用
+     */
+    void onTimeUpdate(i64 gameTime, i64 dayTime, bool daylightCycleEnabled);
+
+    /**
+     * @brief 获取插值后的天体角度 (用于平滑渲染)
+     * @param partialTick 部分 tick (0.0-1.0)
+     * @return 天体角度 (0.0-1.0)
+     */
+    [[nodiscard]] f32 getInterpolatedCelestialAngle(f32 partialTick) const;
+
+    /**
+     * @brief 获取当前一天内的时间
+     */
+    [[nodiscard]] i64 dayTime() const { return m_dayTime; }
+
+    /**
+     * @brief 获取游戏总 tick 数
+     */
+    [[nodiscard]] i64 gameTime() const { return m_gameTime; }
+
+    /**
+     * @brief 获取日光周期是否启用
+     */
+    [[nodiscard]] bool daylightCycleEnabled() const { return m_daylightCycleEnabled; }
+
 private:
     // 区块加载/卸载
     void loadChunksInRange(const glm::vec3& position, i32 range);
@@ -212,6 +244,13 @@ private:
     // 统计
     u32 m_chunksLoaded = 0;
     u32 m_chunksUnloaded = 0;
+
+    // 时间 (从服务端同步)
+    i64 m_gameTime = 0;
+    i64 m_dayTime = 0;
+    i64 m_prevDayTime = 0;       // 上一帧的 dayTime (用于插值)
+    i64 m_targetDayTime = 0;     // 目标 dayTime (从服务端接收)
+    bool m_daylightCycleEnabled = true;
 };
 
 } // namespace mr::client

@@ -12,6 +12,7 @@
 #include "UniformBuffer.hpp"
 #include "Descriptor.hpp"
 #include "Camera.hpp"
+#include "sky/SkyRenderer.hpp"
 #include "../ui/Font.hpp"
 #include "../ui/GuiRenderer.hpp"
 #include <vulkan/vulkan.h>
@@ -73,6 +74,20 @@ public:
     ChunkRenderer& chunkRenderer() { return m_chunkRenderer; }
     const ChunkRenderer& chunkRenderer() const { return m_chunkRenderer; }
     bool isChunkRendererInitialized() const { return m_chunkRendererInitialized; }
+
+    // 天空渲染
+    SkyRenderer& skyRenderer() { return m_skyRenderer; }
+    const SkyRenderer& skyRenderer() const { return m_skyRenderer; }
+    bool isSkyRendererInitialized() const { return m_skyRendererInitialized; }
+
+    // 时间更新
+    /**
+     * @brief 更新时间状态 (从服务端同步)
+     * @param dayTime 一天内的时间 (0-23999)
+     * @param gameTime 游戏总 tick 数
+     * @param partialTick 部分 tick (用于插值)
+     */
+    void updateTime(i64 dayTime, i64 gameTime, f32 partialTick = 0.0f);
 
     // GUI渲染
     GuiRenderer& guiRenderer() { return *m_guiRenderer; }
@@ -161,6 +176,15 @@ private:
     VulkanTextureAtlas m_chunkTextureAtlas;
     ChunkRenderer m_chunkRenderer;
     bool m_chunkRendererInitialized = false;
+
+    // 天空渲染
+    SkyRenderer m_skyRenderer;
+    bool m_skyRendererInitialized = false;
+
+    // 时间状态
+    i64 m_dayTime = 0;
+    i64 m_gameTime = 0;
+    f32 m_partialTick = 0.0f;
 
     // GUI渲染
     std::unique_ptr<GuiRenderer> m_guiRenderer;

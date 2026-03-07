@@ -33,7 +33,8 @@ enum class PacketType : u16 {
     UnloadChunk = 204,
     BlockUpdate = 205,
     Teleport = 206,
-    ChatBroadcast = 207
+    ChatBroadcast = 207,
+    TimeUpdate = 208    // 时间同步
 };
 
 // 数据包头

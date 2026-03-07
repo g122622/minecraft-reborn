@@ -45,6 +45,9 @@ add_library(mr_common STATIC
     world/gen/IChunkGenerator.cpp
     world/gen/NoiseChunkGenerator.cpp
 
+    # World - Time
+    world/time/GameTime.cpp
+
     # Physics
     physics/PhysicsEngine.cpp
     # physics/collision/BlockCollision.cpp  # 已移除 - 使用新的方块系统

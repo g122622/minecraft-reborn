@@ -20,6 +20,8 @@ add_executable(minecraft-client
     renderer/UniformBuffer.cpp
     renderer/Descriptor.cpp
     renderer/DefaultTextureAtlas.cpp
+    renderer/sky/CelestialCalculations.cpp
+    renderer/sky/SkyRenderer.cpp
     resource/BlockModelLoader.cpp
     resource/BlockStateLoader.cpp
     resource/TextureAtlasBuilder.cpp

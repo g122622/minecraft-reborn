@@ -515,9 +515,18 @@ void ServerWorld::broadcastPacketExcept(PlayerId excludePlayerId, const std::vec
 void ServerWorld::tick() {
     m_currentTick++;
 
+    // 更新游戏时间
+    m_gameTime.tick();
+
     // 更新区块管理器
     if (m_chunkManager) {
         m_chunkManager->tick();
+    }
+
+    // 每 20 ticks 同步一次时间到客户端
+    if (m_currentTick - m_lastTimeSyncTick >= time::TimeConstants::TIME_SYNC_INTERVAL) {
+        broadcastTimeUpdate();
+        m_lastTimeSyncTick = m_currentTick;
     }
 
     // 检查区块卸载
@@ -543,6 +552,49 @@ size_t ServerWorld::loadedChunkCount() const {
         return m_chunkManager->loadedChunkCount();
     }
     return 0;
+}
+
+// ============================================================================
+// 时间管理
+// ============================================================================
+
+void ServerWorld::setDayTime(i64 time) {
+    m_gameTime.setDayTime(time);
+    // 立即广播时间变更
+    broadcastTimeUpdate();
+}
+
+void ServerWorld::addDayTime(i64 ticks) {
+    m_gameTime.addDayTime(ticks);
+    // 立即广播时间变更
+    broadcastTimeUpdate();
+}
+
+void ServerWorld::setDaylightCycleEnabled(bool enabled) {
+    m_gameTime.setDaylightCycleEnabled(enabled);
+    // 立即广播
+    broadcastTimeUpdate();
+}
+
+void ServerWorld::broadcastTimeUpdate() {
+    network::TimeUpdatePacket timePacket(
+        m_gameTime.gameTime(),
+        m_gameTime.dayTime(),
+        m_gameTime.daylightCycleEnabled()
+    );
+
+    network::PacketSerializer ser;
+    timePacket.serialize(ser);
+
+    network::PacketSerializer fullPacket;
+    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
+    fullPacket.writeU16(static_cast<u16>(network::PacketType::TimeUpdate));
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeBytes(ser.buffer());
+
+    broadcastPacket(fullPacket.buffer());
 }
 
 } // namespace mr::server

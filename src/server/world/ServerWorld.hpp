@@ -6,6 +6,7 @@
 #include "common/entity/PlayerManager.hpp"
 #include "common/network/ChunkSync.hpp"
 #include "common/network/ProtocolPackets.hpp"
+#include "common/world/time/GameTime.hpp"
 #include "server/network/TcpSession.hpp"
 #include <unordered_map>
 #include <memory>
@@ -144,11 +145,38 @@ public:
     [[nodiscard]] ServerChunkManager* chunkManager() { return m_chunkManager.get(); }
     [[nodiscard]] const ServerChunkManager* chunkManager() const { return m_chunkManager.get(); }
 
+    // ========== 时间管理 ==========
+
+    /**
+     * @brief 获取游戏时间
+     */
+    [[nodiscard]] time::GameTime& gameTime() { return m_gameTime; }
+    [[nodiscard]] const time::GameTime& gameTime() const { return m_gameTime; }
+
+    /**
+     * @brief 设置一天内的时间 (/time set)
+     * @param time 时间值 (0-23999)
+     */
+    void setDayTime(i64 time);
+
+    /**
+     * @brief 增加时间 (/time add)
+     * @param ticks 要增加的 tick 数
+     */
+    void addDayTime(i64 ticks);
+
+    /**
+     * @brief 设置日光周期是否启用
+     * @param enabled true 启用
+     */
+    void setDaylightCycleEnabled(bool enabled);
+
 private:
     // 内部方法
     void sendChunkToPlayer(PlayerId playerId, ChunkCoord x, ChunkCoord z);
     void sendUnloadChunkToPlayer(PlayerId playerId, ChunkCoord x, ChunkCoord z);
     void broadcastBlockUpdate(i32 x, i32 y, i32 z, u32 blockStateId);
+    void broadcastTimeUpdate();  // 广播时间更新
 
     // 卸载检查
     void checkChunkUnloading();
@@ -165,7 +193,9 @@ private:
     network::ChunkSyncManager m_chunkSyncManager;
 
     // 时间
+    time::GameTime m_gameTime;
     u64 m_currentTick = 0;
+    u64 m_lastTimeSyncTick = 0;  // 上次时间同步的 tick
     u64 m_lastChunkUnloadCheck = 0;
 };
 

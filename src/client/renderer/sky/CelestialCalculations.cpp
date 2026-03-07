@@ -1,0 +1,163 @@
+#include "CelestialCalculations.hpp"
+#include <cmath>
+
+namespace mr::client {
+
+// 静态成员定义
+constexpr f32 CelestialCalculations::MOON_PHASE_FACTORS[8];
+constexpr f32 CelestialCalculations::SKY_COLORS[4][3];
+
+f32 CelestialCalculations::calculateCelestialAngle(i64 dayTime) {
+    // MC 1.16.5 DimensionType.calculateCelestialAngle()
+    // d0 = frac(dayTime / 24000 - 0.25)
+    // d1 = 0.5 - cos(d0 * PI) / 2.0
+    // return (d0 * 2.0 + d1) / 3.0
+
+    constexpr f64 TICKS_PER_DAY = 24000.0;
+
+    f64 d0 = std::fmod(static_cast<f64>(dayTime) / TICKS_PER_DAY - 0.25, 1.0);
+    if (d0 < 0.0) {
+        d0 += 1.0;
+    }
+
+    f64 d1 = 0.5 - std::cos(d0 * mr::math::PI_DOUBLE) / 2.0;
+
+    return static_cast<f32>((d0 * 2.0 + d1) / 3.0);
+}
+
+f32 CelestialCalculations::calculateCelestialAngleInterpolated(i64 dayTime, f32 partialTick) {
+    // 计算插值后的 dayTime
+    i64 nextDayTime = (dayTime + 1) % mr::game::DAY_LENGTH_TICKS;
+    f32 currentAngle = calculateCelestialAngle(dayTime);
+    f32 nextAngle = calculateCelestialAngle(nextDayTime);
+
+    // 线性插值
+    // 注意: 需要处理角度跨越 0/1 边界的情况
+    f32 diff = nextAngle - currentAngle;
+    if (diff > 0.5f) {
+        diff -= 1.0f;
+    } else if (diff < -0.5f) {
+        diff += 1.0f;
+    }
+
+    f32 result = currentAngle + diff * partialTick;
+    if (result < 0.0f) {
+        result += 1.0f;
+    } else if (result >= 1.0f) {
+        result -= 1.0f;
+    }
+
+    return result;
+}
+
+i32 CelestialCalculations::calculateMoonPhase(i64 gameTime) {
+    // MC 1.16.5: 月相 = (gameTime / 24000) % 8
+    return static_cast<i32>((gameTime / mr::game::DAY_LENGTH_TICKS) % 8);
+}
+
+f32 CelestialCalculations::getMoonPhaseFactor(i32 moonPhase) {
+    if (moonPhase < 0 || moonPhase > 7) {
+        return 0.5f;
+    }
+    return MOON_PHASE_FACTORS[moonPhase];
+}
+
+glm::vec3 CelestialCalculations::calculateSunDirection(f32 celestialAngle) {
+    // 天体角度转弧度
+    // 0.0 = 正午 (太阳在头顶)
+    // 0.5 = 午夜 (太阳在脚底)
+    //
+    // MC 的天体角度定义:
+    // - celestialAngle 是太阳/月亮在天空中的位置参数
+    // - 当 celestialAngle = 0 时，太阳在最高点 (正午)
+    // - 当 celestialAngle = 0.5 时，太阳在最低点 (午夜)
+    //
+    // 太阳绕 X 轴旋转 (东西方向):
+    // - 在 MC 中，太阳从东升起，向西落下
+    // - 我们使用 X-Z 平面作为地平线，Y 轴指向天顶
+    // - 太阳角度从正午开始，所以需要偏移
+
+    // celestialAngle 转弧度，乘以 2π
+    f32 angle = celestialAngle * mr::math::TAU_F;
+
+    // 太阳高度角:
+    // - 正午 (angle=0): cos(0) = 1, 太阳在头顶
+    // - 日落 (angle=π/2): cos(π/2) = 0, 太阳在地平线
+    // - 午夜 (angle=π): cos(π) = -1, 太阳在地下
+    f32 height = std::cos(angle);
+
+    // 太阳绕 Y 轴的角度 (东西方向)
+    // 使用 sin 来模拟太阳从东到西的运动
+    f32 xz = std::sin(angle);
+
+    // 太阳方向: X 是东西方向，Y 是高度，Z 是南北方向
+    // 注意: MC 使用右手坐标系，Z 是南北
+    glm::vec3 dir(xz, height, 0.0f);
+
+    return glm::normalize(dir);
+}
+
+f32 CelestialCalculations::calculateSunIntensity(f32 celestialAngle) {
+    f32 angleRad = celestialAngle * mr::math::TAU_F;
+    f32 sunHeight = std::cos(angleRad); // 正午=1, 午夜=-1
+
+    // 在地平线附近做轻微软过渡，避免晨昏突变。
+    f32 t = glm::clamp((sunHeight + 0.06f) / 1.06f, 0.0f, 1.0f);
+    return glm::smoothstep(0.0f, 1.0f, t);
+}
+
+glm::vec4 CelestialCalculations::calculateSkyColor(
+    f32 celestialAngle,
+    f32 rainStrength,
+    f32 thunderStrength) {
+    const f32 angleRad = celestialAngle * mr::math::TAU_F;
+    const f32 sunHeight = std::cos(angleRad);
+
+    // 基础昼夜渐变（接近 MC 的蓝天/夜空对比）。
+    const glm::vec3 daySky(0.53f, 0.81f, 0.92f);
+    const glm::vec3 nightSky(0.02f, 0.03f, 0.08f);
+
+    const f32 daylight = glm::smoothstep(-0.12f, 0.18f, sunHeight);
+    glm::vec3 skyColor = glm::mix(nightSky, daySky, daylight);
+
+    // 日出/日落暖色带（只在地平线附近生效，避免整片天空过橙）。
+    const f32 horizon = 1.0f - glm::clamp(std::abs(sunHeight) / 0.42f, 0.0f, 1.0f);
+    const f32 twilight = horizon * horizon;
+    const glm::vec3 twilightColor(0.98f, 0.56f, 0.28f);
+    skyColor = glm::mix(skyColor, twilightColor, twilight * 0.35f);
+
+    // 天气影响
+    if (rainStrength > 0.0f || thunderStrength > 0.0f) {
+        // 雨天/雷暴时天空偏灰偏暗。
+        glm::vec3 fogGray(0.58f, 0.60f, 0.64f);
+        f32 weatherFactor = std::max(rainStrength, thunderStrength);
+        skyColor = glm::mix(skyColor, fogGray, weatherFactor * 0.82f);
+    }
+
+    return glm::vec4(skyColor, 1.0f);
+}
+
+glm::vec4 CelestialCalculations::calculateFogColor(
+    f32 celestialAngle,
+    f32 rainStrength,
+    f32 thunderStrength) {
+    glm::vec4 skyColor = calculateSkyColor(celestialAngle, rainStrength, thunderStrength);
+    glm::vec3 fogColor = glm::vec3(skyColor);
+
+    // 雾比天空略亮、略灰（地平线感）。
+    fogColor = glm::mix(fogColor, glm::vec3(0.70f, 0.75f, 0.80f), 0.26f);
+
+    return glm::vec4(fogColor, 1.0f);
+}
+
+f32 CelestialCalculations::calculateStarBrightness(f32 celestialAngle) {
+    // MC 风格的星空亮度曲线：
+    // f = 1 - (cos(angle * TAU) * 2 + 0.25)
+    // clamp 到 [0,1] 后平方再缩放。
+    const f32 angleRad = celestialAngle * mr::math::TAU_F;
+    f32 brightness = 1.0f - (std::cos(angleRad) * 2.0f + 0.25f);
+    brightness = glm::clamp(brightness, 0.0f, 1.0f);
+    return brightness * brightness * 0.5f;
+}
+
+} // namespace mr::client

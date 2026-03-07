@@ -800,4 +800,76 @@ private:
     PlayerId m_senderId = 0;
 };
 
+// ============================================================================
+// 时间更新包 (服务端 -> 客户端)
+// ============================================================================
+
+class TimeUpdatePacket {
+public:
+    TimeUpdatePacket() = default;
+    TimeUpdatePacket(i64 gameTime, i64 dayTime, bool daylightCycleEnabled)
+        : m_gameTime(gameTime)
+        , m_dayTime(dayTime)
+        , m_daylightCycleEnabled(daylightCycleEnabled)
+    {}
+
+    // Getters
+    i64 gameTime() const { return m_gameTime; }
+    i64 dayTime() const { return m_dayTime; }
+    bool daylightCycleEnabled() const { return m_daylightCycleEnabled; }
+
+    // Setters
+    void setGameTime(i64 time) { m_gameTime = time; }
+    void setDayTime(i64 time) { m_dayTime = time; }
+    void setDaylightCycleEnabled(bool enabled) { m_daylightCycleEnabled = enabled; }
+
+    /**
+     * @brief 序列化时间更新包
+     *
+     * 协议格式 (兼容 MC 1.16.5):
+     * - gameTime: i64 (游戏启动以来的总 tick 数)
+     * - dayTime: i64 (一天内的时间，负数表示日光周期禁用)
+     *
+     * 注意: MC 协议中，dayTime 为负数时表示日光周期被禁用
+     * 实际的 dayTime 值为 |dayTime|
+     */
+    void serialize(PacketSerializer& ser) const {
+        ser.writeI64(m_gameTime);
+        // MC协议: 负数表示日光周期禁用
+        ser.writeI64(m_daylightCycleEnabled ? m_dayTime : -m_dayTime);
+    }
+
+    /**
+     * @brief 反序列化时间更新包
+     * @return 解析结果
+     */
+    [[nodiscard]] static Result<TimeUpdatePacket> deserialize(PacketDeserializer& deser) {
+        TimeUpdatePacket packet;
+
+        auto gameTimeResult = deser.readI64();
+        if (gameTimeResult.failed()) return gameTimeResult.error();
+        packet.m_gameTime = gameTimeResult.value();
+
+        auto dayTimeResult = deser.readI64();
+        if (dayTimeResult.failed()) return dayTimeResult.error();
+        i64 rawDayTime = dayTimeResult.value();
+
+        // 负数表示日光周期禁用
+        if (rawDayTime < 0) {
+            packet.m_dayTime = -rawDayTime;
+            packet.m_daylightCycleEnabled = false;
+        } else {
+            packet.m_dayTime = rawDayTime;
+            packet.m_daylightCycleEnabled = true;
+        }
+
+        return packet;
+    }
+
+private:
+    i64 m_gameTime = 0;
+    i64 m_dayTime = 0;
+    bool m_daylightCycleEnabled = true;
+};
+
 } // namespace mr::network

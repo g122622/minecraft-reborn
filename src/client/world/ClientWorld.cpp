@@ -2,6 +2,7 @@
 #include "../../common/renderer/ChunkMesher.hpp"
 #include "../../common/world/WorldConstants.hpp"
 #include "../../common/network/ChunkSync.hpp"
+#include "../../common/core/Constants.hpp"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <cmath>
@@ -369,6 +370,44 @@ void ClientWorld::onChunkUnload(ChunkCoord x, ChunkCoord z) {
         m_chunksUnloaded++;
         spdlog::debug("Unloaded chunk ({}, {}) from server", x, z);
     }
+}
+
+// ============================================================================
+// 时间管理
+// ============================================================================
+
+void ClientWorld::onTimeUpdate(i64 gameTime, i64 dayTime, bool daylightCycleEnabled) {
+    m_prevDayTime = m_dayTime;
+    m_gameTime = gameTime;
+    m_targetDayTime = dayTime;
+    m_dayTime = dayTime;
+    m_daylightCycleEnabled = daylightCycleEnabled;
+}
+
+f32 ClientWorld::getInterpolatedCelestialAngle(f32 partialTick) const {
+    // 计算插值后的 dayTime
+    i64 dayTimeForInterp = m_dayTime;
+
+    // 如果日光周期启用且时间在向前流动，进行插值
+    if (m_daylightCycleEnabled && m_prevDayTime != m_dayTime) {
+        // 简单线性插值
+        // 注意：需要处理 dayTime 循环 (23999 -> 0) 的情况
+        i64 diff = m_dayTime - m_prevDayTime;
+        if (diff < 0) {
+            // 时间从 23999 跳到 0，需要特殊处理
+            diff += mr::game::DAY_LENGTH_TICKS;
+        }
+        dayTimeForInterp = m_prevDayTime + static_cast<i64>(diff * partialTick);
+    }
+
+    // 计算天体角度 (MC 1.16.5 算法)
+    f64 d0 = std::fmod(static_cast<f64>(dayTimeForInterp) / static_cast<f64>(mr::game::DAY_LENGTH_TICKS) - 0.25, 1.0);
+    if (d0 < 0.0) {
+        d0 += 1.0;
+    }
+    f64 d1 = 0.5 - std::cos(d0 * mr::math::PI_DOUBLE) / 2.0;
+
+    return static_cast<f32>((d0 * 2.0 + d1) / 3.0);
 }
 
 } // namespace mr::client

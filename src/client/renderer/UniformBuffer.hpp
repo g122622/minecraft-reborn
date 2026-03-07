@@ -73,6 +73,11 @@ struct LightingUBO {
     alignas(4) float fogEnd;
     alignas(4) float fogDensity;
     alignas(4) uint32_t fogMode;
+    // 时间相关字段
+    alignas(4) float celestialAngle;     // 天体角度 0.0-1.0
+    alignas(4) float skyBrightness;      // 天空亮度
+    alignas(4) int32_t moonPhase;        // 月相 0-7
+    alignas(4) float starBrightness;     // 星星亮度
 };
 
 // 模型推送常量数据结构

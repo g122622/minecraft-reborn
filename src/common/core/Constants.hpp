@@ -13,7 +13,10 @@ namespace mr {
 namespace math {
 
 constexpr f32 PI = 3.14159265358979323846f;
+constexpr f64 PI_DOUBLE = 3.14159265358979323846;
 constexpr f32 TWO_PI = 2.0f * PI;
+constexpr f32 TAU = TWO_PI;           // 2π
+constexpr f32 TAU_F = TAU;            // 2π (f32 alias)
 constexpr f32 HALF_PI = PI / 2.0f;
 constexpr f32 QUARTER_PI = PI / 4.0f;
 

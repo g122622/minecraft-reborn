@@ -21,6 +21,7 @@ add_executable(mr_tests
     common/test_property.cpp
     common/test_block.cpp
     common/test_chunk_generation.cpp
+    common/test_time.cpp
     server/ServerWorldTest.cpp
     server/test_integrated_server.cpp
     server/test_chunk_worker_pool.cpp
@@ -65,6 +66,10 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/world/block/blocks/AirBlock.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/block/blocks/SimpleBlock.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/block/blocks/RotatedPillarBlock.cpp
+        # 时间系统
+        ${CMAKE_SOURCE_DIR}/src/common/world/time/GameTime.cpp
+        # 天体计算
+        ${CMAKE_SOURCE_DIR}/src/client/renderer/sky/CelestialCalculations.cpp
 )
 
 target_link_libraries(mr_tests

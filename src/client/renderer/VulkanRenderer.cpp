@@ -1,6 +1,7 @@
 #include "VulkanRenderer.hpp"
 #include "VulkanBuffer.hpp"
 #include "DefaultTextureAtlas.hpp"
+#include "sky/CelestialCalculations.hpp"
 #include "../ui/DefaultAsciiFont.hpp"
 #include "../../common/renderer/MeshTypes.hpp"
 #include "../../common/world/WorldConstants.hpp"
@@ -143,6 +144,14 @@ Result<void> VulkanRenderer::initialize(GLFWwindow* window, const RendererConfig
         spdlog::warn("Failed to create chunk texture atlas: {}", chunkAtlasResult.error().toString());
     }
 
+    // 创建天空渲染器
+    auto skyResult = m_skyRenderer.initialize(m_context.get(), m_renderPass, m_swapchain->extent());
+    if (skyResult.failed()) {
+        spdlog::warn("Failed to create sky renderer: {}", skyResult.error().toString());
+    } else {
+        m_skyRendererInitialized = true;
+    }
+
     // 创建GUI渲染器
     auto guiResult = createGuiRenderer();
     if (guiResult.failed()) {
@@ -162,6 +171,10 @@ void VulkanRenderer::destroy() {
     }
 
     m_context->waitIdle();
+
+    // 销毁天空渲染器
+    m_skyRenderer.destroy();
+    m_skyRendererInitialized = false;
 
     destroyGuiResources();
     destroyChunkResources();
@@ -249,7 +262,12 @@ Result<void> VulkanRenderer::beginFrame() {
 
     // 清除值：颜色 + 深度
     std::array<VkClearValue, 2> clearValues{};
-    clearValues[0].color = {{0.0f, 0.0f, 0.2f, 1.0f}};
+    if (m_skyRendererInitialized) {
+        const glm::vec4& skyColor = m_skyRenderer.skyColor();
+        clearValues[0].color = {{skyColor.r, skyColor.g, skyColor.b, skyColor.a}};
+    } else {
+        clearValues[0].color = {{0.0f, 0.0f, 0.2f, 1.0f}};
+    }
     clearValues[1].depthStencil.depth = 1.0f;
     clearValues[1].depthStencil.stencil = 0;
     renderPassInfo.clearValueCount = static_cast<u32>(clearValues.size());
@@ -354,6 +372,20 @@ Result<void> VulkanRenderer::render() {
     scissor.offset = {0, 0};
     scissor.extent = m_swapchain->extent();
     vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+    // 渲染天空（先绘制背景）
+    if (m_skyRendererInitialized) {
+        glm::mat4 viewProjection(1.0f);
+        glm::vec3 cameraPos(0.0f);
+
+        if (m_camera) {
+            glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(m_camera->viewMatrix()));
+            viewProjection = m_camera->projectionMatrix() * viewNoTranslation;
+            cameraPos = m_camera->position();
+        }
+
+        m_skyRenderer.render(cmd, viewProjection, cameraPos, m_currentFrame);
+    }
 
     // 渲染区块
     if (m_chunkRendererInitialized && m_chunkRenderer.chunkCount() > 0) {
@@ -773,6 +805,12 @@ void VulkanRenderer::destroySyncObjects() {
 Result<void> VulkanRenderer::recreateSwapchain() {
     m_context->waitIdle();
 
+    // 交换链重建会重建 RenderPass，天空管线依赖 RenderPass，需要先销毁。
+    if (m_skyRendererInitialized) {
+        m_skyRenderer.destroy();
+        m_skyRendererInitialized = false;
+    }
+
     destroyFramebuffers();
     destroyDepthResources();
     destroyCommandBuffers();
@@ -811,6 +849,16 @@ Result<void> VulkanRenderer::recreateSwapchain() {
     auto framebufferResult = createFramebuffers();
     if (framebufferResult.failed()) {
         return framebufferResult.error();
+    }
+
+    // 重建天空渲染器
+    auto skyResult = m_skyRenderer.initialize(m_context.get(), m_renderPass, m_swapchain->extent());
+    if (skyResult.failed()) {
+        spdlog::warn("Failed to recreate sky renderer: {}", skyResult.error().toString());
+        m_skyRendererInitialized = false;
+    } else {
+        m_skyRendererInitialized = true;
+        m_skyRenderer.update(m_dayTime, m_gameTime, m_partialTick);
     }
 
     return Result<void>::ok();
@@ -1027,16 +1075,25 @@ void VulkanRenderer::updateUniformBuffers() {
 
     m_cameraUBO.update(&cameraUBO, sizeof(cameraUBO), m_currentFrame);
 
-    // 更新光照UBO
+    // 更新光照UBO (根据时间动态更新)
     LightingUBO lighting{};
-    lighting.sunDirection[0] = 0.5f;
-    lighting.sunDirection[1] = 0.8f;
-    lighting.sunDirection[2] = 0.3f;
-    lighting.sunIntensity = 1.0f;
+
+    // 计算天体角度和太阳方向
+    f32 celestialAngle = CelestialCalculations::calculateCelestialAngle(m_dayTime);
+    glm::vec3 sunDir = CelestialCalculations::calculateSunDirection(celestialAngle);
+    f32 sunIntensity = CelestialCalculations::calculateSunIntensity(celestialAngle);
+
+    lighting.sunDirection[0] = sunDir.x;
+    lighting.sunDirection[1] = sunDir.y;
+    lighting.sunDirection[2] = sunDir.z;
+    lighting.sunIntensity = sunIntensity;
+
+    // 环境光 (夜晚较暗)
+    f32 ambientBase = 0.3f + sunIntensity * 0.4f;
     lighting.ambientColor[0] = 0.4f;
     lighting.ambientColor[1] = 0.4f;
     lighting.ambientColor[2] = 0.5f;
-    lighting.ambientIntensity = 0.4f;
+    lighting.ambientIntensity = ambientBase;
 
     if (m_camera) {
         const auto& camPos = m_camera->position();
@@ -1049,15 +1106,36 @@ void VulkanRenderer::updateUniformBuffers() {
         lighting.cameraPosition[2] = 2.0f;
     }
 
-    lighting.fogColor[0] = 0.6f;
-    lighting.fogColor[1] = 0.7f;
-    lighting.fogColor[2] = 0.9f;
+    // 根据时间计算天空/雾颜色
+    glm::vec4 skyColor = CelestialCalculations::calculateSkyColor(celestialAngle);
+    glm::vec4 fogColor = CelestialCalculations::calculateFogColor(celestialAngle);
+
+    lighting.fogColor[0] = fogColor.r;
+    lighting.fogColor[1] = fogColor.g;
+    lighting.fogColor[2] = fogColor.b;
     lighting.fogStart = 100.0f;
     lighting.fogEnd = 500.0f;
     lighting.fogDensity = 0.002f;
     lighting.fogMode = 1;
 
+    // 时间相关字段
+    lighting.celestialAngle = celestialAngle;
+    lighting.skyBrightness = sunIntensity;
+    lighting.moonPhase = CelestialCalculations::calculateMoonPhase(m_gameTime);
+    lighting.starBrightness = CelestialCalculations::calculateStarBrightness(celestialAngle);
+
     m_lightingUBO.update(&lighting, sizeof(lighting), m_currentFrame);
+}
+
+void VulkanRenderer::updateTime(i64 dayTime, i64 gameTime, f32 partialTick) {
+    m_dayTime = dayTime;
+    m_gameTime = gameTime;
+    m_partialTick = partialTick;
+
+    // 更新天空渲染器
+    if (m_skyRendererInitialized) {
+        m_skyRenderer.update(dayTime, gameTime, partialTick);
+    }
 }
 
 Result<void> VulkanRenderer::createChunkPipeline() {
