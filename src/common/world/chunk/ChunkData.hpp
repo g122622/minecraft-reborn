@@ -34,10 +34,16 @@ public:
 
     // 快速访问 (无边界检查)
     [[nodiscard]] u32 getBlockStateIdFast(i32 index) const {
-        return m_blockStates[index];
+        if (index < 0 || index >= static_cast<i32>(m_blockStates.size())) {
+            return 0;
+        }
+        return m_blockStates[static_cast<size_t>(index)];
     }
     void setBlockStateIdFast(i32 index, u32 stateId) {
-        m_blockStates[index] = stateId;
+        if (index < 0 || index >= static_cast<i32>(m_blockStates.size())) {
+            return;
+        }
+        m_blockStates[static_cast<size_t>(index)] = stateId;
     }
 
     // 索引计算

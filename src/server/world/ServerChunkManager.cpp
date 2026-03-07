@@ -232,15 +232,18 @@ std::future<ChunkData*> ServerChunkManager::getChunkAsync(ChunkCoord x, ChunkCoo
             if (success && primer) {
                 // 完成生成
                 auto data = primer->toChunkData();
+                if (!data) {
+                    promise->set_value(nullptr);
+                    return;
+                }
 
                 // 存入缓存
                 {
                     std::lock_guard<std::mutex> lock(m_chunksMutex);
                     m_chunks[posToKey(x, z)] = std::make_unique<ChunkData>(std::move(*data));
+                    // 在锁保护下返回缓存中的指针，避免并发访问未加锁的 map
+                    promise->set_value(m_chunks[posToKey(x, z)].get());
                 }
-
-                // 获取缓存中的指针
-                promise->set_value(m_chunks[posToKey(x, z)].get());
             } else {
                 promise->set_value(nullptr);
             }
@@ -275,16 +278,17 @@ void ServerChunkManager::getChunkAsync(ChunkCoord x, ChunkCoord z, ChunkCallback
             if (success && primer) {
                 // 完成生成
                 auto data = primer->toChunkData();
+                if (!data) {
+                    if (callback) callback(false, nullptr);
+                    return;
+                }
 
-                // 存入缓存
-                ChunkData* result = nullptr;
+                // 存入缓存，并在同一把锁内执行回调，避免区块在序列化期间被并发卸载
                 {
                     std::lock_guard<std::mutex> lock(m_chunksMutex);
                     m_chunks[posToKey(x, z)] = std::make_unique<ChunkData>(std::move(*data));
-                    result = m_chunks[posToKey(x, z)].get();
+                    if (callback) callback(true, m_chunks[posToKey(x, z)].get());
                 }
-
-                if (callback) callback(true, result);
             } else {
                 if (callback) callback(false, nullptr);
             }
