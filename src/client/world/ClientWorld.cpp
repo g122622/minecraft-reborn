@@ -170,12 +170,21 @@ void ClientWorld::loadChunk(const ChunkId& id) {
     }
 }
 
-void ClientWorld::unloadChunk(const ChunkId& id) {
+void ClientWorld::unloadChunk(const ChunkId& id, std::vector<ChunkId>* outUnloadedChunkIds) {
     auto it = m_chunks.find(id);
     if (it != m_chunks.end()) {
+        // 调用卸载回调（通知 ChunkRenderer 释放 GPU 缓冲区）
+        if (m_chunkUnloadCallback) {
+            m_chunkUnloadCallback(id);
+        }
+
         m_chunks.erase(it);
         m_chunksUnloaded++;
         spdlog::debug("Unloaded chunk ({}, {})", id.x, id.z);
+
+        if (outUnloadedChunkIds) {
+            outUnloadedChunkIds->push_back(id);
+        }
     }
 }
 
@@ -410,6 +419,11 @@ void ClientWorld::onChunkUnload(ChunkCoord x, ChunkCoord z) {
     ChunkId id(x, z);
     auto it = m_chunks.find(id);
     if (it != m_chunks.end()) {
+        // 调用卸载回调（通知 ChunkRenderer 释放 GPU 缓冲区）
+        if (m_chunkUnloadCallback) {
+            m_chunkUnloadCallback(id);
+        }
+
         m_chunks.erase(it);
         m_chunksUnloaded++;
         spdlog::debug("Unloaded chunk ({}, {}) from server", x, z);

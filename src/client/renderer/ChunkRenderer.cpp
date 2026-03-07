@@ -51,7 +51,26 @@ void ChunkRenderer::destroy() {
     // 清理 Fence 管理器
     m_fenceManager.destroy(m_device, m_commandPool);
 
-    clearChunks();
+    // 立即销毁所有缓冲区（渲染器销毁时 GPU 已经不再使用）
+    for (auto& pair : m_chunkBuffers) {
+        if (pair.second) {
+            pair.second->destroy();
+        }
+    }
+    m_chunkBuffers.clear();
+    m_totalVertices = 0;
+    m_totalIndices = 0;
+
+    // 清理延迟销毁队列
+    {
+        std::lock_guard<std::mutex> lock(m_pendingDestroysMutex);
+        for (auto& pending : m_pendingDestroys) {
+            if (pending.buffer) {
+                pending.buffer->destroy();
+            }
+        }
+        m_pendingDestroys.clear();
+    }
 
     if (m_stagingBuffer) {
         m_stagingBuffer->destroy();
@@ -111,15 +130,35 @@ void ChunkRenderer::removeChunk(const ChunkId& chunkId) {
     if (it != m_chunkBuffers.end()) {
         m_totalVertices -= static_cast<u32>(it->second->vertexBuffer.size() / sizeof(Vertex));
         m_totalIndices -= it->second->indexCount;
-        it->second->destroy();
+
+        // 将缓冲区移入延迟销毁队列，而不是立即销毁
+        // 这样可以避免在 GPU 仍在使用缓冲区时销毁它
+        {
+            std::lock_guard<std::mutex> lock(m_pendingDestroysMutex);
+            PendingBufferDestroy pending;
+            pending.buffer = std::move(it->second);
+            pending.frameIndex = m_destroyFrameCounter;
+            m_pendingDestroys.push_back(std::move(pending));
+        }
+
         m_chunkBuffers.erase(it);
     }
 }
 
 void ChunkRenderer::clearChunks() {
-    for (auto& pair : m_chunkBuffers) {
-        pair.second->destroy();
+    // 将所有缓冲区移入延迟销毁队列
+    {
+        std::lock_guard<std::mutex> lock(m_pendingDestroysMutex);
+        for (auto& pair : m_chunkBuffers) {
+            if (pair.second && pair.second->isValid) {
+                PendingBufferDestroy pending;
+                pending.buffer = std::move(pair.second);
+                pending.frameIndex = m_destroyFrameCounter;
+                m_pendingDestroys.push_back(std::move(pending));
+            }
+        }
     }
+
     m_chunkBuffers.clear();
     m_totalVertices = 0;
     m_totalIndices = 0;
@@ -279,7 +318,16 @@ Result<void> ChunkRenderer::createChunkBuffer(
 
     // 创建顶点缓冲区（设备本地内存）
     if (needNewVertex) {
-        buffer.vertexBuffer.destroy();
+        // 将旧缓冲区移入延迟销毁队列（如果有效）
+        if (buffer.vertexBuffer.isValid()) {
+            std::lock_guard<std::mutex> lock(m_pendingDestroysMutex);
+            PendingBufferDestroy pending;
+            pending.buffer = std::make_unique<ChunkGpuBuffer>();
+            pending.buffer->vertexBuffer = std::move(buffer.vertexBuffer);
+            pending.frameIndex = m_destroyFrameCounter;
+            m_pendingDestroys.push_back(std::move(pending));
+        }
+
         auto result = buffer.vertexBuffer.create(
             m_device,
             m_physicalDevice,
@@ -294,14 +342,23 @@ Result<void> ChunkRenderer::createChunkBuffer(
 
     // 创建索引缓冲区（设备本地内存）
     if (needNewIndex) {
-        buffer.indexBuffer.destroy();
+        // 将旧缓冲区移入延迟销毁队列（如果有效）
+        if (buffer.indexBuffer.isValid()) {
+            std::lock_guard<std::mutex> lock(m_pendingDestroysMutex);
+            PendingBufferDestroy pending;
+            pending.buffer = std::make_unique<ChunkGpuBuffer>();
+            pending.buffer->indexBuffer = std::move(buffer.indexBuffer);
+            pending.frameIndex = m_destroyFrameCounter;
+            m_pendingDestroys.push_back(std::move(pending));
+        }
+
         auto result = buffer.indexBuffer.create(
             m_device,
             m_physicalDevice,
             static_cast<VkDeviceSize>(meshData.indices.size()));
 
         if (!result.success()) {
-            buffer.vertexBuffer.destroy();
+            // 注意：顶点缓冲区已经在延迟销毁队列中，不需要在这里销毁
             return Error(ErrorCode::InitializationFailed,
                 "Failed to create index buffer: " + result.error().message());
         }
@@ -443,6 +500,33 @@ u32 ChunkRenderer::processPendingUploads(u32 maxPerFrame) {
 size_t ChunkRenderer::pendingUploadCount() const {
     std::lock_guard<std::mutex> lock(m_pendingMutex);
     return m_pendingUploads.size();
+}
+
+void ChunkRenderer::processPendingDestroys(u32 framesToKeep) {
+    std::lock_guard<std::mutex> lock(m_pendingDestroysMutex);
+
+    // 递增帧计数器
+    u64 currentCounter = m_destroyFrameCounter++;
+
+    // 销毁超过保留帧数的缓冲区
+    // framesToKeep 应该 >= MAX_FRAMES_IN_FLIGHT (2)，默认使用 3 确保安全
+    auto it = m_pendingDestroys.begin();
+    while (it != m_pendingDestroys.end()) {
+        // 使用帧计数器差值判断是否可以安全销毁
+        u64 frameDiff = currentCounter >= it->frameIndex
+            ? currentCounter - it->frameIndex
+            : (UINT64_MAX - it->frameIndex) + currentCounter + 1;
+
+        if (frameDiff >= framesToKeep) {
+            // 安全销毁
+            if (it->buffer) {
+                it->buffer->destroy();
+            }
+            it = m_pendingDestroys.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
 // ============================================================================

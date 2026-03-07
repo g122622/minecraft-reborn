@@ -238,6 +238,12 @@ Result<void> VulkanRenderer::beginFrame() {
     // 重置fence
     vkResetFences(m_context->device(), 1, &m_inFlightFences[m_currentFrame]);
 
+    // 处理 ChunkRenderer 的延迟销毁队列
+    // 此时上一帧的 GPU 命令已完成，可以安全销毁缓冲区
+    if (m_chunkRendererInitialized) {
+        m_chunkRenderer.processPendingDestroys();
+    }
+
     // 开始命令缓冲区
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;

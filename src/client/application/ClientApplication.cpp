@@ -226,6 +226,13 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
     spdlog::info("Initializing mesh worker pool...");
     m_world.initializeMeshWorkerPool();
 
+    // 设置区块卸载回调，通知 ChunkRenderer 释放 GPU 缓冲区
+    m_world.setChunkUnloadCallback([this](const ChunkId& chunkId) {
+        if (m_renderer && m_renderer->isChunkRendererInitialized()) {
+            m_renderer->chunkRenderer().removeChunk(chunkId);
+        }
+    });
+
     // 初始化方块碰撞注册表
     spdlog::info("Initializing block collision registry...");
 

@@ -39,6 +39,12 @@ struct PendingMeshUpload {
     u64 submitTime = 0;  // 提交时间戳（用于超时检测）
 };
 
+// 待销毁的缓冲区（用于延迟销毁）
+struct PendingBufferDestroy {
+    std::unique_ptr<ChunkGpuBuffer> buffer;
+    u64 frameIndex;  // 创建时的帧号，用于计算延迟销毁
+};
+
 // Fence 管理器（用于非阻塞上传）
 struct FenceManager {
     std::vector<VkFence> fences;
@@ -126,6 +132,16 @@ public:
      */
     [[nodiscard]] size_t pendingUploadCount() const;
 
+    /**
+     * @brief 处理延迟销毁队列
+     *
+     * 每帧调用一次，销毁不再使用的 GPU 缓冲区。
+     * 应该在 VulkanRenderer::beginFrame() 之后调用，因为此时 GPU 命令已完成。
+     *
+     * @param framesToKeep 缓冲区保留帧数（应该 >= MAX_FRAMES_IN_FLIGHT，默认 3）
+     */
+    void processPendingDestroys(u32 framesToKeep = 3);
+
     // 统计
     u32 chunkCount() const { return static_cast<u32>(m_chunkBuffers.size()); }
     u32 totalVertexCount() const { return m_totalVertices; }
@@ -162,6 +178,11 @@ private:
     // Fence 管理（用于非阻塞上传）
     FenceManager m_fenceManager;
     static constexpr u32 MAX_IN_FLIGHT_UPLOADS = 8;  // 最大同时上传数量
+
+    // 延迟销毁队列
+    std::vector<PendingBufferDestroy> m_pendingDestroys;
+    mutable std::mutex m_pendingDestroysMutex;
+    u64 m_destroyFrameCounter = 0;  // 每次调用 processPendingDestroys 递增
 
     // 单次命令缓冲区
     [[nodiscard]] Result<VkCommandBuffer> beginSingleTimeCommands();

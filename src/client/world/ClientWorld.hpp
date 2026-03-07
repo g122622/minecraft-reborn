@@ -145,8 +145,21 @@ public:
 
     /**
      * @brief 强制卸载区块
+     * @param id 区块 ID
+     * @param outUnloadedChunkIds 如果提供，将被填充为实际卸载的区块 ID 列表
      */
-    void unloadChunk(const ChunkId& id);
+    void unloadChunk(const ChunkId& id, std::vector<ChunkId>* outUnloadedChunkIds = nullptr);
+
+    /**
+     * @brief 设置区块卸载回调
+     *
+     * 当区块从世界中卸载时调用此回调，用于通知外部系统（如 ChunkRenderer）释放资源。
+     *
+     * @param callback 回调函数，参数为被卸载的区块 ID
+     */
+    void setChunkUnloadCallback(std::function<void(const ChunkId&)> callback) {
+        m_chunkUnloadCallback = std::move(callback);
+    }
 
     /**
      * @brief 重新生成区块网格
@@ -240,6 +253,9 @@ public:
     [[nodiscard]] const MeshWorkerPool* meshWorkerPool() const { return m_meshWorkerPool.get(); }
 
 private:
+    // 区块卸载回调
+    std::function<void(const ChunkId&)> m_chunkUnloadCallback;
+
     // 区块加载/卸载
     void loadChunksInRange(const glm::vec3& position, i32 range);
     void unloadChunksOutOfRange(const glm::vec3& position, i32 range);
