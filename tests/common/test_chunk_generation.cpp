@@ -604,6 +604,88 @@ TEST_F(ChunkGenerationTest, TerrainHeightVariation) {
     EXPECT_LT(avgHeight, 120) << "Average height too high: " << avgHeight;
 }
 
+TEST_F(ChunkGenerationTest, SingleChunkHeightVariation) {
+    // 检查单个区块内的高度变化
+    DimensionSettings settings = DimensionSettings::overworld();
+    NoiseChunkGenerator generator(54321, std::move(settings));
+
+    ChunkPrimer primer(0, 0);
+    std::array<IChunk*, 9> chunks{};
+    chunks[4] = &primer;
+    WorldGenRegion region(0, 0, chunks);
+
+    generator.generateBiomes(region, primer);
+    generator.generateNoise(region, primer);
+    generator.buildSurface(region, primer);
+
+    // 收集区块内多个位置的高度
+    std::vector<i32> heights;
+    for (int x = 0; x < 16; x += 4) {
+        for (int z = 0; z < 16; z += 4) {
+            i32 h = primer.getTopBlockY(HeightmapType::WorldSurfaceWG, x, z);
+            heights.push_back(h);
+        }
+    }
+
+    i32 minHeight = *std::min_element(heights.begin(), heights.end());
+    i32 maxHeight = *std::max_element(heights.begin(), heights.end());
+
+    // 输出调试信息
+    std::cout << "Heights in single chunk: ";
+    for (i32 h : heights) std::cout << h << " ";
+    std::cout << "\nMin: " << minHeight << ", Max: " << maxHeight << std::endl;
+
+    // 单个区块内应该有一些高度变化
+    EXPECT_GT(maxHeight - minHeight, 0) << "No height variation in single chunk";
+}
+
+TEST_F(ChunkGenerationTest, NoiseDensityDebug) {
+    // 调试噪声密度值
+    DimensionSettings settings = DimensionSettings::overworld();
+    NoiseChunkGenerator generator(12345, std::move(settings));
+
+    ChunkPrimer primer(0, 0);
+    std::array<IChunk*, 9> chunks{};
+    chunks[4] = &primer;
+    WorldGenRegion region(0, 0, chunks);
+
+    generator.generateBiomes(region, primer);
+    generator.generateNoise(region, primer);
+
+    // 检查不同位置的方块
+    std::cout << "\n=== Block samples at Y=64 ===" << std::endl;
+    for (int x = 0; x < 16; x += 4) {
+        for (int z = 0; z < 16; z += 4) {
+            const BlockState* state = primer.getBlock(x, 64, z);
+            std::string blockName = state ? std::to_string(state->blockId()) : "null";
+            std::cout << "(" << x << "," << z << "): " << blockName << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    // 检查生物群系分布
+    std::cout << "\n=== Biome samples ===" << std::endl;
+    for (int x = 0; x < 16; x += 4) {
+        for (int z = 0; z < 16; z += 4) {
+            BiomeId biome = primer.getBiomeAtBlock(x, 64, z);
+            std::cout << "(" << x << "," << z << "): B" << biome << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    // 检查更多位置的高度
+    std::cout << "\n=== Height samples ===" << std::endl;
+    i32 minH = 256, maxH = 0;
+    for (int x = 0; x < 16; ++x) {
+        for (int z = 0; z < 16; ++z) {
+            i32 h = primer.getTopBlockY(HeightmapType::WorldSurfaceWG, x, z);
+            minH = std::min(minH, h);
+            maxH = std::max(maxH, h);
+        }
+    }
+    std::cout << "Height range: " << minH << " - " << maxH << std::endl;
+}
+
 TEST_F(ChunkGenerationTest, BiomeDistribution) {
     // 创建生成器
     DimensionSettings settings = DimensionSettings::overworld();

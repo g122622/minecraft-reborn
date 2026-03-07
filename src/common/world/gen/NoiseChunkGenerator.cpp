@@ -728,21 +728,22 @@ BiomeId SimpleBiomeProvider::getBiome(i32 x, i32 y, i32 z) const
 
 BiomeId SimpleBiomeProvider::getNoiseBiome(i32 noiseX, i32 noiseY, i32 noiseZ) const
 {
-    // 使用适当的采样频率来获得合适的生物群系大小
-    // 坐标转换：noiseX = worldX >> 2，所以 1 个噪声单位 = 4 个方块
-    // 我们希望生物群系在 200-400 方块范围内变化
+    // 噪声坐标转换为世界坐标（noiseX * 4 = worldX）
+    // 使用世界坐标尺度进行采样，获得更大的生物群系变化
+    const f64 worldX = static_cast<f64>(noiseX) * 4.0;
+    const f64 worldZ = static_cast<f64>(noiseZ) * 4.0;
 
     // 温度和湿度噪声 - 控制基本气候带
-    // 频率 0.005 意味着每 200 个噪声单位一个周期 = 800 方块
-    const f64 temperature = m_temperatureNoise->noise2D(noiseX * 0.005, noiseZ * 0.005) * 0.5 + 0.5;
-    const f64 humidity = m_humidityNoise->noise2D(noiseX * 0.005, noiseZ * 0.005) * 0.5 + 0.5;
+    // 频率 0.005 意味着每 200 方块一个周期
+    const f64 temperature = m_temperatureNoise->noise2D(worldX * 0.005, worldZ * 0.005) * 0.5 + 0.5;
+    const f64 humidity = m_humidityNoise->noise2D(worldX * 0.005, worldZ * 0.005) * 0.5 + 0.5;
 
     // 大陆度噪声 - 控制海洋/陆地分布
     // 返回值范围 -1 到 1，映射到我们的分界点
-    const f64 continentalness = m_depthNoise->noise2D(noiseX * 0.003, noiseZ * 0.003);
+    const f64 continentalness = m_depthNoise->noise2D(worldX * 0.003, worldZ * 0.003);
 
     // 侵蚀噪声 - 控制地形起伏程度
-    const f64 erosion = m_scaleNoise->noise2D(noiseX * 0.01, noiseZ * 0.01) * 0.5 + 0.5;
+    const f64 erosion = m_scaleNoise->noise2D(worldX * 0.01, worldZ * 0.01) * 0.5 + 0.5;
 
     return selectBiome(static_cast<f32>(temperature),
                        static_cast<f32>(humidity),
