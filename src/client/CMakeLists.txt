@@ -31,7 +31,6 @@ add_executable(minecraft-client
     resource/TextureAtlasBuilder.cpp
     resource/ResourceManager.cpp
     resource/BlockModelCache.cpp
-    resource/DefaultResources.cpp
     world/ClientWorld.cpp
     network/NetworkClient.cpp
     ui/FontTextureAtlas.cpp

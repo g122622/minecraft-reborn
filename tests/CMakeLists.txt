@@ -86,7 +86,6 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/client/resource/BlockModelLoader.cpp
         ${CMAKE_SOURCE_DIR}/src/client/resource/BlockStateLoader.cpp
         ${CMAKE_SOURCE_DIR}/src/client/resource/TextureAtlasBuilder.cpp
-        ${CMAKE_SOURCE_DIR}/src/client/resource/DefaultResources.cpp
 )
 
 target_link_libraries(mr_tests
@@ -136,7 +135,6 @@ target_sources(mr_resource_tests
         ${CMAKE_SOURCE_DIR}/src/client/resource/TextureAtlasBuilder.cpp
         ${CMAKE_SOURCE_DIR}/src/client/resource/ResourceManager.cpp
         ${CMAKE_SOURCE_DIR}/src/client/resource/BlockModelCache.cpp
-        ${CMAKE_SOURCE_DIR}/src/client/resource/DefaultResources.cpp
         ${CMAKE_SOURCE_DIR}/src/client/settings/ClientSettings.cpp
         ${CMAKE_SOURCE_DIR}/src/common/resource/ResourcePackList.cpp
         ${CMAKE_SOURCE_DIR}/src/common/resource/ZipResourcePack.cpp

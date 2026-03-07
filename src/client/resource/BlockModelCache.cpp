@@ -1,6 +1,5 @@
 #include "BlockModelCache.hpp"
 #include "ResourceManager.hpp"
-#include "DefaultResources.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -15,9 +14,6 @@ bool BlockModelCache::initialize(ResourceManager& resourceManager)
     spdlog::info("Initializing BlockModelCache...");
 
     m_resourceManager = &resourceManager;
-
-    // 确保 DefaultResources 已初始化
-    DefaultResources::initialize();
 
     // 创建缺失模型外观
     createMissingAppearance();
@@ -204,13 +200,11 @@ void BlockModelCache::createMissingAppearance()
     m_missingAppearance = std::make_unique<BlockAppearance>();
 
     // 创建一个简单的紫黑方块作为缺失模型
-    // 这将在纹理图集中使用缺失纹理
     ModelElement element;
     element.from = {0.0f, 0.0f, 0.0f};
     element.to = {16.0f, 16.0f, 16.0f};
 
     // 创建所有面的纹理引用
-    // 使用 "missing" 作为纹理名称，ResourceManager 应该提供缺失纹理
     for (Direction dir : Directions::all()) {
         ModelFace modelFace;
         modelFace.texture = "#missing";
@@ -222,6 +216,24 @@ void BlockModelCache::createMissingAppearance()
     m_missingAppearance->xRotation = 0;
     m_missingAppearance->yRotation = 0;
     m_missingAppearance->uvLock = false;
+
+    // 设置面纹理映射
+    // 使用 DefaultTextureAtlas 中第一个位置的 UV 坐标
+    // DefaultTextureAtlas: ATLAS_SIZE=256, TILE_SIZE=16, tilesPerRow=16
+    // 第一个位置 (0,0) 是缺失纹理，UV 坐标是 (0, 0, 1/16, 1/16)
+    constexpr f32 tileUV = 1.0f / 16.0f;  // 0.0625
+    TextureRegion missingRegion(0.0f, 0.0f, tileUV, tileUV);
+    m_missingAppearance->faceTextures["down"] = missingRegion;
+    m_missingAppearance->faceTextures["up"] = missingRegion;
+    m_missingAppearance->faceTextures["north"] = missingRegion;
+    m_missingAppearance->faceTextures["south"] = missingRegion;
+    m_missingAppearance->faceTextures["west"] = missingRegion;
+    m_missingAppearance->faceTextures["east"] = missingRegion;
+
+    spdlog::debug("BlockModelCache: Created missing appearance with {} elements, {} faceTextures, UV=({},{},{},{})",
+                 m_missingAppearance->elements.size(),
+                 m_missingAppearance->faceTextures.size(),
+                 missingRegion.u0, missingRegion.v0, missingRegion.u1, missingRegion.v1);
 }
 
 } // namespace mr
