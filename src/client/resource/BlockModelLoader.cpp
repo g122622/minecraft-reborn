@@ -389,6 +389,35 @@ Result<BakedBlockModel> BlockModelLoader::bakeModel(const ResourceLocation& loca
         }
     }
 
+    // 解析纹理变量引用 (递归解析 #variable)
+    // 例如: down=#all, all=block/stone -> down=block/stone
+    bool changed = true;
+    int maxIterations = 10;  // 防止无限循环
+    while (changed && maxIterations-- > 0)
+    {
+        changed = false;
+        for (auto& [name, texLoc] : baked.textures)
+        {
+            String path = texLoc.path();
+            if (!path.empty() && path[0] == '#')
+            {
+                // 这是一个纹理变量引用
+                String varName = path.substr(1);
+                auto varIt = baked.textures.find(varName);
+                if (varIt != baked.textures.end())
+                {
+                    String varPath = varIt->second.path();
+                    // 只有当变量值不是另一个变量引用时才解析
+                    if (!varPath.empty() && varPath[0] != '#')
+                    {
+                        texLoc = varIt->second;
+                        changed = true;
+                    }
+                }
+            }
+        }
+    }
+
     return baked;
 }
 

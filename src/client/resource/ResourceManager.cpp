@@ -2,6 +2,9 @@
 #include "../common/resource/FolderResourcePack.hpp"
 #include <spdlog/spdlog.h>
 
+// stb_image for PNG loading (implementation in TextureAtlasBuilder.cpp)
+#include <stb_image.h>
+
 namespace mr {
 
 Result<void> ResourceManager::addResourcePack(ResourcePackPtr resourcePack) {
@@ -37,13 +40,12 @@ Result<void> ResourceManager::loadAllResources() {
     // 烘焙模型
     bakeAllModels();
 
-    // 计算方块外观
-    computeBlockAppearances();
+    // 注意：computeBlockAppearances 在 buildTextureAtlas 后调用
+    // 因为需要纹理区域数据
 
-    spdlog::info("ResourceManager: Loaded {} block states, {} models, {} appearances",
+    spdlog::info("ResourceManager: Loaded {} block states, {} models",
                 m_blockStateLoader.getLoadedBlockStates().size(),
-                m_bakedModels.size(),
-                m_blockAppearances.size());
+                m_bakedModels.size());
 
     return Result<void>::ok();
 }
@@ -52,17 +54,87 @@ Result<AtlasBuildResult> ResourceManager::buildTextureAtlas() {
     // 收集所需纹理
     auto textures = collectRequiredTextures();
 
+    spdlog::info("Collecting {} textures for atlas", textures.size());
+
     TextureAtlasBuilder builder;
     builder.setMaxSize(4096, 4096);
     builder.setPadding(0);
 
     // 添加所有纹理
+    // MC 1.13 兼容性：支持旧版纹理路径 (block/ -> blocks/)
+    size_t addedCount = 0;
+    size_t failedCount = 0;
+    size_t fallbackCount = 0;
+    std::vector<String> failedTextures;
+
     for (const auto& texLoc : textures) {
+        bool added = false;
         for (auto& pack : m_resourcePacks) {
             auto result = builder.addTexture(*pack, texLoc);
             if (result.success()) {
+                added = true;
+                addedCount++;
                 break;
             }
+
+            // MC 1.13 兼容性：尝试旧版纹理路径 (block/ -> blocks/)
+            // 例如: textures/block/stone -> textures/blocks/stone
+            const String& path = texLoc.path();
+            if (path.find("textures/block/") != String::npos) {
+                String oldPath = path;
+                size_t pos = oldPath.find("textures/block/");
+                if (pos != String::npos) {
+                    // textures/block/ = 15 characters
+                    // textures/blocks/ = 16 characters
+                    oldPath.replace(pos, 15, "textures/blocks/");
+                    ResourceLocation oldLoc(texLoc.namespace_(), oldPath);
+                    String oldFilePath = oldLoc.toFilePath("png");
+
+                    // 检查旧版路径是否存在
+                    bool foundOld = pack->hasResource(oldFilePath);
+                    if (foundOld) {
+                        auto readResult = pack->readResource(oldFilePath);
+                        if (readResult.success()) {
+                            // 解析 PNG 并添加纹理，使用新版路径作为键
+                            int width, height, channels;
+                            stbi_uc* pixels = stbi_load_from_memory(
+                                readResult.value().data(),
+                                static_cast<int>(readResult.value().size()),
+                                &width, &height, &channels, 4);
+
+                            if (pixels) {
+                                std::vector<u8> pixelData(pixels, pixels + width * height * 4);
+                                stbi_image_free(pixels);
+
+                                // 使用新版路径作为键添加纹理
+                                builder.addTexture(texLoc, pixelData,
+                                                   static_cast<u32>(width),
+                                                   static_cast<u32>(height));
+                                added = true;
+                                addedCount++;
+                                fallbackCount++;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (!added) {
+            failedTextures.push_back(texLoc.toString() + " -> " + texLoc.toFilePath("png"));
+            failedCount++;
+        }
+    }
+
+    spdlog::info("Texture atlas: {} added ({} via fallback), {} failed", addedCount, fallbackCount, failedCount);
+
+    spdlog::info("Texture atlas: {} added ({} via fallback), {} failed", addedCount, fallbackCount, failedCount);
+
+    // 输出失败纹理的详细信息
+    if (failedCount > 0) {
+        spdlog::info("Failed textures (first 10 of {}):", failedCount);
+        for (size_t i = 0; i < std::min(failedTextures.size(), size_t(10)); ++i) {
+            spdlog::info("  - {}", failedTextures[i]);
         }
     }
 
@@ -76,6 +148,11 @@ Result<AtlasBuildResult> ResourceManager::buildTextureAtlas() {
     m_atlasResult = result.value();
     m_textureRegions = m_atlasResult.regions;
     m_atlasBuilt = true;
+
+    // 构建纹理图集后计算方块外观（这样纹理区域可用）
+    computeBlockAppearances();
+
+    spdlog::info("ResourceManager: {} appearances computed", m_blockAppearances.size());
 
     return m_atlasResult;
 }
@@ -193,9 +270,12 @@ Result<void> ResourceManager::bakeAllModels() {
                         m_bakedModels[variant.model] = result.value();
                         successCount++;
                     } else {
-                        if (failCount < 5) {
-                            spdlog::debug("Failed to bake model '{}': {}",
-                                         variant.model.toString(), result.error().toString());
+                        if (failCount < 50) {
+                            spdlog::warn("Failed to bake model '{}' for block '{}': {}",
+                                         variant.model.toString(), blockId.toString(),
+                                         result.error().toString());
+                        } else if (failCount == 50) {
+                            spdlog::warn("More model bake failures... (suppressed)");
                         }
                         failCount++;
                     }
@@ -205,7 +285,7 @@ Result<void> ResourceManager::bakeAllModels() {
     }
 
     if (failCount > 0) {
-        spdlog::warn("ResourceManager: Baked {} models ({} failed - missing parent models)",
+        spdlog::warn("ResourceManager: Baked {} models ({} failed)",
                      successCount, failCount);
     } else {
         spdlog::info("ResourceManager: Baked {} models successfully", successCount);
@@ -276,8 +356,17 @@ std::set<ResourceLocation> ResourceManager::collectRequiredTextures() const {
     // 从烘焙模型收集纹理
     for (const auto& [loc, model] : m_bakedModels) {
         for (const auto& [name, texLoc] : model.textures) {
+            // 跳过纹理变量引用（以 # 开头的值）
+            String texPath = texLoc.path();
+            if (!texPath.empty() && texPath[0] == '#') {
+                // 纹理变量引用，不应该出现在烘焙模型中
+                spdlog::warn("Texture variable reference found in baked model {}: {}={}",
+                            loc.toString(), name, texPath);
+                continue;
+            }
+
             // 转换为纹理路径
-            ResourceLocation textureLoc = texturePathToLocation(texLoc.path());
+            ResourceLocation textureLoc = texturePathToLocation(texPath);
             textures.insert(textureLoc);
         }
     }
