@@ -127,7 +127,7 @@ static const u8 FONT_5x7[] = {
     0x1F, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1F,
     // 0x5B [
     0x0E, 0x08, 0x08, 0x08, 0x08, 0x08, 0x0E,
-    // 0x5C \
+    // 0x5C '\\'
     0x00, 0x10, 0x08, 0x04, 0x02, 0x01, 0x00,
     // 0x5D ]
     0x0E, 0x02, 0x02, 0x02, 0x02, 0x02, 0x0E,
@@ -201,6 +201,10 @@ static const u8 FONT_5x7[] = {
 
 // 每个字符的字节数
 static constexpr size_t BYTES_PER_CHAR = 7;
+static constexpr size_t ASCII_PRINTABLE_COUNT = 95; // 0x20-0x7E
+static_assert(sizeof(FONT_5x7) / sizeof(FONT_5x7[0]) ==
+              ASCII_PRINTABLE_COUNT * BYTES_PER_CHAR,
+              "FONT_5x7 table size must match ASCII printable range");
 // 字体宽度（位数）
 static constexpr size_t FONT_WIDTH_BITS = 5;
 // 字体高度
@@ -296,7 +300,7 @@ Result<void> DefaultAsciiFont::create(Font& font) {
 
     // 预加载所有ASCII字符
     for (u32 c = 32; c <= 126; ++c) {
-        font.getGlyph(c);
+        (void)font.getGlyph(c);
     }
 
     return {};
