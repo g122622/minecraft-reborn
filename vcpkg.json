@@ -11,7 +11,8 @@
     "asio",
     "glfw3",
     "stb",
-    "zlib"
+    "zlib",
+    "libarchive"
   ],
   "features": {
     "vulkan": {

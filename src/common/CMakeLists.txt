@@ -1,6 +1,8 @@
 # src/common/CMakeLists.txt
 # 公共库 - 客户端和服务端共享
 
+find_package(LibArchive REQUIRED)
+
 add_library(mr_common STATIC
     # Core
     core/Result.cpp
@@ -65,6 +67,8 @@ add_library(mr_common STATIC
     resource/FolderResourcePack.cpp
     resource/ZipResourcePack.cpp
     resource/ResourcePackList.cpp
+    resource/InMemoryResourcePack.cpp
+    resource/VanillaResources.cpp
 )
 
 target_include_directories(mr_common
@@ -79,7 +83,7 @@ target_link_libraries(mr_common
         spdlog::spdlog
         nlohmann_json::nlohmann_json
     PRIVATE
-        ZLIB::ZLIB
+        LibArchive::LibArchive
 )
 
 mr_set_compiler_warnings(mr_common)

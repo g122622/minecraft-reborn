@@ -1,6 +1,7 @@
 #include "ClientApplication.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
 #include "common/math/ray/Raycast.hpp"
+#include "common/resource/VanillaResources.hpp"
 #include "client/renderer/ChunkMesher.hpp"
 #include "minecraft-reborn/version.h"
 
@@ -793,7 +794,20 @@ void ClientApplication::sendPlayerPosition()
 
 Result<void> ClientApplication::initializeResources()
 {
-    // 1. 扫描资源包目录
+    // 1. 创建 ResourceManager 并首先添加内置资源包（最低优先级）
+    m_resourceManager = std::make_unique<ResourceManager>();
+
+    // 添加原版内置资源包（提供基础模型如 cube_all, cube_column 等）
+    auto vanillaPack = VanillaResources::createResourcePack();
+    auto vanillaResult = vanillaPack->initialize();
+    if (vanillaResult.success()) {
+        m_resourceManager->addResourcePack(std::move(vanillaPack));
+        spdlog::info("Added vanilla built-in resource pack");
+    } else {
+        spdlog::warn("Failed to initialize vanilla resource pack: {}", vanillaResult.error().toString());
+    }
+
+    // 2. 扫描资源包目录
     String resourcePackDir = m_settings.resourcePackDir.get();
     if (resourcePackDir.empty()) {
         resourcePackDir = "resourcepacks";
@@ -807,13 +821,10 @@ Result<void> ClientApplication::initializeResources()
         spdlog::warn("Failed to scan resource pack directory: {}", scanResult.error().toString());
     }
 
-    // 2. 从设置加载资源包配置
+    // 3. 从设置加载资源包配置
     m_resourcePackList.loadFromSettings(m_settings.resourcePacks);
 
-    // 3. 创建 ResourceManager
-    m_resourceManager = std::make_unique<ResourceManager>();
-
-    // 4. 添加启用的资源包
+    // 4. 添加启用的资源包（外部资源包优先级高于内置）
     auto enabledPacks = m_resourcePackList.getEnabledPacks();
     for (const auto& pack : enabledPacks) {
         auto result = m_resourceManager->addResourcePack(pack);
@@ -876,6 +887,13 @@ void ClientApplication::reloadResources()
 
     // 清除资源管理器
     m_resourceManager->clearResourcePacks();
+
+    // 首先添加内置资源包
+    auto vanillaPack = VanillaResources::createResourcePack();
+    auto vanillaResult = vanillaPack->initialize();
+    if (vanillaResult.success()) {
+        m_resourceManager->addResourcePack(std::move(vanillaPack));
+    }
 
     // 重新添加启用的资源包
     auto enabledPacks = m_resourcePackList.getEnabledPacks();

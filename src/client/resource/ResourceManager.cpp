@@ -1,5 +1,6 @@
 #include "ResourceManager.hpp"
 #include "../common/resource/FolderResourcePack.hpp"
+#include <spdlog/spdlog.h>
 
 namespace mr {
 
@@ -14,35 +15,35 @@ Result<void> ResourceManager::addResourcePack(ResourcePackPtr resourcePack) {
         return result.error();
     }
 
+    spdlog::info("ResourceManager: Added resource pack '{}'", resourcePack->name());
     m_resourcePacks.push_back(std::move(resourcePack));
     return Result<void>::ok();
 }
 
 Result<void> ResourceManager::loadAllResources() {
+    // 设置模型加载器的资源包列表
+    m_modelLoader.setResourcePackList(m_resourcePacks);
+
     // 加载方块状态
     for (auto& pack : m_resourcePacks) {
-        auto result = m_blockStateLoader.loadFromResourcePack(*pack);
-        if (result.failed()) {
-            // 继续加载其他资源包
-        }
+        m_blockStateLoader.loadFromResourcePack(*pack);
     }
 
     // 加载模型 (按需加载，不预加载)
     for (auto& pack : m_resourcePacks) {
-        auto result = m_modelLoader.loadFromResourcePack(*pack);
-        if (result.failed()) {
-            // 继续加载其他资源包
-        }
+        m_modelLoader.loadFromResourcePack(*pack);
     }
 
     // 烘焙模型
-    auto bakeResult = bakeAllModels();
-    if (bakeResult.failed()) {
-        return bakeResult.error();
-    }
+    bakeAllModels();
 
     // 计算方块外观
     computeBlockAppearances();
+
+    spdlog::info("ResourceManager: Loaded {} block states, {} models, {} appearances",
+                m_blockStateLoader.getLoadedBlockStates().size(),
+                m_bakedModels.size(),
+                m_blockAppearances.size());
 
     return Result<void>::ok();
 }
@@ -176,6 +177,9 @@ Result<void> ResourceManager::bakeAllModels() {
     // 获取所有方块状态
     auto blockStates = m_blockStateLoader.getLoadedBlockStates();
 
+    size_t successCount = 0;
+    size_t failCount = 0;
+
     for (const auto& blockId : blockStates) {
         const auto* def = m_blockStateLoader.getBlockState(blockId);
         if (!def) continue;
@@ -187,10 +191,24 @@ Result<void> ResourceManager::bakeAllModels() {
                     auto result = m_modelLoader.bakeModel(variant.model);
                     if (result.success()) {
                         m_bakedModels[variant.model] = result.value();
+                        successCount++;
+                    } else {
+                        if (failCount < 5) {
+                            spdlog::debug("Failed to bake model '{}': {}",
+                                         variant.model.toString(), result.error().toString());
+                        }
+                        failCount++;
                     }
                 }
             }
         }
+    }
+
+    if (failCount > 0) {
+        spdlog::warn("ResourceManager: Baked {} models ({} failed - missing parent models)",
+                     successCount, failCount);
+    } else {
+        spdlog::info("ResourceManager: Baked {} models successfully", successCount);
     }
 
     return Result<void>::ok();

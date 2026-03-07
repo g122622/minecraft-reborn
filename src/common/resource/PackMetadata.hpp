@@ -15,6 +15,13 @@ class PackMetadata {
 public:
     PackMetadata() = default;
 
+    /**
+     * @brief 构造函数
+     * @param packFormat pack_format 版本号
+     * @param description 描述文本
+     */
+    PackMetadata(i32 packFormat, String description = "");
+
     // 从JSON字符串解析
     [[nodiscard]] static Result<PackMetadata> parse(StringView jsonContent);
 

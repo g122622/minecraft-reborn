@@ -1,5 +1,6 @@
 #include "BlockStateLoader.hpp"
 #include "../common/resource/IResourcePack.hpp"
+#include <spdlog/spdlog.h>
 #include <algorithm>
 
 namespace mr {
@@ -17,6 +18,7 @@ Result<void> BlockStateLoader::loadFromResourcePack(IResourcePack& resourcePack)
     }
 
     auto files = result.value();
+    size_t loaded = 0;
 
     for (const auto& file : files) {
         // 提取方块名称
@@ -34,18 +36,22 @@ Result<void> BlockStateLoader::loadFromResourcePack(IResourcePack& resourcePack)
         // 读取并解析
         auto readResult = resourcePack.readTextResource(file);
         if (readResult.failed()) {
-            // 跳过无法读取的文件
             continue;
         }
 
         auto parseResult = BlockStateDefinition::parse(readResult.value());
         if (parseResult.failed()) {
-            // 跳过解析失败的文件
             continue;
         }
 
         ResourceLocation blockId("minecraft", blockName);
         m_blockStates[blockId] = parseResult.value();
+        loaded++;
+    }
+
+    if (loaded > 0) {
+        spdlog::info("BlockStateLoader: Loaded {} block states from '{}'",
+                    loaded, resourcePack.name());
     }
 
     return Result<void>::ok();

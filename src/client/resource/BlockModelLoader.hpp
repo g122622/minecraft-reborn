@@ -155,8 +155,11 @@ class BlockModelLoader {
 public:
     BlockModelLoader() = default;
 
-    // 从资源包加载模型
+    // 从资源包加载模型（添加到资源包列表）
     [[nodiscard]] Result<void> loadFromResourcePack(class IResourcePack& resourcePack);
+
+    // 设置资源包列表（用于模型加载时查找）
+    void setResourcePackList(const std::vector<std::shared_ptr<class IResourcePack>>& resourcePacks);
 
     // 加载单个模型
     [[nodiscard]] Result<UnbakedBlockModel> loadModel(const ResourceLocation& location);
@@ -175,7 +178,11 @@ public:
 
 private:
     std::map<ResourceLocation, UnbakedBlockModel> m_unbakedModels;
-    IResourcePack* m_resourcePack = nullptr;
+    IResourcePack* m_resourcePack = nullptr;  // 当前资源包（向后兼容）
+    std::vector<IResourcePack*> m_resourcePackList;  // 所有资源包列表（原始指针）
+
+    // 从所有资源包中读取模型文件
+    [[nodiscard]] Result<String> readModelFromResourcePacks(const String& filePath);
 
     // 解析模型JSON
     [[nodiscard]] Result<UnbakedBlockModel> parseModel(StringView jsonContent);

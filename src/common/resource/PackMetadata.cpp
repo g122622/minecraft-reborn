@@ -4,6 +4,12 @@
 
 namespace mr {
 
+PackMetadata::PackMetadata(i32 packFormat, String description)
+    : m_packFormat(packFormat)
+    , m_description(std::move(description))
+{
+}
+
 Result<PackMetadata> PackMetadata::parse(StringView jsonContent) {
     try {
         auto json = nlohmann::json::parse(jsonContent);
