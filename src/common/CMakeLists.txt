@@ -12,6 +12,7 @@ add_library(mr_common STATIC
     # Math
     math/MathUtils.cpp
     math/Noise.cpp
+    math/ray/Raycast.cpp
 
     # Network
     network/Packet.cpp

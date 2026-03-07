@@ -1,5 +1,7 @@
 #include "DebugScreen.hpp"
 #include "../world/ClientWorld.hpp"
+#include "../../common/world/block/Block.hpp"
+#include "../../common/util/Direction.hpp"
 #include <sstream>
 #include <iomanip>
 
@@ -134,9 +136,37 @@ void DebugScreen::buildDebugText() {
     // 分隔行
     m_debugLines.push_back("");
 
+    // 目标方块信息
+    buildTargetBlockText();
+
     // Java版MC风格的调试信息
     m_debugLines.push_back("Press F3 to hide debug info");
     m_debugLines.push_back("Press F3+H for advanced tooltips");
+}
+
+void DebugScreen::buildTargetBlockText() {
+    if (m_targetBlock == nullptr || m_targetBlock->isMiss()) {
+        return;
+    }
+
+    std::ostringstream oss;
+
+    // 显示击中的方块坐标
+    const auto& blockPos = m_targetBlock->blockPos();
+    oss.str("");
+    oss << "Looking at: " << blockPos.x << ", " << blockPos.y << ", " << blockPos.z;
+    m_debugLines.push_back(oss.str());
+
+    // 尝试获取方块名称
+    if (m_world != nullptr) {
+        const BlockState* state = m_world->getBlockState(blockPos.x, blockPos.y, blockPos.z);
+        if (state != nullptr) {
+            const ResourceLocation& loc = state->blockLocation();
+            oss.str("");
+            oss << "Block: " << loc.toString();
+            m_debugLines.push_back(oss.str());
+        }
+    }
 }
 
 } // namespace mr::client

@@ -36,6 +36,7 @@ add_executable(minecraft-client
     ui/GuiRenderer.cpp
     ui/DefaultAsciiFont.cpp
     ui/DebugScreen.cpp
+    ui/crosshair/CrosshairRenderer.cpp
     # 内置服务端支持
     ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp

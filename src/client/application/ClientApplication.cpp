@@ -1,5 +1,6 @@
 #include "ClientApplication.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
+#include "common/math/ray/Raycast.hpp"
 #include "minecraft-reborn/version.h"
 
 #include <spdlog/spdlog.h>
@@ -220,8 +221,20 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         m_debugScreen.setCamera(&m_camera);
         m_debugScreen.setWorld(&m_world);
         spdlog::info("Debug screen initialized");
+
+        // 初始化准星渲染器
+        auto crosshairResult = m_crosshair.initialize(&m_renderer->guiRenderer());
+        if (crosshairResult.failed()) {
+            spdlog::warn("Failed to initialize crosshair: {}", crosshairResult.error().toString());
+        } else {
+            spdlog::info("Crosshair initialized");
+        }
+
         // 设置GUI渲染回调
         m_renderer->setGuiRenderCallback([this]() {
+            // 先渲染准星
+            m_crosshair.render();
+            // 再渲染调试屏幕
             if (m_debugScreenVisible) {
                 m_debugScreen.render();
             }
@@ -387,6 +400,30 @@ void ClientApplication::update(f32 deltaTime)
 
     // 更新调试屏幕
     m_debugScreen.update(deltaTime);
+
+    // 执行射线检测
+    if (m_player && m_mouseCaptured) {
+        // 获取玩家眼睛位置
+        glm::vec3 eyePos = m_camera.position();
+
+        // 获取视线方向
+        glm::vec3 forward = m_camera.forward();
+
+        // 创建射线
+        mr::Vector3 origin(eyePos.x, eyePos.y, eyePos.z);
+        mr::Vector3 direction(forward.x, forward.y, forward.z);
+        mr::Ray ray(origin, direction);
+
+        // 执行射线检测（创造模式使用更远的距离）
+        mr::RaycastContext context(ray, 5.0f);  // 生存模式5格
+        m_raycastResult = mr::raycastBlocks(context, m_world);
+
+        // 更新调试屏幕的目标方块
+        m_debugScreen.setTargetBlock(&m_raycastResult);
+    } else {
+        // 没有玩家时清除目标方块
+        m_debugScreen.setTargetBlock(nullptr);
+    }
 
     // 更新世界（根据相机位置加载/卸载区块）
     m_world.update(m_camera.position(), m_settings.renderDistance.get());

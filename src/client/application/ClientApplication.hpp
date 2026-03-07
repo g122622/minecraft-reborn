@@ -2,6 +2,7 @@
 
 #include "common/core/Types.hpp"
 #include "common/core/Result.hpp"
+#include "common/core/BlockRaycastResult.hpp"
 #include "common/entity/Player.hpp"
 #include "common/physics/PhysicsEngine.hpp"
 #include "client/settings/ClientSettings.hpp"
@@ -12,6 +13,7 @@
 #include "../world/ClientWorld.hpp"
 #include "../network/NetworkClient.hpp"
 #include "../ui/DebugScreen.hpp"
+#include "../ui/crosshair/CrosshairRenderer.hpp"
 #include "server/application/IntegratedServer.hpp"
 
 #include <string>
@@ -159,6 +161,12 @@ private:
     // 调试屏幕
     DebugScreen m_debugScreen;
     bool m_debugScreenVisible = true;
+
+    // 准星渲染器
+    CrosshairRenderer m_crosshair;
+
+    // 射线检测结果
+    BlockRaycastResult m_raycastResult;
 
     // 内置服务端
     std::unique_ptr<server::IntegratedServer> m_integratedServer;

@@ -2,6 +2,7 @@
 
 #include "GuiRenderer.hpp"
 #include "../renderer/Camera.hpp"
+#include "../../common/core/BlockRaycastResult.hpp"
 #include <string>
 #include <chrono>
 
@@ -43,6 +44,12 @@ public:
      * @brief 设置世界（用于获取区块信息）
      */
     void setWorld(ClientWorld* world) { m_world = world; }
+
+    /**
+     * @brief 设置目标方块（射线检测结果）
+     * @param result 射线检测结果指针（可为nullptr）
+     */
+    void setTargetBlock(const BlockRaycastResult* result) { m_targetBlock = result; }
 
     /**
      * @brief 更新调试信息
@@ -88,9 +95,15 @@ private:
      */
     void buildDebugText();
 
+    /**
+     * @brief 构建目标方块文本
+     */
+    void buildTargetBlockText();
+
     GuiRenderer* m_guiRenderer = nullptr;
     Camera* m_camera = nullptr;
     ClientWorld* m_world = nullptr;
+    const BlockRaycastResult* m_targetBlock = nullptr;
 
     bool m_visible = true;
     bool m_initialized = false;
