@@ -11,6 +11,8 @@ namespace mr::client {
 
 namespace {
 
+constexpr f32 SKY_CLIP_SCALE = 0.0075f;
+
 Result<std::vector<u8>> readBinaryFile(const char* path) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
@@ -254,6 +256,7 @@ void SkyRenderer::render(VkCommandBuffer cmd, const glm::mat4& viewProjection, c
     }
 
     m_currentFrame = frameIndex % MAX_FRAMES_IN_FLIGHT;
+    m_lastViewProjection = viewProjection;
     updateUniformBuffer(m_currentFrame);
 
     if (m_descriptorSets[m_currentFrame] == VK_NULL_HANDLE) {
@@ -264,8 +267,10 @@ void SkyRenderer::render(VkCommandBuffer cmd, const glm::mat4& viewProjection, c
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
                            m_pipelineLayout, 0, 1, &m_descriptorSets[m_currentFrame], 0, nullptr);
 
+    // 现有 sky/sun/moon/star 着色器在顶点阶段使用“线性裁剪映射”而非标准透视除法，
+    // 需要对传入矩阵做统一缩放，避免天体落在远超 [-1, 1] 的 NDC 外。
     SkyPushConstants pushConstants{};
-    pushConstants.viewProjection = viewProjection;
+    pushConstants.viewProjection = viewProjection * SKY_CLIP_SCALE;
     vkCmdPushConstants(cmd, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
                        0, sizeof(SkyPushConstants), &pushConstants);
 
@@ -301,7 +306,36 @@ void SkyRenderer::renderSkyDome(VkCommandBuffer cmd) {
 
 void SkyRenderer::renderSun(VkCommandBuffer cmd) {
     // 太阳强度太低时不渲染
-    if (m_sunIntensity < 0.03f || m_sunPipeline == VK_NULL_HANDLE || !m_sunMoonVBO) return;
+    const bool shouldLog = (++m_sunDebugLogCounter % 240) == 0;
+    if (m_sunIntensity < 0.03f || m_sunPipeline == VK_NULL_HANDLE || !m_sunMoonVBO) {
+        if (shouldLog) {
+            spdlog::info("[Sky] Sun skipped: intensity={:.4f}, pipelineValid={}, vboValid={}",
+                        m_sunIntensity,
+                        m_sunPipeline != VK_NULL_HANDLE,
+                        m_sunMoonVBO != nullptr);
+        }
+        return;
+    }
+
+    if (shouldLog) {
+        const f32 angle = m_celestialAngle * mr::math::TAU_F;
+        const f32 height = std::cos(angle);
+        const f32 xz = std::sin(angle);
+        const glm::vec3 sunDir = glm::normalize(glm::vec3(xz, height, 0.0f));
+
+        const glm::vec3 sunCenter = sunDir * 100.0f;
+        const glm::mat4 scaledViewProjection = m_lastViewProjection * SKY_CLIP_SCALE;
+        const glm::mat4 viewWithoutTranslation = glm::mat4(glm::mat3(scaledViewProjection));
+        const glm::vec4 pos = viewWithoutTranslation * glm::vec4(sunCenter, 1.0f);
+        const f32 w = std::abs(pos.w) > 1e-6f ? pos.w : 1.0f;
+        const glm::vec2 ndc = glm::vec2(pos.x / w, pos.y / w);
+        const f32 crossLen = glm::length(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), sunDir));
+
+        spdlog::info("[Sky] Sun draw: dayTime={}, gameTime={}, intensity={:.4f}, angle={:.6f}, sunDir=({:.3f},{:.3f},{:.3f}), crossLen={:.6f}, ndc=({:.3f},{:.3f})",
+                m_dayTime, m_gameTime, m_sunIntensity, m_celestialAngle,
+                    sunDir.x, sunDir.y, sunDir.z,
+                    crossLen, ndc.x, ndc.y);
+    }
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_sunPipeline);
 
@@ -826,7 +860,19 @@ void SkyRenderer::updateUniformBuffer(u32 frameIndex) {
     SkyUBO ubo = {};
     ubo.skyColor = m_skyColor;
     ubo.fogColor = m_fogColor;
-    ubo.celestialAngle = m_celestialAngle;
+
+    // sun.vert 在太阳接近天顶/天底时会出现 right=normalize(cross(up, sunDir)) 退化。
+    // 这里做极小偏移，避免精确零向量导致太阳四边形退化不可见。
+    f32 adjustedAngle = m_celestialAngle;
+    const f32 angleRad = adjustedAngle * mr::math::TAU_F;
+    if (std::abs(std::sin(angleRad)) < 1e-4f) {
+        adjustedAngle += 1e-4f;
+        if (adjustedAngle >= 1.0f) {
+            adjustedAngle -= 1.0f;
+        }
+    }
+
+    ubo.celestialAngle = adjustedAngle;
     ubo.starBrightness = m_starBrightness;
     ubo.moonPhase = m_moonPhase;
     ubo.padding = 0.0f;

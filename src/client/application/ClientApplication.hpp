@@ -183,6 +183,12 @@ private:
     f32 m_lastSentPitch = 0.0f;
     f32 m_positionSendAccumulator = 0.0f;
     static constexpr f32 POSITION_SEND_INTERVAL = 1.0f / 20.0f;  // 20 TPS
+
+    // 渲染时间（服务端时间不可用时使用本地回退）
+    i64 m_renderGameTime = 0;
+    i64 m_renderDayTime = 0;
+    f32 m_renderTickAccumulator = 0.0f;
+    bool m_hasServerTimeSync = false;
 };
 
 } // namespace mr::client

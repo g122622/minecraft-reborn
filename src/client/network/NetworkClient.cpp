@@ -418,6 +418,11 @@ void NetworkClient::processPacket(const u8* data, size_t size) {
             break;
         }
 
+        case network::PacketType::TimeUpdate: {
+            handleTimeUpdate(bodyDeser);
+            break;
+        }
+
         default:
             spdlog::debug("Unhandled packet type: {}", static_cast<int>(packetType));
             break;
@@ -532,6 +537,20 @@ void NetworkClient::handleChunkData(network::PacketDeserializer& deser) {
 
     if (m_callbacks.onChunkData) {
         m_callbacks.onChunkData(packet.x(), packet.z(), packet.data());
+    }
+}
+
+void NetworkClient::handleTimeUpdate(network::PacketDeserializer& deser) {
+    auto result = network::TimeUpdatePacket::deserialize(deser);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize time update packet: {}", result.error().message());
+        return;
+    }
+
+    const auto& packet = result.value();
+
+    if (m_callbacks.onTimeUpdate) {
+        m_callbacks.onTimeUpdate(packet.gameTime(), packet.dayTime(), packet.daylightCycleEnabled());
     }
 }
 

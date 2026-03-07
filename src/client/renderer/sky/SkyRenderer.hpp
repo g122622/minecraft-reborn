@@ -214,6 +214,8 @@ private:
     std::unique_ptr<VulkanBuffer> m_uniformBuffers[MAX_FRAMES_IN_FLIGHT];
     VkDescriptorSet m_descriptorSets[MAX_FRAMES_IN_FLIGHT] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
     u32 m_currentFrame = 0;
+    glm::mat4 m_lastViewProjection = glm::mat4(1.0f);
+    u32 m_sunDebugLogCounter = 0;
 
     // 天空状态
     i64 m_dayTime = 0;

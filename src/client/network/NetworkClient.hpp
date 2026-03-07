@@ -65,6 +65,7 @@ struct NetworkClientCallbacks {
     std::function<void(i32 x, i32 y, i32 z, u32 blockStateId)> onBlockUpdate;
     std::function<void(const String& message, PlayerId senderId)> onChatMessage;
     std::function<void(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch)> onPlayerMove;
+    std::function<void(i64 gameTime, i64 dayTime, bool daylightCycleEnabled)> onTimeUpdate;
 };
 
 // ============================================================================
@@ -134,6 +135,7 @@ private:
     void handlePlayerDespawn(network::PacketDeserializer& deser);
     void handleBlockUpdate(network::PacketDeserializer& deser);
     void handleChatMessage(network::PacketDeserializer& deser);
+    void handleTimeUpdate(network::PacketDeserializer& deser);
     void handleDisconnect(network::PacketDeserializer& deser);
 
     // ASIO 网络

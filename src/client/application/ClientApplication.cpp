@@ -350,6 +350,31 @@ void ClientApplication::update(f32 deltaTime)
     // 更新世界（根据相机位置加载/卸载区块）
     m_world.update(m_camera.position(), m_config.renderDistance);
 
+    // 同步时间到渲染器（驱动天空、太阳、月亮、星空变化）
+    if (m_renderer) {
+        constexpr i64 DAY_LENGTH_TICKS = 24000;
+
+        if (m_hasServerTimeSync) {
+            // 有服务端时间同步时，以服务端时间为准
+            m_renderGameTime = m_world.gameTime();
+            m_renderDayTime = m_world.dayTime();
+            m_renderTickAccumulator += deltaTime * 20.0f;
+            while (m_renderTickAccumulator >= 1.0f) {
+                m_renderTickAccumulator -= 1.0f;
+            }
+        } else {
+            // 本地回退：没有时间包时仍推进昼夜循环
+            m_renderTickAccumulator += deltaTime * 20.0f;
+            while (m_renderTickAccumulator >= 1.0f) {
+                m_renderTickAccumulator -= 1.0f;
+                ++m_renderGameTime;
+                m_renderDayTime = (m_renderDayTime + 1) % DAY_LENGTH_TICKS;
+            }
+        }
+
+        m_renderer->updateTime(m_renderDayTime, m_renderGameTime, m_renderTickAccumulator);
+    }
+
     // 上传网格到 GPU
     if (m_renderer->isChunkRendererInitialized()) {
         auto& chunkRenderer = m_renderer->chunkRenderer();
@@ -516,6 +541,14 @@ void ClientApplication::setupNetworkCallbacks()
 
     callbacks.onBlockUpdate = [this](i32 bx, i32 by, i32 bz, u32 blockStateId) {
         m_world.setBlock(bx, by, bz, Block::getBlockState(blockStateId));
+    };
+
+    callbacks.onTimeUpdate = [this](i64 gameTime, i64 dayTime, bool daylightCycleEnabled) {
+        m_world.onTimeUpdate(gameTime, dayTime, daylightCycleEnabled);
+        m_renderGameTime = gameTime;
+        m_renderDayTime = dayTime;
+        m_renderTickAccumulator = 0.0f;
+        m_hasServerTimeSync = true;
     };
 
     m_networkClient->setCallbacks(callbacks);
