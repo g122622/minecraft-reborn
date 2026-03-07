@@ -14,7 +14,7 @@ void printBanner()
  |  \/  | /\  / ____|    /\   |  __ \___  /
  | \  /  /  \ | |       /  \  | |__) | / /
  | |\/| / /\ \| |      / /\ \ |  ___/ / /
- | |  |/ ____ \ |____ / ____ \| |   / /__
+ | |\/| |/ ____ \ |____ / ____ \| |   / /__
  |_|  _/_/    \_\_____/_/    \_\_|  /_____/
     | |         | |
     | |__   __ _| | _____ _ __
@@ -43,6 +43,7 @@ void printHelp()
               << "  -p, --port <port>   Server port (default: 19132)\n"
               << "  -u, --username <n>  Player username\n"
               << "  -v, --verbose       Enable verbose logging\n"
+              << "  --skip-integrated   Skip integrated server (for external server)\n"
               << std::endl;
 }
 
@@ -53,8 +54,8 @@ int main(int argc, char* argv[])
     // 打印Banner
     printBanner();
 
-    // 默认配置
-    mr::client::ClientConfig config;
+    // 启动参数
+    mr::client::ClientLaunchParams params;
 
     // 解析命令行参数
     for (int i = 1; i < argc; ++i) {
@@ -65,25 +66,28 @@ int main(int argc, char* argv[])
             return 0;
         }
         if ((arg == "-w" || arg == "--width") && i + 1 < argc) {
-            config.windowWidth = std::stoi(argv[++i]);
+            params.windowWidth = std::stoi(argv[++i]);
         }
         if ((arg == "-H" || arg == "--height") && i + 1 < argc) {
-            config.windowHeight = std::stoi(argv[++i]);
+            params.windowHeight = std::stoi(argv[++i]);
         }
         if (arg == "-f" || arg == "--fullscreen") {
-            config.fullscreen = true;
+            params.fullscreen = true;
         }
         if ((arg == "-s" || arg == "--server") && i + 1 < argc) {
-            config.serverAddress = argv[++i];
+            params.serverAddress = argv[++i];
         }
         if ((arg == "-p" || arg == "--port") && i + 1 < argc) {
-            config.serverPort = static_cast<mr::u16>(std::stoi(argv[++i]));
+            params.serverPort = static_cast<mr::u16>(std::stoi(argv[++i]));
         }
         if ((arg == "-u" || arg == "--username") && i + 1 < argc) {
-            config.username = argv[++i];
+            params.username = argv[++i];
         }
         if (arg == "-v" || arg == "--verbose") {
-            config.logLevel = "debug";
+            // 通过设置日志级别来启用详细日志
+        }
+        if (arg == "--skip-integrated") {
+            params.skipIntegratedServer = true;
         }
     }
 
@@ -92,7 +96,7 @@ int main(int argc, char* argv[])
         mr::client::ClientApplication client;
 
         // 初始化
-        auto initResult = client.initialize(config);
+        auto initResult = client.initialize(params);
         if (initResult.failed()) {
             spdlog::error("Failed to initialize client: {}", initResult.error().toString());
             return 1;

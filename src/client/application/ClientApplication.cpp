@@ -17,24 +17,49 @@ ClientApplication::~ClientApplication()
     }
 }
 
-Result<void> ClientApplication::initialize(const ClientConfig& config)
+Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
 {
     if (m_initialized) {
         return Error(ErrorCode::AlreadyExists, "Client already initialized");
     }
 
-    m_config = config;
+    // 加载设置
+    String settingsPath = params.settingsPath.value_or(
+        ClientSettings::getSettingsPath("minecraft-reborn").string());
+    auto settingsResult = loadSettings(settingsPath);
+    if (settingsResult.failed()) {
+        spdlog::warn("Failed to load settings from {}: {}. Using defaults.",
+                     settingsPath, settingsResult.error().toString());
+    }
+
+    // 应用命令行覆盖
+    if (params.fullscreen.has_value()) {
+        m_settings.fullscreen.set(*params.fullscreen);
+    }
+    if (params.serverAddress.has_value()) {
+        m_settings.serverAddress.set(*params.serverAddress);
+    }
+    if (params.serverPort.has_value()) {
+        m_settings.serverPort.set(*params.serverPort);
+    }
+    if (params.username.has_value()) {
+        m_settings.username.set(*params.username);
+    }
+
+    // 应用设置到系统
+    applySettings();
 
     // 设置日志级别
-    if (m_config.logLevel == "trace") {
+    const auto& logLevel = m_settings.logLevel.get();
+    if (logLevel == "trace") {
         spdlog::set_level(spdlog::level::trace);
-    } else if (m_config.logLevel == "debug") {
+    } else if (logLevel == "debug") {
         spdlog::set_level(spdlog::level::debug);
-    } else if (m_config.logLevel == "info") {
+    } else if (logLevel == "info") {
         spdlog::set_level(spdlog::level::info);
-    } else if (m_config.logLevel == "warn") {
+    } else if (logLevel == "warn") {
         spdlog::set_level(spdlog::level::warn);
-    } else if (m_config.logLevel == "error") {
+    } else if (logLevel == "error") {
         spdlog::set_level(spdlog::level::err);
     } else {
         spdlog::set_level(spdlog::level::info);
@@ -43,18 +68,23 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
     spdlog::info("=== Minecraft Reborn Client ===");
     spdlog::info("Version: {}.{}.{}", MR_VERSION_MAJOR, MR_VERSION_MINOR, MR_VERSION_PATCH);
     spdlog::info("Initializing client...");
+
     // 初始化方块注册表
     VanillaBlocks::initialize();
     spdlog::info("Vanilla blocks initialized");
 
+    // 初始化按键绑定
+    m_settings.initializeKeyBindings();
+    spdlog::info("Key bindings initialized");
+
     // 创建窗口
     WindowConfig windowConfig;
-    windowConfig.width = m_config.windowWidth;
-    windowConfig.height = m_config.windowHeight;
-    windowConfig.title = m_config.windowTitle;
-    windowConfig.fullscreen = m_config.fullscreen;
-    windowConfig.vsync = m_config.vsync;
-    windowConfig.samples = m_config.samples;
+    windowConfig.width = 1280;
+    windowConfig.height = 720;
+    windowConfig.title = "Minecraft Reborn";
+    windowConfig.fullscreen = m_settings.fullscreen.get();
+    windowConfig.vsync = m_settings.vsync.get();
+    windowConfig.samples = 4;
 
     auto windowResult = m_window.create(windowConfig);
     if (windowResult.failed()) {
@@ -67,6 +97,9 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
 
     // 设置按键绑定
     setupInputBindings();
+
+    // 设置设置变更回调
+    setupSettingCallbacks();
 
     // 设置窗口大小变化回调
     m_window.setResizeCallback([](i32 width, i32 height, void* userData) {
@@ -87,11 +120,11 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
     m_renderer = std::make_unique<VulkanRenderer>();
 
     RendererConfig rendererConfig;
-    rendererConfig.vulkanConfig.appName = m_config.windowTitle;
+    rendererConfig.vulkanConfig.appName = "Minecraft Reborn";
     rendererConfig.vulkanConfig.enableValidation = true; // Debug模式启用验证层
-    rendererConfig.enableVSync = m_config.vsyncEnabled;
-    rendererConfig.swapChainConfig.width = static_cast<u32>(m_config.windowWidth);
-    rendererConfig.swapChainConfig.height = static_cast<u32>(m_config.windowHeight);
+    rendererConfig.enableVSync = m_settings.vsync.get();
+    rendererConfig.swapChainConfig.width = static_cast<u32>(windowConfig.width);
+    rendererConfig.swapChainConfig.height = static_cast<u32>(windowConfig.height);
 
     auto rendererResult = m_renderer->initialize(m_window.handle(), rendererConfig);
     if (rendererResult.failed()) {
@@ -107,13 +140,13 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
     m_renderer->setCamera(&m_camera);
 
     // 启动内置服务端
-    if (m_useIntegratedServer) {
+    if (!params.skipIntegratedServer) {
         spdlog::info("Starting integrated server...");
 
         m_integratedServer = std::make_unique<server::IntegratedServer>();
         server::IntegratedServerConfig serverConfig;
         serverConfig.seed = 12345;
-        serverConfig.viewDistance = m_config.renderDistance;
+        serverConfig.viewDistance = m_settings.renderDistance.get();
 
         auto serverResult = m_integratedServer->initialize(serverConfig);
         if (serverResult.failed()) {
@@ -128,7 +161,7 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
         setupNetworkCallbacks();
 
         NetworkClientConfig clientConfig;
-        clientConfig.username = m_config.username;
+        clientConfig.username = m_settings.username.get();
         auto clientResult = m_networkClient->connectLocal(m_integratedServer->getClientEndpoint());
         if (clientResult.failed()) {
             spdlog::error("Failed to connect to integrated server: {}", clientResult.error().toString());
@@ -138,7 +171,10 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
             return clientResult.error();
         }
 
+        m_useIntegratedServer = true;
         spdlog::info("Connected to integrated server");
+    } else {
+        m_useIntegratedServer = false;
     }
 
     // 初始化世界
@@ -161,7 +197,7 @@ Result<void> ClientApplication::initialize(const ClientConfig& config)
     m_physicsEngine = std::make_unique<PhysicsEngine>(m_world);
 
     // 创建玩家实体
-    m_player = std::make_unique<Player>(static_cast<EntityId>(1), m_config.username);
+    m_player = std::make_unique<Player>(static_cast<EntityId>(1), m_settings.username.get());
     m_player->setPosition(8.0, 50.0, 8.0);  // 初始位置在地面上方
     m_player->setPhysicsEngine(m_physicsEngine.get());
     // 默认创造模式并启用飞行
@@ -286,9 +322,10 @@ void ClientApplication::handleEvents()
 
     // 传递键盘输入到玩家和鼠标控制
     if (m_mouseCaptured && m_player) {
-        // 鼠标视角控制 - 更新玩家朝向
-        f32 deltaYaw = m_input.mouseDeltaX() * 0.1f;   // 鼠标灵敏度
-        f32 deltaPitch = m_input.mouseDeltaY() * 0.1f;
+        // 鼠标视角控制 - 更新玩家朝向（使用设置中的灵敏度）
+        f32 sensitivity = m_settings.mouseSensitivity.get() * 0.2f;
+        f32 deltaYaw = m_input.mouseDeltaX() * sensitivity;
+        f32 deltaPitch = m_input.mouseDeltaY() * sensitivity;
         m_player->rotate(deltaYaw, -deltaPitch);  // pitch方向相反
 
         // 收集移动输入
@@ -348,7 +385,7 @@ void ClientApplication::update(f32 deltaTime)
     m_debugScreen.update(deltaTime);
 
     // 更新世界（根据相机位置加载/卸载区块）
-    m_world.update(m_camera.position(), m_config.renderDistance);
+    m_world.update(m_camera.position(), m_settings.renderDistance.get());
 
     // 同步时间到渲染器（驱动天空、太阳、月亮、星空变化）
     if (m_renderer) {
@@ -413,6 +450,13 @@ void ClientApplication::shutdown()
 {
     spdlog::info("Shutting down client...");
 
+    // 保存设置
+    auto saveResult = m_settings.saveSettings(
+        ClientSettings::getSettingsPath("minecraft-reborn"));
+    if (saveResult.failed()) {
+        spdlog::warn("Failed to save settings: {}", saveResult.error().toString());
+    }
+
     // 断开网络连接
     if (m_networkClient) {
         m_networkClient->disconnect("Client shutdown");
@@ -443,21 +487,61 @@ void ClientApplication::shutdown()
     spdlog::info("Client stopped.");
 }
 
-// ClientConfig 实现
+// 设置相关方法
 
-Result<ClientConfig> ClientConfig::load(const String& path)
+Result<void> ClientApplication::loadSettings(const String& path)
 {
-    // TODO: 实现JSON配置加载
-    ClientConfig config;
-    spdlog::info("Loaded client config from: {}", path);
-    return config;
+    auto result = m_settings.loadSettings(path);
+    if (result.failed()) {
+        return result;
+    }
+
+    // 确保设置目录存在
+    ClientSettings::ensureSettingsDir("minecraft-reborn");
+
+    // 启用自动保存
+    m_settings.enableAutoSave(path);
+
+    return Result<void>::ok();
 }
 
-Result<void> ClientConfig::save(const String& path) const
+void ClientApplication::applySettings()
 {
-    // TODO: 实现JSON配置保存
-    spdlog::info("Saved client config to: {}", path);
-    return Result<void>::ok();
+    // 设置变更回调在 setupSettingCallbacks 中设置
+    // 这里应用初始设置值
+}
+
+void ClientApplication::setupSettingCallbacks()
+{
+    // 渲染距离变更
+    m_settings.renderDistance.onChange([this](i32 value) {
+        spdlog::info("Render distance changed to: {}", value);
+        // 世界更新时会使用新值
+    });
+
+    // 全屏模式变更
+    m_settings.fullscreen.onChange([this](bool value) {
+        spdlog::info("Fullscreen changed to: {}", value);
+        // TODO: 实现全屏切换
+    });
+
+    // VSync 变更
+    m_settings.vsync.onChange([this](bool value) {
+        spdlog::info("VSync changed to: {}", value);
+        // TODO: 实现动态 VSync 切换
+    });
+
+    // 鼠标灵敏度变更
+    m_settings.mouseSensitivity.onChange([this](f32 value) {
+        spdlog::info("Mouse sensitivity changed to: {}", value);
+        // 鼠标灵敏度在 handleEvents 中应用
+    });
+
+    // FOV 变更
+    m_settings.fov.onChange([this](f32 value) {
+        spdlog::info("FOV changed to: {}", value);
+        m_camera.setFOV(value);
+    });
 }
 
 // 辅助函数实现
@@ -482,12 +566,12 @@ void ClientApplication::setupCamera()
 {
     // 设置相机配置
     CameraConfig cameraConfig;
-    cameraConfig.fov = 70.0f;
-    cameraConfig.aspectRatio = static_cast<f32>(m_config.windowWidth) / static_cast<f32>(m_config.windowHeight);
+    cameraConfig.fov = m_settings.fov.get();
+    cameraConfig.aspectRatio = static_cast<f32>(m_window.width()) / static_cast<f32>(m_window.height());
     cameraConfig.nearPlane = 0.1f;
     cameraConfig.farPlane = 1000.0f;
     cameraConfig.moveSpeed = 10.0f;      // 移动速度
-    cameraConfig.mouseSensitivity = 0.1f; // 鼠标灵敏度
+    cameraConfig.mouseSensitivity = m_settings.mouseSensitivity.get() * 0.2f; // 鼠标灵敏度
 
     m_camera = Camera(cameraConfig);
 

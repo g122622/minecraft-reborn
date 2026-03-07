@@ -22,6 +22,7 @@ add_executable(mr_tests
     common/test_block.cpp
     common/test_chunk_generation.cpp
     common/test_time.cpp
+    common/SettingsTest.cpp
     server/ServerWorldTest.cpp
     server/test_integrated_server.cpp
     server/test_chunk_worker_pool.cpp
@@ -37,6 +38,7 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpServer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpSession.cpp
         ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/settings/ServerSettings.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/LocalConnection.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/ChunkSync.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/PacketSerializer.cpp
@@ -70,6 +72,8 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/world/time/GameTime.cpp
         # 天体计算
         ${CMAKE_SOURCE_DIR}/src/client/renderer/sky/CelestialCalculations.cpp
+        # 设置系统
+        ${CMAKE_SOURCE_DIR}/src/client/settings/ClientSettings.cpp
 )
 
 target_link_libraries(mr_tests

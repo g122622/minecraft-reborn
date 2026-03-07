@@ -1,0 +1,246 @@
+#include "ClientSettings.hpp"
+
+#include <spdlog/spdlog.h>
+#include <fstream>
+
+namespace mr::client {
+
+// 静态成员初始化
+std::vector<std::unique_ptr<KeyBinding>> ClientSettings::s_keyBindings;
+
+ClientSettings::ClientSettings()
+    // 视频设置
+    : renderDistance("renderDistance", 2, 32, 12)
+    , framerateLimit("framerateLimit", 0, 260, 120)
+    , guiScale("guiScale", 0, 4, 0)
+    , fullscreen("fullscreen", false)
+    , vsync("vsync", true)
+    , graphics("graphics",
+               {static_cast<u8>(GraphicsMode::Fast), static_cast<u8>(GraphicsMode::Fancy)},
+               static_cast<u8>(GraphicsMode::Fancy),
+               {"fast", "fancy"})
+    , clouds("clouds",
+             {static_cast<u8>(CloudMode::Off), static_cast<u8>(CloudMode::Fast), static_cast<u8>(CloudMode::Fancy)},
+             static_cast<u8>(CloudMode::Fancy),
+             {"off", "fast", "fancy"})
+    , mipmapLevels("mipmapLevels", 0, 4, 4)
+    , fovEffectScale("fovEffectScale", 0.0f, 1.0f, 1.0f)
+    , screenShakeScale("screenShakeScale", 0.0f, 1.0f, 1.0f)
+
+    // 音频设置
+    , masterVolume("masterVolume", 0.0f, 1.0f, 1.0f)
+    , musicVolume("musicVolume", 0.0f, 1.0f, 0.5f)
+    , soundVolume("soundVolume", 0.0f, 1.0f, 1.0f)
+    , ambientVolume("ambientVolume", 0.0f, 1.0f, 1.0f)
+
+    // 控制设置
+    , mouseSensitivity("mouseSensitivity", 0.0f, 1.0f, 0.5f)
+    , invertMouse("invertMouse", false)
+    , rawMouseInput("rawMouseInput", true)
+    , mouseWheelSensitivity("mouseWheelSensitivity", 0.0f, 1.0f, 1.0f)
+    , autoJump("autoJump", false)
+
+    // 游戏设置
+    , viewBobbing("viewBobbing", true)
+    , fov("fov", 30.0f, 110.0f, 70.0f)
+    , showFps("showFps", false)
+    , showDebug("showDebug", false)
+    , language("language", "zh_cn")
+
+    // 网络设置
+    , serverAddress("serverAddress", "127.0.0.1")
+    , serverPort("serverPort", 1, 65535, 19132)
+    , username("username", "Player")
+
+    // 日志设置
+    , logLevel("logLevel", "info")
+{
+    // 注册视频设置
+    registerOption("video", &renderDistance);
+    registerOption("video", &framerateLimit);
+    registerOption("video", &guiScale);
+    registerOption("video", &fullscreen);
+    registerOption("video", &vsync);
+    registerOption("video", &graphics);
+    registerOption("video", &clouds);
+    registerOption("video", &mipmapLevels);
+    registerOption("video", &fovEffectScale);
+    registerOption("video", &screenShakeScale);
+
+    // 注册音频设置
+    registerOption("audio", &masterVolume);
+    registerOption("audio", &musicVolume);
+    registerOption("audio", &soundVolume);
+    registerOption("audio", &ambientVolume);
+
+    // 注册控制设置
+    registerOption("control", &mouseSensitivity);
+    registerOption("control", &invertMouse);
+    registerOption("control", &rawMouseInput);
+    registerOption("control", &mouseWheelSensitivity);
+    registerOption("control", &autoJump);
+
+    // 注册游戏设置
+    registerOption("game", &viewBobbing);
+    registerOption("game", &fov);
+    registerOption("game", &showFps);
+    registerOption("game", &showDebug);
+    registerOption("game", &language);
+
+    // 注册网络设置
+    registerOption("network", &serverAddress);
+    registerOption("network", &serverPort);
+    registerOption("network", &username);
+
+    // 注册日志设置
+    registerOption("log", &logLevel);
+}
+
+void ClientSettings::initializeKeyBindings()
+{
+    // 清空现有绑定
+    s_keyBindings.clear();
+
+    // 移动控制
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.forward", Keys::W, "key.categories.movement"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.left", Keys::A, "key.categories.movement"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.back", Keys::S, "key.categories.movement"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.right", Keys::D, "key.categories.movement"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.jump", Keys::Space, "key.categories.movement"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.sneak", Keys::LeftShift, "key.categories.movement"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.sprint", Keys::LeftControl, "key.categories.movement"));
+
+    // 游戏控制
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.inventory", Keys::E, "key.categories.gameplay"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.use", Keys::Mouse::Right, "key.categories.gameplay"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.attack", Keys::Mouse::Left, "key.categories.gameplay"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.pickItem", Keys::Mouse::Middle, "key.categories.gameplay"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.chat", Keys::T, "key.categories.gameplay"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.playerlist", Keys::Tab, "key.categories.gameplay"));
+
+    // 物品栏
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.hotbar.1", Keys::D1, "key.categories.inventory"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.hotbar.2", Keys::D2, "key.categories.inventory"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.hotbar.3", Keys::D3, "key.categories.inventory"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.hotbar.4", Keys::D4, "key.categories.inventory"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.hotbar.5", Keys::D5, "key.categories.inventory"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.hotbar.6", Keys::D6, "key.categories.inventory"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.hotbar.7", Keys::D7, "key.categories.inventory"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.hotbar.8", Keys::D8, "key.categories.inventory"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.hotbar.9", Keys::D9, "key.categories.inventory"));
+
+    // 功能键
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.screenshot", Keys::F2, "key.categories.misc"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.toggleDebug", Keys::F3, "key.categories.misc"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.fullscreen", Keys::F11, "key.categories.misc"));
+    s_keyBindings.push_back(std::make_unique<KeyBinding>(
+        "key.smoothCamera", Keys::F8, "key.categories.misc"));
+
+    spdlog::info("Initialized {} key bindings", s_keyBindings.size());
+}
+
+KeyBinding* ClientSettings::getKeyBinding(const String& id)
+{
+    return KeyBinding::find(id);
+}
+
+const std::vector<std::unique_ptr<KeyBinding>>& ClientSettings::getAllKeyBindings()
+{
+    return s_keyBindings;
+}
+
+Result<void> ClientSettings::loadSettings(const std::filesystem::path& path)
+{
+    // 加载基本设置
+    auto result = load(path);
+    if (result.failed()) {
+        return result;
+    }
+
+    // 加载按键绑定
+    // 尝试读取按键绑定部分
+    if (std::filesystem::exists(path)) {
+        std::ifstream file(path, std::ios::binary);
+        if (file.is_open()) {
+            try {
+                nlohmann::json j;
+                file >> j;
+                file.close();
+
+                if (j.contains("keyBindings") && j["keyBindings"].is_object()) {
+                    KeyBinding::deserializeAll(j["keyBindings"]);
+                }
+            }
+            catch (const std::exception& e) {
+                spdlog::warn("Failed to load key bindings: {}", e.what());
+            }
+        }
+    }
+
+    spdlog::info("Client settings loaded from: {}", path.string());
+    return Result<void>::ok();
+}
+
+Result<void> ClientSettings::saveSettings(const std::filesystem::path& path)
+{
+    // 先保存基本设置
+    auto result = save(path);
+    if (result.failed()) {
+        return result;
+    }
+
+    // 读取现有 JSON 并添加按键绑定
+    try {
+        std::ifstream file(path, std::ios::binary);
+        if (file.is_open()) {
+            nlohmann::json j;
+            file >> j;
+            file.close();
+
+            // 添加按键绑定
+            nlohmann::json keyBindingsJson;
+            KeyBinding::serializeAll(keyBindingsJson);
+            j["keyBindings"] = keyBindingsJson;
+
+            // 写回文件
+            std::ofstream outFile(path, std::ios::binary | std::ios::trunc);
+            if (outFile.is_open()) {
+                outFile << j.dump(4);
+                outFile.close();
+            }
+        }
+    }
+    catch (const std::exception& e) {
+        spdlog::warn("Failed to save key bindings: {}", e.what());
+    }
+
+    spdlog::info("Client settings saved to: {}", path.string());
+    return Result<void>::ok();
+}
+
+} // namespace mr::client

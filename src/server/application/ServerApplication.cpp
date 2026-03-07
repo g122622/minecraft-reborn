@@ -17,24 +17,52 @@ ServerApplication::~ServerApplication()
     }
 }
 
-Result<void> ServerApplication::initialize(const ServerConfig& config)
+Result<void> ServerApplication::initialize(const ServerLaunchParams& params)
 {
     if (m_initialized) {
         return Error(ErrorCode::AlreadyExists, "Server already initialized");
     }
 
-    m_config = config;
+    // 加载设置
+    String settingsPath = params.settingsPath.value_or(
+        ServerSettings::getDefaultPath().string());
+    auto settingsResult = loadSettings(settingsPath);
+    if (settingsResult.failed()) {
+        spdlog::warn("Failed to load settings from {}: {}. Using defaults.",
+                     settingsPath, settingsResult.error().toString());
+    }
+
+    // 应用命令行覆盖
+    if (params.port.has_value()) {
+        m_settings.serverPort.set(*params.port);
+    }
+    if (params.bindAddress.has_value()) {
+        m_settings.bindAddress.set(*params.bindAddress);
+    }
+    if (params.maxPlayers.has_value()) {
+        m_settings.maxPlayers.set(static_cast<i32>(*params.maxPlayers));
+    }
+    if (params.worldName.has_value()) {
+        m_settings.worldName.set(*params.worldName);
+    }
+    if (params.seed.has_value()) {
+        m_settings.levelSeed.set(std::to_string(*params.seed));
+    }
+
+    // 应用设置到系统
+    applySettings();
 
     // 设置日志级别
-    if (m_config.logLevel == "trace") {
+    const auto& logLevel = m_settings.logLevel.get();
+    if (logLevel == "trace") {
         spdlog::set_level(spdlog::level::trace);
-    } else if (m_config.logLevel == "debug") {
+    } else if (logLevel == "debug") {
         spdlog::set_level(spdlog::level::debug);
-    } else if (m_config.logLevel == "info") {
+    } else if (logLevel == "info") {
         spdlog::set_level(spdlog::level::info);
-    } else if (m_config.logLevel == "warn") {
+    } else if (logLevel == "warn") {
         spdlog::set_level(spdlog::level::warn);
-    } else if (m_config.logLevel == "error") {
+    } else if (logLevel == "error") {
         spdlog::set_level(spdlog::level::err);
     } else {
         spdlog::set_level(spdlog::level::info);
@@ -46,7 +74,7 @@ Result<void> ServerApplication::initialize(const ServerConfig& config)
 
     // 初始化世界
     ServerWorldConfig worldConfig;
-    worldConfig.viewDistance = m_config.viewDistance;
+    worldConfig.viewDistance = m_settings.viewDistance.get();
     worldConfig.dimension = 0; // 主世界
 
     m_world = std::make_unique<ServerWorld>(worldConfig);
@@ -75,8 +103,8 @@ Result<void> ServerApplication::initialize(const ServerConfig& config)
 
     // 启动服务器
     TcpServerConfig serverConfig;
-    serverConfig.port = m_config.port;
-    serverConfig.maxConnections = m_config.maxPlayers;
+    serverConfig.port = static_cast<u16>(m_settings.serverPort.get());
+    serverConfig.maxConnections = static_cast<u32>(m_settings.maxPlayers.get());
 
     auto serverResult = m_server->start(serverConfig);
     if (serverResult.failed()) {
@@ -85,9 +113,9 @@ Result<void> ServerApplication::initialize(const ServerConfig& config)
     }
 
     spdlog::info("Server initialized successfully");
-    spdlog::info("Port: {}", m_config.port);
-    spdlog::info("Max players: {}", m_config.maxPlayers);
-    spdlog::info("World: {}", m_config.worldName);
+    spdlog::info("Port: {}", m_settings.serverPort.get());
+    spdlog::info("Max players: {}", m_settings.maxPlayers.get());
+    spdlog::info("World: {}", m_settings.worldName.get());
 
     m_initialized = true;
     return Result<void>::ok();
@@ -140,7 +168,7 @@ void ServerApplication::mainLoop()
     m_tickCount = 0;
 
     spdlog::info("Server is now running!");
-    spdlog::info("Connect with port: {}", m_config.port);
+    spdlog::info("Connect with port: {}", m_settings.serverPort.get());
 
     while (m_running) {
         const auto currentTime = clock::now();
@@ -201,6 +229,12 @@ void ServerApplication::tick()
 void ServerApplication::shutdown()
 {
     spdlog::info("Shutting down server...");
+
+    // 保存设置
+    auto saveResult = m_settings.saveSettings(ServerSettings::getDefaultPath());
+    if (saveResult.failed()) {
+        spdlog::warn("Failed to save settings: {}", saveResult.error().toString());
+    }
 
     // 关闭网络服务器
     if (m_server) {
@@ -324,7 +358,7 @@ void ServerApplication::handleLoginRequest(TcpSession* session, const u8* data, 
         currentPlayerCount = m_sessionToPlayer.size();
     }
 
-    if (currentPlayerCount >= m_config.maxPlayers) {
+    if (currentPlayerCount >= static_cast<size_t>(m_settings.maxPlayers.get())) {
         sendLoginResponse(session, false, 0, username, "Server is full");
         session->disconnect("Server is full");
         return;
@@ -488,21 +522,57 @@ void ServerApplication::sendKeepAlive(TcpSession* session, u64 timestamp)
     }
 }
 
-// ServerConfig 实现
+// 设置相关方法
 
-Result<ServerConfig> ServerConfig::load(const String& path)
+Result<void> ServerApplication::loadSettings(const String& path)
 {
-    // TODO: 实现JSON配置加载
-    ServerConfig config;
-    spdlog::info("Loaded server config from: {}", path);
-    return config;
+    auto result = m_settings.loadSettings(path);
+    if (result.failed()) {
+        return result;
+    }
+
+    // 确保设置目录存在
+    SettingsBase::ensureSettingsDir("minecraft-server");
+
+    // 启用自动保存
+    m_settings.enableAutoSave(path);
+
+    return Result<void>::ok();
 }
 
-Result<void> ServerConfig::save(const String& path) const
+void ServerApplication::applySettings()
 {
-    // TODO: 实现JSON配置保存
-    spdlog::info("Saved server config to: {}", path);
-    return Result<void>::ok();
+    // 设置变更回调
+    m_settings.serverPort.onChange([this](i32 value) {
+        spdlog::info("Server port changed to: {}", value);
+        // 端口变更需要重启服务器
+    });
+
+    m_settings.maxPlayers.onChange([this](i32 value) {
+        spdlog::info("Max players changed to: {}", value);
+    });
+
+    m_settings.viewDistance.onChange([this](i32 value) {
+        spdlog::info("View distance changed to: {}", value);
+        if (m_world) {
+            // TODO: 更新世界视距
+        }
+    });
+
+    m_settings.logLevel.onChange([this](const String& value) {
+        spdlog::info("Log level changed to: {}", value);
+        if (value == "trace") {
+            spdlog::set_level(spdlog::level::trace);
+        } else if (value == "debug") {
+            spdlog::set_level(spdlog::level::debug);
+        } else if (value == "info") {
+            spdlog::set_level(spdlog::level::info);
+        } else if (value == "warn") {
+            spdlog::set_level(spdlog::level::warn);
+        } else if (value == "error") {
+            spdlog::set_level(spdlog::level::err);
+        }
+    });
 }
 
 } // namespace mr::server

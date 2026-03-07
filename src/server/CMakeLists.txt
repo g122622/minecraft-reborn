@@ -5,6 +5,7 @@ add_executable(minecraft-server
     main.cpp
     application/ServerApplication.cpp
     application/IntegratedServer.cpp
+    settings/ServerSettings.cpp
     network/TcpServer.cpp
     network/TcpSession.cpp
     world/ServerWorld.cpp

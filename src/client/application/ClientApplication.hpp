@@ -4,6 +4,7 @@
 #include "common/core/Result.hpp"
 #include "common/entity/Player.hpp"
 #include "common/physics/PhysicsEngine.hpp"
+#include "client/settings/ClientSettings.hpp"
 #include "../window/Window.hpp"
 #include "../input/InputManager.hpp"
 #include "../renderer/VulkanRenderer.hpp"
@@ -20,39 +21,24 @@
 namespace mr::client {
 
 /**
- * @brief 客户端配置
+ * @brief 客户端启动参数
+ *
+ * 用于命令行覆盖设置文件中的配置。
  */
-struct ClientConfig {
-    // 窗口配置
-    i32 windowWidth = 1280;
-    i32 windowHeight = 720;
-    String windowTitle = "Minecraft Reborn";
-    bool fullscreen = false;
-    bool vsync = true;
-    i32 samples = 4;
+struct ClientLaunchParams {
+    // 窗口配置覆盖（可选）
+    Optional<i32> windowWidth;
+    Optional<i32> windowHeight;
+    Optional<bool> fullscreen;
 
-    // 渲染配置
-    i32 renderDistance = 6;
-    i32 maxFps = 60;
-    bool vsyncEnabled = true;
+    // 服务器配置覆盖（可选）
+    Optional<String> serverAddress;
+    Optional<u16> serverPort;
+    Optional<String> username;
 
-    // 网络配置
-    String serverAddress = "127.0.0.1";
-    u16 serverPort = 19132;
-    String username = "Player";
-
-    // 日志配置
-    String logLevel = "info";
-
-    /**
-     * @brief 从JSON文件加载配置
-     */
-    static Result<ClientConfig> load(const String& path);
-
-    /**
-     * @brief 保存配置到JSON文件
-     */
-    Result<void> save(const String& path) const;
+    // 其他启动参数
+    Optional<String> settingsPath;  // 自定义设置文件路径
+    bool skipIntegratedServer = false;  // 跳过内置服务器
 };
 
 /**
@@ -69,8 +55,10 @@ public:
 
     /**
      * @brief 初始化客户端
+     *
+     * @param params 启动参数（可选覆盖）
      */
-    [[nodiscard]] Result<void> initialize(const ClientConfig& config);
+    [[nodiscard]] Result<void> initialize(const ClientLaunchParams& params = {});
 
     /**
      * @brief 运行客户端主循环
@@ -100,9 +88,10 @@ public:
     [[nodiscard]] const InputManager& input() const noexcept { return m_input; }
 
     /**
-     * @brief 获取配置
+     * @brief 获取设置
      */
-    [[nodiscard]] const ClientConfig& config() const noexcept { return m_config; }
+    [[nodiscard]] ClientSettings& settings() noexcept { return m_settings; }
+    [[nodiscard]] const ClientSettings& settings() const noexcept { return m_settings; }
 
     /**
      * @brief 获取渲染器
@@ -136,12 +125,19 @@ private:
     void setupInputBindings();
     void setupCamera();
     void setupNetworkCallbacks();
+    void setupSettingCallbacks();
     void toggleMouseCapture();
 
     // 玩家位置同步
     void sendPlayerPosition();
 
-    ClientConfig m_config;
+    // 加载设置
+    [[nodiscard]] Result<void> loadSettings(const String& path);
+
+    // 应用设置到系统
+    void applySettings();
+
+    ClientSettings m_settings;
     Window m_window;
     InputManager m_input;
     std::unique_ptr<VulkanRenderer> m_renderer;

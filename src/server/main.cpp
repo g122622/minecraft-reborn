@@ -25,7 +25,7 @@ void printBanner()
  | \  / /  \ | |       /  \  | |__) | / /
  | |\/| / /\ \| |      / /\ \ |  ___/ / /
  | |  |/ ____ \ |____ / ____ \| |   / /__
- |_|  _/_/    \_\_____/_/    \_\_|  /_____|
+ |_|  _/_/    \_\_____/_/    \_\_|  /_____/
     | |         | |
     | |__   __ _| | _____ _ __
     | '_ \ / _` | |/ / _ \ '__|
@@ -65,8 +65,8 @@ int main(int argc, char* argv[])
     // 打印Banner
     printBanner();
 
-    // 默认配置
-    mr::server::ServerConfig config;
+    // 启动参数
+    mr::server::ServerLaunchParams params;
 
     // 解析命令行参数
     for (int i = 1; i < argc; ++i) {
@@ -77,22 +77,20 @@ int main(int argc, char* argv[])
             return 0;
         }
         if ((arg == "-p" || arg == "--port") && i + 1 < argc) {
-            config.port = static_cast<mr::u16>(std::stoi(argv[++i]));
+            params.port = static_cast<mr::u16>(std::stoi(argv[++i]));
         }
         if ((arg == "-n" || arg == "--name") && i + 1 < argc) {
-            config.worldName = argv[++i];
+            params.worldName = argv[++i];
         }
         if ((arg == "-s" || arg == "--seed") && i + 1 < argc) {
-            config.seed = std::stoll(argv[++i]);
+            params.seed = std::stoll(argv[++i]);
         }
         if ((arg == "-m" || arg == "--max") && i + 1 < argc) {
-            config.maxPlayers = static_cast<mr::u32>(std::stoi(argv[++i]));
+            params.maxPlayers = static_cast<mr::u32>(std::stoi(argv[++i]));
         }
-        if (arg == "--offline") {
-            config.onlineMode = false;
-        }
+        // onlineMode 暂不支持命令行覆盖，可通过设置文件修改
         if (arg == "-v" || arg == "--verbose") {
-            config.logLevel = "debug";
+            // 通过设置日志级别来启用详细日志
         }
     }
 
@@ -101,7 +99,7 @@ int main(int argc, char* argv[])
         mr::server::ServerApplication server;
 
         // 初始化
-        auto initResult = server.initialize(config);
+        auto initResult = server.initialize(params);
         if (initResult.failed()) {
             spdlog::error("Failed to initialize server: {}", initResult.error().toString());
             return 1;

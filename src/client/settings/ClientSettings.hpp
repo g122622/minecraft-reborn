@@ -1,0 +1,233 @@
+#pragma once
+
+#include "common/core/settings/SettingsBase.hpp"
+#include "common/core/settings/SettingsTypes.hpp"
+#include "common/input/KeyBinding.hpp"
+
+#include <memory>
+#include <vector>
+#include <fstream>
+
+namespace mr::client {
+
+/**
+ * @brief 图形质量模式
+ */
+enum class GraphicsMode : u8 {
+    Fast = 0,   // 快速模式（简化渲染）
+    Fancy = 1   // 精致模式（完整渲染）
+};
+
+/**
+ * @brief 云渲染模式
+ */
+enum class CloudMode : u8 {
+    Off = 0,    // 关闭
+    Fast = 1,   // 快速（2D）
+    Fancy = 2   // 精致（3D）
+};
+
+/**
+ * @brief 粒子效果模式
+ */
+enum class ParticleMode : u8 {
+    Minimal = 0,  // 最小
+    Decreased = 1, // 减少
+    All = 2        // 全部
+};
+
+/**
+ * @brief 客户端设置类
+ *
+ * 管理客户端所有设置项，包括视频、音频、控制和游戏设置。
+ * 设置自动保存到文件，支持热重载。
+ *
+ * 使用示例:
+ * @code
+ * ClientSettings settings;
+ * settings.load("options.json");
+ *
+ * // 访问设置
+ * int distance = settings.renderDistance.get();
+ * settings.fullscreen.set(true);
+ *
+ * // 设置变更回调
+ * settings.renderDistance.onChange([](int value) {
+ *     spdlog::info("Render distance: {}", value);
+ * });
+ *
+ * // 按键绑定
+ * KeyBinding* forward = ClientSettings::getKeyBinding("key.forward");
+ * if (forward && forward->isPressed()) {
+ *     player.moveForward();
+ * }
+ * @endcode
+ */
+class ClientSettings : public SettingsBase {
+public:
+    ClientSettings();
+    ~ClientSettings() override = default;
+
+    // 禁止拷贝
+    ClientSettings(const ClientSettings&) = delete;
+    ClientSettings& operator=(const ClientSettings&) = delete;
+
+    // 允许移动
+    ClientSettings(ClientSettings&&) = default;
+    ClientSettings& operator=(ClientSettings&&) = default;
+
+    // ========================================================================
+    // 视频设置
+    // ========================================================================
+
+    /// 渲染距离（区块数），范围 2-32
+    RangeOption renderDistance;
+
+    /// 帧率限制，0 表示无限制
+    RangeOption framerateLimit;
+
+    /// GUI 缩放，0 表示自动
+    RangeOption guiScale;
+
+    /// 全屏模式
+    BooleanOption fullscreen;
+
+    /// 垂直同步
+    BooleanOption vsync;
+
+    /// 图形模式
+    EnumOption<u8> graphics;
+
+    /// 云渲染模式
+    EnumOption<u8> clouds;
+
+    /// Mipmap 等级，范围 0-4
+    RangeOption mipmapLevels;
+
+    /// 视距（雾距离），范围 0.5-1.0
+    FloatOption fovEffectScale;
+
+    /// 屏幕抖动强度
+    FloatOption screenShakeScale;
+
+    // ========================================================================
+    // 音频设置
+    // ========================================================================
+
+    /// 主音量
+    FloatOption masterVolume;
+
+    /// 音乐音量
+    FloatOption musicVolume;
+
+    /// 音效音量
+    FloatOption soundVolume;
+
+    /// 环境音效音量
+    FloatOption ambientVolume;
+
+    // ========================================================================
+    // 控制设置
+    // ========================================================================
+
+    /// 鼠标灵敏度
+    FloatOption mouseSensitivity;
+
+    /// 反转鼠标 Y 轴
+    BooleanOption invertMouse;
+
+    /// 原始鼠标输入
+    BooleanOption rawMouseInput;
+
+    /// 鼠标滚轮灵敏度
+    FloatOption mouseWheelSensitivity;
+
+    /// 自动跳跃
+    BooleanOption autoJump;
+
+    // ========================================================================
+    // 游戏设置
+    // ========================================================================
+
+    /// 视角摇晃
+    BooleanOption viewBobbing;
+
+    /// 视野（FOV），范围 30-110
+    FloatOption fov;
+
+    /// 显示 FPS
+    BooleanOption showFps;
+
+    /// 显示调试屏幕
+    BooleanOption showDebug;
+
+    /// 语言代码
+    StringOption language;
+
+    // ========================================================================
+    // 网络设置
+    // ========================================================================
+
+    /// 服务器地址
+    StringOption serverAddress;
+
+    /// 服务器端口
+    RangeOption serverPort;
+
+    /// 玩家名称
+    StringOption username;
+
+    // ========================================================================
+    // 日志设置
+    // ========================================================================
+
+    /// 日志级别
+    StringOption logLevel;
+
+    // ========================================================================
+    // 按键绑定
+    // ========================================================================
+
+    /**
+     * @brief 初始化按键绑定
+     *
+     * 创建所有默认按键绑定。需要在使用按键绑定前调用。
+     */
+    void initializeKeyBindings();
+
+    /**
+     * @brief 获取按键绑定
+     * @param id 绑定 ID（如 "key.forward"）
+     * @return 按键绑定指针，找不到返回 nullptr
+     */
+    [[nodiscard]] static KeyBinding* getKeyBinding(const String& id);
+
+    /**
+     * @brief 获取所有按键绑定
+     */
+    [[nodiscard]] static const std::vector<std::unique_ptr<KeyBinding>>& getAllKeyBindings();
+
+    // ========================================================================
+    // 加载/保存
+    // ========================================================================
+
+    /**
+     * @brief 加载设置（包括按键绑定）
+     * @param path 设置文件路径
+     * @return 成功或错误
+     */
+    [[nodiscard]] Result<void> loadSettings(const std::filesystem::path& path);
+
+    /**
+     * @brief 保存设置（包括按键绑定）
+     * @param path 设置文件路径
+     * @return 成功或错误
+     */
+    [[nodiscard]] Result<void> saveSettings(const std::filesystem::path& path);
+
+private:
+    // 按键绑定存储
+    static std::vector<std::unique_ptr<KeyBinding>> s_keyBindings;
+};
+
+} // namespace mr::client

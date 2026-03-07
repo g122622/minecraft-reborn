@@ -4,6 +4,10 @@
 add_library(mr_common STATIC
     # Core
     core/Result.cpp
+    core/settings/SettingsBase.cpp
+
+    # Input
+    input/KeyBinding.cpp
 
     # Math
     math/MathUtils.cpp
