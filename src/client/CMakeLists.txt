@@ -17,6 +17,7 @@ add_executable(minecraft-client
     renderer/VulkanBuffer.cpp
     renderer/VulkanTexture.cpp
     renderer/ChunkRenderer.cpp
+    renderer/MeshWorkerPool.cpp
     renderer/Camera.cpp
     renderer/UniformBuffer.cpp
     renderer/Descriptor.cpp

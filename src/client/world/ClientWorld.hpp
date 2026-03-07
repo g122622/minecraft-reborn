@@ -8,6 +8,7 @@
 #include "../../common/network/ChunkSync.hpp"
 #include "../../common/physics/PhysicsEngine.hpp"
 #include "../renderer/Camera.hpp"
+#include "../renderer/MeshWorkerPool.hpp"
 #include <unordered_map>
 #include <unordered_set>
 #include <memory>
@@ -22,12 +23,13 @@ namespace mr::client {
  */
 struct ClientChunk {
     ChunkId chunkId;
-    std::unique_ptr<ChunkData> data;
+    std::shared_ptr<ChunkData> data;  // 使用 shared_ptr 以支持异步网格构建
     MeshData solidMesh;       // 实心方块网格
     MeshData transparentMesh;  // 透明方块网格
     bool needsMeshUpdate = true;
     bool isGenerating = false;
     bool isLoaded = false;
+    bool meshBuilding = false;  // 是否正在异步构建网格
 };
 
 /**
@@ -209,6 +211,34 @@ public:
      */
     [[nodiscard]] bool daylightCycleEnabled() const { return m_daylightCycleEnabled; }
 
+    // ========== 网格构建线程池 ==========
+
+    /**
+     * @brief 初始化网格构建线程池
+     * @param threadCount 线程数量（-1 表示自动检测）
+     */
+    void initializeMeshWorkerPool(i32 threadCount = -1);
+
+    /**
+     * @brief 关闭网格构建线程池
+     */
+    void shutdownMeshWorkerPool();
+
+    /**
+     * @brief 处理已完成的网格构建结果
+     *
+     * 在主线程每帧调用，处理 Worker 线程完成的结果。
+     * 使用 maxPerFrame 限制每帧处理数量，避免帧卡顿。
+     *
+     * @param maxPerFrame 每帧最多处理数量（默认 4）
+     */
+    void processMeshBuildResults(u32 maxPerFrame = 4);
+
+    /**
+     * @brief 获取网格构建线程池（只读访问）
+     */
+    [[nodiscard]] const MeshWorkerPool* meshWorkerPool() const { return m_meshWorkerPool.get(); }
+
 private:
     // 区块加载/卸载
     void loadChunksInRange(const glm::vec3& position, i32 range);
@@ -222,6 +252,9 @@ private:
     // 获取相邻区块
     void getNeighborChunks(const ChunkId& id, const ChunkData* neighbors[6]);
 
+    // 获取相邻区块数据（shared_ptr 版本，用于异步网格构建）
+    std::array<std::shared_ptr<const ChunkData>, 6> getNeighborChunkData(const ChunkId& id);
+
     // 计算区块优先级
     world::ChunkLoadPriority calculatePriority(const ChunkId& id, const glm::vec3& cameraPos) const;
 
@@ -232,10 +265,16 @@ private:
     std::priority_queue<ChunkLoadRequest> m_loadQueue;
     std::unordered_set<ChunkId> m_queuedChunks;
 
+    // 网格构建线程池
+    std::unique_ptr<MeshWorkerPool> m_meshWorkerPool;
+
     // 配置
     i32 m_renderDistance = 12;
     i32 m_maxChunksPerFrame = 4;  // 每帧最多加载的区块数
     u64 m_seed = 0;
+
+    // 相机位置（用于优先级计算）
+    glm::vec3 m_cameraPosition{0.0f, 0.0f, 0.0f};
 
     // 世界边界
     i32 m_minBuildHeight = 0;

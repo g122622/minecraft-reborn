@@ -27,6 +27,7 @@ add_executable(mr_tests
     server/test_integrated_server.cpp
     server/test_chunk_worker_pool.cpp
     server/test_server_chunk_manager.cpp
+    client/test_mesh_worker_pool.cpp
 )
 
 # 添加服务端源文件
@@ -74,6 +75,10 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/client/renderer/sky/CelestialCalculations.cpp
         # 设置系统
         ${CMAKE_SOURCE_DIR}/src/client/settings/ClientSettings.cpp
+        # 网格构建线程池
+        ${CMAKE_SOURCE_DIR}/src/client/renderer/MeshWorkerPool.cpp
+        # 区块网格生成
+        ${CMAKE_SOURCE_DIR}/src/common/renderer/ChunkMesher.cpp
 )
 
 target_link_libraries(mr_tests

@@ -10,6 +10,9 @@
 #include <unordered_map>
 #include <memory>
 #include <vector>
+#include <mutex>
+#include <queue>
+#include <functional>
 
 namespace mr::client {
 
@@ -27,6 +30,24 @@ struct ChunkGpuBuffer {
         indexCount = 0;
         isValid = false;
     }
+};
+
+// 待上传的网格数据
+struct PendingMeshUpload {
+    ChunkId chunkId;
+    MeshData meshData;
+    u64 submitTime = 0;  // 提交时间戳（用于超时检测）
+};
+
+// Fence 管理器（用于非阻塞上传）
+struct FenceManager {
+    std::vector<VkFence> fences;
+    std::vector<VkCommandBuffer> commandBuffers;
+    std::vector<bool> inUse;
+    u32 nextIndex = 0;
+
+    void cleanup(VkDevice device, VkCommandPool commandPool);
+    void destroy(VkDevice device, VkCommandPool commandPool);
 };
 
 // 区块渲染器
@@ -76,6 +97,35 @@ public:
     void render(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout,
                 PushConstantsCallback pushConstantsCallback);
 
+    // ========== 异步 GPU 上传 ==========
+
+    /**
+     * @brief 提交网格上传请求
+     *
+     * 将网格数据添加到待上传队列，非阻塞调用。
+     * 实际上传在 processPendingUploads() 中执行。
+     *
+     * @param chunkId 区块 ID
+     * @param meshData 网格数据（会被移动）
+     */
+    void submitMeshUpload(const ChunkId& chunkId, MeshData&& meshData);
+
+    /**
+     * @brief 处理待上传的网格数据
+     *
+     * 每帧调用一次，处理最多 maxPerFrame 个待上传网格。
+     * 使用 fence 实现非阻塞上传，避免 GPU 等待。
+     *
+     * @param maxPerFrame 每帧最多处理数量（默认 4）
+     * @return 实际处理的数量
+     */
+    u32 processPendingUploads(u32 maxPerFrame = 4);
+
+    /**
+     * @brief 获取待上传队列大小
+     */
+    [[nodiscard]] size_t pendingUploadCount() const;
+
     // 统计
     u32 chunkCount() const { return static_cast<u32>(m_chunkBuffers.size()); }
     u32 totalVertexCount() const { return m_totalVertices; }
@@ -101,6 +151,17 @@ private:
     // 暂存缓冲区
     std::unique_ptr<StagingBuffer> m_stagingBuffer;
     VkDeviceSize m_stagingBufferSize = 16 * 1024 * 1024; // 16MB
+
+    // ========== 异步上传支持 ==========
+
+    // 待上传队列
+    std::queue<PendingMeshUpload> m_pendingUploads;
+    mutable std::mutex m_pendingMutex;
+    u64 m_uploadTimestamp = 0;
+
+    // Fence 管理（用于非阻塞上传）
+    FenceManager m_fenceManager;
+    static constexpr u32 MAX_IN_FLIGHT_UPLOADS = 8;  // 最大同时上传数量
 
     // 单次命令缓冲区
     [[nodiscard]] Result<VkCommandBuffer> beginSingleTimeCommands();

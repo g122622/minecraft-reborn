@@ -190,6 +190,10 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         return worldResult.error();
     }
 
+    // 初始化网格构建线程池
+    spdlog::info("Initializing mesh worker pool...");
+    m_world.initializeMeshWorkerPool();
+
     // 初始化方块碰撞注册表
     spdlog::info("Initializing block collision registry...");
 
@@ -387,6 +391,9 @@ void ClientApplication::update(f32 deltaTime)
     // 更新世界（根据相机位置加载/卸载区块）
     m_world.update(m_camera.position(), m_settings.renderDistance.get());
 
+    // 处理异步网格构建结果
+    m_world.processMeshBuildResults(4);  // 每帧最多处理 4 个网格
+
     // 同步时间到渲染器（驱动天空、太阳、月亮、星空变化）
     if (m_renderer) {
         constexpr i64 DAY_LENGTH_TICKS = 24000;
@@ -412,7 +419,7 @@ void ClientApplication::update(f32 deltaTime)
         m_renderer->updateTime(m_renderDayTime, m_renderGameTime, m_renderTickAccumulator);
     }
 
-    // 上传网格到 GPU
+    // 上传网格到 GPU（只处理已完成异步构建的网格）
     if (m_renderer->isChunkRendererInitialized()) {
         auto& chunkRenderer = m_renderer->chunkRenderer();
         m_world.forEachDirtyMesh([this, &chunkRenderer](const ChunkId& id, ClientChunk& chunk) {
@@ -479,7 +486,7 @@ void ClientApplication::shutdown()
     m_player.reset();
     m_physicsEngine.reset();
 
-    // 清理世界
+    // 清理世界（包括关闭网格构建线程池）
     m_world.destroy();
 
     m_window.destroy();

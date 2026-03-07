@@ -24,6 +24,9 @@ Result<void> ClientWorld::initialize(u64 seed) {
 }
 
 void ClientWorld::destroy() {
+    // 先关闭网格构建线程池
+    shutdownMeshWorkerPool();
+
     m_chunks.clear();
 
     while (!m_loadQueue.empty()) {
@@ -36,6 +39,7 @@ void ClientWorld::destroy() {
 
 void ClientWorld::update(const glm::vec3& cameraPosition, i32 renderDistance) {
     m_renderDistance = renderDistance;
+    m_cameraPosition = cameraPosition;
     // 区块加载由服务端控制，客户端只处理卸载
     unloadChunksOutOfRange(cameraPosition, renderDistance + 2); // 多保留2个区块的缓冲
 }
@@ -127,7 +131,8 @@ void ClientWorld::forEachChunk(std::function<void(const ChunkId&, ClientChunk&)>
 
 void ClientWorld::forEachDirtyMesh(std::function<void(const ChunkId&, ClientChunk&)> func) {
     for (auto& [id, chunk] : m_chunks) {
-        if (chunk && chunk->needsMeshUpdate && chunk->isLoaded) {
+        // 跳过正在构建网格的区块
+        if (chunk && chunk->needsMeshUpdate && chunk->isLoaded && !chunk->meshBuilding) {
             func(id, *chunk);
         }
     }
@@ -242,7 +247,7 @@ void ClientWorld::processLoadQueue() {
         // 创建新区块
         auto chunk = std::make_unique<ClientChunk>();
         chunk->chunkId = request.chunkId;
-        chunk->data = std::make_unique<ChunkData>(request.chunkId.x, request.chunkId.z);
+        chunk->data = std::make_shared<ChunkData>(request.chunkId.x, request.chunkId.z);
 
         // 生成地形
         generateChunk(*chunk);
@@ -252,6 +257,7 @@ void ClientWorld::processLoadQueue() {
 
         chunk->isLoaded = true;
         chunk->needsMeshUpdate = true;  // 标记需要上传到GPU
+        chunk->meshBuilding = false;
 
         m_chunks[request.chunkId] = std::move(chunk);
         m_chunksLoaded++;
@@ -293,6 +299,32 @@ void ClientWorld::rebuildMesh(ClientChunk& chunk) {
     ChunkMesher::generateMesh(*chunk.data, chunk.solidMesh, neighbors);
 
     chunk.needsMeshUpdate = false;
+}
+
+std::array<std::shared_ptr<const ChunkData>, 6> ClientWorld::getNeighborChunkData(const ChunkId& id) {
+    std::array<std::shared_ptr<const ChunkData>, 6> neighbors;
+
+    // -X
+    auto neighbor = getChunk(ChunkId(id.x - 1, id.z));
+    neighbors[0] = (neighbor && neighbor->data) ? neighbor->data : nullptr;
+
+    // +X
+    neighbor = getChunk(ChunkId(id.x + 1, id.z));
+    neighbors[1] = (neighbor && neighbor->data) ? neighbor->data : nullptr;
+
+    // -Z
+    neighbor = getChunk(ChunkId(id.x, id.z - 1));
+    neighbors[2] = (neighbor && neighbor->data) ? neighbor->data : nullptr;
+
+    // +Z
+    neighbor = getChunk(ChunkId(id.x, id.z + 1));
+    neighbors[3] = (neighbor && neighbor->data) ? neighbor->data : nullptr;
+
+    // -Y 和 +Y 暂时为空
+    neighbors[4] = nullptr;
+    neighbors[5] = nullptr;
+
+    return neighbors;
 }
 
 void ClientWorld::getNeighborChunks(const ChunkId& id, const ChunkData* neighbors[6]) {
@@ -345,21 +377,33 @@ void ClientWorld::onChunkData(ChunkCoord x, ChunkCoord z, std::vector<u8>&& data
         spdlog::error("Failed to deserialize chunk ({}, {}): {}", x, z, result.error().message());
         return;
     }
-    auto chunkData = std::move(result.value());
+
+    // 使用 shared_ptr 以支持异步网格构建
+    auto chunkData = std::shared_ptr<ChunkData>(std::move(result.value()));
 
     auto chunk = std::make_unique<ClientChunk>();
     chunk->chunkId = id;
-    chunk->data = std::move(chunkData);
+    chunk->data = chunkData;
     chunk->isLoaded = true;
-
-    // 重建网格（rebuildMesh 会设置 needsMeshUpdate = false）
-    rebuildMesh(*chunk);
-
-    // 标记需要上传到 GPU（重要！需要在下一帧上传到 GPU）
-    chunk->needsMeshUpdate = true;
+    chunk->meshBuilding = true;  // 标记正在构建网格
 
     m_chunks[id] = std::move(chunk);
     m_chunksLoaded++;
+
+    // 异步构建网格（如果线程池已初始化）
+    if (m_meshWorkerPool && m_meshWorkerPool->isRunning()) {
+        auto neighbors = getNeighborChunkData(id);
+        i32 priority = static_cast<i32>(calculatePriority(id, m_cameraPosition));
+        m_meshWorkerPool->submitTask(id, chunkData, neighbors, priority);
+    } else {
+        // 回退到同步构建（如果线程池不可用）
+        ClientChunk* chunkPtr = getChunk(id);
+        if (chunkPtr && chunkPtr->data) {
+            rebuildMesh(*chunkPtr);
+            chunkPtr->needsMeshUpdate = true;
+            chunkPtr->meshBuilding = false;
+        }
+    }
 }
 
 void ClientWorld::onChunkUnload(ChunkCoord x, ChunkCoord z) {
@@ -408,6 +452,58 @@ f32 ClientWorld::getInterpolatedCelestialAngle(f32 partialTick) const {
     f64 d1 = 0.5 - std::cos(d0 * mr::math::PI_DOUBLE) / 2.0;
 
     return static_cast<f32>((d0 * 2.0 + d1) / 3.0);
+}
+
+// ============================================================================
+// 网格构建线程池
+// ============================================================================
+
+void ClientWorld::initializeMeshWorkerPool(i32 threadCount) {
+    if (m_meshWorkerPool) {
+        spdlog::warn("MeshWorkerPool already initialized");
+        return;
+    }
+
+    m_meshWorkerPool = std::make_unique<MeshWorkerPool>(threadCount);
+    m_meshWorkerPool->start();
+    spdlog::info("ClientWorld: MeshWorkerPool initialized with {} threads",
+                 m_meshWorkerPool->threadCount());
+}
+
+void ClientWorld::shutdownMeshWorkerPool() {
+    if (m_meshWorkerPool) {
+        m_meshWorkerPool->shutdown();
+        m_meshWorkerPool.reset();
+        spdlog::info("ClientWorld: MeshWorkerPool shutdown");
+    }
+}
+
+void ClientWorld::processMeshBuildResults(u32 maxPerFrame) {
+    if (!m_meshWorkerPool || !m_meshWorkerPool->isRunning()) {
+        return;
+    }
+
+    m_meshWorkerPool->processCompletedTasks(
+        [this](MeshBuildResult result) {
+            ClientChunk* chunk = getChunk(result.chunkId);
+            if (!chunk) {
+                // 区块可能已被卸载
+                return;
+            }
+
+            if (result.success) {
+                chunk->solidMesh = std::move(result.solidMesh);
+                chunk->transparentMesh = std::move(result.transparentMesh);
+                chunk->needsMeshUpdate = true;  // 标记需要 GPU 上传
+            } else {
+                spdlog::warn("Mesh build failed for chunk ({}, {})",
+                             result.chunkId.x, result.chunkId.z);
+            }
+
+            chunk->meshBuilding = false;
+        },
+        maxPerFrame
+    );
 }
 
 } // namespace mr::client
