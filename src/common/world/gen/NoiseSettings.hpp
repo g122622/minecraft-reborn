@@ -13,6 +13,8 @@ namespace mr {
  * @brief 噪声缩放设置
  *
  * 参考 MC NoiseSettings.Scaling
+ * 主世界默认值：xzScale=0.9999999814507745, yScale=0.9999999814507745
+ *                xzFactor=80.0, yFactor=160.0
  */
 struct ScalingSettings {
     f64 xzScale = 0.9999999814507745;   // XZ 平面缩放
@@ -275,7 +277,7 @@ struct BiomeDefinition {
 
 namespace Biomes {
 
-// 生物群系 ID 常量
+// 生物群系 ID 常量（参考 MC 1.16.5）
 constexpr BiomeId Ocean = 0;
 constexpr BiomeId Plains = 1;
 constexpr BiomeId Desert = 2;
@@ -295,8 +297,32 @@ constexpr BiomeId Beach = 15;
 constexpr BiomeId Jungle = 16;
 constexpr BiomeId Savanna = 17;
 constexpr BiomeId Badlands = 18;
+// 新增生物群系
+constexpr BiomeId DeepOcean = 19;
+constexpr BiomeId WarmOcean = 20;
+constexpr BiomeId ColdOcean = 21;
+constexpr BiomeId LukewarmOcean = 22;
+constexpr BiomeId DeepWarmOcean = 23;
+constexpr BiomeId DeepColdOcean = 24;
+constexpr BiomeId DeepLukewarmOcean = 25;
+constexpr BiomeId DeepFrozenOcean = 26;
+constexpr BiomeId WoodedHills = 27;
+constexpr BiomeId DesertHills = 28;
+constexpr BiomeId MountainEdge = 29;
+constexpr BiomeId StoneShore = 30;
+constexpr BiomeId SnowyBeach = 31;
+constexpr BiomeId BirchForest = 32;
+constexpr BiomeId DarkForest = 33;
+constexpr BiomeId SnowyTaiga = 34;
+constexpr BiomeId GiantTreeTaiga = 35;
+constexpr BiomeId WoodedMountains = 36;
+constexpr BiomeId SavannaPlateau = 37;
+constexpr BiomeId BadlandsPlateau = 38;
+constexpr BiomeId WoodedBadlandsPlateau = 39;
+constexpr BiomeId ErodedBadlands = 40;
+constexpr BiomeId ShatteredSavanna = 41;
 
-// 获取默认生物群系定义
+// 获取默认生物群系定义（depth/scale 参数参考 MC 1.16.5 BiomeMaker）
 BiomeDefinition getPlains();
 BiomeDefinition getDesert();
 BiomeDefinition getMountains();
@@ -306,6 +332,29 @@ BiomeDefinition getTaiga();
 BiomeDefinition getJungle();
 BiomeDefinition getSavanna();
 BiomeDefinition getBadlands();
+BiomeDefinition getDeepOcean();
+BiomeDefinition getBeach();
+BiomeDefinition getSwamp();
+BiomeDefinition getRiver();
+BiomeDefinition getWoodedHills();
+BiomeDefinition getMountainEdge();
+BiomeDefinition getStoneShore();
+BiomeDefinition getSnowyBeach();
+BiomeDefinition getSnowyPlains();
+BiomeDefinition getDarkForest();
+BiomeDefinition getBirchForest();
+BiomeDefinition getGiantTreeTaiga();
+BiomeDefinition getWoodedMountains();
+BiomeDefinition getSavannaPlateau();
+BiomeDefinition getBadlandsPlateau();
+BiomeDefinition getWoodedBadlandsPlateau();
+BiomeDefinition getErodedBadlands();
+BiomeDefinition getShatteredSavanna();
+
+/**
+ * @brief 获取所有默认生物群系定义
+ */
+std::vector<BiomeDefinition> getDefaultBiomes();
 
 } // namespace Biomes
 

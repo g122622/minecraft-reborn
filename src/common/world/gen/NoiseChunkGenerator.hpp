@@ -3,6 +3,7 @@
 #include "IChunkGenerator.hpp"
 #include "OctavesNoiseGenerator.hpp"
 #include "NoiseSettings.hpp"
+#include "Carver.hpp"
 #include "../chunk/ChunkPrimer.hpp"
 #include "../WorldConstants.hpp"
 #include <memory>
@@ -81,6 +82,10 @@ private:
 
     // === 生物群系 ===
     std::unique_ptr<BiomeProvider> m_biomeProvider;
+
+    // === 洞穴雕刻器 ===
+    std::unique_ptr<CaveCarver> m_caveCarver;
+    std::unique_ptr<CanyonCarver> m_canyonCarver;
 
     // === 缓存的噪声参数 ===
     i32 m_noiseSizeX;

@@ -49,6 +49,7 @@ add_library(mr_common STATIC
     world/gen/NoiseSettings.cpp
     world/gen/IChunkGenerator.cpp
     world/gen/NoiseChunkGenerator.cpp
+    world/gen/Carver.cpp
 
     # World - Time
     world/time/GameTime.cpp

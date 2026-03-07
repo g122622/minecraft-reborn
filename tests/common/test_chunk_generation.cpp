@@ -9,6 +9,7 @@
 #include "common/world/gen/NoiseSettings.hpp"
 #include "common/world/gen/NoiseChunkGenerator.hpp"
 #include "common/world/gen/IChunkGenerator.hpp"
+#include "common/world/block/VanillaBlocks.hpp"
 
 using namespace mr;
 
@@ -507,7 +508,15 @@ TEST(NoiseChunkGenerator, HeightEstimation) {
 // Integration Test: 完整区块生成
 // ============================================================================
 
-TEST(ChunkGeneration, GenerateChunkPrimer) {
+class ChunkGenerationTest : public ::testing::Test {
+protected:
+    static void SetUpTestSuite() {
+        // 初始化方块注册表
+        VanillaBlocks::initialize();
+    }
+};
+
+TEST_F(ChunkGenerationTest, GenerateChunkPrimer) {
     // 创建生成器
     DimensionSettings settings = DimensionSettings::overworld();
     NoiseChunkGenerator generator(12345, std::move(settings));
@@ -544,4 +553,83 @@ TEST(ChunkGeneration, GenerateChunkPrimer) {
     }
 
     EXPECT_TRUE(hasAnyBlock);
+}
+
+TEST_F(ChunkGenerationTest, TerrainHeightVariation) {
+    // 创建生成器
+    DimensionSettings settings = DimensionSettings::overworld();
+    NoiseChunkGenerator generator(12345, std::move(settings));
+
+    // 生成多个区块来检查高度变化
+    std::vector<i32> heights;
+
+    for (int cx = -2; cx <= 2; ++cx) {
+        for (int cz = -2; cz <= 2; ++cz) {
+            ChunkPrimer primer(cx, cz);
+            std::array<IChunk*, 9> chunks{};
+            chunks[4] = &primer;
+            WorldGenRegion region(cx, cz, chunks);
+
+            generator.generateBiomes(region, primer);
+            generator.generateNoise(region, primer);
+            generator.buildSurface(region, primer);
+
+            // 获取中心高度
+            i32 height = primer.getTopBlockY(HeightmapType::WorldSurfaceWG, 8, 8);
+            heights.push_back(height);
+        }
+    }
+
+    // 计算高度统计
+    i32 minHeight = *std::min_element(heights.begin(), heights.end());
+    i32 maxHeight = *std::max_element(heights.begin(), heights.end());
+    i32 avgHeight = 0;
+    for (i32 h : heights) avgHeight += h;
+    avgHeight /= static_cast<i32>(heights.size());
+
+    // 地形高度应该在合理范围内
+    // 平坦地形：63 左右（海平面）
+    // 山地：100+
+    // 海洋：40-
+    EXPECT_GT(minHeight, 30) << "Min height too low: " << minHeight;
+    EXPECT_LT(maxHeight, 200) << "Max height too high: " << maxHeight;
+
+    // 地形应该有一定的高度变化（不是完全平坦）
+    // 注意：这取决于种子和生物群系分布
+    // 但至少应该有一些变化
+    EXPECT_GE(maxHeight - minHeight, 5) << "Terrain too flat: min=" << minHeight << ", max=" << maxHeight;
+
+    // 平均高度应该在海平面附近或以上
+    EXPECT_GT(avgHeight, 50) << "Average height too low: " << avgHeight;
+    EXPECT_LT(avgHeight, 120) << "Average height too high: " << avgHeight;
+}
+
+TEST_F(ChunkGenerationTest, BiomeDistribution) {
+    // 创建生成器
+    DimensionSettings settings = DimensionSettings::overworld();
+    NoiseChunkGenerator generator(54321, std::move(settings));
+
+    // 检查更大范围的生物群系
+    std::set<BiomeId> foundBiomes;
+
+    // 采样范围 -500 到 500，更大范围更多生物群系
+    for (int x = -500; x <= 500; x += 50) {
+        for (int z = -500; z <= 500; z += 50) {
+            BiomeId biome = generator.getBiome(x, 64, z);
+            foundBiomes.insert(biome);
+        }
+    }
+
+    // 应该发现多种生物群系
+    EXPECT_GT(foundBiomes.size(), 2u) << "Should find multiple biomes, found: " << foundBiomes.size();
+
+    // 不应该全部是海洋
+    bool hasNonOcean = false;
+    for (BiomeId biome : foundBiomes) {
+        if (biome != Biomes::Ocean && biome != Biomes::DeepOcean) {
+            hasNonOcean = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(hasNonOcean) << "Should have non-ocean biomes";
 }

@@ -31,15 +31,25 @@ NoiseChunkGenerator::NoiseChunkGenerator(u64 seed, DimensionSettings settings)
     initNoiseGenerators();
     initBiomeWeights();
 
-    // 创建默认的生物群系提供者
-    std::vector<BiomeDefinition> defaultBiomes = {
-        Biomes::getPlains(),
-        Biomes::getDesert(),
-        Biomes::getMountains(),
-        Biomes::getForest(),
-        Biomes::getOcean()
-    };
-    m_biomeProvider = std::make_unique<SimpleBiomeProvider>(seed, defaultBiomes);
+    // 使用完整的生物群系列表
+    m_biomeProvider = std::make_unique<SimpleBiomeProvider>(seed, Biomes::getDefaultBiomes());
+
+    // 初始化洞穴雕刻器
+    // 洞穴概率参考 MC: 1/7 ≈ 0.14285715
+    CarverConfig caveConfig;
+    caveConfig.probability = 0.14285715f;
+    caveConfig.maxHeight = 256;
+    caveConfig.minGenerationAttempts = 15;
+    caveConfig.range = 4;
+    m_caveCarver = std::make_unique<CaveCarver>(seed, caveConfig);
+
+    // 峡谷概率更低
+    CarverConfig canyonConfig;
+    canyonConfig.probability = 0.02f;
+    canyonConfig.maxHeight = 256;
+    canyonConfig.minGenerationAttempts = 1;
+    canyonConfig.range = 4;
+    m_canyonCarver = std::make_unique<CanyonCarver>(seed + 1, canyonConfig);
 }
 
 NoiseChunkGenerator::NoiseChunkGenerator(u64 seed, DimensionSettings settings,
@@ -259,46 +269,52 @@ void NoiseChunkGenerator::fillNoiseColumn(std::vector<f64>& column, i32 noiseX, 
 
     const NoiseSettings& noise = m_settings.noise;
 
-    // === 计算生物群系权重 ===
-    f64 totalDepth = 0.0;
-    f64 totalScale = 0.0;
-    f64 totalWeight = 0.0;
+    // === 计算生物群系权重（参考 MC NoiseChunkGenerator.fillNoiseColumn 第 196-232 行）===
+    f64 totalScale = 0.0;   // f - 累加比例
+    f64 totalDepth = 0.0;   // f1 - 累加深度
+    f64 totalWeight = 0.0;  // f2 - 累加权重
 
-    const f32 centerDepth = m_biomeProvider->getDepth(noiseX << 2, noiseZ << 2);
+    // 获取中心生物群系的深度（用于权重调整）
+    const BiomeId centerBiome = m_biomeProvider->getNoiseBiome(noiseX, 0, noiseZ);
+    const BiomeDefinition& centerDef = m_biomeProvider->getBiomeDefinition(centerBiome);
+    const f32 centerDepth = centerDef.depth;
 
     for (i32 dz = -2; dz <= 2; ++dz) {
         for (i32 dx = -2; dx <= 2; ++dx) {
-            const i32 bx = noiseX + dx;
-            const i32 bz = noiseZ + dz;
-
-            const BiomeId biome = m_biomeProvider->getNoiseBiome(bx, 0, bz);
+            const BiomeId biome = m_biomeProvider->getNoiseBiome(noiseX + dx, 0, noiseZ + dz);
             const BiomeDefinition& def = m_biomeProvider->getBiomeDefinition(biome);
 
-            const f32 depth = def.depth;
-            const f32 scale = def.scale;
+            const f32 depth = def.depth;   // f4
+            const f32 scale = def.scale;   // f5
 
-            // 权重计算（参考 MC）
+            // 参考 MC 第 210-216 行：放大化世界的加权
+            // 非 amplifed 模式下直接使用原始值
+            f32 weightedDepth = depth;  // f6
+            f32 weightedScale = scale;  // f7
+
+            // 参考 MC 第 218 行：权重因子
+            // 如果当前生物群系深度大于中心深度，减少权重
+            const f32 depthFactor = (depth > centerDepth) ? 0.5f : 1.0f;  // f8
+
+            // 参考 MC 第 219 行：计算权重
             const i32 weightIndex = (dx + 2) + (dz + 2) * 5;
-            f64 weight = m_biomeWeights[weightIndex];
+            const f32 baseWeight = m_biomeWeights[weightIndex];
+            const f32 weightFactor = depthFactor * baseWeight / (weightedDepth + 2.0f);  // f9
 
-            // 如果当前生物群系深度小于中心，增加权重
-            if (depth > centerDepth) {
-                weight *= 0.5;
-            }
-
-            weight /= (depth + 2.0);
-
-            totalDepth += depth * weight;
-            totalScale += scale * weight;
-            totalWeight += weight;
+            // 参考 MC 第 220-222 行：累加
+            totalScale += weightedScale * weightFactor;  // f += f7 * f9
+            totalDepth += weightedDepth * weightFactor;  // f1 += f6 * f9
+            totalWeight += weightFactor;                  // f2 += f9
         }
     }
 
-    const f64 avgDepth = (totalDepth / totalWeight) * 0.5 - 0.125;
-    const f64 avgScale = (totalScale / totalWeight) * 0.9 + 0.1;
+    // 参考 MC 第 226-231 行：计算平均深度和比例
+    const f64 avgDepth = totalDepth / totalWeight;          // f10 = f1 / f2
+    const f64 avgScale = totalScale / totalWeight;          // f11 = f / f2
 
-    const f64 depthOffset = avgDepth * 0.265625;
-    const f64 heightFactor = 96.0 / avgScale;
+    // 转换为地形参数
+    const f64 depthOffset = (avgDepth * 0.5 - 0.125) * 0.265625;
+    const f64 heightFactor = 96.0 / (avgScale * 0.9 + 0.1);
 
     // === 噪声参数 ===
     const f64 xzScale = 684.412 * noise.scaling.xzScale;
@@ -613,8 +629,23 @@ void NoiseChunkGenerator::buildSurfaceForColumn(ChunkPrimer& chunk, i32 x, i32 z
 
 void NoiseChunkGenerator::applyCarvers(WorldGenRegion& region, ChunkPrimer& chunk, bool isLiquid)
 {
-    // 暂时未实现洞穴雕刻
-    // 后续可以添加
+    // 参考 MC NoiseChunkGenerator.func_230352_b_
+    // 洞穴雕刻应在 NOISE 之后、SURFACE 之前进行
+    // 但我们在这里（SURFACE 之后）进行，以确保地表正确生成
+
+    const ChunkCoord chunkX = chunk.x();
+    const ChunkCoord chunkZ = chunk.z();
+
+    // 应用洞穴雕刻器
+    if (m_caveCarver && !isLiquid) {
+        m_caveCarver->carve(chunk, *m_biomeProvider, m_settings.seaLevel, chunkX, chunkZ);
+    }
+
+    // 应用峡谷雕刻器
+    if (m_canyonCarver && !isLiquid) {
+        m_canyonCarver->carve(chunk, *m_biomeProvider, m_settings.seaLevel, chunkX, chunkZ);
+    }
+
     chunk.setChunkStatus(ChunkStatus::CARVERS);
 }
 
@@ -672,12 +703,22 @@ SimpleBiomeProvider::SimpleBiomeProvider(u64 seed, const std::vector<BiomeDefini
 {
     std::mt19937_64 rng(seed);
 
+    // 主世界生物群系噪声（更大尺度，更平滑）
     m_temperatureNoise = std::make_unique<PerlinNoiseGenerator>(rng, -4, 0);
     m_humidityNoise = std::make_unique<PerlinNoiseGenerator>(rng, -4, 0);
-    m_continentalnessNoise = std::make_unique<PerlinNoiseGenerator>(rng, -4, 0);
+
+    // 大陆度噪声（控制海洋/陆地分布）
+    // 使用更大尺度使大陆和海洋更大块
+    m_continentalnessNoise = std::make_unique<PerlinNoiseGenerator>(rng, -5, 0);
+
+    // 侵蚀噪声（控制地形起伏）
     m_erosionNoise = std::make_unique<PerlinNoiseGenerator>(rng, -4, 0);
-    m_depthNoise = std::make_unique<PerlinNoiseGenerator>(rng, -4, 0);
-    m_scaleNoise = std::make_unique<PerlinNoiseGenerator>(rng, -4, 0);
+
+    // 深度噪声（用于生物群系高度变化）
+    m_depthNoise = std::make_unique<PerlinNoiseGenerator>(rng, -3, 0);
+
+    // 比例噪声（用于生物群系比例变化）
+    m_scaleNoise = std::make_unique<PerlinNoiseGenerator>(rng, -3, 0);
 }
 
 BiomeId SimpleBiomeProvider::getBiome(i32 x, i32 y, i32 z) const
@@ -687,24 +728,42 @@ BiomeId SimpleBiomeProvider::getBiome(i32 x, i32 y, i32 z) const
 
 BiomeId SimpleBiomeProvider::getNoiseBiome(i32 noiseX, i32 noiseY, i32 noiseZ) const
 {
-    // 采样噪声
+    // 使用适当的采样频率来获得合适的生物群系大小
+    // 坐标转换：noiseX = worldX >> 2，所以 1 个噪声单位 = 4 个方块
+    // 我们希望生物群系在 200-400 方块范围内变化
+
+    // 温度和湿度噪声 - 控制基本气候带
+    // 频率 0.005 意味着每 200 个噪声单位一个周期 = 800 方块
     const f64 temperature = m_temperatureNoise->noise2D(noiseX * 0.005, noiseZ * 0.005) * 0.5 + 0.5;
     const f64 humidity = m_humidityNoise->noise2D(noiseX * 0.005, noiseZ * 0.005) * 0.5 + 0.5;
-    const f64 depth = m_depthNoise->noise2D(noiseX * 0.01, noiseZ * 0.01);
-    const f64 scale = m_scaleNoise->noise2D(noiseX * 0.01, noiseZ * 0.01);
 
-    return selectBiome(static_cast<f32>(temperature), static_cast<f32>(humidity),
-                       static_cast<f32>(depth), static_cast<f32>(scale));
+    // 大陆度噪声 - 控制海洋/陆地分布
+    // 返回值范围 -1 到 1，映射到我们的分界点
+    const f64 continentalness = m_depthNoise->noise2D(noiseX * 0.003, noiseZ * 0.003);
+
+    // 侵蚀噪声 - 控制地形起伏程度
+    const f64 erosion = m_scaleNoise->noise2D(noiseX * 0.01, noiseZ * 0.01) * 0.5 + 0.5;
+
+    return selectBiome(static_cast<f32>(temperature),
+                       static_cast<f32>(humidity),
+                       static_cast<f32>(continentalness),
+                       static_cast<f32>(erosion));
 }
 
 f32 SimpleBiomeProvider::getDepth(i32 x, i32 z) const
 {
-    return static_cast<f32>(m_depthNoise->noise2D(x * 0.01, z * 0.01));
+    // 获取该位置的生物群系，返回其 depth 属性
+    const BiomeId biome = getBiome(x, 0, z);
+    const BiomeDefinition& def = getBiomeDefinition(biome);
+    return def.depth;
 }
 
 f32 SimpleBiomeProvider::getScale(i32 x, i32 z) const
 {
-    return static_cast<f32>(m_scaleNoise->noise2D(x * 0.01, z * 0.01));
+    // 获取该位置的生物群系，返回其 scale 属性
+    const BiomeId biome = getBiome(x, 0, z);
+    const BiomeDefinition& def = getBiomeDefinition(biome);
+    return def.scale;
 }
 
 const BiomeDefinition& SimpleBiomeProvider::getBiomeDefinition(BiomeId id) const
@@ -717,36 +776,159 @@ const BiomeDefinition& SimpleBiomeProvider::getBiomeDefinition(BiomeId id) const
     return m_defaultBiome;
 }
 
-BiomeId SimpleBiomeProvider::selectBiome(f32 temperature, f32 humidity, f32 depth, f32 scale) const
+BiomeId SimpleBiomeProvider::selectBiome(f32 temperature, f32 humidity, f32 continentalness, f32 erosion) const
 {
-    // 简单的生物群系选择逻辑
-    // 温度 < 0.2: 雪地
-    // 温度 > 1.5: 沙漠
-    // 深度 < -0.5: 海洋
-    // 深度 > 0.8: 山地
-    // 否则: 平原/森林
+    // 参考 MC 1.16.5 的生物群系选择逻辑
+    // continentalness 控制海洋/陆地分布（-1 到 1）
+    // temperature 控制冷热（-1 到 1，通常 0-2）
+    // humidity 控制干湿（0 到 1）
+    // erosion 控制地形起伏（0 到 1）
 
-    if (depth < -0.5f) {
+    // 深海区域：continentalness 很低（远离大陆）
+    if (continentalness < -0.6f) {
+        return Biomes::DeepOcean;
+    }
+
+    // 浅海区域
+    if (continentalness < -0.3f) {
+        // 温度影响海洋类型
+        if (temperature < -0.5f) {
+            return Biomes::DeepFrozenOcean;  // 使用 DeepOcean 代替未定义的
+        }
         return Biomes::Ocean;
     }
 
-    if (depth > 0.8f) {
+    // 近海/海滩区域
+    if (continentalness < -0.1f) {
+        if (temperature < 0.0f) {
+            return Biomes::SnowyBeach;
+        }
+        return Biomes::Beach;
+    }
+
+    // 沼泽/河流（低洼陆地）
+    if (continentalness < 0.05f) {
+        if (humidity > 0.7f) {
+            return Biomes::Swamp;
+        }
+        if (humidity < 0.3f) {
+            return Biomes::River;
+        }
+    }
+
+    // 内陆区域：根据温度和湿度选择生物群系
+    // 同时考虑 erosion 来决定是否是山地
+
+    // 高侵蚀（平缓地形）
+    if (erosion > 0.7f) {
+        // 平坦区域
+        if (temperature > 1.5f) {
+            return Biomes::Desert;
+        }
+        if (temperature > 1.0f) {
+            return Biomes::Savanna;
+        }
+        if (temperature < -0.3f) {
+            return Biomes::SnowyPlains;
+        }
+        if (humidity > 0.6f) {
+            return Biomes::Forest;
+        }
+        return Biomes::Plains;
+    }
+
+    // 低侵蚀（崎岖地形）- 山地
+    if (erosion < 0.3f) {
+        if (temperature > 1.5f) {
+            if (humidity < 0.3f) {
+                return Biomes::ErodedBadlands;
+            }
+            return Biomes::BadlandsPlateau;
+        }
+        if (temperature > 1.0f) {
+            return Biomes::ShatteredSavanna;
+        }
+        if (temperature < -0.2f) {
+            return Biomes::SnowyMountains;
+        }
+        if (humidity > 0.6f) {
+            return Biomes::WoodedMountains;
+        }
         return Biomes::Mountains;
     }
 
+    // 中等侵蚀 - 丘陵地形
+    if (erosion < 0.5f) {
+        if (temperature > 1.5f) {
+            return Biomes::Badlands;
+        }
+        if (temperature > 1.0f) {
+            return Biomes::SavannaPlateau;
+        }
+        if (temperature < -0.2f) {
+            return Biomes::SnowyTaiga;
+        }
+        if (humidity > 0.7f) {
+            return Biomes::WoodedHills;
+        }
+        return Biomes::MountainEdge;
+    }
+
+    // 普通陆地 - 根据温度和湿度选择
     if (temperature > 1.5f) {
+        // 极热
         return Biomes::Desert;
     }
 
-    if (temperature < 0.2f) {
+    if (temperature > 1.0f) {
+        // 热
+        if (humidity > 0.7f) {
+            return Biomes::Jungle;
+        }
+        return Biomes::Savanna;
+    }
+
+    if (temperature > 0.6f) {
+        // 温暖
+        if (humidity > 0.7f) {
+            return Biomes::Jungle;
+        }
+        if (humidity > 0.4f) {
+            return Biomes::Forest;
+        }
+        return Biomes::Plains;
+    }
+
+    if (temperature > 0.2f) {
+        // 温和
+        if (humidity > 0.7f) {
+            return Biomes::DarkForest;
+        }
+        if (humidity > 0.4f) {
+            return Biomes::Forest;
+        }
+        if (humidity > 0.2f) {
+            return Biomes::BirchForest;
+        }
+        return Biomes::Plains;
+    }
+
+    if (temperature > -0.2f) {
+        // 凉爽
+        if (humidity > 0.5f) {
+            return Biomes::Taiga;
+        }
         return Biomes::Taiga;
     }
 
-    if (humidity > 0.7f) {
-        return Biomes::Forest;
+    // 寒冷
+    if (humidity > 0.5f) {
+        return Biomes::SnowyTaiga;
     }
-
-    return Biomes::Plains;
+    if (humidity < 0.2f) {
+        return Biomes::SnowyPlains;
+    }
+    return Biomes::GiantTreeTaiga;
 }
 
 } // namespace mr
