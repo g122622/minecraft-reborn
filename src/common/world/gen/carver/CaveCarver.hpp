@@ -1,59 +1,39 @@
 #pragma once
 
-#include "../../../core/Types.hpp"
-#include "../../block/Block.hpp"
-#include <memory>
+#include "WorldCarver.hpp"
 #include <random>
 
 namespace mr {
-
-// 前向声明
-class ChunkPrimer;
-class BiomeProvider;
-
-/**
- * @brief 世界雕刻器配置
- *
- * 参考 MC 1.16.5 的雕刻器配置。
- */
-struct CarverConfig {
-    /// 雕刻概率 (0.0 - 1.0)
-    f32 probability = 0.14285715f;  // 1/7，MC 默认洞穴生成概率
-
-    /// 最大高度
-    i32 maxHeight = 256;
-
-    /// 生成尝试次数范围
-    i32 minGenerationAttempts = 15;
-
-    /// 雕刻器范围（以区块为单位）
-    i32 range = 4;
-};
 
 /**
  * @brief 洞穴世界雕刻器
  *
  * 参考 MC CaveWorldCarver，生成洞穴系统。
+ * 改进版本：
+ * - 继承 WorldCarver 基类
+ * - 使用雕刻掩码防止重复雕刻
+ * - 更准确的 MC 1.16.5 洞穴生成算法
  *
  * 使用方法：
  * @code
- * CaveCarver carver(seed, config);
- * carver.carve(region, chunk, biomeProvider, seaLevel);
+ * CaveCarver carver;
+ * CarvingMask mask(chunkX, chunkZ);
+ * ProbabilityConfig config(0.14285715f);
+ * carver.carve(chunk, biomeProvider, seaLevel, chunkX, chunkZ, mask, config);
  * @endcode
  *
  * @note 洞穴雕刻应在 NOISE 阶段之后、SURFACE 阶段之前进行
  * @note 参考 MC 1.16.5 CaveWorldCarver
  */
-class CaveCarver {
+class CaveCarver : public WorldCarver<ProbabilityConfig> {
 public:
     /**
      * @brief 构造洞穴雕刻器
-     * @param seed 世界种子
-     * @param config 雕刻器配置
+     * @param maxHeight 最大雕刻高度
      */
-    CaveCarver(u64 seed, const CarverConfig& config = CarverConfig{});
+    explicit CaveCarver(i32 maxHeight = 256);
 
-    ~CaveCarver() = default;
+    ~CaveCarver() override = default;
 
     /**
      * @brief 在区块中雕刻洞穴
@@ -63,83 +43,122 @@ public:
      * @param seaLevel 海平面高度
      * @param chunkX 区块 X 坐标
      * @param chunkZ 区块 Z 坐标
+     * @param carvingMask 雕刻掩码
+     * @param config 配置
      * @return 是否雕刻了任何方块
      */
     bool carve(ChunkPrimer& chunk,
                const BiomeProvider& biomeProvider,
                i32 seaLevel,
                ChunkCoord chunkX,
-               ChunkCoord chunkZ);
+               ChunkCoord chunkZ,
+               CarvingMask& carvingMask,
+               const ProbabilityConfig& config) override;
 
     /**
      * @brief 检查是否应该在这个区块生成洞穴
      */
-    [[nodiscard]] bool shouldCarve(std::mt19937_64& rng, ChunkCoord chunkX, ChunkCoord chunkZ) const;
+    [[nodiscard]] bool shouldCarve(
+        std::mt19937_64& rng,
+        ChunkCoord chunkX,
+        ChunkCoord chunkZ,
+        const ProbabilityConfig& config) const override;
+
+protected:
+    /**
+     * @brief 检查是否应该跳过椭球内的这个位置
+     * @note 洞穴雕刻器使用标准椭球检测
+     */
+    [[nodiscard]] bool shouldSkipEllipsoidPosition(
+        f64 dx, f64 dy, f64 dz, i32 y) const override;
 
     /**
-     * @brief 检查方块是否可以被雕刻
-     *
-     * 这是一个公共静态方法，可以被其他雕刻器使用。
+     * @brief 获取最大洞穴生成尝试次数
      */
-    [[nodiscard]] static bool isCarvable(BlockId block);
-
-private:
-    u64 m_seed;
-    CarverConfig m_config;
-    std::mt19937_64 m_rng;
+    [[nodiscard]] virtual i32 getMaxCaveCount() const { return 15; }
 
     /**
-     * @brief 生成单个洞穴系统
+     * @brief 获取洞穴起始Y坐标
+     * @param rng 随机数生成器
+     * @return Y坐标
      */
-    void carveTunnel(ChunkPrimer& chunk,
-                     i32 seaLevel,
-                     ChunkCoord chunkX,
-                     ChunkCoord chunkZ,
-                     f64 startX, f64 startY, f64 startZ,
-                     f32 radius,
-                     f32 yaw, f32 pitch,
-                     i32 startIdx, i32 endIdx,
-                     f64 yawMod, f64 pitchMod);
-
-    /**
-     * @brief 生成圆形洞穴房间
-     */
-    void carveRoom(ChunkPrimer& chunk,
-                   i32 seaLevel,
-                   ChunkCoord chunkX,
-                   ChunkCoord chunkZ,
-                   f64 centerX, f64 centerY, f64 centerZ,
-                   f32 radius,
-                   f64 verticalScale);
-
-    /**
-     * @brief 雕刻一个椭球区域
-     *
-     * @return 是否雕刻了任何方块
-     */
-    bool carveEllipsoid(ChunkPrimer& chunk,
-                        ChunkCoord chunkX, ChunkCoord chunkZ,
-                        f64 centerX, f64 centerY, f64 centerZ,
-                        f64 horizontalRadius, f64 verticalRadius);
-
-    /**
-     * @brief 获取洞穴起始 Y 坐标
-     */
-    [[nodiscard]] i32 getCaveStartY(std::mt19937_64& rng) const;
+    [[nodiscard]] virtual i32 getCaveStartY(std::mt19937_64& rng) const;
 
     /**
      * @brief 获取洞穴半径
+     * @param rng 随机数生成器
+     * @return 半径
      */
-    [[nodiscard]] f32 getCaveRadius(std::mt19937_64& rng) const;
+    [[nodiscard]] virtual f32 getCaveRadius(std::mt19937_64& rng) const;
 
     /**
-     * @brief 检查是否在雕刻范围内
+     * @brief 获取垂直缩放因子
+     * @return 垂直缩放
      */
-    [[nodiscard]] static bool isInCarvingRange(
-        ChunkCoord chunkX, ChunkCoord chunkZ,
-        f64 x, f64 z,
-        i32 step, i32 maxSteps,
-        f32 radius);
+    [[nodiscard]] virtual f64 getVerticalScale() const { return 1.0; }
+
+private:
+    /**
+     * @brief 生成单个洞穴隧道
+     *
+     * @param chunk 区块数据
+     * @param biomeProvider 生物群系提供者
+     * @param seaLevel 海平面高度
+     * @param chunkX 区块X坐标
+     * @param chunkZ 区块Z坐标
+     * @param seed 随机种子
+     * @param startX 起始X坐标
+     * @param startY 起始Y坐标
+     * @param startZ 起始Z坐标
+     * @param radius 洞穴半径
+     * @param yaw 偏航角（水平方向）
+     * @param pitch 俯仰角（垂直方向）
+     * @param startIndex 起始索引
+     * @param endIndex 结束索引
+     * @param verticalScale 垂直缩放
+     * @param carvingMask 雕刻掩码
+     */
+    void carveTunnel(
+        ChunkPrimer& chunk,
+        const BiomeProvider& biomeProvider,
+        i32 seaLevel,
+        ChunkCoord chunkX,
+        ChunkCoord chunkZ,
+        i64 seed,
+        f64 startX, f64 startY, f64 startZ,
+        f32 radius,
+        f32 yaw, f32 pitch,
+        i32 startIndex, i32 endIndex,
+        f64 verticalScale,
+        CarvingMask& carvingMask);
+
+    /**
+     * @brief 生成圆形洞穴房间
+     *
+     * @param chunk 区块数据
+     * @param biomeProvider 生物群系提供者
+     * @param seaLevel 海平面高度
+     * @param chunkX 区块X坐标
+     * @param chunkZ 区块Z坐标
+     * @param seed 随机种子
+     * @param centerX 中心X坐标
+     * @param centerY 中心Y坐标
+     * @param centerZ 中心Z坐标
+     * @param radius 房间半径
+     * @param verticalScale 垂直缩放
+     * @param carvingMask 雕刻掩码
+     */
+    void carveRoom(
+        ChunkPrimer& chunk,
+        const BiomeProvider& biomeProvider,
+        i32 seaLevel,
+        ChunkCoord chunkX,
+        ChunkCoord chunkZ,
+        i64 seed,
+        f64 centerX, f64 centerY, f64 centerZ,
+        f32 radius,
+        f64 verticalScale,
+        CarvingMask& carvingMask);
 };
 
 } // namespace mr

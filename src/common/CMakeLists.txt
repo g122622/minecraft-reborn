@@ -54,6 +54,7 @@ add_library(mr_common STATIC
     world/gen/chunk/NoiseChunkGenerator.cpp
 
     # World - Generation - Carvers
+    world/gen/carver/WorldCarver.cpp
     world/gen/carver/CaveCarver.cpp
     world/gen/carver/CanyonCarver.cpp
 
@@ -61,6 +62,22 @@ add_library(mr_common STATIC
     world/biome/Biome.cpp
     world/biome/BiomeProvider.cpp
     world/biome/BiomeRegistry.cpp
+
+    # World - Biome - Layer
+    world/biome/layer/LazyArea.cpp
+    world/biome/layer/LayerUtil.cpp
+    world/biome/layer/transformers/BasicTransformers.cpp
+    world/biome/layer/transformers/BiomeTransformers.cpp
+
+    # World - Generation - Surface
+    world/gen/surface/SurfaceBuilders.cpp
+
+    # World - Generation - Feature
+    world/gen/feature/Feature.cpp
+    world/gen/feature/ore/OreFeature.cpp
+
+    # World - Generation - Placement
+    world/gen/placement/Placement.cpp
 
     # World - Time
     world/time/GameTime.cpp

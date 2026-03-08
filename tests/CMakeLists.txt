@@ -20,6 +20,10 @@ add_executable(mr_tests
     common/test_property.cpp
     common/test_block.cpp
     common/test_chunk_generation.cpp
+    common/test_biome.cpp
+    common/test_surface.cpp
+    common/test_ore_feature.cpp
+    common/test_carver.cpp
     common/test_time.cpp
     common/SettingsTest.cpp
     server/ServerWorldTest.cpp
@@ -57,9 +61,18 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/chunk/NoiseChunkGenerator.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/carver/CaveCarver.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/carver/CanyonCarver.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/carver/WorldCarver.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/biome/Biome.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/biome/BiomeProvider.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/biome/BiomeRegistry.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/LazyArea.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/LayerUtil.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/transformers/BasicTransformers.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/transformers/BiomeTransformers.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/surface/SurfaceBuilders.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/Feature.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/ore/OreFeature.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/placement/Placement.cpp
         # ${CMAKE_SOURCE_DIR}/src/common/world/BlockID.cpp  # 已移除 - 使用新的方块系统
         ${CMAKE_SOURCE_DIR}/src/common/entity/Player.cpp
         ${CMAKE_SOURCE_DIR}/src/common/entity/Entity.cpp

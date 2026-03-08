@@ -38,20 +38,12 @@ NoiseChunkGenerator::NoiseChunkGenerator(u64 seed, DimensionSettings settings)
 
     // 初始化洞穴雕刻器
     // 洞穴概率参考 MC: 1/7 ≈ 0.14285715
-    CarverConfig caveConfig;
-    caveConfig.probability = 0.14285715f;
-    caveConfig.maxHeight = 256;
-    caveConfig.minGenerationAttempts = 15;
-    caveConfig.range = 4;
-    m_caveCarver = std::make_unique<CaveCarver>(seed, caveConfig);
+    m_caveCarver = std::make_unique<CaveCarver>(256);
+    m_caveConfig = ProbabilityConfig(0.14285715f);
 
     // 峡谷概率更低
-    CarverConfig canyonConfig;
-    canyonConfig.probability = 0.02f;
-    canyonConfig.maxHeight = 256;
-    canyonConfig.minGenerationAttempts = 1;
-    canyonConfig.range = 4;
-    m_canyonCarver = std::make_unique<CanyonCarver>(seed + 1, canyonConfig);
+    m_canyonCarver = std::make_unique<CanyonCarver>(256);
+    m_canyonConfig = ProbabilityConfig(0.02f);
 }
 
 NoiseChunkGenerator::NoiseChunkGenerator(u64 seed, DimensionSettings settings,
@@ -625,14 +617,17 @@ void NoiseChunkGenerator::applyCarvers(WorldGenRegion& region, ChunkPrimer& chun
     const ChunkCoord chunkX = chunk.x();
     const ChunkCoord chunkZ = chunk.z();
 
+    // 创建雕刻掩码
+    CarvingMask carvingMask(chunkX, chunkZ);
+
     // 应用洞穴雕刻器
     if (m_caveCarver && !isLiquid) {
-        m_caveCarver->carve(chunk, *m_biomeProvider, m_settings.seaLevel, chunkX, chunkZ);
+        m_caveCarver->carve(chunk, *m_biomeProvider, m_settings.seaLevel, chunkX, chunkZ, carvingMask, m_caveConfig);
     }
 
     // 应用峡谷雕刻器
     if (m_canyonCarver && !isLiquid) {
-        m_canyonCarver->carve(chunk, *m_biomeProvider, m_settings.seaLevel, chunkX, chunkZ);
+        m_canyonCarver->carve(chunk, *m_biomeProvider, m_settings.seaLevel, chunkX, chunkZ, carvingMask, m_canyonConfig);
     }
 
     chunk.setChunkStatus(ChunkStatus::CARVERS);

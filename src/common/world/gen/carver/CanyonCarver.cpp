@@ -1,6 +1,4 @@
 #include "CanyonCarver.hpp"
-#include "CaveCarver.hpp"
-#include "../../chunk/ChunkPrimer.hpp"
 #include "../../block/BlockRegistry.hpp"
 #include <cmath>
 #include <algorithm>
@@ -17,38 +15,67 @@ constexpr f32 PI = 3.14159265358979323846f;
 // CanyonCarver 实现
 // ============================================================================
 
-CanyonCarver::CanyonCarver(u64 seed, const CarverConfig& config)
-    : m_seed(seed)
-    , m_config(config)
-    , m_rng(seed)
+CanyonCarver::CanyonCarver(i32 maxHeight)
+    : WorldCarver<ProbabilityConfig>(maxHeight)
+    , m_heightThresholds(256, 1.0f)
 {
+    initializeHeightThresholds();
 }
 
-bool CanyonCarver::shouldCarve(std::mt19937_64& rng, ChunkCoord chunkX, ChunkCoord chunkZ) const
+void CanyonCarver::initializeHeightThresholds()
+{
+    // 参考 MC CanyonWorldCarver 构造函数
+    // 为每个高度预计算半径变化因子
+    std::mt19937_64 rng(0);  // 使用固定种子生成确定性阈值
+
+    for (size_t i = 0; i < m_heightThresholds.size(); ++i) {
+        if (i == 0 || rng() % 3 == 0) {
+            // 生成新的随机因子
+            std::uniform_real_distribution<f32> dist(0.0f, 1.0f);
+            f32 factor = 1.0f + dist(rng) * dist(rng);
+            m_heightThresholds[i] = factor * factor;
+        } else {
+            // 使用上一个值
+            if (i > 0) {
+                m_heightThresholds[i] = m_heightThresholds[i - 1];
+            }
+        }
+    }
+}
+
+bool CanyonCarver::shouldCarve(
+    std::mt19937_64& rng,
+    ChunkCoord chunkX,
+    ChunkCoord chunkZ,
+    const ProbabilityConfig& config) const
 {
     // 峡谷比洞穴更稀少
     std::mt19937_64 localRng(static_cast<u64>(chunkX) * 341873128712ULL +
                              static_cast<u64>(chunkZ) * 132897987541ULL +
-                             m_seed);
+                             static_cast<u64>(m_maxHeight) + 1);
     std::uniform_real_distribution<f32> dist(0.0f, 1.0f);
-    return dist(localRng) <= m_config.probability * 0.1f;  // 峡谷概率更低
+    return dist(localRng) <= config.probability;
 }
 
-bool CanyonCarver::carve(ChunkPrimer& chunk,
-                          const BiomeProvider& biomeProvider,
-                          i32 seaLevel,
-                          ChunkCoord chunkX,
-                          ChunkCoord chunkZ)
+bool CanyonCarver::carve(
+    ChunkPrimer& chunk,
+    const BiomeProvider& biomeProvider,
+    i32 seaLevel,
+    ChunkCoord chunkX,
+    ChunkCoord chunkZ,
+    CarvingMask& carvingMask,
+    const ProbabilityConfig& config)
 {
-    // 参考 MC CanyonWorldCarver
+    // 参考 MC CanyonWorldCarver.carveRegion
     std::mt19937_64 rng(static_cast<u64>(chunkX) * 341873128712ULL +
                         static_cast<u64>(chunkZ) * 132897987541ULL +
-                        m_seed);
+                        static_cast<u64>(m_maxHeight) + 1);
 
-    if (!shouldCarve(rng, chunkX, chunkZ)) {
+    if (!shouldCarve(rng, chunkX, chunkZ, config)) {
         return false;
     }
 
+    const i32 tunnelLength = (getRange() * 2 - 1) * 16;
     const i32 startX = chunkX << 4;
     const i32 startZ = chunkZ << 4;
 
@@ -63,193 +90,129 @@ bool CanyonCarver::carve(ChunkPrimer& chunk,
 
     // 峡谷方向和尺寸
     std::uniform_real_distribution<f32> angleDist(0.0f, 2.0f * PI);
-    std::uniform_real_distribution<f32> pitchDist(-0.25f, 0.25f);
+    std::uniform_real_distribution<f32> pitchDist(-0.125f, 0.125f);  // MC使用 2.0F / 8.0F
     std::uniform_real_distribution<f32> radiusDist(1.0f, 2.0f);
-    std::uniform_int_distribution<i32> lengthDist(80, 200);
 
     const f32 yaw = angleDist(rng);
     const f32 pitch = pitchDist(rng);
-    const f32 radius = radiusDist(rng);
-    const i32 length = lengthDist(rng);
+    const f32 radius = (radiusDist(rng) * 2.0f + radiusDist(rng));  // MC: nextFloat() * 2.0F + nextFloat()) * 2.0F
+
+    // 峡谷长度
+    std::uniform_int_distribution<i32> lengthDist(0, tunnelLength / 4);
+    const i32 length = tunnelLength - lengthDist(rng);
 
     // 生成蜿蜒峡谷
-    generateCanyon(chunk, rng, static_cast<i64>(m_seed),
+    generateCanyon(chunk, biomeProvider, seaLevel, chunkX, chunkZ,
+                   static_cast<i64>(rng()),
                    canyonX, canyonY, canyonZ,
-                   yaw, pitch, radius, length);
+                   radius, yaw, pitch,
+                   0, length, 3.0,
+                   carvingMask);
 
     return true;
 }
 
-void CanyonCarver::generateCanyon(ChunkPrimer& chunk,
-                                   std::mt19937_64& rng,
-                                   i64 seed,
-                                   f64 startX, f64 startY, f64 startZ,
-                                   f32 yaw, f32 pitch, f32 radius,
-                                   i32 length)
+bool CanyonCarver::shouldSkipEllipsoidPosition(f64 dx, f64 dy, f64 dz, i32 y) const
 {
-    // 参考 MC CanyonWorldCarver.func_227205_a_
-    std::uniform_real_distribution<f32> dist(0.0f, 1.0f);
+    // 参考 MC CanyonWorldCarver.func_222708_a_
+    // 峡谷使用特殊的厚度检测：考虑Y坐标的半径变化
+    if (y < 1 || y >= static_cast<i32>(m_heightThresholds.size())) {
+        return dx * dx + dz * dz >= 1.0;
+    }
+
+    // 使用预计算的阈值
+    const f32 threshold = m_heightThresholds[static_cast<size_t>(y - 1)];
+    return dx * dx + dz * dz >= static_cast<f64>(threshold) || dy * dy / 6.0 >= 1.0;
+}
+
+void CanyonCarver::generateCanyon(
+    ChunkPrimer& chunk,
+    const BiomeProvider& biomeProvider,
+    i32 seaLevel,
+    ChunkCoord chunkX,
+    ChunkCoord chunkZ,
+    i64 seed,
+    f64 startX, f64 startY, f64 startZ,
+    f32 radius,
+    f32 yaw, f32 pitch,
+    i32 startIndex, i32 endIndex,
+    f64 horizontalScale,
+    CarvingMask& carvingMask)
+{
+    // 参考 MC CanyonWorldCarver.func_227204_a_
+    std::mt19937_64 rng(seed);
+    std::uniform_real_distribution<f32> randomDist(0.0f, 1.0f);
 
     f64 currentX = startX;
     f64 currentY = startY;
     f64 currentZ = startZ;
+    f32 yawModifier = 0.0f;
+    f32 pitchModifier = 0.0f;
 
-    // 峡谷宽度变化（参考 MC）
-    std::uniform_real_distribution<f32> widthDist(1.0f, 4.0f);
-    f32 canyonWidth = widthDist(rng);
+    for (i32 i = startIndex; i < endIndex; ++i) {
+        // 计算当前半径（正弦曲线变化）
+        const f32 progress = static_cast<f32>(i) / static_cast<f32>(endIndex);
+        const f32 sinProgress = std::sin(progress * PI);
+        f32 horizontalRadius = radius * sinProgress;
+        f32 verticalRadius = horizontalRadius * 0.5f;  // 垂直半径为水平的一半
 
-    for (i32 i = 0; i < length; ++i) {
-        const f32 progress = static_cast<f32>(i) / static_cast<f32>(length);
+        // 应用水平缩放
+        horizontalRadius = static_cast<f32>(static_cast<f64>(horizontalRadius) * horizontalScale);
 
-        // 计算当前半径（峡谷入口宽，深处窄）
-        const f32 currentRadius = updateRadius(radius, progress);
+        // 添加随机变化（参考MC）
+        horizontalRadius *= randomDist(rng) * 0.25f + 0.75f;
+        verticalRadius *= randomDist(rng) * 0.25f + 0.75f;
 
-        // 计算宽度（随深度变化）
-        const f32 width = canyonWidth * (1.0f - progress * 0.3f);
+        // 更新位置（参考MC的方向计算）
+        const f32 cosPitch = std::cos(pitch);
+        currentX += static_cast<f64>(std::cos(yaw) * cosPitch);
+        currentY += static_cast<f64>(std::sin(pitch));
+        currentZ += static_cast<f64>(std::sin(yaw) * cosPitch);
 
-        // 更新位置
-        currentX += std::cos(yaw) * std::cos(pitch);
-        currentY += std::sin(pitch);
-        currentZ += std::sin(yaw) * std::cos(pitch);
+        // 更新俯仰角（衰减）
+        pitch *= 0.7f;
+        pitch += pitchModifier * 0.05f;
 
-        // 更新角度（蜿蜒曲线）
-        f32 newYaw = yaw;
-        f32 newPitch = pitch;
-        updateYawAndPitch(newYaw, newPitch, rng, progress);
-        yaw = newYaw;
-        pitch = newPitch;
+        // 更新偏航角（蜿蜒效果）
+        yaw += yawModifier * 0.05f;
 
-        // 每隔几步雕刻一次
-        if (i % 4 == 0) {
-            // 雕刻当前位置
-            carveEllipsoid(chunk,
-                           static_cast<ChunkCoord>(currentX) >> 4,
-                           static_cast<ChunkCoord>(currentZ) >> 4,
+        // 衰减和随机扰动
+        pitchModifier *= 0.8f;
+        yawModifier *= 0.5f;
+        pitchModifier += (randomDist(rng) - randomDist(rng)) * randomDist(rng) * 2.0f;
+        yawModifier += (randomDist(rng) - randomDist(rng)) * randomDist(rng) * 4.0f;
+
+        // 随机跳过一些点（每4步跳过3次，增加不规则性）
+        if (rng() % 4 == 0) {
+            continue;
+        }
+
+        // 检查是否在雕刻范围内
+        if (isInCarvingRange(chunkX, chunkZ, currentX, currentZ, i, endIndex, radius)) {
+            carveEllipsoid(chunk, biomeProvider, seaLevel, chunkX, chunkZ,
                            currentX, currentY, currentZ,
-                           static_cast<f64>(currentRadius) * static_cast<f64>(width),
-                           static_cast<f64>(currentRadius) * 0.5);
+                           static_cast<f64>(horizontalRadius),
+                           static_cast<f64>(verticalRadius),
+                           carvingMask, static_cast<i64>(rng()));
         }
     }
 }
 
-f32 CanyonCarver::updateRadius(f32 baseRadius, f32 progress) const
+f32 CanyonCarver::updateRadius(
+    f32 baseRadius,
+    f32 progress,
+    const std::vector<f32>& thresholds,
+    i32 index) const
 {
-    // 参考 MC：峡谷入口较宽，深处较窄
-    // 使用余弦函数实现平滑过渡
-    const f32 factor = 1.0f - progress;
-    return baseRadius * (0.5f + factor * 0.5f);
-}
+    // 峡谷入口较宽，深处较窄
+    const f32 factor = 1.0f - progress * 0.3f;
 
-void CanyonCarver::updateYawAndPitch(f32& yaw, f32& pitch,
-                                      std::mt19937_64& rng,
-                                      f32 progress) const
-{
-    // 参考 MC CanyonWorldCarver
-    std::uniform_real_distribution<f32> dist(-1.0f, 1.0f);
-
-    // 水平蜿蜒 - 使用较小的角度变化
-    const f32 yawChange = dist(rng) * 0.05f;
-    yaw += yawChange;
-
-    // 限制俯仰角变化
-    const f32 pitchChange = dist(rng) * 0.02f;
-    pitch = std::clamp(pitch + pitchChange, -0.5f, 0.5f);
-}
-
-bool CanyonCarver::carveEllipsoid(ChunkPrimer& chunk,
-                                   ChunkCoord chunkX, ChunkCoord chunkZ,
-                                   f64 centerX, f64 centerY, f64 centerZ,
-                                   f64 horizontalRadius, f64 verticalRadius)
-{
-    const i32 startX = static_cast<i32>(centerX - horizontalRadius - 1.0);
-    const i32 endX = static_cast<i32>(centerX + horizontalRadius + 1.0);
-    const i32 startY = static_cast<i32>(centerY - verticalRadius - 1.0);
-    const i32 endY = static_cast<i32>(centerY + verticalRadius + 1.0);
-    const i32 startZ = static_cast<i32>(centerZ - horizontalRadius - 1.0);
-    const i32 endZ = static_cast<i32>(centerZ + horizontalRadius + 1.0);
-
-    // 边界检查
-    const i32 chunkStartX = chunkX << 4;
-    const i32 chunkEndX = chunkStartX + 15;
-    const i32 chunkStartZ = chunkZ << 4;
-    const i32 chunkEndZ = chunkStartZ + 15;
-
-    // 如果椭球完全在区块外，跳过
-    if (endX < chunkStartX || startX > chunkEndX ||
-        endZ < chunkStartZ || startZ > chunkEndZ) {
-        return false;
+    // 如果索引在阈值表范围内，使用阈值
+    if (index >= 0 && static_cast<size_t>(index) < thresholds.size()) {
+        return baseRadius * factor * thresholds[static_cast<size_t>(index)];
     }
 
-    // 限制在区块范围内
-    const i32 localStartX = std::max(0, startX - chunkStartX);
-    const i32 localEndX = std::min(15, endX - chunkStartX);
-    const i32 localStartZ = std::max(0, startZ - chunkStartZ);
-    const i32 localEndZ = std::min(15, endZ - chunkStartZ);
-
-    bool carved = false;
-    const f64 hRadiusSq = horizontalRadius * horizontalRadius;
-    const f64 vRadiusSq = verticalRadius * verticalRadius;
-
-    for (i32 lx = localStartX; lx <= localEndX; ++lx) {
-        const i32 worldX = (chunkX << 4) + lx;
-        const f64 dx = static_cast<f64>(worldX) + 0.5 - centerX;
-        const f64 dxSq = dx * dx;
-
-        for (i32 lz = localStartZ; lz <= localEndZ; ++lz) {
-            const i32 worldZ = (chunkZ << 4) + lz;
-            const f64 dz = static_cast<f64>(worldZ) + 0.5 - centerZ;
-            const f64 dzSq = dz * dz;
-
-            // 检查是否在椭球范围内
-            if (dxSq + dzSq >= hRadiusSq) {
-                continue;
-            }
-
-            for (i32 y = startY; y <= endY; ++y) {
-                // 边界检查
-                if (y < 1 || y >= 256) {
-                    continue;
-                }
-
-                const f64 dy = static_cast<f64>(y) + 0.5 - centerY;
-
-                // 椭球方程检查
-                const f64 distSq = dxSq / hRadiusSq + dy * dy / vRadiusSq + dzSq / hRadiusSq;
-                if (distSq >= 1.0) {
-                    continue;
-                }
-
-                // 获取当前方块
-                const BlockState* state = chunk.getBlock(lx, y, lz);
-                if (!state) {
-                    continue;
-                }
-
-                const BlockId blockId = static_cast<BlockId>(state->blockId());
-
-                // 检查是否可以雕刻（使用 CaveCarver 的方法）
-                if (!CaveCarver::isCarvable(blockId)) {
-                    continue;
-                }
-
-                // 设置为空气或熔岩
-                if (y < 11) {
-                    const BlockState* lava = BlockRegistry::instance().get(BlockId::Lava);
-                    if (lava) {
-                        chunk.setBlock(lx, y, lz, lava);
-                    }
-                } else {
-                    const BlockState* air = BlockRegistry::instance().get(BlockId::Air);
-                    if (air) {
-                        chunk.setBlock(lx, y, lz, air);
-                    }
-                }
-                carved = true;
-            }
-        }
-    }
-
-    return carved;
+    return baseRadius * factor;
 }
 
 } // namespace mr

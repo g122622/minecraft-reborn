@@ -3,6 +3,7 @@
 #include "IChunkGenerator.hpp"
 #include "../noise/OctavesNoiseGenerator.hpp"
 #include "../settings/NoiseSettings.hpp"
+#include "../carver/WorldCarver.hpp"
 #include "../carver/CaveCarver.hpp"
 #include "../carver/CanyonCarver.hpp"
 #include "../../biome/BiomeProvider.hpp"
@@ -85,6 +86,8 @@ private:
     // === 洞穴雕刻器 ===
     std::unique_ptr<CaveCarver> m_caveCarver;
     std::unique_ptr<CanyonCarver> m_canyonCarver;
+    ProbabilityConfig m_caveConfig;
+    ProbabilityConfig m_canyonConfig;
 
     // === 缓存的噪声参数 ===
     i32 m_noiseSizeX;

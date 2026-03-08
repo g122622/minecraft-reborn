@@ -198,6 +198,25 @@ enum class BlockId : u32 {
     RedSand = 24,
     Snow = 25,
     Ice = 26,
+    // 更多石头变种
+    Granite = 27,
+    Diorite = 28,
+    Andesite = 29,
+    // 矿石
+    DiamondOre = 30,
+    RedstoneOre = 31,
+    LapisOre = 32,
+    EmeraldOre = 33,
+    CopperOre = 34,
+    // 下界矿石
+    NetherQuartzOre = 35,
+    NetherGoldOre = 36,
+    AncientDebris = 37,
+    // 下界方块
+    Basalt = 38,
+    // 砂岩
+    Sandstone = 39,
+    RedSandstone = 40,
     // 可扩展...
     Unknown = 0xFFFFFFFF
 };
