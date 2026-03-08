@@ -84,6 +84,14 @@ void ServerWorld::setConfig(const ServerWorldConfig& config) {
     if (m_chunkManager) {
         m_chunkManager->setViewDistance(config.viewDistance);
     }
+
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+    for (auto& [playerId, player] : m_players) {
+        (void)playerId;
+        if (player.chunkTracker) {
+            player.chunkTracker->setViewDistance(config.viewDistance);
+        }
+    }
 }
 
 // ============================================================================

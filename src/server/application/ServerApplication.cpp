@@ -555,7 +555,9 @@ void ServerApplication::applySettings()
     m_settings.viewDistance.onChange([this](i32 value) {
         spdlog::info("View distance changed to: {}", value);
         if (m_world) {
-            // TODO: 更新世界视距
+            auto config = m_world->config();
+            config.viewDistance = value;
+            m_world->setConfig(config);
         }
     });
 

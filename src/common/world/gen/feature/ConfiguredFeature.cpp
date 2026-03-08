@@ -97,14 +97,12 @@ void FeatureGenerator::placeFeatures(
     DecorationStage stage,
     u64 seed)
 {
-    (void)biome;  // 暂时未使用，后续会根据生物群系过滤特征
-
-    // 获取该阶段的所有特征
-    const auto& features = FeatureRegistry::instance().getFeatures(stage);
-
-    if (features.empty()) {
+    const auto& featureIds = biome.generationSettings().getFeatures(stage);
+    if (featureIds.empty()) {
         return;
     }
+
+    const auto& features = FeatureRegistry::instance().getFeatures(stage);
 
     // 计算区块随机种子
     const i32 chunkX = chunk.x();
@@ -119,11 +117,10 @@ void FeatureGenerator::placeFeatures(
     const BlockPos chunkOrigin(chunkX * 16, 0, chunkZ * 16);
 
     // 放置每个特征
-    for (ConfiguredFeatureBase* feature : features) {
-        if (feature) {
-            // 设置特征随机种子
-            random.setSeed(chunkSeed ^ static_cast<u64>(feature->name()[0]));
-
+    for (u32 featureId : featureIds) {
+        if (featureId < features.size() && features[featureId]) {
+            ConfiguredFeatureBase* feature = features[featureId];
+            random.setSeed(chunkSeed ^ static_cast<u64>(featureId));
             feature->place(region, chunk, generator, random, chunkOrigin);
         }
     }

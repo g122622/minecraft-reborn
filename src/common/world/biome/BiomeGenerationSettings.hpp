@@ -67,6 +67,12 @@ public:
      */
     static BiomeGenerationSettings createForest();
 
+    static BiomeGenerationSettings createTaiga();
+
+    static BiomeGenerationSettings createJungle();
+
+    static BiomeGenerationSettings createSavanna();
+
     /**
      * @brief 创建沙漠生物群系的生成设置
      * @return 沙漠设置

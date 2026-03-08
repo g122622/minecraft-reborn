@@ -305,6 +305,9 @@ public:
         m_next = std::move(next);
     }
 
+    [[nodiscard]] ConfiguredPlacement* next() { return m_next.get(); }
+    [[nodiscard]] const ConfiguredPlacement* next() const { return m_next.get(); }
+
 private:
     std::unique_ptr<Placement> m_placement;
     std::unique_ptr<IPlacementConfig> m_config;

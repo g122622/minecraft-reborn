@@ -129,6 +129,17 @@ void DebugScreen::buildDebugText() {
             oss << "Biome: <unloaded>";
         }
         m_debugLines.push_back(oss.str());
+
+        oss.str("");
+        if (const Biome* biome = m_world != nullptr ? m_world->getBiomeAtBlock(blockX, blockY, blockZ) : nullptr) {
+            oss << "Climate: T=" << std::fixed << std::setprecision(2)
+                << biome->temperature()
+                << " H=" << biome->humidity()
+                << " C=" << biome->continentalness();
+        } else {
+            oss << "Climate: <unloaded>";
+        }
+        m_debugLines.push_back(oss.str());
     } else {
         m_debugLines.push_back("No camera");
     }

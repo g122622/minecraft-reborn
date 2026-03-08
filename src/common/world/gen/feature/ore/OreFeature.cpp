@@ -3,11 +3,36 @@
 #include "../Feature.hpp"
 #include "../../placement/Placement.hpp"
 #include "../../chunk/IChunkGenerator.hpp"
+#include "../../../biome/Biome.hpp"
 #include "../../../block/BlockRegistry.hpp"
 #include <cmath>
 #include <algorithm>
 
 namespace mr {
+
+namespace {
+
+std::unique_ptr<ConfiguredPlacement> appendBiomePlacement(
+    std::unique_ptr<ConfiguredPlacement> root,
+    std::vector<u32> allowedBiomes)
+{
+    if (!root || allowedBiomes.empty()) {
+        return root;
+    }
+
+    auto biomeConfigured = std::make_unique<ConfiguredPlacement>(
+        std::make_unique<BiomePlacement>(),
+        std::make_unique<BiomePlacementConfig>(std::move(allowedBiomes)));
+
+    ConfiguredPlacement* current = root.get();
+    while (current->next() != nullptr) {
+        current = current->next();
+    }
+    current->setNext(std::move(biomeConfigured));
+    return root;
+}
+
+} // namespace
 
 // ============================================================================
 // OreFeature 实现
@@ -511,7 +536,11 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createEmeraldOre() {
     squareConfigured->setNext(std::move(heightConfigured));
     countConfigured->setNext(std::move(squareConfigured));
 
-    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(countConfigured), "emerald_ore");
+    auto placement = appendBiomePlacement(
+        std::move(countConfigured),
+        {Biomes::Mountains, Biomes::WoodedMountains, Biomes::MountainEdge, Biomes::StoneShore});
+
+    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(placement), "emerald_ore");
 }
 
 std::unique_ptr<ConfiguredOreFeature> OreFeatures::createCopperOre() {

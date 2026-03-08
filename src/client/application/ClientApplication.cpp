@@ -949,10 +949,20 @@ void ClientApplication::reloadResources()
             spdlog::info("Reloaded resources: {} appearances cached",
                         m_modelCache.cachedAppearanceCount());
         }
-    }
 
-    // TODO: 通知渲染器重新创建纹理图集
-    // TODO: 通知世界重新生成所有区块网格
+        if (m_renderer) {
+            auto atlasUpdateResult = m_renderer->updateTextureAtlas(atlasResult.value());
+            if (atlasUpdateResult.failed()) {
+                spdlog::error("Failed to update renderer texture atlas after reload: {}",
+                              atlasUpdateResult.error().toString());
+            }
+        }
+
+        m_world.forEachChunk([](const ChunkId&, ClientChunk& chunk) {
+            chunk.needsMeshUpdate = true;
+        });
+        spdlog::info("Marked loaded chunks dirty after resource reload");
+    }
 }
 
 } // namespace mr::client

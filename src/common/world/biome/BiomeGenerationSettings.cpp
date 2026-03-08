@@ -96,6 +96,24 @@ BiomeGenerationSettings BiomeGenerationSettings::createForest() {
     return settings;
 }
 
+BiomeGenerationSettings BiomeGenerationSettings::createTaiga() {
+    BiomeGenerationSettings settings = createDefault();
+    settings.addFeature(DecorationStage::VegetalDecoration, 2);  // 云杉
+    return settings;
+}
+
+BiomeGenerationSettings BiomeGenerationSettings::createJungle() {
+    BiomeGenerationSettings settings = createDefault();
+    settings.addFeature(DecorationStage::VegetalDecoration, 3);  // 丛林树
+    return settings;
+}
+
+BiomeGenerationSettings BiomeGenerationSettings::createSavanna() {
+    BiomeGenerationSettings settings = createDefault();
+    settings.addFeature(DecorationStage::VegetalDecoration, 4);  // 稀疏橡树代替未实现的相思树
+    return settings;
+}
+
 BiomeGenerationSettings BiomeGenerationSettings::createDesert() {
     // 沙漠：只有矿石，没有树木
     BiomeGenerationSettings settings = createDefault();
