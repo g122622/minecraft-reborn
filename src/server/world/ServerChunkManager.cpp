@@ -373,7 +373,7 @@ void ServerChunkManager::getChunkAsync(ChunkCoord x, ChunkCoord z, ChunkCallback
                     return;
                 }
 
-                ChunkData* stored = storeGeneratedChunk(x, z, std::move(data));
+                storeGeneratedChunk(x, z, std::move(data));
                 auto pinned = getChunkShared(x, z);
                 if (callback) callback(pinned != nullptr, pinned.get());
             } else {
@@ -489,7 +489,7 @@ void ServerChunkManager::scheduleGeneration(ChunkHolder& holder, const ChunkStat
     // 如果已经达到目标状态、已有缓存结果或已有正在使用的 primer，则不重复调度
     if (holder.hasCompletedStatus(targetStatus) ||
         getChunk(holder.x(), holder.z()) != nullptr ||
-        holder.getGeneratingChunk() != nullptr) {
+        holder.hasGeneratingChunk()) {
         return;
     }
 
@@ -623,9 +623,6 @@ void ServerChunkManager::getNeighborChunks(
             if (auto data = getChunkShared(x + offsets[i][0], z + offsets[i][1])) {
                 neighborAdapters[i] = std::make_unique<ChunkDataChunkAdapter>(std::move(data));
                 neighbors[i] = neighborAdapters[i].get();
-            } else if (ChunkPrimer* primer = holder->getGeneratingChunk()) {
-                neighborAdapters[i].reset();
-                neighbors[i] = primer;
             } else {
                 neighborAdapters[i].reset();
                 neighbors[i] = nullptr;
@@ -675,7 +672,9 @@ void ServerChunkManager::checkChunkUnloading()
         std::lock_guard<std::mutex> lock(m_holdersMutex);
         for (const auto& [key, holder] : m_holders) {
             // 没有票据且没有追踪玩家
-            if (!holder->shouldLoad() && !holder->hasTrackingPlayers()) {
+            if (!holder->shouldLoad() &&
+                !holder->hasTrackingPlayers() &&
+                !holder->hasGeneratingChunk()) {
                 toUnload.push_back(key);
             }
         }

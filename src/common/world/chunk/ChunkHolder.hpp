@@ -132,14 +132,31 @@ public:
     /**
      * @brief 获取正在生成的区块
      */
-    [[nodiscard]] ChunkPrimer* getGeneratingChunk() { return m_generatingChunk.get(); }
-    [[nodiscard]] const ChunkPrimer* getGeneratingChunk() const { return m_generatingChunk.get(); }
+    [[nodiscard]] ChunkPrimer* getGeneratingChunk() {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_generatingChunk.get();
+    }
+    [[nodiscard]] const ChunkPrimer* getGeneratingChunk() const {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_generatingChunk.get();
+    }
+
+    [[nodiscard]] bool hasGeneratingChunk() const {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_generatingChunk != nullptr;
+    }
 
     /**
      * @brief 获取已完成的区块数据
      */
-    [[nodiscard]] ChunkData* getChunkData() { return m_chunkData.get(); }
-    [[nodiscard]] const ChunkData* getChunkData() const { return m_chunkData.get(); }
+    [[nodiscard]] ChunkData* getChunkData() {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_chunkData.get();
+    }
+    [[nodiscard]] const ChunkData* getChunkData() const {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_chunkData.get();
+    }
 
     /**
      * @brief 设置区块数据（加载完成时）
@@ -197,12 +214,18 @@ public:
     /**
      * @brief 获取票据数量
      */
-    [[nodiscard]] size_t ticketCount() const { return m_tickets.size(); }
+    [[nodiscard]] size_t ticketCount() const {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_tickets.size();
+    }
 
     /**
      * @brief 检查是否有票据
      */
-    [[nodiscard]] bool hasTickets() const { return !m_tickets.empty(); }
+    [[nodiscard]] bool hasTickets() const {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return !m_tickets.empty();
+    }
 
     // ============================================================================
     // 玩家追踪
@@ -221,12 +244,18 @@ public:
     /**
      * @brief 获取追踪玩家数量
      */
-    [[nodiscard]] size_t trackingPlayerCount() const { return m_trackingPlayers.size(); }
+    [[nodiscard]] size_t trackingPlayerCount() const {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_trackingPlayers.size();
+    }
 
     /**
      * @brief 检查是否有追踪玩家
      */
-    [[nodiscard]] bool hasTrackingPlayers() const { return !m_trackingPlayers.empty(); }
+    [[nodiscard]] bool hasTrackingPlayers() const {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return !m_trackingPlayers.empty();
+    }
 
     // ============================================================================
     // 回调
@@ -250,11 +279,23 @@ public:
     // 标记
     // ============================================================================
 
-    [[nodiscard]] bool isDirty() const { return m_dirty; }
-    void setDirty(bool dirty) { m_dirty = dirty; }
+    [[nodiscard]] bool isDirty() const {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_dirty;
+    }
+    void setDirty(bool dirty) {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_dirty = dirty;
+    }
 
-    [[nodiscard]] bool isQueuedForUnload() const { return m_queuedForUnload; }
-    void setQueuedForUnload(bool queued) { m_queuedForUnload = queued; }
+    [[nodiscard]] bool isQueuedForUnload() const {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_queuedForUnload;
+    }
+    void setQueuedForUnload(bool queued) {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_queuedForUnload = queued;
+    }
 
 private:
     ChunkCoord m_x;
