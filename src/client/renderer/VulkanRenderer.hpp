@@ -8,13 +8,13 @@
 #include "VulkanPipeline.hpp"
 #include "VulkanTexture.hpp"
 #include "ChunkRenderer.hpp"
-#include "DefaultTextureAtlas.hpp"
 #include "UniformBuffer.hpp"
 #include "Descriptor.hpp"
 #include "Camera.hpp"
 #include "sky/SkyRenderer.hpp"
 #include "../ui/Font.hpp"
 #include "../ui/GuiRenderer.hpp"
+#include "../resource/ResourceManager.hpp"
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <functional>
@@ -74,6 +74,20 @@ public:
     ChunkRenderer& chunkRenderer() { return m_chunkRenderer; }
     const ChunkRenderer& chunkRenderer() const { return m_chunkRenderer; }
     bool isChunkRendererInitialized() const { return m_chunkRendererInitialized; }
+
+    /**
+     * @brief 从 ResourceManager 更新纹理图集
+     * @param atlasResult 纹理图集构建结果
+     * @return 成功或错误
+     */
+    [[nodiscard]] Result<void> updateTextureAtlas(const AtlasBuildResult& atlasResult);
+
+    /**
+     * @brief 获取纹理图集的区域信息
+     * @param location 纹理位置
+     * @return 纹理区域，如果不存在返回 nullptr
+     */
+    [[nodiscard]] const TextureRegion* getTextureRegion(const ResourceLocation& location) const;
 
     // 天空渲染
     SkyRenderer& skyRenderer() { return m_skyRenderer; }
@@ -176,6 +190,7 @@ private:
     VulkanTextureAtlas m_chunkTextureAtlas;
     ChunkRenderer m_chunkRenderer;
     bool m_chunkRendererInitialized = false;
+    std::map<ResourceLocation, TextureRegion> m_textureRegions;  // 纹理位置到UV映射
 
     // 天空渲染
     SkyRenderer m_skyRenderer;

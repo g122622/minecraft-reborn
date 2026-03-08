@@ -15,10 +15,10 @@ struct Vertex {
     f32 nx = 0.0f, ny = 0.0f, nz = 0.0f;    // 法线
     f32 u = 0.0f, v = 0.0f;                  // 纹理坐标
     u32 color = 0xFFFFFFFF;                  // 顶点颜色 (RGBA)
-    u8 light = 15;                           // 光照等级 (0-15)
+    u8 light = 255;                          // 光照 (R8_UNORM 编码，0-255)
 
     Vertex() = default;
-    Vertex(f32 px, f32 py, f32 pz, f32 nu, f32 nv, f32 nw, f32 tu, f32 tv, u32 col = 0xFFFFFFFF, u8 l = 15)
+    Vertex(f32 px, f32 py, f32 pz, f32 nu, f32 nv, f32 nw, f32 tu, f32 tv, u32 col = 0xFFFFFFFF, u8 l = 255)
         : x(px), y(py), z(pz)
         , nx(nu), ny(nv), nz(nw)
         , u(tu), v(tv)

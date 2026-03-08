@@ -145,6 +145,7 @@ void ChunkMesher::addFaceFromAppearance(
     }
 
     TextureRegion tex = texIt->second;
+
     auto normal = BlockGeometry::getFaceNormal(face);
     auto vertices = BlockGeometry::getFaceVertices(face);
 
@@ -160,6 +161,10 @@ void ChunkMesher::addFaceFromAppearance(
         { tex.u0, tex.v0 }  // 左上
     };
 
+    // `Vertex::light` 使用 `VK_FORMAT_R8_UNORM` 传入着色器，
+    // 需要把 MC 的光照等级 [0, 15] 映射到 [0, 255]。
+    const u8 packedLight = static_cast<u8>(std::min<u32>(255, static_cast<u32>(light) * 17u));
+
     for (size_t i = 0; i < 4; ++i) {
         faceVerts[i] = Vertex(
             x + vertices[i * 3 + 0],
@@ -168,7 +173,7 @@ void ChunkMesher::addFaceFromAppearance(
             normal[0], normal[1], normal[2],
             uvs[i][0], uvs[i][1],
             0xFFFFFFFF,
-            light
+            packedLight
         );
     }
 
@@ -222,6 +227,11 @@ void ChunkMesher::simpleMeshSection(
                     if (!appearance) {
                         continue; // 无法渲染
                     }
+                }
+
+                // 检查外观是否有效
+                if (appearance->elements.empty() && appearance->faceTextures.empty()) {
+                    continue;
                 }
 
                 // 检查每个面

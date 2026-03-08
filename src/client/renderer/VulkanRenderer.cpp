@@ -1279,10 +1279,10 @@ Result<void> VulkanRenderer::createChunkTextureAtlas() {
     // 生成默认纹理图集
     auto pixels = DefaultTextureAtlas::generate();
 
-    // 创建纹理图集
+    // 创建纹理图集 (正方形)
+    u32 atlasSize = DefaultTextureAtlas::atlasSize();
     auto result = m_chunkTextureAtlas.create(device, physicalDevice,
-                                              DefaultTextureAtlas::atlasSize(),
-                                              DefaultTextureAtlas::tileSize());
+                                              atlasSize, atlasSize);
     if (!result.success()) {
         return Error(ErrorCode::InitializationFailed, "Failed to create chunk texture atlas: " + result.error().toString());
     }
@@ -1298,11 +1298,12 @@ Result<void> VulkanRenderer::createChunkTextureAtlas() {
     }
 
     // 复制数据到暂存缓冲区
-    void* data = stagingBuffer.map().value();
-    if (!data) {
+    auto mapResult = stagingBuffer.map();
+    if (mapResult.failed() || !mapResult.value()) {
         stagingBuffer.destroy();
         return Error(ErrorCode::OperationFailed, "Failed to map staging buffer");
     }
+    void* data = mapResult.value();
     std::memcpy(data, pixels.data(), pixels.size());
     stagingBuffer.unmap();
 
@@ -1323,44 +1324,14 @@ Result<void> VulkanRenderer::createChunkTextureAtlas() {
 
     vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
-    // 直接调用纹理的upload方法（不需要再次复制数据）
-    // VulkanTexture::upload会处理布局转换和复制
-    VkBufferImageCopy region{};
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
-    region.imageOffset = {0, 0, 0};
-    region.imageExtent = {m_chunkTextureAtlas.texture().width(),
-                          m_chunkTextureAtlas.texture().height(), 1};
-
-    // 转换图像布局到传输目标
-    m_chunkTextureAtlas.texture().transitionLayout(
-        commandBuffer,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-        VK_PIPELINE_STAGE_TRANSFER_BIT);
-
-    // 复制缓冲区到图像
-    vkCmdCopyBufferToImage(
-        commandBuffer,
-        stagingBuffer.buffer(),
-        m_chunkTextureAtlas.texture().image(),
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        1,
-        &region);
-
-    // 转换到着色器只读布局
-    m_chunkTextureAtlas.texture().transitionLayout(
-        commandBuffer,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_PIPELINE_STAGE_TRANSFER_BIT,
-        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+    // 上传纹理 (数据已在 staging buffer 中)
+    auto uploadResult = m_chunkTextureAtlas.upload(commandBuffer, stagingBuffer);
+    if (!uploadResult.success()) {
+        vkEndCommandBuffer(commandBuffer);
+        vkFreeCommandBuffers(device, m_commandPool, 1, &commandBuffer);
+        stagingBuffer.destroy();
+        return Error(ErrorCode::OperationFailed, "Failed to upload texture atlas: " + uploadResult.error().toString());
+    }
 
     vkEndCommandBuffer(commandBuffer);
 
@@ -1506,6 +1477,130 @@ void VulkanRenderer::renderGui(VkCommandBuffer cmd) {
 
     // 渲染GUI（顶点数据使用HOST_VISIBLE内存直接上传）
     m_guiRenderer->render(cmd);
+}
+
+Result<void> VulkanRenderer::updateTextureAtlas(const AtlasBuildResult& atlasResult) {
+    if (!m_context || m_context->device() == VK_NULL_HANDLE) {
+        return Error(ErrorCode::InitializationFailed, "Context not initialized");
+    }
+
+    if (atlasResult.pixels.empty()) {
+        return Error(ErrorCode::InvalidArgument, "Atlas result has no pixel data");
+    }
+
+    VkDevice device = m_context->device();
+    VkPhysicalDevice physicalDevice = m_context->physicalDevice();
+
+    // 如果纹理图集已存在，先销毁
+    if (m_chunkTextureAtlas.isValid()) {
+        // 等待设备空闲
+        vkDeviceWaitIdle(device);
+        m_chunkTextureAtlas.destroy();
+    }
+
+    // 创建新的纹理图集
+    u32 atlasWidth = atlasResult.width;
+    u32 atlasHeight = atlasResult.height;
+
+    auto result = m_chunkTextureAtlas.create(device, physicalDevice,
+                                              atlasWidth, atlasHeight);
+    if (!result.success()) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create texture atlas: " + result.error().toString());
+    }
+
+    // 创建暂存缓冲区
+    VulkanBuffer stagingBuffer;
+    VkDeviceSize imageSize = static_cast<VkDeviceSize>(atlasResult.pixels.size());
+    result = stagingBuffer.create(device, physicalDevice, imageSize,
+                                   VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (!result.success()) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create staging buffer: " + result.error().toString());
+    }
+
+    // 复制数据到暂存缓冲区
+    auto mapResult = stagingBuffer.map();
+    if (mapResult.failed() || !mapResult.value()) {
+        stagingBuffer.destroy();
+        return Error(ErrorCode::OperationFailed, "Failed to map staging buffer");
+    }
+    void* data = mapResult.value();
+    std::memcpy(data, atlasResult.pixels.data(), atlasResult.pixels.size());
+    stagingBuffer.unmap();
+
+    // 分配命令缓冲区用于上传
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = m_commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+    // 开始录制命令
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    // 上传纹理 (数据已在 staging buffer 中)
+    auto uploadResult = m_chunkTextureAtlas.upload(commandBuffer, stagingBuffer);
+    if (!uploadResult.success()) {
+        vkEndCommandBuffer(commandBuffer);
+        vkFreeCommandBuffers(device, m_commandPool, 1, &commandBuffer);
+        stagingBuffer.destroy();
+        return Error(ErrorCode::OperationFailed, "Failed to upload texture atlas: " + uploadResult.error().toString());
+    }
+
+    vkEndCommandBuffer(commandBuffer);
+
+    // 提交命令
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(m_context->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(m_context->graphicsQueue());
+
+    // 清理
+    vkFreeCommandBuffers(device, m_commandPool, 1, &commandBuffer);
+    stagingBuffer.destroy();
+
+    // 更新纹理描述符集
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = m_chunkTextureAtlas.texture().imageView();
+    imageInfo.sampler = m_chunkTextureAtlas.texture().sampler();
+
+    VkWriteDescriptorSet descriptorWrite{};
+    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet = m_chunkTextureDescriptorSet;
+    descriptorWrite.dstBinding = 0;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pImageInfo = &imageInfo;
+
+    vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+
+    // 保存纹理区域映射
+    m_textureRegions = atlasResult.regions;
+
+    spdlog::info("Renderer texture atlas updated: {}x{}, {} textures",
+                 atlasWidth, atlasHeight, atlasResult.regions.size());
+
+    return Result<void>::ok();
+}
+
+const TextureRegion* VulkanRenderer::getTextureRegion(const ResourceLocation& location) const {
+    auto it = m_textureRegions.find(location);
+    if (it != m_textureRegions.end()) {
+        return &it->second;
+    }
+    return nullptr;
 }
 
 } // namespace mr::client

@@ -132,8 +132,8 @@ Result<AtlasBuildResult> ResourceManager::buildTextureAtlas() {
 
     // 输出失败纹理的详细信息
     if (failedCount > 0) {
-        spdlog::info("Failed textures (first 10 of {}):", failedCount);
-        for (size_t i = 0; i < std::min(failedTextures.size(), size_t(10)); ++i) {
+        spdlog::info("Failed textures (first 50 of {}):", failedCount);
+        for (size_t i = 0; i < std::min(failedTextures.size(), size_t(50)); ++i) {
             spdlog::info("  - {}", failedTextures[i]);
         }
     }
@@ -298,6 +298,9 @@ void ResourceManager::computeBlockAppearances() {
     // 获取所有方块状态
     auto blockStates = m_blockStateLoader.getLoadedBlockStates();
 
+    u32 totalAppearances = 0;
+    u32 appearancesWithTextures = 0;
+
     for (const auto& blockId : blockStates) {
         const auto* def = m_blockStateLoader.getBlockState(blockId);
         if (!def) continue;
@@ -337,17 +340,34 @@ void ResourceManager::computeBlockAppearances() {
                     // 如果纹理区域已存在，跳过
                     if (appearance.faceTextures.count(dirStr)) continue;
 
-                    // 纹理区域将在构建图集后填充
-                    // 这里先记录纹理位置
-                    if (m_textureRegions.count(texLoc)) {
-                        appearance.faceTextures[dirStr] = m_textureRegions[texLoc];
+                    // 转换纹理路径为完整的 textures/ 路径
+                    ResourceLocation fullTexLoc = texturePathToLocation(texLoc.path());
+
+                    // 查找纹理区域
+                    auto texIt = m_textureRegions.find(fullTexLoc);
+                    if (texIt != m_textureRegions.end()) {
+                        appearance.faceTextures[dirStr] = texIt->second;
+                    } else {
+                        // 尝试使用原始位置查找
+                        texIt = m_textureRegions.find(texLoc);
+                        if (texIt != m_textureRegions.end()) {
+                            appearance.faceTextures[dirStr] = texIt->second;
+                        }
                     }
                 }
+            }
+
+            totalAppearances++;
+            if (!appearance.faceTextures.empty()) {
+                appearancesWithTextures++;
             }
 
             m_blockAppearances[cacheKey] = std::move(appearance);
         }
     }
+
+    spdlog::info("computeBlockAppearances: {} total, {} with textures",
+                 totalAppearances, appearancesWithTextures);
 }
 
 std::set<ResourceLocation> ResourceManager::collectRequiredTextures() const {

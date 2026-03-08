@@ -115,16 +115,15 @@ public:
     [[nodiscard]] Result<void> create(
         VkDevice device,
         VkPhysicalDevice physicalDevice,
-        u32 textureSize,
-        u32 tileSize);
+        u32 width,
+        u32 height);
 
     void destroy();
 
-    // 上传纹理数据
+    // 上传纹理数据 (数据必须已经复制到 stagingBuffer 中)
     [[nodiscard]] Result<void> upload(
         VkCommandBuffer commandBuffer,
-        VulkanBuffer& stagingBuffer,
-        const u8* pixelData);
+        VulkanBuffer& stagingBuffer);
 
     // 获取UV坐标
     [[nodiscard]] mr::TextureRegion getRegion(u32 tileX, u32 tileY) const;
@@ -133,15 +132,17 @@ public:
     // 获取器
     VulkanTexture& texture() { return m_texture; }
     const VulkanTexture& texture() const { return m_texture; }
-    u32 textureSize() const { return m_textureSize; }
+    u32 width() const { return m_width; }
+    u32 height() const { return m_height; }
     u32 tileSize() const { return m_tileSize; }
     u32 tilesPerRow() const { return m_tilesPerRow; }
     bool isValid() const { return m_texture.isValid(); }
 
 private:
     VulkanTexture m_texture;
-    u32 m_textureSize = 0;
-    u32 m_tileSize = 0;
+    u32 m_width = 0;
+    u32 m_height = 0;
+    u32 m_tileSize = 16;  // 默认瓦片大小
     u32 m_tilesPerRow = 0;
     f32 m_tileU = 0.0f;
     f32 m_tileV = 0.0f;

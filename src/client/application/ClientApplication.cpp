@@ -182,6 +182,31 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
     // 将相机设置给渲染器
     m_renderer->setCamera(&m_camera);
 
+    // 更新渲染器纹理图集（使用 ResourceManager 构建的纹理）
+    if (m_resourceManager) {
+        spdlog::info("ResourceManager exists, atlas built: {}", m_resourceManager->isAtlasBuilt());
+        if (m_resourceManager->isAtlasBuilt()) {
+            const auto& atlasResult = m_resourceManager->atlasResult();
+            spdlog::info("Atlas pixels size: {}, width: {}, height: {}",
+                        atlasResult.pixels.size(), atlasResult.width, atlasResult.height);
+            if (!atlasResult.pixels.empty()) {
+                spdlog::info("Updating renderer texture atlas...");
+                auto atlasUpdateResult = m_renderer->updateTextureAtlas(atlasResult);
+                if (atlasUpdateResult.failed()) {
+                    spdlog::error("Failed to update texture atlas: {}", atlasUpdateResult.error().toString());
+                } else {
+                    spdlog::info("Renderer texture atlas updated from resource pack");
+                }
+            } else {
+                spdlog::warn("Atlas pixels empty, skipping renderer update");
+            }
+        } else {
+            spdlog::warn("Atlas not built, skipping renderer update");
+        }
+    } else {
+        spdlog::warn("ResourceManager is null, skipping texture atlas update");
+    }
+
     // 启动内置服务端
     if (!params.skipIntegratedServer) {
         spdlog::info("Starting integrated server...");

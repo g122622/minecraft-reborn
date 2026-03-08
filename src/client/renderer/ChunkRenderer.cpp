@@ -169,12 +169,32 @@ Result<void> ChunkRenderer::loadTextureAtlas(
     u32 textureSize,
     u32 tileSize)
 {
-    // 创建纹理图集
-    auto result = m_textureAtlas.create(m_device, m_physicalDevice, textureSize, tileSize);
+    // 创建纹理图集 (正方形)
+    auto result = m_textureAtlas.create(m_device, m_physicalDevice, textureSize, textureSize);
     if (!result.success()) {
         return Error(ErrorCode::InitializationFailed,
             "Failed to create texture atlas: " + result.error().message());
     }
+
+    // 确保暂存缓冲区足够大
+    VkDeviceSize imageSize = textureSize * textureSize * 4;  // RGBA8
+    if (imageSize > m_stagingBufferSize) {
+        m_stagingBufferSize = imageSize;
+        auto stagingResult = m_stagingBuffer->create(m_device, m_physicalDevice, m_stagingBufferSize);
+        if (!stagingResult.success()) {
+            return Error(ErrorCode::InitializationFailed,
+                "Failed to resize staging buffer: " + stagingResult.error().message());
+        }
+    }
+
+    // 复制数据到暂存缓冲区
+    auto mapResult = m_stagingBuffer->map();
+    if (mapResult.failed() || !mapResult.value()) {
+        return Error(ErrorCode::OperationFailed, "Failed to map staging buffer");
+    }
+    void* data = mapResult.value();
+    std::memcpy(data, pixelData, imageSize);
+    m_stagingBuffer->unmap();
 
     // 创建命令缓冲区进行上传
     auto cmdResult = beginSingleTimeCommands();
@@ -183,8 +203,8 @@ Result<void> ChunkRenderer::loadTextureAtlas(
     }
     VkCommandBuffer commandBuffer = cmdResult.value();
 
-    // 上传纹理数据
-    result = m_textureAtlas.upload(commandBuffer, *m_stagingBuffer, pixelData);
+    // 上传纹理数据 (数据已在 staging buffer 中)
+    result = m_textureAtlas.upload(commandBuffer, *m_stagingBuffer);
     if (!result.success()) {
         endSingleTimeCommands(commandBuffer);
         return Error(ErrorCode::OperationFailed,

@@ -452,18 +452,19 @@ VulkanTextureAtlas::~VulkanTextureAtlas() = default;
 Result<void> VulkanTextureAtlas::create(
     VkDevice device,
     VkPhysicalDevice physicalDevice,
-    u32 textureSize,
-    u32 tileSize)
+    u32 width,
+    u32 height)
 {
-    m_textureSize = textureSize;
-    m_tileSize = tileSize;
-    m_tilesPerRow = textureSize / tileSize;
+    m_width = width;
+    m_height = height;
+    m_tileSize = 16;  // 默认瓦片大小
+    m_tilesPerRow = width / m_tileSize;
     m_tileU = 1.0f / static_cast<f32>(m_tilesPerRow);
-    m_tileV = 1.0f / static_cast<f32>(m_tilesPerRow);
+    m_tileV = static_cast<f32>(m_tileSize) / static_cast<f32>(height);
 
     TextureConfig config;
-    config.width = textureSize;
-    config.height = textureSize;
+    config.width = width;
+    config.height = height;
     // 使用 UNORM 而不是 SRGB，避免颜色空间转换问题
     config.format = VK_FORMAT_R8G8B8A8_UNORM;
     config.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
@@ -491,7 +492,8 @@ Result<void> VulkanTextureAtlas::create(
 
 void VulkanTextureAtlas::destroy() {
     m_texture.destroy();
-    m_textureSize = 0;
+    m_width = 0;
+    m_height = 0;
     m_tileSize = 0;
     m_tilesPerRow = 0;
     m_tileU = 0.0f;
@@ -500,16 +502,53 @@ void VulkanTextureAtlas::destroy() {
 
 Result<void> VulkanTextureAtlas::upload(
     VkCommandBuffer commandBuffer,
-    VulkanBuffer& stagingBuffer,
-    const u8* pixelData)
+    VulkanBuffer& stagingBuffer)
 {
-    return m_texture.upload(commandBuffer, stagingBuffer, pixelData);
+    // 转换到传输布局
+    m_texture.transitionLayout(
+        commandBuffer,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT);
+
+    // 复制缓冲区到图像
+    VkBufferImageCopy region{};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+    region.imageOffset = {0, 0, 0};
+    region.imageExtent = {m_width, m_height, 1};
+
+    vkCmdCopyBufferToImage(
+        commandBuffer,
+        stagingBuffer.buffer(),
+        m_texture.image(),
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1,
+        &region);
+
+    // 转换到着色器只读布局
+    m_texture.transitionLayout(
+        commandBuffer,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+
+    return Result<void>::ok();
 }
 
 mr::TextureRegion VulkanTextureAtlas::getRegion(u32 tileX, u32 tileY) const {
-    f32 u0 = static_cast<f32>(tileX) * m_tileU;
-    f32 v0 = static_cast<f32>(tileY) * m_tileV;
-    return mr::TextureRegion(u0, v0, u0 + m_tileU, v0 + m_tileV);
+    f32 u0 = static_cast<f32>(tileX * m_tileSize) / static_cast<f32>(m_width);
+    f32 v0 = static_cast<f32>(tileY * m_tileSize) / static_cast<f32>(m_height);
+    f32 u1 = static_cast<f32>((tileX + 1) * m_tileSize) / static_cast<f32>(m_width);
+    f32 v1 = static_cast<f32>((tileY + 1) * m_tileSize) / static_cast<f32>(m_height);
+    return mr::TextureRegion(u0, v0, u1, v1);
 }
 
 mr::TextureRegion VulkanTextureAtlas::getRegion(u32 tileIndex) const {
