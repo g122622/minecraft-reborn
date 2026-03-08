@@ -24,7 +24,7 @@ namespace mr {
 class OctavesNoiseGenerator : public INoiseGenerator {
 public:
     /**
-     * @brief 创建指定倍频范围的
+     * @brief 创建指定倍频范围的噪声生成器
      * @param seed 随机种子
      * @param minOctave 最小倍频索引（负数，表示低频）
      * @param maxOctave 最大倍频索引（通常是 0）

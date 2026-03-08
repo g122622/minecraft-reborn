@@ -45,13 +45,22 @@ add_library(mr_common STATIC
     world/chunk/IChunk.cpp
     world/chunk/ChunkHolder.cpp
 
-    # World - Generation
-    world/gen/ImprovedNoiseGenerator.cpp
-    world/gen/OctavesNoiseGenerator.cpp
-    world/gen/NoiseSettings.cpp
-    world/gen/IChunkGenerator.cpp
-    world/gen/NoiseChunkGenerator.cpp
-    world/gen/Carver.cpp
+    # World - Generation - Noise
+    world/gen/noise/ImprovedNoiseGenerator.cpp
+    world/gen/noise/OctavesNoiseGenerator.cpp
+
+    # World - Generation - Chunk Generators
+    world/gen/chunk/IChunkGenerator.cpp
+    world/gen/chunk/NoiseChunkGenerator.cpp
+
+    # World - Generation - Carvers
+    world/gen/carver/CaveCarver.cpp
+    world/gen/carver/CanyonCarver.cpp
+
+    # World - Biome
+    world/biome/Biome.cpp
+    world/biome/BiomeProvider.cpp
+    world/biome/BiomeRegistry.cpp
 
     # World - Time
     world/time/GameTime.cpp

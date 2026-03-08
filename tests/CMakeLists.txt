@@ -51,11 +51,15 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkPrimer.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/IChunk.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkHolder.cpp
-        ${CMAKE_SOURCE_DIR}/src/common/world/gen/ImprovedNoiseGenerator.cpp
-        ${CMAKE_SOURCE_DIR}/src/common/world/gen/OctavesNoiseGenerator.cpp
-        ${CMAKE_SOURCE_DIR}/src/common/world/gen/NoiseSettings.cpp
-        ${CMAKE_SOURCE_DIR}/src/common/world/gen/IChunkGenerator.cpp
-        ${CMAKE_SOURCE_DIR}/src/common/world/gen/NoiseChunkGenerator.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/noise/ImprovedNoiseGenerator.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/noise/OctavesNoiseGenerator.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/chunk/IChunkGenerator.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/chunk/NoiseChunkGenerator.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/carver/CaveCarver.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/carver/CanyonCarver.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/biome/Biome.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/biome/BiomeProvider.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/biome/BiomeRegistry.cpp
         # ${CMAKE_SOURCE_DIR}/src/common/world/BlockID.cpp  # 已移除 - 使用新的方块系统
         ${CMAKE_SOURCE_DIR}/src/common/entity/Player.cpp
         ${CMAKE_SOURCE_DIR}/src/common/entity/Entity.cpp

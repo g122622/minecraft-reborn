@@ -1,6 +1,6 @@
 #include "ServerWorld.hpp"
 #include "ServerChunkManager.hpp"
-#include "common/world/gen/NoiseChunkGenerator.hpp"
+#include "common/world/gen/chunk/NoiseChunkGenerator.hpp"
 #include "server/network/TcpSession.hpp"
 #include <chrono>
 #include <spdlog/spdlog.h>

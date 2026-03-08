@@ -1,10 +1,10 @@
 #pragma once
 
-#include "NoiseSettings.hpp"
-#include "../chunk/IChunk.hpp"
-#include "../chunk/ChunkStatus.hpp"
-#include "../chunk/ChunkPrimer.hpp"
-#include "../../core/Types.hpp"
+#include "../settings/DimensionSettings.hpp"
+#include "../../chunk/ChunkStatus.hpp"
+#include "../../chunk/ChunkPrimer.hpp"
+#include "../../biome/Biome.hpp"
+#include "../../../core/Types.hpp"
 #include <memory>
 #include <array>
 #include <functional>
@@ -18,6 +18,8 @@ class WorldGenRegion;
  * @brief 区块生成器接口
  *
  * 参考 MC ChunkGenerator，定义区块生成的核心接口。
+ *
+ * @note 参考 MC 1.16.5 ChunkGenerator
  */
 class IChunkGenerator {
 public:
@@ -104,6 +106,8 @@ public:
  *
  * 参考 MC WorldGenRegion，提供有限的世界视图给生成器。
  * 只能访问指定区块及其邻居。
+ *
+ * @note 参考 MC 1.16.5 WorldGenRegion
  */
 class WorldGenRegion {
 public:

@@ -3,8 +3,8 @@
 #include "../../common/world/chunk/ChunkData.hpp"
 #include "../../common/world/chunk/ChunkHolder.hpp"
 #include "../../common/world/chunk/ChunkLoadTicketManager.hpp"
-#include "../../common/world/gen/IChunkGenerator.hpp"
-#include "../../common/world/gen/NoiseChunkGenerator.hpp"
+#include "../../common/world/gen/chunk/IChunkGenerator.hpp"
+#include "../../common/world/gen/chunk/NoiseChunkGenerator.hpp"
 #include "ChunkWorkerPool.hpp"
 #include <unordered_map>
 #include <memory>

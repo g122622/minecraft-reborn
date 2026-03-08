@@ -1,34 +1,10 @@
 #pragma once
 
-#include "../../core/Types.hpp"
+#include "INoiseGenerator.hpp"
 #include <array>
 #include <random>
 
 namespace mr {
-
-/**
- * @brief 噪声生成器接口
- */
-class INoiseGenerator {
-public:
-    virtual ~INoiseGenerator() = default;
-
-    /**
-     * @brief 采样 3D 噪声值
-     * @param x X 坐标
-     * @param y Y 坐标
-     * @param z Z 坐标
-     * @return 噪声值 [-1, 1]
-     */
-    [[nodiscard]] virtual f64 noise(f64 x, f64 y, f64 z) const = 0;
-
-    /**
-     * @brief 采样 2D 噪声值
-     */
-    [[nodiscard]] virtual f64 noise2D(f64 x, f64 z) const {
-        return noise(x, 0.0, z);
-    }
-};
 
 /**
  * @brief 改进的 Perlin 噪声生成器
@@ -42,6 +18,7 @@ public:
  * @endcode
  *
  * @note 噪声值范围约为 [-1, 1]
+ * @note 参考 MC 1.16.5 的实现
  */
 class ImprovedNoiseGenerator : public INoiseGenerator {
 public:
@@ -147,8 +124,11 @@ private:
 // 梯度向量表 (参考 SimplexNoiseGenerator.GRADS)
 // ============================================================================
 
-// 梯度向量（用于 Perlin 噪声）
-// 格式: {x, y, z}
+/**
+ * @brief Perlin 噪声梯度向量
+ *
+ * 格式: {x, y, z}
+ */
 constexpr f64 PERLIN_GRADIENTS[16][3] = {
     { 1.0,  1.0,  0.0}, {-1.0,  1.0,  0.0}, { 1.0, -1.0,  0.0}, {-1.0, -1.0,  0.0},
     { 1.0,  0.0,  1.0}, {-1.0,  0.0,  1.0}, { 1.0,  0.0, -1.0}, {-1.0,  0.0, -1.0},

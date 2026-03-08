@@ -4,11 +4,12 @@
 #include "common/world/chunk/ChunkStatus.hpp"
 #include "common/world/chunk/ChunkPrimer.hpp"
 #include "common/world/chunk/ChunkHolder.hpp"
-#include "common/world/gen/ImprovedNoiseGenerator.hpp"
-#include "common/world/gen/OctavesNoiseGenerator.hpp"
-#include "common/world/gen/NoiseSettings.hpp"
-#include "common/world/gen/NoiseChunkGenerator.hpp"
-#include "common/world/gen/IChunkGenerator.hpp"
+#include "common/world/gen/noise/ImprovedNoiseGenerator.hpp"
+#include "common/world/gen/noise/OctavesNoiseGenerator.hpp"
+#include "common/world/gen/settings/NoiseSettings.hpp"
+#include "common/world/gen/chunk/NoiseChunkGenerator.hpp"
+#include "common/world/gen/chunk/IChunkGenerator.hpp"
+#include "common/world/biome/BiomeRegistry.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
 
 using namespace mr;
@@ -383,37 +384,37 @@ TEST(ChunkHolder, PlayerTracking) {
 }
 
 // ============================================================================
-// BiomeDefinition 测试
+// Biome 测试
 // ============================================================================
 
-TEST(BiomeDefinition, PlainsDefaults) {
-    BiomeDefinition plains = Biomes::getPlains();
+TEST(Biome, PlainsDefaults) {
+    Biome plains = BiomeFactory::createPlains();
 
-    EXPECT_EQ(plains.id, Biomes::Plains);
-    EXPECT_EQ(plains.name, "plains");
-    EXPECT_FLOAT_EQ(plains.depth, 0.125f);
-    EXPECT_FLOAT_EQ(plains.scale, 0.05f);
-    EXPECT_EQ(plains.surfaceBlock, BlockId::Grass);
-    EXPECT_EQ(plains.subSurfaceBlock, BlockId::Dirt);
+    EXPECT_EQ(plains.id(), Biomes::Plains);
+    EXPECT_EQ(plains.name(), "plains");
+    EXPECT_FLOAT_EQ(plains.depth(), 0.125f);
+    EXPECT_FLOAT_EQ(plains.scale(), 0.05f);
+    EXPECT_EQ(plains.surfaceBlock(), BlockId::Grass);
+    EXPECT_EQ(plains.subSurfaceBlock(), BlockId::Dirt);
 }
 
-TEST(BiomeDefinition, DesertDefaults) {
-    BiomeDefinition desert = Biomes::getDesert();
+TEST(Biome, DesertDefaults) {
+    Biome desert = BiomeFactory::createDesert();
 
-    EXPECT_EQ(desert.id, Biomes::Desert);
-    EXPECT_FLOAT_EQ(desert.temperature, 2.0f);
-    EXPECT_FLOAT_EQ(desert.humidity, 0.0f);
-    EXPECT_EQ(desert.surfaceBlock, BlockId::Sand);
-    EXPECT_EQ(desert.subSurfaceBlock, BlockId::Sand);
+    EXPECT_EQ(desert.id(), Biomes::Desert);
+    EXPECT_FLOAT_EQ(desert.temperature(), 2.0f);
+    EXPECT_FLOAT_EQ(desert.humidity(), 0.0f);
+    EXPECT_EQ(desert.surfaceBlock(), BlockId::Sand);
+    EXPECT_EQ(desert.subSurfaceBlock(), BlockId::Sand);
 }
 
-TEST(BiomeDefinition, MountainsDefaults) {
-    BiomeDefinition mountains = Biomes::getMountains();
+TEST(Biome, MountainsDefaults) {
+    Biome mountains = BiomeFactory::createMountains();
 
-    EXPECT_EQ(mountains.id, Biomes::Mountains);
-    EXPECT_FLOAT_EQ(mountains.depth, 1.0f);
-    EXPECT_EQ(mountains.surfaceBlock, BlockId::Stone);
-    EXPECT_EQ(mountains.subSurfaceBlock, BlockId::Stone);
+    EXPECT_EQ(mountains.id(), Biomes::Mountains);
+    EXPECT_FLOAT_EQ(mountains.depth(), 1.0f);
+    EXPECT_EQ(mountains.surfaceBlock(), BlockId::Stone);
+    EXPECT_EQ(mountains.subSurfaceBlock(), BlockId::Stone);
 }
 
 // ============================================================================

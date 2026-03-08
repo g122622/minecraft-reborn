@@ -1,6 +1,6 @@
 #include "IntegratedServer.hpp"
-#include "common/world/gen/NoiseChunkGenerator.hpp"
-#include "common/world/gen/NoiseSettings.hpp"
+#include "common/world/gen/chunk/NoiseChunkGenerator.hpp"
+#include "common/world/gen/settings/DimensionSettings.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
 #include "common/network/Packet.hpp"
 #include "common/network/ChunkSync.hpp"
