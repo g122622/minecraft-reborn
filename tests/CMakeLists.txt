@@ -27,6 +27,7 @@ add_executable(mr_tests
     common/test_tree_feature.cpp
     common/test_decoration_stage.cpp
     common/test_time.cpp
+    common/test_item.cpp
     common/SettingsTest.cpp
     server/ServerWorldTest.cpp
     server/test_integrated_server.cpp
@@ -98,6 +99,11 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/world/block/blocks/RotatedPillarBlock.cpp
         # 时间系统
         ${CMAKE_SOURCE_DIR}/src/common/world/time/GameTime.cpp
+        # 物品系统
+        ${CMAKE_SOURCE_DIR}/src/common/item/Item.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/ItemStack.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/ItemRegistry.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/Items.cpp
         # 天体计算
         ${CMAKE_SOURCE_DIR}/src/client/renderer/sky/CelestialCalculations.cpp
         # 设置系统

@@ -1,0 +1,541 @@
+#include <gtest/gtest.h>
+#include "../src/common/item/Item.hpp"
+#include "../src/common/item/ItemStack.hpp"
+#include "../src/common/item/ItemRegistry.hpp"
+#include "../src/common/item/Items.hpp"
+
+using namespace mr;
+
+// ============================================================================
+// ItemProperties 测试
+// ============================================================================
+
+class ItemPropertiesTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // 每个测试前重置 Items
+        // 注意：Items::initialize() 只能调用一次
+    }
+};
+
+TEST_F(ItemPropertiesTest, DefaultValues) {
+    ItemProperties props;
+
+    EXPECT_EQ(props.maxStackSize(), 64);
+    EXPECT_EQ(props.maxDamage(), 0);
+    EXPECT_EQ(props.containerItem(), nullptr);
+    EXPECT_EQ(props.rarity(), ItemRarity::Common);
+    EXPECT_FALSE(props.isBurnable());
+    EXPECT_TRUE(props.isRepairable());
+}
+
+TEST_F(ItemPropertiesTest, MaxStackSize) {
+    ItemProperties props;
+
+    props.maxStackSize(32);
+    EXPECT_EQ(props.maxStackSize(), 32);
+
+    props.maxStackSize(1);
+    EXPECT_EQ(props.maxStackSize(), 1);
+
+    // 边界测试：最小值
+    props.maxStackSize(1);
+    EXPECT_EQ(props.maxStackSize(), 1);
+}
+
+TEST_F(ItemPropertiesTest, MaxDamageSetsStackSizeToOne) {
+    ItemProperties props;
+
+    // 设置耐久度后，堆叠数应自动变为1
+    props.maxDamage(100);
+    EXPECT_EQ(props.maxDamage(), 100);
+    EXPECT_EQ(props.maxStackSize(), 1);
+
+    // 先设置堆叠数再设置耐久度
+    ItemProperties props2;
+    props2.maxStackSize(64);
+    props2.maxDamage(50);
+    EXPECT_EQ(props2.maxStackSize(), 1);
+}
+
+TEST_F(ItemPropertiesTest, Rarity) {
+    ItemProperties props;
+
+    props.rarity(ItemRarity::Uncommon);
+    EXPECT_EQ(props.rarity(), ItemRarity::Uncommon);
+
+    props.rarity(ItemRarity::Rare);
+    EXPECT_EQ(props.rarity(), ItemRarity::Rare);
+
+    props.rarity(ItemRarity::Epic);
+    EXPECT_EQ(props.rarity(), ItemRarity::Epic);
+}
+
+TEST_F(ItemPropertiesTest, ChainedCalls) {
+    ItemProperties props;
+
+    props.maxStackSize(16)
+         .maxDamage(0)
+         .rarity(ItemRarity::Rare)
+         .burnable(true)
+         .repairable(false);
+
+    EXPECT_EQ(props.maxStackSize(), 16);
+    EXPECT_EQ(props.maxDamage(), 0);
+    EXPECT_EQ(props.rarity(), ItemRarity::Rare);
+    EXPECT_TRUE(props.isBurnable());
+    EXPECT_FALSE(props.isRepairable());
+}
+
+// ============================================================================
+// Item 测试
+// ============================================================================
+
+class ItemTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        Items::initialize();
+    }
+};
+
+TEST_F(ItemTest, ItemRegistration) {
+    Item* diamond = ItemRegistry::instance().getItem(ResourceLocation("minecraft:diamond"));
+    ASSERT_NE(diamond, nullptr);
+    EXPECT_EQ(diamond->itemLocation(), ResourceLocation("minecraft:diamond"));
+    EXPECT_GT(diamond->itemId(), 0);
+}
+
+TEST_F(ItemTest, ItemById) {
+    Item* diamond = ItemRegistry::instance().getItem(ResourceLocation("minecraft:diamond"));
+    ASSERT_NE(diamond, nullptr);
+
+    ItemId id = diamond->itemId();
+    Item* retrieved = ItemRegistry::instance().getItem(id);
+    EXPECT_EQ(retrieved, diamond);
+}
+
+TEST_F(ItemTest, ItemProperties) {
+    Item* diamondSword = ItemRegistry::instance().getItem(ResourceLocation("minecraft:diamond_sword"));
+    ASSERT_NE(diamondSword, nullptr);
+
+    // 钻石剑有耐久度，堆叠数应为1
+    EXPECT_EQ(diamondSword->maxStackSize(), 1);
+    EXPECT_TRUE(diamondSword->isDamageable());
+    EXPECT_EQ(diamondSword->maxDamage(), 1561);
+}
+
+TEST_F(ItemTest, StackableItem) {
+    Item* diamond = ItemRegistry::instance().getItem(ResourceLocation("minecraft:diamond"));
+    ASSERT_NE(diamond, nullptr);
+
+    // 钻石是可堆叠的
+    EXPECT_EQ(diamond->maxStackSize(), 64);
+    EXPECT_FALSE(diamond->isDamageable());
+}
+
+TEST_F(ItemTest, RarityItems) {
+    Item* diamond = ItemRegistry::instance().getItem(ResourceLocation("minecraft:diamond"));
+    ASSERT_NE(diamond, nullptr);
+    EXPECT_EQ(diamond->rarity(), ItemRarity::Rare);
+
+    Item* netherStar = ItemRegistry::instance().getItem(ResourceLocation("minecraft:nether_star"));
+    ASSERT_NE(netherStar, nullptr);
+    EXPECT_EQ(netherStar->rarity(), ItemRarity::Uncommon);
+}
+
+TEST_F(ItemTest, NonExistentItem) {
+    Item* item = ItemRegistry::instance().getItem(ResourceLocation("minecraft:nonexistent"));
+    EXPECT_EQ(item, nullptr);
+}
+
+TEST_F(ItemTest, NonExistentItemById) {
+    Item* item = ItemRegistry::instance().getItem(static_cast<ItemId>(9999));
+    EXPECT_EQ(item, nullptr);
+}
+
+TEST_F(ItemTest, TranslationKey) {
+    Item* diamond = ItemRegistry::instance().getItem(ResourceLocation("minecraft:diamond"));
+    ASSERT_NE(diamond, nullptr);
+    EXPECT_EQ(diamond->getTranslationKey(), "item.minecraft:diamond");
+}
+
+TEST_F(ItemTest, GetDefaultInstance) {
+    Item* diamond = ItemRegistry::instance().getItem(ResourceLocation("minecraft:diamond"));
+    ASSERT_NE(diamond, nullptr);
+
+    ItemStack stack = diamond->getDefaultInstance();
+    EXPECT_FALSE(stack.isEmpty());
+    EXPECT_EQ(stack.getItem(), diamond);
+    EXPECT_EQ(stack.getCount(), 1);
+}
+
+TEST_F(ItemTest, ForEachItem) {
+    size_t count = 0;
+    ItemRegistry::instance().forEachItem([&count](Item& item) {
+        count++;
+    });
+    EXPECT_GT(count, 0);
+}
+
+// ============================================================================
+// ItemStack 测试
+// ============================================================================
+
+class ItemStackTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        Items::initialize();
+        m_diamond = ItemRegistry::instance().getItem(ResourceLocation("minecraft:diamond"));
+        m_diamondSword = ItemRegistry::instance().getItem(ResourceLocation("minecraft:diamond_sword"));
+        m_stick = ItemRegistry::instance().getItem(ResourceLocation("minecraft:stick"));
+    }
+
+    Item* m_diamond = nullptr;
+    Item* m_diamondSword = nullptr;
+    Item* m_stick = nullptr;
+};
+
+TEST_F(ItemStackTest, EmptyStack) {
+    ItemStack empty;
+    EXPECT_TRUE(empty.isEmpty());
+    EXPECT_EQ(empty.getCount(), 0);
+    EXPECT_EQ(empty.getItem(), nullptr);
+}
+
+TEST_F(ItemStackTest, EmptyConstant) {
+    EXPECT_TRUE(ItemStack::EMPTY.isEmpty());
+}
+
+TEST_F(ItemStackTest, CreateStack) {
+    ASSERT_NE(m_diamond, nullptr);
+
+    ItemStack stack(*m_diamond, 32);
+    EXPECT_FALSE(stack.isEmpty());
+    EXPECT_EQ(stack.getItem(), m_diamond);
+    EXPECT_EQ(stack.getCount(), 32);
+    EXPECT_EQ(stack.getMaxStackSize(), 64);
+}
+
+TEST_F(ItemStackTest, CreateStackFromPointer) {
+    ASSERT_NE(m_diamond, nullptr);
+
+    ItemStack stack(m_diamond, 16);
+    EXPECT_FALSE(stack.isEmpty());
+    EXPECT_EQ(stack.getItem(), m_diamond);
+    EXPECT_EQ(stack.getCount(), 16);
+}
+
+TEST_F(ItemStackTest, ZeroCountBecomesEmpty) {
+    ASSERT_NE(m_diamond, nullptr);
+
+    ItemStack stack(*m_diamond, 0);
+    EXPECT_TRUE(stack.isEmpty());
+    EXPECT_EQ(stack.getCount(), 0);
+}
+
+TEST_F(ItemStackTest, NullItemBecomesEmpty) {
+    ItemStack stack(static_cast<Item*>(nullptr), 10);
+    EXPECT_TRUE(stack.isEmpty());
+}
+
+TEST_F(ItemStackTest, SetCount) {
+    ASSERT_NE(m_diamond, nullptr);
+
+    ItemStack stack(*m_diamond, 10);
+    stack.setCount(50);
+    EXPECT_EQ(stack.getCount(), 50);
+
+    stack.setCount(0);
+    EXPECT_TRUE(stack.isEmpty());
+}
+
+TEST_F(ItemStackTest, GrowAndShrink) {
+    ASSERT_NE(m_diamond, nullptr);
+
+    ItemStack stack(*m_diamond, 10);
+    stack.grow(5);
+    EXPECT_EQ(stack.getCount(), 15);
+
+    stack.shrink(3);
+    EXPECT_EQ(stack.getCount(), 12);
+}
+
+TEST_F(ItemStackTest, DamageableStack) {
+    ASSERT_NE(m_diamondSword, nullptr);
+
+    ItemStack stack(*m_diamondSword, 1);
+    EXPECT_TRUE(stack.isDamageable());
+    EXPECT_EQ(stack.getMaxStackSize(), 1);
+    EXPECT_EQ(stack.getMaxDamage(), 1561);
+}
+
+TEST_F(ItemStackTest, DamageAndBreak) {
+    ASSERT_NE(m_diamondSword, nullptr);
+
+    ItemStack stack(*m_diamondSword, 1);
+    EXPECT_FALSE(stack.isDamaged());
+
+    stack.setDamage(100);
+    EXPECT_TRUE(stack.isDamaged());
+    EXPECT_EQ(stack.getDamage(), 100);
+}
+
+TEST_F(ItemStackTest, BreakItem) {
+    ASSERT_NE(m_diamondSword, nullptr);
+
+    ItemStack stack(*m_diamondSword, 1);
+
+    // 造成足够的伤害使物品损坏
+    bool broken = stack.attemptDamageItem(2000);
+    EXPECT_TRUE(broken);
+    EXPECT_TRUE(stack.isEmpty());
+}
+
+TEST_F(ItemStackTest, AttemptDamagePartial) {
+    ASSERT_NE(m_diamondSword, nullptr);
+
+    ItemStack stack(*m_diamondSword, 1);
+
+    // 部分伤害
+    bool broken = stack.attemptDamageItem(100);
+    EXPECT_FALSE(broken);
+    EXPECT_FALSE(stack.isEmpty());
+    EXPECT_EQ(stack.getDamage(), 100);
+}
+
+TEST_F(ItemStackTest, CanMergeWith) {
+    ASSERT_NE(m_diamond, nullptr);
+    ASSERT_NE(m_diamondSword, nullptr);
+    ASSERT_NE(m_stick, nullptr);
+
+    // 相同物品可以合并
+    ItemStack stack1(*m_diamond, 10);
+    ItemStack stack2(*m_diamond, 20);
+    EXPECT_TRUE(stack1.canMergeWith(stack2));
+
+    // 不同物品不能合并
+    ItemStack stack3(*m_stick, 10);
+    EXPECT_FALSE(stack1.canMergeWith(stack3));
+
+    // 有耐久度的物品不能合并（因为堆叠数已经是1，无法再添加）
+    ItemStack sword1(*m_diamondSword, 1);
+    ItemStack sword2(*m_diamondSword, 1);
+    // 两者耐久度相同（都是0），但由于堆叠数限制（maxStackSize=1），不能合并
+    EXPECT_FALSE(sword1.canMergeWith(sword2));
+}
+
+TEST_F(ItemStackTest, CanMergeWithDamaged) {
+    ASSERT_NE(m_diamondSword, nullptr);
+
+    ItemStack sword1(*m_diamondSword, 1);
+    ItemStack sword2(*m_diamondSword, 1);
+
+    sword1.setDamage(50);
+    sword2.setDamage(100);
+
+    // 不同耐久度不能合并
+    EXPECT_FALSE(sword1.canMergeWith(sword2));
+}
+
+TEST_F(ItemStackTest, IsSameItem) {
+    ASSERT_NE(m_diamond, nullptr);
+    ASSERT_NE(m_stick, nullptr);
+
+    ItemStack stack1(*m_diamond, 10);
+    ItemStack stack2(*m_diamond, 20);
+
+    EXPECT_TRUE(stack1.isSameItem(stack2));
+
+    ItemStack stack3(*m_stick, 10);
+    EXPECT_FALSE(stack1.isSameItem(stack3));
+
+    // 空堆与空堆
+    ItemStack empty1;
+    ItemStack empty2;
+    EXPECT_TRUE(empty1.isSameItem(empty2));
+
+    // 空堆与非空堆
+    EXPECT_FALSE(empty1.isSameItem(stack1));
+}
+
+TEST_F(ItemStackTest, Split) {
+    ASSERT_NE(m_diamond, nullptr);
+
+    ItemStack stack(*m_diamond, 32);
+
+    ItemStack split = stack.split(10);
+    EXPECT_EQ(split.getCount(), 10);
+    EXPECT_EQ(stack.getCount(), 22);
+    EXPECT_EQ(split.getItem(), m_diamond);
+}
+
+TEST_F(ItemStackTest, SplitMoreThanAvailable) {
+    ASSERT_NE(m_diamond, nullptr);
+
+    ItemStack stack(*m_diamond, 10);
+
+    ItemStack split = stack.split(20);
+    EXPECT_EQ(split.getCount(), 10);
+    EXPECT_TRUE(stack.isEmpty());
+}
+
+TEST_F(ItemStackTest, SplitEmpty) {
+    ItemStack empty;
+    ItemStack split = empty.split(5);
+    EXPECT_TRUE(split.isEmpty());
+}
+
+TEST_F(ItemStackTest, Copy) {
+    ASSERT_NE(m_diamondSword, nullptr);
+
+    ItemStack original(*m_diamondSword, 1);
+    original.setDamage(50);
+
+    ItemStack copy = original.copy();
+    EXPECT_EQ(copy.getCount(), 1);
+    EXPECT_EQ(copy.getDamage(), 50);
+    EXPECT_EQ(copy.getItem(), m_diamondSword);
+
+    // 修改副本不影响原堆
+    copy.setDamage(100);
+    EXPECT_EQ(original.getDamage(), 50);
+}
+
+TEST_F(ItemStackTest, Equality) {
+    ASSERT_NE(m_diamond, nullptr);
+    ASSERT_NE(m_stick, nullptr);
+
+    ItemStack stack1(*m_diamond, 10);
+    ItemStack stack2(*m_diamond, 10);
+    ItemStack stack3(*m_diamond, 20);
+    ItemStack stack4(*m_stick, 10);
+
+    EXPECT_EQ(stack1, stack2);
+    EXPECT_NE(stack1, stack3);  // 数量不同
+    EXPECT_NE(stack1, stack4);  // 物品不同
+
+    // 空堆相等
+    ItemStack empty1;
+    ItemStack empty2;
+    EXPECT_EQ(empty1, empty2);
+}
+
+TEST_F(ItemStackTest, SerializationEmpty) {
+    ItemStack empty;
+
+    network::PacketSerializer ser;
+    empty.serialize(ser);
+
+    const std::vector<u8>& data = ser.buffer();
+    EXPECT_GT(data.size(), 0);
+
+    // 反序列化
+    network::PacketDeserializer deser(data);
+    auto result = ItemStack::deserialize(deser);
+    EXPECT_TRUE(result.success());
+    EXPECT_TRUE(result.value().isEmpty());
+}
+
+TEST_F(ItemStackTest, SerializationNormal) {
+    ASSERT_NE(m_diamond, nullptr);
+
+    ItemStack original(*m_diamond, 32);
+
+    network::PacketSerializer ser;
+    original.serialize(ser);
+
+    const std::vector<u8>& data = ser.buffer();
+    EXPECT_GT(data.size(), 0);
+
+    // 反序列化
+    network::PacketDeserializer deser(data);
+    auto result = ItemStack::deserialize(deser);
+    EXPECT_TRUE(result.success());
+
+    ItemStack& deserialized = result.value();
+    EXPECT_EQ(deserialized.getItem(), m_diamond);
+    EXPECT_EQ(deserialized.getCount(), 32);
+    EXPECT_EQ(deserialized, original);
+}
+
+TEST_F(ItemStackTest, SerializationDamaged) {
+    ASSERT_NE(m_diamondSword, nullptr);
+
+    ItemStack original(*m_diamondSword, 1);
+    original.setDamage(500);
+
+    network::PacketSerializer ser;
+    original.serialize(ser);
+
+    const std::vector<u8>& data = ser.buffer();
+
+    network::PacketDeserializer deser(data);
+    auto result = ItemStack::deserialize(deser);
+    EXPECT_TRUE(result.success());
+
+    ItemStack& deserialized = result.value();
+    EXPECT_EQ(deserialized.getDamage(), 500);
+    EXPECT_EQ(deserialized, original);
+}
+
+// ============================================================================
+// ItemRegistry 测试
+// ============================================================================
+
+class ItemRegistryTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        Items::initialize();
+    }
+};
+
+TEST_F(ItemRegistryTest, GetItem) {
+    Item* diamond = ItemRegistry::instance().getItem(ResourceLocation("minecraft:diamond"));
+    ASSERT_NE(diamond, nullptr);
+    EXPECT_EQ(diamond->itemLocation(), ResourceLocation("minecraft:diamond"));
+}
+
+TEST_F(ItemRegistryTest, GetItemById) {
+    Item* diamond = ItemRegistry::instance().getItem(ResourceLocation("minecraft:diamond"));
+    ASSERT_NE(diamond, nullptr);
+
+    ItemId id = diamond->itemId();
+    Item* retrieved = ItemRegistry::instance().getItem(id);
+    EXPECT_EQ(retrieved, diamond);
+}
+
+TEST_F(ItemRegistryTest, HasItem) {
+    EXPECT_TRUE(ItemRegistry::instance().hasItem(ResourceLocation("minecraft:diamond")));
+    EXPECT_FALSE(ItemRegistry::instance().hasItem(ResourceLocation("minecraft:nonexistent")));
+}
+
+TEST_F(ItemRegistryTest, RegisterSimpleItem) {
+    Item& customItem = ItemRegistry::instance().registerItem(
+        ResourceLocation("test:custom_item"),
+        ItemProperties().maxStackSize(16)
+    );
+
+    EXPECT_EQ(customItem.maxStackSize(), 16);
+    EXPECT_EQ(customItem.itemLocation(), ResourceLocation("test:custom_item"));
+    EXPECT_GT(customItem.itemId(), 0);
+
+    // 验证可以获取
+    Item* retrieved = ItemRegistry::instance().getItem(ResourceLocation("test:custom_item"));
+    EXPECT_EQ(retrieved, &customItem);
+}
+
+TEST_F(ItemRegistryTest, RegisterDamageableItem) {
+    Item& customSword = ItemRegistry::instance().registerItem(
+        ResourceLocation("test:custom_sword"),
+        ItemProperties().maxDamage(1000)
+    );
+
+    EXPECT_EQ(customSword.maxDamage(), 1000);
+    EXPECT_EQ(customSword.maxStackSize(), 1);
+    EXPECT_TRUE(customSword.isDamageable());
+}
+
+TEST_F(ItemRegistryTest, ItemCount) {
+    size_t count = ItemRegistry::instance().itemCount();
+    EXPECT_GT(count, 0);
+}

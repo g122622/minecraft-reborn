@@ -27,6 +27,12 @@ add_library(mr_common STATIC
     entity/Player.cpp
     entity/PlayerManager.cpp
 
+    # Item System
+    item/Item.cpp
+    item/ItemStack.cpp
+    item/ItemRegistry.cpp
+    item/Items.cpp
+
     # World - Block System
     world/block/Material.cpp
     world/block/Block.cpp
