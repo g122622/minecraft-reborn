@@ -64,4 +64,8 @@ bool BlobFoliagePlacer::shouldSkip(
     return false;
 }
 
+std::unique_ptr<FoliagePlacer> BlobFoliagePlacer::clone() const {
+    return std::make_unique<BlobFoliagePlacer>(m_radius, m_offset, m_height);
+}
+
 } // namespace mr

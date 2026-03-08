@@ -79,6 +79,12 @@ public:
      */
     [[nodiscard]] virtual const char* name() const = 0;
 
+    /**
+     * @brief 克隆树干放置器
+     * @return 新的树干放置器副本
+     */
+    [[nodiscard]] virtual std::unique_ptr<TrunkPlacer> clone() const = 0;
+
 protected:
     /**
      * @brief 放置单个树干方块

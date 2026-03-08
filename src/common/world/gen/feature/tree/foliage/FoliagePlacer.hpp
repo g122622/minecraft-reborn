@@ -66,6 +66,12 @@ public:
      */
     [[nodiscard]] virtual const char* name() const = 0;
 
+    /**
+     * @brief 克隆树叶放置器
+     * @return 新的树叶放置器副本
+     */
+    [[nodiscard]] virtual std::unique_ptr<FoliagePlacer> clone() const = 0;
+
 protected:
     /**
      * @brief 放置单层树叶

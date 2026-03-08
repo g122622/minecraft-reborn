@@ -45,6 +45,10 @@ public:
     ) override;
 
     [[nodiscard]] const char* name() const override { return "StraightTrunkPlacer"; }
+
+    [[nodiscard]] std::unique_ptr<TrunkPlacer> clone() const override {
+        return std::make_unique<StraightTrunkPlacer>(m_baseHeight, m_heightRandA, m_heightRandB);
+    }
 };
 
 } // namespace mr

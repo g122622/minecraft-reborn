@@ -133,8 +133,11 @@ TEST_F(FoliagePlacerTest, BlobFoliageName) {
 // ============================================================================
 
 TEST(TreeFeatureConfigTest, OakConfig) {
-    TreeFeatureConfig config = TreeFeatures::oak();
+    // 使用 createOakTree 并获取配置
+    auto feature = TreeFeatures::createOakTree();
+    ASSERT_NE(feature, nullptr);
 
+    const TreeFeatureConfig& config = feature->getConfig();
     EXPECT_EQ(config.trunkBlock, BlockId::OakLog);
     EXPECT_EQ(config.foliageBlock, BlockId::OakLeaves);
     EXPECT_NE(config.trunkPlacer, nullptr);
@@ -143,8 +146,10 @@ TEST(TreeFeatureConfigTest, OakConfig) {
 }
 
 TEST(TreeFeatureConfigTest, BirchConfig) {
-    TreeFeatureConfig config = TreeFeatures::birch();
+    auto feature = TreeFeatures::createBirchTree();
+    ASSERT_NE(feature, nullptr);
 
+    const TreeFeatureConfig& config = feature->getConfig();
     EXPECT_EQ(config.trunkBlock, BlockId::BirchLog);
     EXPECT_EQ(config.foliageBlock, BlockId::BirchLeaves);
     EXPECT_NE(config.trunkPlacer, nullptr);
@@ -153,8 +158,10 @@ TEST(TreeFeatureConfigTest, BirchConfig) {
 }
 
 TEST(TreeFeatureConfigTest, SpruceConfig) {
-    TreeFeatureConfig config = TreeFeatures::spruce();
+    auto feature = TreeFeatures::createSpruceTree();
+    ASSERT_NE(feature, nullptr);
 
+    const TreeFeatureConfig& config = feature->getConfig();
     EXPECT_EQ(config.trunkBlock, BlockId::SpruceLog);
     EXPECT_EQ(config.foliageBlock, BlockId::SpruceLeaves);
     EXPECT_NE(config.trunkPlacer, nullptr);
@@ -162,8 +169,10 @@ TEST(TreeFeatureConfigTest, SpruceConfig) {
 }
 
 TEST(TreeFeatureConfigTest, JungleConfig) {
-    TreeFeatureConfig config = TreeFeatures::jungle();
+    auto feature = TreeFeatures::createJungleTree();
+    ASSERT_NE(feature, nullptr);
 
+    const TreeFeatureConfig& config = feature->getConfig();
     EXPECT_EQ(config.trunkBlock, BlockId::JungleLog);
     EXPECT_EQ(config.foliageBlock, BlockId::JungleLeaves);
     EXPECT_NE(config.trunkPlacer, nullptr);

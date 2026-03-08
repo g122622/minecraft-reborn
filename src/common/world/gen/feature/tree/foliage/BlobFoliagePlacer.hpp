@@ -28,6 +28,8 @@ public:
 
     [[nodiscard]] const char* name() const override { return "BlobFoliagePlacer"; }
 
+    [[nodiscard]] std::unique_ptr<FoliagePlacer> clone() const override;
+
 protected:
     void placeFoliageInternal(
         WorldGenRegion& world,

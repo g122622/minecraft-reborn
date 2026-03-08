@@ -6,6 +6,7 @@
 #include "../../biome/Biome.hpp"
 #include "../../block/BlockRegistry.hpp"
 #include <algorithm>
+#include <spdlog/spdlog.h>
 
 namespace mr {
 
@@ -30,12 +31,26 @@ void FeatureRegistry::initialize() {
 
     // 注册矿石特征（UNDERGROUND_ORES 阶段）
     OreFeatures::initialize();
-
-    // 将矿石特征移动到全局注册表
-    auto features = OreFeatures::getAllFeaturesAndClear();
-    for (auto& feature : features) {
+    auto oreFeatures = OreFeatures::getAllFeaturesAndClear();
+    for (auto& feature : oreFeatures) {
         if (feature) {
             registerFeature(std::move(feature), DecorationStage::UndergroundOres);
+        }
+    }
+
+    // 注册树木特征（VEGETAL_DECORATION 阶段）
+    TreeFeatures::initialize();
+    auto treeFeatures = TreeFeatures::getAllFeaturesAndClear();
+    for (auto& feature : treeFeatures) {
+        if (feature) {
+            registerFeature(std::move(feature), DecorationStage::VegetalDecoration);
+        }
+    }
+
+    spdlog::info("[FeatureRegistry] Initialized features:");
+    for (size_t i = 0; i < m_featuresByStage.size(); ++i) {
+        if (!m_featuresByStage[i].empty()) {
+            spdlog::info("  Stage {}: {} features", i, m_featuresByStage[i].size());
         }
     }
 }

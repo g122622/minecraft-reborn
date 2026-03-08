@@ -5,8 +5,14 @@
 #include "../../../block/BlockRegistry.hpp"
 #include "../../../block/VanillaBlocks.hpp"
 #include "../../../../core/Types.hpp"
+#include "../../placement/Placement.hpp"
+#include <spdlog/spdlog.h>
 
 namespace mr {
+
+// ============================================================================
+// TreeFeature 实现（保持原有实现）
+// ============================================================================
 
 bool TreeFeature::place(
     WorldGenRegion& world,
@@ -210,13 +216,207 @@ void TreeFeature::setFoliageDistance(
     // TODO: 实现树叶距离设置
     // 这用于树叶的腐烂机制
     // 当树叶距离树干太远时会自动腐烂
+    (void)world;
+    (void)trunkBlocks;
+    (void)foliageBlocks;
 }
 
 // ============================================================================
-// 预定义树木配置
+// ConfiguredTreeFeature 实现
 // ============================================================================
 
-TreeFeatureConfig TreeFeatures::oak() {
+ConfiguredTreeFeature::ConfiguredTreeFeature(
+    std::unique_ptr<TreeFeatureConfig> featureConfig,
+    std::unique_ptr<ConfiguredPlacement> placement,
+    const char* featureName)
+    : m_config(std::move(featureConfig))
+    , m_placement(std::move(placement))
+    , m_name(featureName)
+{
+}
+
+bool ConfiguredTreeFeature::place(
+    WorldGenRegion& region,
+    ChunkPrimer& chunk,
+    IChunkGenerator& generator,
+    math::Random& random,
+    const BlockPos& pos)
+{
+    (void)generator;
+    (void)chunk;
+
+    if (!m_config || !m_placement) {
+        return false;
+    }
+
+    // 获取放置位置
+    std::vector<BlockPos> positions = m_placement->getPositions(region, random, pos);
+
+    if (positions.empty()) {
+        return false;
+    }
+
+    bool placedAny = false;
+
+    for (const BlockPos& placePos : positions) {
+        // 跳过无效位置
+        if (placePos.y < 1 || placePos.y >= 255) {
+            continue;
+        }
+
+        // 尝试放置树木
+        if (m_feature.place(region, random, placePos, *m_config)) {
+            placedAny = true;
+        }
+    }
+
+    return placedAny;
+}
+
+// ============================================================================
+// TreeFeatures 实现
+// ============================================================================
+
+std::vector<std::unique_ptr<ConfiguredTreeFeature>> TreeFeatures::s_features;
+
+void TreeFeatures::initialize() {
+    s_features.clear();
+
+    // 注册主世界树木
+    s_features.push_back(createOakTree());
+    s_features.push_back(createBirchTree());
+    s_features.push_back(createSpruceTree());
+    s_features.push_back(createJungleTree());
+    s_features.push_back(createSparseOakTree());
+
+    spdlog::info("[TreeFeatures] Initialized {} tree features", s_features.size());
+}
+
+std::vector<std::unique_ptr<ConfiguredTreeFeature>> TreeFeatures::getAllFeaturesAndClear() {
+    std::vector<std::unique_ptr<ConfiguredTreeFeature>> result = std::move(s_features);
+    s_features.clear();
+    return result;
+}
+
+const std::vector<std::unique_ptr<ConfiguredTreeFeature>>& TreeFeatures::getAllFeatures() {
+    return s_features;
+}
+
+std::unique_ptr<ConfiguredTreeFeature> TreeFeatures::createOakTree() {
+    // 橡树配置
+    auto config = std::make_unique<TreeFeatureConfig>(oakConfig());
+
+    // 放置链：数量 -> 地表
+    // 森林中每区块尝试 4 棵橡树
+    auto surfacePlacement = std::make_unique<SurfacePlacement>();
+    auto surfaceConfig = std::make_unique<SurfacePlacementConfig>(0, false);
+
+    auto countPlacement = std::make_unique<CountPlacement>();
+    auto countConfig = std::make_unique<CountPlacementConfig>(4);  // 每区块尝试 4 次
+
+    // 链式调用顺序：count 先执行，生成多个位置，然后 surface 找地表
+    auto surfaceConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(surfacePlacement), std::move(surfaceConfig));
+    auto countConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(countPlacement), std::move(countConfig));
+
+    countConfigured->setNext(std::move(surfaceConfigured));
+
+    return std::make_unique<ConfiguredTreeFeature>(
+        std::move(config), std::move(countConfigured), "oak_tree");
+}
+
+std::unique_ptr<ConfiguredTreeFeature> TreeFeatures::createBirchTree() {
+    // 白桦配置
+    auto config = std::make_unique<TreeFeatureConfig>(birchConfig());
+
+    // 放置链：数量 -> 地表
+    auto surfacePlacement = std::make_unique<SurfacePlacement>();
+    auto surfaceConfig = std::make_unique<SurfacePlacementConfig>(0, false);
+
+    auto countPlacement = std::make_unique<CountPlacement>();
+    auto countConfig = std::make_unique<CountPlacementConfig>(3);
+
+    auto surfaceConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(surfacePlacement), std::move(surfaceConfig));
+    auto countConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(countPlacement), std::move(countConfig));
+
+    countConfigured->setNext(std::move(surfaceConfigured));
+
+    return std::make_unique<ConfiguredTreeFeature>(
+        std::move(config), std::move(countConfigured), "birch_tree");
+}
+
+std::unique_ptr<ConfiguredTreeFeature> TreeFeatures::createSpruceTree() {
+    // 云杉配置
+    auto config = std::make_unique<TreeFeatureConfig>(spruceConfig());
+
+    // 放置链：数量 -> 地表
+    auto surfacePlacement = std::make_unique<SurfacePlacement>();
+    auto surfaceConfig = std::make_unique<SurfacePlacementConfig>(0, false);
+
+    auto countPlacement = std::make_unique<CountPlacement>();
+    auto countConfig = std::make_unique<CountPlacementConfig>(3);
+
+    auto surfaceConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(surfacePlacement), std::move(surfaceConfig));
+    auto countConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(countPlacement), std::move(countConfig));
+
+    countConfigured->setNext(std::move(surfaceConfigured));
+
+    return std::make_unique<ConfiguredTreeFeature>(
+        std::move(config), std::move(countConfigured), "spruce_tree");
+}
+
+std::unique_ptr<ConfiguredTreeFeature> TreeFeatures::createJungleTree() {
+    // 丛林木配置
+    auto config = std::make_unique<TreeFeatureConfig>(jungleConfig());
+
+    // 放置链：数量 -> 地表
+    // 丛林生物群系树木密度较高
+    auto surfacePlacement = std::make_unique<SurfacePlacement>();
+    auto surfaceConfig = std::make_unique<SurfacePlacementConfig>(0, false);
+
+    auto countPlacement = std::make_unique<CountPlacement>();
+    auto countConfig = std::make_unique<CountPlacementConfig>(6);
+
+    auto surfaceConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(surfacePlacement), std::move(surfaceConfig));
+    auto countConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(countPlacement), std::move(countConfig));
+
+    countConfigured->setNext(std::move(surfaceConfigured));
+
+    return std::make_unique<ConfiguredTreeFeature>(
+        std::move(config), std::move(countConfigured), "jungle_tree");
+}
+
+std::unique_ptr<ConfiguredTreeFeature> TreeFeatures::createSparseOakTree() {
+    // 稀疏橡树（用于平原）
+    auto config = std::make_unique<TreeFeatureConfig>(oakConfig());
+
+    // 放置链：概率 -> 地表
+    // 平原树木稀疏，约 10% 的区块会尝试生成一棵树
+    auto surfacePlacement = std::make_unique<SurfacePlacement>();
+    auto surfaceConfig = std::make_unique<SurfacePlacementConfig>(0, false);
+
+    auto chancePlacement = std::make_unique<ChancePlacement>();
+    auto chanceConfig = std::make_unique<ChancePlacementConfig>(0.1f);
+
+    auto surfaceConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(surfacePlacement), std::move(surfaceConfig));
+    auto chanceConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(chancePlacement), std::move(chanceConfig));
+
+    chanceConfigured->setNext(std::move(surfaceConfigured));
+
+    return std::make_unique<ConfiguredTreeFeature>(
+        std::move(config), std::move(chanceConfigured), "sparse_oak_tree");
+}
+
+TreeFeatureConfig TreeFeatures::oakConfig() {
     TreeFeatureConfig config;
     config.trunkBlock = BlockId::OakLog;
     config.foliageBlock = BlockId::OakLeaves;
@@ -230,7 +430,7 @@ TreeFeatureConfig TreeFeatures::oak() {
     return config;
 }
 
-TreeFeatureConfig TreeFeatures::birch() {
+TreeFeatureConfig TreeFeatures::birchConfig() {
     TreeFeatureConfig config;
     config.trunkBlock = BlockId::BirchLog;
     config.foliageBlock = BlockId::BirchLeaves;
@@ -244,7 +444,7 @@ TreeFeatureConfig TreeFeatures::birch() {
     return config;
 }
 
-TreeFeatureConfig TreeFeatures::spruce() {
+TreeFeatureConfig TreeFeatures::spruceConfig() {
     TreeFeatureConfig config;
     config.trunkBlock = BlockId::SpruceLog;
     config.foliageBlock = BlockId::SpruceLeaves;
@@ -258,7 +458,7 @@ TreeFeatureConfig TreeFeatures::spruce() {
     return config;
 }
 
-TreeFeatureConfig TreeFeatures::jungle() {
+TreeFeatureConfig TreeFeatures::jungleConfig() {
     TreeFeatureConfig config;
     config.trunkBlock = BlockId::JungleLog;
     config.foliageBlock = BlockId::JungleLeaves;

@@ -1,9 +1,11 @@
 #pragma once
 
 #include "../Feature.hpp"
+#include "../ConfiguredFeature.hpp"
 #include "trunk/TrunkPlacer.hpp"
 #include "foliage/FoliagePlacer.hpp"
 #include "../../../block/Block.hpp"
+#include "../../placement/Placement.hpp"
 #include <memory>
 
 namespace mr {
@@ -50,6 +52,47 @@ struct TreeFeatureConfig : public IFeatureConfig {
       , trunkPlacer(std::move(trunkPlacer_))
       , foliagePlacer(std::move(foliagePlacer_))
     {}
+
+    /**
+     * @brief 复制构造函数（深拷贝）
+     */
+    TreeFeatureConfig(const TreeFeatureConfig& other)
+        : trunkBlock(other.trunkBlock)
+        , foliageBlock(other.foliageBlock)
+        , maxWaterDepth(other.maxWaterDepth)
+        , ignoreVines(other.ignoreVines)
+        , forcePlacement(other.forcePlacement)
+        , minHeight(other.minHeight)
+    {
+        // 深拷贝放置器
+        if (other.trunkPlacer) {
+            trunkPlacer = other.trunkPlacer->clone();
+        }
+        if (other.foliagePlacer) {
+            foliagePlacer = other.foliagePlacer->clone();
+        }
+    }
+
+    /**
+     * @brief 赋值运算符（深拷贝）
+     */
+    TreeFeatureConfig& operator=(const TreeFeatureConfig& other) {
+        if (this != &other) {
+            trunkBlock = other.trunkBlock;
+            foliageBlock = other.foliageBlock;
+            maxWaterDepth = other.maxWaterDepth;
+            ignoreVines = other.ignoreVines;
+            forcePlacement = other.forcePlacement;
+            minHeight = other.minHeight;
+            if (other.trunkPlacer) {
+                trunkPlacer = other.trunkPlacer->clone();
+            }
+            if (other.foliagePlacer) {
+                foliagePlacer = other.foliagePlacer->clone();
+            }
+        }
+        return *this;
+    }
 };
 
 /**
@@ -155,20 +198,102 @@ private:
 };
 
 /**
+ * @brief 配置化的树木特征
+ *
+ * 组合树木特征、配置和放置规则。
+ * 继承 ConfiguredFeatureBase 以支持统一的特征注册。
+ */
+class ConfiguredTreeFeature : public ConfiguredFeatureBase {
+public:
+    /**
+     * @brief 构造配置化树木特征
+     * @param featureConfig 树木配置
+     * @param placement 放置规则
+     * @param featureName 特征名称
+     */
+    ConfiguredTreeFeature(
+        std::unique_ptr<TreeFeatureConfig> featureConfig,
+        std::unique_ptr<ConfiguredPlacement> placement,
+        const char* featureName = "tree");
+
+    /**
+     * @brief 在指定位置放置树木（实现 ConfiguredFeatureBase 接口）
+     */
+    bool place(
+        WorldGenRegion& region,
+        ChunkPrimer& chunk,
+        IChunkGenerator& generator,
+        math::Random& random,
+        const BlockPos& pos) override;
+
+    /**
+     * @brief 获取特征名称
+     */
+    [[nodiscard]] const char* name() const override { return m_name.c_str(); }
+
+    /**
+     * @brief 获取装饰阶段
+     */
+    [[nodiscard]] DecorationStage stage() const override { return DecorationStage::VegetalDecoration; }
+
+    /**
+     * @brief 获取树木配置
+     */
+    [[nodiscard]] const TreeFeatureConfig& getConfig() const { return *m_config; }
+
+private:
+    std::unique_ptr<TreeFeatureConfig> m_config;
+    std::unique_ptr<ConfiguredPlacement> m_placement;
+    std::string m_name;
+    TreeFeature m_feature;
+};
+
+/**
  * @brief 预定义的树木配置
+ *
+ * 管理所有预配置的树木特征。
+ * 参考 MC Features / ConfiguredFeatures
  */
 struct TreeFeatures {
-    /// 橡树配置
-    static TreeFeatureConfig oak();
+    /**
+     * @brief 初始化所有树木特征
+     */
+    static void initialize();
 
-    /// 白桦配置
-    static TreeFeatureConfig birch();
+    /**
+     * @brief 获取所有树木特征并转移所有权
+     * @note 调用后内部存储被清空
+     */
+    [[nodiscard]] static std::vector<std::unique_ptr<ConfiguredTreeFeature>> getAllFeaturesAndClear();
 
-    /// 云杉配置
-    static TreeFeatureConfig spruce();
+    /**
+     * @brief 获取所有树木特征（只读访问）
+     */
+    [[nodiscard]] static const std::vector<std::unique_ptr<ConfiguredTreeFeature>>& getAllFeatures();
 
-    /// 丛林木配置
-    static TreeFeatureConfig jungle();
+    /// 创建橡树配置
+    static std::unique_ptr<ConfiguredTreeFeature> createOakTree();
+
+    /// 创建白桦配置
+    static std::unique_ptr<ConfiguredTreeFeature> createBirchTree();
+
+    /// 创建云杉配置
+    static std::unique_ptr<ConfiguredTreeFeature> createSpruceTree();
+
+    /// 创建丛林木配置
+    static std::unique_ptr<ConfiguredTreeFeature> createJungleTree();
+
+    /// 创建稀疏橡树（平原用）
+    static std::unique_ptr<ConfiguredTreeFeature> createSparseOakTree();
+
+private:
+    static std::vector<std::unique_ptr<ConfiguredTreeFeature>> s_features;
+
+    /// 创建树木特征的基础配置
+    static TreeFeatureConfig oakConfig();
+    static TreeFeatureConfig birchConfig();
+    static TreeFeatureConfig spruceConfig();
+    static TreeFeatureConfig jungleConfig();
 };
 
 } // namespace mr

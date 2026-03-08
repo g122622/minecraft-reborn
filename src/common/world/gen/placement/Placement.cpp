@@ -1,5 +1,7 @@
 #include "Placement.hpp"
+#include "../chunk/IChunkGenerator.hpp"
 #include "../../../math/MathUtils.hpp"
+#include "../../block/Block.hpp"
 #include <cmath>
 
 namespace mr {
@@ -171,6 +173,67 @@ std::vector<BlockPos> ChancePlacement::getPositions(
     if (random.nextFloat() < chanceConfig.chance) {
         return { basePos };
     }
+    return {};
+}
+
+// ============================================================================
+// SurfacePlacement 实现
+// ============================================================================
+
+std::vector<BlockPos> SurfacePlacement::getPositions(
+    WorldGenRegion& region,
+    math::Random& random,
+    const IPlacementConfig& config,
+    const BlockPos& basePos) const
+{
+    (void)random;
+    const auto& surfaceConfig = static_cast<const SurfacePlacementConfig&>(config);
+
+    // 从顶部向下搜索第一个固体方块
+    // 世界高度范围通常是 -64 到 320，我们简化为 0 到 256
+    constexpr i32 MIN_Y = 0;
+    constexpr i32 MAX_Y = 255;
+
+    for (i32 y = MAX_Y; y >= MIN_Y; --y) {
+        const BlockState* state = region.getBlock(basePos.x, y, basePos.z);
+        if (state == nullptr) {
+            continue;
+        }
+
+        // 如果是空气，继续向下
+        if (state->isAir()) {
+            continue;
+        }
+
+        // 找到固体方块，检查是否是水
+        u32 blockId = state->blockId();
+        if (blockId == static_cast<u32>(BlockId::Water)) {
+            // 检查水深
+            i32 waterDepth = 0;
+            for (i32 wy = y; wy >= MIN_Y && waterDepth <= surfaceConfig.maxWaterDepth; --wy) {
+                const BlockState* waterState = region.getBlock(basePos.x, wy, basePos.z);
+                if (waterState == nullptr || waterState->isAir()) {
+                    break;
+                }
+                if (waterState->blockId() == static_cast<u32>(BlockId::Water)) {
+                    waterDepth++;
+                } else {
+                    // 找到水下的固体方块
+                    if (waterDepth <= surfaceConfig.maxWaterDepth) {
+                        return { BlockPos(basePos.x, wy, basePos.z) };
+                    }
+                    break;
+                }
+            }
+            // 水太深，不能放置
+            return {};
+        }
+
+        // 找到固体地表，返回上方一格的位置（种植位置）
+        return { BlockPos(basePos.x, y + 1, basePos.z) };
+    }
+
+    // 没找到地表
     return {};
 }
 

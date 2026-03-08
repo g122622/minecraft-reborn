@@ -4,6 +4,7 @@
 #include "../chunk/ChunkPrimer.hpp"
 #include "../../math/MathUtils.hpp"
 #include <algorithm>
+#include <spdlog/spdlog.h>
 
 namespace mr {
 
@@ -70,41 +71,52 @@ BiomeGenerationSettings BiomeGenerationSettings::createDefault() {
 }
 
 BiomeGenerationSettings BiomeGenerationSettings::createPlains() {
-    // 平原：基础矿石 + 草和花
+    // 平原：基础矿石 + 稀疏的树木
     BiomeGenerationSettings settings = createDefault();
 
-    // 添加植被（VEGETAL_DECORATION 阶段）
-    // TODO: 添加花草特征
+    // 添加稀疏橡树（VEGETAL_DECORATION 阶段）
+    // 树木特征ID在 VegetalDecoration 阶段内重新从0开始编号
+    // 0: oak_tree, 1: birch_tree, 2: spruce_tree, 3: jungle_tree, 4: sparse_oak_tree
+    settings.addFeature(DecorationStage::VegetalDecoration, 4);  // 稀疏橡树
 
     return settings;
 }
 
 BiomeGenerationSettings BiomeGenerationSettings::createForest() {
-    // 森林：基础矿石 + 树木 + 草和花
+    // 森林：基础矿石 + 密集的树木
     BiomeGenerationSettings settings = createDefault();
 
-    // 添加树木和植被（VEGETAL_DECORATION 阶段）
-    // TODO: 添加树木特征
+    // 添加树木（VEGETAL_DECORATION 阶段）
+    // 树木特征ID在 VegetalDecoration 阶段内重新从0开始编号
+    // 0: oak_tree, 1: birch_tree, 2: spruce_tree, 3: jungle_tree, 4: sparse_oak_tree
+    settings.addFeature(DecorationStage::VegetalDecoration, 0);   // 橡树
+    settings.addFeature(DecorationStage::VegetalDecoration, 0);   // 橡树（多添加几次增加密度）
+    settings.addFeature(DecorationStage::VegetalDecoration, 1);   // 白桦
 
     return settings;
 }
 
 BiomeGenerationSettings BiomeGenerationSettings::createDesert() {
-    // 沙漠：基础矿石 + 枯萎灌木
+    // 沙漠：只有矿石，没有树木
     BiomeGenerationSettings settings = createDefault();
 
-    // 沙漠没有树木，只有枯萎灌木
+    // 沙漠没有树木
     // TODO: 添加枯萎灌木特征
 
     return settings;
 }
 
 BiomeGenerationSettings BiomeGenerationSettings::createMountains() {
-    // 山地：基础矿石 + 绿宝石
+    // 山地：基础矿石 + 绿宝石 + 云杉树
     BiomeGenerationSettings settings = createDefault();
 
-    // 添加绿宝石矿石
-    settings.addFeature(DecorationStage::UndergroundOres, 5);  // 绿宝石
+    // 添加绿宝石矿石（在 UndergroundOres 阶段）
+    // 矿石特征ID：0:coal, 1:iron, 2:gold, 3:redstone, 4:diamond, 5:lapis, 6:emerald, 7:copper
+    settings.addFeature(DecorationStage::UndergroundOres, 6);  // 绿宝石
+
+    // 添加云杉树（VEGETAL_DECORATION 阶段）
+    // 0: oak_tree, 1: birch_tree, 2: spruce_tree, 3: jungle_tree, 4: sparse_oak_tree
+    settings.addFeature(DecorationStage::VegetalDecoration, 2);  // 云杉
 
     return settings;
 }
@@ -179,7 +191,8 @@ void BiomeFeaturePlacer::placeFeaturesForStage(
             // 设置特征随机种子
             random.setSeed(chunkSeed ^ static_cast<u64>(featureId));
 
-            feature->place(region, chunk, generator, random, chunkOrigin);
+            bool placed = feature->place(region, chunk, generator, random, chunkOrigin);
+            (void)placed;  // 暂时忽略结果
         }
     }
 }

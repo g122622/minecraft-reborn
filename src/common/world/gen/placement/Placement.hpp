@@ -126,6 +126,23 @@ struct ChancePlacementConfig : public IPlacementConfig {
 };
 
 /**
+ * @brief 地表放置配置
+ *
+ * 在地表高度放置特征（用于树木等）。
+ * 参考 MC SurfacePlacement / HeightmapPlacement
+ */
+struct SurfacePlacementConfig : public IPlacementConfig {
+    /// 最大水深（树木不能种在太深的水中）
+    i32 maxWaterDepth;
+
+    /// 是否需要在阳光下
+    bool requireSunlight;
+
+    explicit SurfacePlacementConfig(i32 waterDepth = 0, bool sunlight = false)
+        : maxWaterDepth(waterDepth), requireSunlight(sunlight) {}
+};
+
+/**
  * @brief 放置器基类
  *
  * 控制特征在世界中的放置位置。
@@ -233,6 +250,23 @@ public:
         const BlockPos& basePos) const override;
 
     [[nodiscard]] const char* name() const override { return "chance"; }
+};
+
+/**
+ * @brief 地表放置器
+ *
+ * 在地表高度放置特征（用于树木等）。
+ * 从顶部向下搜索第一个非空气方块。
+ */
+class SurfacePlacement : public Placement {
+public:
+    [[nodiscard]] std::vector<BlockPos> getPositions(
+        WorldGenRegion& region,
+        math::Random& random,
+        const IPlacementConfig& config,
+        const BlockPos& basePos) const override;
+
+    [[nodiscard]] const char* name() const override { return "surface"; }
 };
 
 /**
