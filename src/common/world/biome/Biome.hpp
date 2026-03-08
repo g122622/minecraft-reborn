@@ -2,7 +2,9 @@
 
 #include "../../core/Types.hpp"
 #include "../block/Block.hpp"
+#include "BiomeGenerationSettings.hpp"
 #include <string>
+#include <memory>
 
 namespace mr {
 
@@ -110,6 +112,11 @@ public:
     void setUnderWaterBlock(BlockId block) { m_underWaterBlock = block; }
     void setBedrockBlock(BlockId block) { m_bedrockBlock = block; }
 
+    // === 生成设置 ===
+    [[nodiscard]] const BiomeGenerationSettings& generationSettings() const { return m_generationSettings; }
+    [[nodiscard]] BiomeGenerationSettings& generationSettings() { return m_generationSettings; }
+    void setGenerationSettings(const BiomeGenerationSettings& settings) { m_generationSettings = settings; }
+
 private:
     BiomeId m_id;
     String m_name;
@@ -130,6 +137,9 @@ private:
     BlockId m_subSurfaceBlock = BlockId::Dirt;
     BlockId m_underWaterBlock = BlockId::Gravel;
     BlockId m_bedrockBlock = BlockId::Bedrock;
+
+    // 生成设置
+    BiomeGenerationSettings m_generationSettings;
 };
 
 // ============================================================================

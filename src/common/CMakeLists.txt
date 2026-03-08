@@ -62,6 +62,7 @@ add_library(mr_common STATIC
     world/biome/Biome.cpp
     world/biome/BiomeProvider.cpp
     world/biome/BiomeRegistry.cpp
+    world/biome/BiomeGenerationSettings.cpp
 
     # World - Biome - Layer
     world/biome/layer/LazyArea.cpp
@@ -75,6 +76,7 @@ add_library(mr_common STATIC
     # World - Generation - Feature
     world/gen/feature/Feature.cpp
     world/gen/feature/FeatureSpread.cpp
+    world/gen/feature/ConfiguredFeature.cpp
     world/gen/feature/ore/OreFeature.cpp
     world/gen/feature/tree/TreeFeature.cpp
     world/gen/feature/tree/trunk/TrunkPlacer.cpp

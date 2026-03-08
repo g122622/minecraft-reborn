@@ -1,0 +1,134 @@
+#pragma once
+
+#include "../gen/feature/DecorationStage.hpp"
+#include <vector>
+#include <memory>
+#include <functional>
+
+namespace mr {
+
+// 前向声明
+class ConfiguredFeatureBase;
+class WorldGenRegion;
+class ChunkPrimer;
+class IChunkGenerator;
+class Random;
+
+/**
+ * @brief 生物群系生成设置
+ *
+ * 存储生物群系特有的特征列表，按装饰阶段组织。
+ * 参考 MC BiomeGenerationSettings
+ */
+class BiomeGenerationSettings {
+public:
+    BiomeGenerationSettings();
+    ~BiomeGenerationSettings();
+
+    /**
+     * @brief 添加特征到指定阶段
+     * @param stage 装饰阶段
+     * @param feature 特征ID（用于引用全局特征）
+     */
+    void addFeature(DecorationStage stage, u32 featureId);
+
+    /**
+     * @brief 获取指定阶段的特征ID列表
+     * @param stage 装饰阶段
+     * @return 特征ID列表
+     */
+    [[nodiscard]] const std::vector<u32>& getFeatures(DecorationStage stage) const;
+
+    /**
+     * @brief 检查是否有任何特征
+     */
+    [[nodiscard]] bool hasFeatures() const;
+
+    /**
+     * @brief 清除所有特征
+     */
+    void clear();
+
+    /**
+     * @brief 创建默认的生物群系生成设置
+     * @return 默认设置
+     */
+    static BiomeGenerationSettings createDefault();
+
+    /**
+     * @brief 创建平原生物群系的生成设置
+     * @return 平原设置
+     */
+    static BiomeGenerationSettings createPlains();
+
+    /**
+     * @brief 创建森林生物群系的生成设置
+     * @return 森林设置
+     */
+    static BiomeGenerationSettings createForest();
+
+    /**
+     * @brief 创建沙漠生物群系的生成设置
+     * @return 沙漠设置
+     */
+    static BiomeGenerationSettings createDesert();
+
+    /**
+     * @brief 创建山地生物群系的生成设置
+     * @return 山地设置
+     */
+    static BiomeGenerationSettings createMountains();
+
+    /**
+     * @brief 创建海洋生物群系的生成设置
+     * @return 海洋设置
+     */
+    static BiomeGenerationSettings createOcean();
+
+private:
+    // 按阶段存储特征ID列表
+    // 使用特征ID而不是直接存储特征对象，以减少内存占用
+    std::vector<std::vector<u32>> m_featuresByStage;
+};
+
+/**
+ * @brief 生物群系特征放置器
+ *
+ * 在区块中放置生物群系特有的特征。
+ */
+class BiomeFeaturePlacer {
+public:
+    /**
+     * @brief 在区块中放置所有阶段的特征
+     * @param region 世界生成区域
+     * @param chunk 区块数据
+     * @param generator 区块生成器
+     * @param settings 生物群系生成设置
+     * @param seed 世界种子
+     */
+    static void placeAllFeatures(
+        WorldGenRegion& region,
+        ChunkPrimer& chunk,
+        IChunkGenerator& generator,
+        const BiomeGenerationSettings& settings,
+        u64 seed);
+
+    /**
+     * @brief 在区块中放置指定阶段的特征
+     * @param region 世界生成区域
+     * @param chunk 区块数据
+     * @param generator 区块生成器
+     * @param settings 生物群系生成设置
+     * @param stage 装饰阶段
+     * @param seed 世界种子
+     */
+    static void placeFeaturesForStage(
+        WorldGenRegion& region,
+        ChunkPrimer& chunk,
+        IChunkGenerator& generator,
+        const BiomeGenerationSettings& settings,
+        DecorationStage stage,
+        u64 seed);
+};
+
+} // namespace mr

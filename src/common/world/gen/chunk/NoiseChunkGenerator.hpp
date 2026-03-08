@@ -6,7 +6,10 @@
 #include "../carver/WorldCarver.hpp"
 #include "../carver/CaveCarver.hpp"
 #include "../carver/CanyonCarver.hpp"
+#include "../feature/DecorationStage.hpp"
+#include "../feature/ConfiguredFeature.hpp"
 #include "../../biome/BiomeProvider.hpp"
+#include "../../biome/BiomeGenerationSettings.hpp"
 #include "../../chunk/ChunkPrimer.hpp"
 #include "../../../core/Types.hpp"
 #include <memory>

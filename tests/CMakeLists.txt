@@ -25,6 +25,7 @@ add_executable(mr_tests
     common/test_ore_feature.cpp
     common/test_carver.cpp
     common/test_tree_feature.cpp
+    common/test_decoration_stage.cpp
     common/test_time.cpp
     common/SettingsTest.cpp
     server/ServerWorldTest.cpp
@@ -66,6 +67,7 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/world/biome/Biome.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/biome/BiomeProvider.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/biome/BiomeRegistry.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/biome/BiomeGenerationSettings.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/LazyArea.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/LayerUtil.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/transformers/BasicTransformers.cpp
@@ -73,6 +75,7 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/surface/SurfaceBuilders.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/Feature.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/FeatureSpread.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/ConfiguredFeature.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/ore/OreFeature.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/tree/TreeFeature.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/tree/trunk/TrunkPlacer.cpp

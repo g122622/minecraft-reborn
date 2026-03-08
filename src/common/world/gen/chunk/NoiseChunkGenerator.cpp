@@ -1,6 +1,9 @@
 #include "NoiseChunkGenerator.hpp"
 #include "../../block/BlockRegistry.hpp"
 #include "../../biome/BiomeRegistry.hpp"
+#include "../../biome/BiomeGenerationSettings.hpp"
+#include "../feature/ConfiguredFeature.hpp"
+#include "../feature/ore/OreFeature.hpp"
 #include "../../../math/MathUtils.hpp"
 #include <algorithm>
 #include <cmath>
@@ -635,8 +638,29 @@ void NoiseChunkGenerator::applyCarvers(WorldGenRegion& region, ChunkPrimer& chun
 
 void NoiseChunkGenerator::placeFeatures(WorldGenRegion& region, ChunkPrimer& chunk)
 {
-    // 暂时未实现特性放置
-    // 后续可以添加树木、矿石等
+    const ChunkCoord chunkX = chunk.x();
+    const ChunkCoord chunkZ = chunk.z();
+
+    // 初始化特征注册表（首次调用时）
+    static bool s_featuresInitialized = false;
+    if (!s_featuresInitialized) {
+        FeatureRegistry::instance().initialize();
+        s_featuresInitialized = true;
+    }
+
+    // 获取区块中心位置的主要生物群系
+    const i32 centerX = (chunkX << 4) + 8;
+    const i32 centerZ = (chunkZ << 4) + 8;
+    const BiomeId biomeId = chunk.getBiomeAtBlock(8, 64, 8);
+    const Biome& biome = m_biomeProvider->getBiomeDefinition(biomeId);
+    const BiomeGenerationSettings& settings = biome.generationSettings();
+
+    // 按装饰阶段顺序放置特征
+    for (DecorationStage stage : DecorationStages::getAll()) {
+        BiomeFeaturePlacer::placeFeaturesForStage(
+            region, chunk, *this, settings, stage, m_seed);
+    }
+
     chunk.setChunkStatus(ChunkStatus::FEATURES);
 }
 
