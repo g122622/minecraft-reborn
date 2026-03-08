@@ -10,6 +10,54 @@
 
 namespace mr {
 
+namespace {
+
+std::unique_ptr<ConfiguredPlacement> createCountedSurfacePlacement(i32 count, i32 maxWaterDepth = 0) {
+    auto surfacePlacement = std::make_unique<SurfacePlacement>();
+    auto surfaceConfig = std::make_unique<SurfacePlacementConfig>(maxWaterDepth, false);
+
+    auto squarePlacement = std::make_unique<SquarePlacement>();
+    auto squareConfig = std::make_unique<EmptyPlacementConfig>();
+
+    auto countPlacement = std::make_unique<CountPlacement>();
+    auto countConfig = std::make_unique<CountPlacementConfig>(count);
+
+    auto surfaceConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(surfacePlacement), std::move(surfaceConfig));
+    auto squareConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(squarePlacement), std::move(squareConfig));
+    auto countConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(countPlacement), std::move(countConfig));
+
+    squareConfigured->setNext(std::move(surfaceConfigured));
+    countConfigured->setNext(std::move(squareConfigured));
+    return countConfigured;
+}
+
+std::unique_ptr<ConfiguredPlacement> createChanceSurfacePlacement(f32 chance, i32 maxWaterDepth = 0) {
+    auto surfacePlacement = std::make_unique<SurfacePlacement>();
+    auto surfaceConfig = std::make_unique<SurfacePlacementConfig>(maxWaterDepth, false);
+
+    auto squarePlacement = std::make_unique<SquarePlacement>();
+    auto squareConfig = std::make_unique<EmptyPlacementConfig>();
+
+    auto chancePlacement = std::make_unique<ChancePlacement>();
+    auto chanceConfig = std::make_unique<ChancePlacementConfig>(chance);
+
+    auto surfaceConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(surfacePlacement), std::move(surfaceConfig));
+    auto squareConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(squarePlacement), std::move(squareConfig));
+    auto chanceConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(chancePlacement), std::move(chanceConfig));
+
+    squareConfigured->setNext(std::move(surfaceConfigured));
+    chanceConfigured->setNext(std::move(squareConfigured));
+    return chanceConfigured;
+}
+
+} // namespace
+
 // ============================================================================
 // TreeFeature 实现（保持原有实现）
 // ============================================================================
@@ -59,7 +107,6 @@ bool TreeFeature::place(
     }
 
     // 放置树叶
-    i32 foliageHeight = config.foliagePlacer->getFoliageHeight(random, trunkHeight);
     config.foliagePlacer->placeFoliage(
         world, random, trunkHeight, foliagePositions, trunkBlocks,
         trunkHeight - 1, config.foliageBlock
@@ -185,6 +232,7 @@ i32 TreeFeature::calculateAvailableHeight(
     const BlockPos& startPos,
     const TreeFeatureConfig& config
 ) const {
+    (void)config;
     BlockPos pos;
 
     for (i32 y = 0; y <= maxHeight + 1; ++y) {
@@ -306,114 +354,40 @@ std::unique_ptr<ConfiguredTreeFeature> TreeFeatures::createOakTree() {
     // 橡树配置
     auto config = std::make_unique<TreeFeatureConfig>(oakConfig());
 
-    // 放置链：数量 -> 地表
-    // 森林中每区块尝试 4 棵橡树
-    auto surfacePlacement = std::make_unique<SurfacePlacement>();
-    auto surfaceConfig = std::make_unique<SurfacePlacementConfig>(0, false);
-
-    auto countPlacement = std::make_unique<CountPlacement>();
-    auto countConfig = std::make_unique<CountPlacementConfig>(4);  // 每区块尝试 4 次
-
-    // 链式调用顺序：count 先执行，生成多个位置，然后 surface 找地表
-    auto surfaceConfigured = std::make_unique<ConfiguredPlacement>(
-        std::move(surfacePlacement), std::move(surfaceConfig));
-    auto countConfigured = std::make_unique<ConfiguredPlacement>(
-        std::move(countPlacement), std::move(countConfig));
-
-    countConfigured->setNext(std::move(surfaceConfigured));
-
     return std::make_unique<ConfiguredTreeFeature>(
-        std::move(config), std::move(countConfigured), "oak_tree");
+        std::move(config), createCountedSurfacePlacement(4), "oak_tree");
 }
 
 std::unique_ptr<ConfiguredTreeFeature> TreeFeatures::createBirchTree() {
     // 白桦配置
     auto config = std::make_unique<TreeFeatureConfig>(birchConfig());
 
-    // 放置链：数量 -> 地表
-    auto surfacePlacement = std::make_unique<SurfacePlacement>();
-    auto surfaceConfig = std::make_unique<SurfacePlacementConfig>(0, false);
-
-    auto countPlacement = std::make_unique<CountPlacement>();
-    auto countConfig = std::make_unique<CountPlacementConfig>(3);
-
-    auto surfaceConfigured = std::make_unique<ConfiguredPlacement>(
-        std::move(surfacePlacement), std::move(surfaceConfig));
-    auto countConfigured = std::make_unique<ConfiguredPlacement>(
-        std::move(countPlacement), std::move(countConfig));
-
-    countConfigured->setNext(std::move(surfaceConfigured));
-
     return std::make_unique<ConfiguredTreeFeature>(
-        std::move(config), std::move(countConfigured), "birch_tree");
+        std::move(config), createCountedSurfacePlacement(3), "birch_tree");
 }
 
 std::unique_ptr<ConfiguredTreeFeature> TreeFeatures::createSpruceTree() {
     // 云杉配置
     auto config = std::make_unique<TreeFeatureConfig>(spruceConfig());
 
-    // 放置链：数量 -> 地表
-    auto surfacePlacement = std::make_unique<SurfacePlacement>();
-    auto surfaceConfig = std::make_unique<SurfacePlacementConfig>(0, false);
-
-    auto countPlacement = std::make_unique<CountPlacement>();
-    auto countConfig = std::make_unique<CountPlacementConfig>(3);
-
-    auto surfaceConfigured = std::make_unique<ConfiguredPlacement>(
-        std::move(surfacePlacement), std::move(surfaceConfig));
-    auto countConfigured = std::make_unique<ConfiguredPlacement>(
-        std::move(countPlacement), std::move(countConfig));
-
-    countConfigured->setNext(std::move(surfaceConfigured));
-
     return std::make_unique<ConfiguredTreeFeature>(
-        std::move(config), std::move(countConfigured), "spruce_tree");
+        std::move(config), createCountedSurfacePlacement(3), "spruce_tree");
 }
 
 std::unique_ptr<ConfiguredTreeFeature> TreeFeatures::createJungleTree() {
     // 丛林木配置
     auto config = std::make_unique<TreeFeatureConfig>(jungleConfig());
 
-    // 放置链：数量 -> 地表
-    // 丛林生物群系树木密度较高
-    auto surfacePlacement = std::make_unique<SurfacePlacement>();
-    auto surfaceConfig = std::make_unique<SurfacePlacementConfig>(0, false);
-
-    auto countPlacement = std::make_unique<CountPlacement>();
-    auto countConfig = std::make_unique<CountPlacementConfig>(6);
-
-    auto surfaceConfigured = std::make_unique<ConfiguredPlacement>(
-        std::move(surfacePlacement), std::move(surfaceConfig));
-    auto countConfigured = std::make_unique<ConfiguredPlacement>(
-        std::move(countPlacement), std::move(countConfig));
-
-    countConfigured->setNext(std::move(surfaceConfigured));
-
     return std::make_unique<ConfiguredTreeFeature>(
-        std::move(config), std::move(countConfigured), "jungle_tree");
+        std::move(config), createCountedSurfacePlacement(6), "jungle_tree");
 }
 
 std::unique_ptr<ConfiguredTreeFeature> TreeFeatures::createSparseOakTree() {
     // 稀疏橡树（用于平原）
     auto config = std::make_unique<TreeFeatureConfig>(oakConfig());
 
-    // 放置链：概率 -> 地表
-    // 平原树木稀疏，约 10% 的区块会尝试生成一棵树
-    auto surfacePlacement = std::make_unique<SurfacePlacement>();
-    auto surfaceConfig = std::make_unique<SurfacePlacementConfig>(0, false);
-
-    auto chancePlacement = std::make_unique<ChancePlacement>();
-    auto chanceConfig = std::make_unique<ChancePlacementConfig>(0.1f);
-
-    auto surfaceConfigured = std::make_unique<ConfiguredPlacement>(
-        std::move(surfacePlacement), std::move(surfaceConfig));
-    auto chanceConfigured = std::make_unique<ConfiguredPlacement>(
-        std::move(chancePlacement), std::move(chanceConfig));
-
-    chanceConfigured->setNext(std::move(surfaceConfigured));
-
     return std::make_unique<ConfiguredTreeFeature>(
-        std::move(config), std::move(chanceConfigured), "sparse_oak_tree");
+        std::move(config), createChanceSurfacePlacement(0.1f), "sparse_oak_tree");
 }
 
 TreeFeatureConfig TreeFeatures::oakConfig() {

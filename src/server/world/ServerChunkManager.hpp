@@ -272,7 +272,11 @@ private:
      * @param neighbors 输出数组（中心 + 8 个邻居 = 9 个区块）
      * 索引顺序：0=NW, 1=N, 2=NE, 3=W, 4=中心, 5=E, 6=SW, 7=S, 8=SE
      */
-    void getNeighborChunks(ChunkCoord x, ChunkCoord z, std::array<IChunk*, 9>& neighbors);
+    void getNeighborChunks(
+        ChunkCoord x,
+        ChunkCoord z,
+        std::array<IChunk*, 9>& neighbors,
+        std::array<std::unique_ptr<IChunk>, 9>& neighborAdapters);
 
     /**
      * @brief 处理完成的异步任务

@@ -5,6 +5,85 @@
 
 namespace mr::server {
 
+namespace {
+
+class ChunkDataChunkAdapter : public IChunk {
+public:
+    explicit ChunkDataChunkAdapter(ChunkData& chunk)
+        : m_chunk(chunk)
+        , m_status(chunk.isFullyGenerated() ? ChunkLoadStatus::Generated : ChunkLoadStatus::Generating) {}
+
+    [[nodiscard]] ChunkCoord x() const override { return m_chunk.x(); }
+    [[nodiscard]] ChunkCoord z() const override { return m_chunk.z(); }
+    [[nodiscard]] ChunkPos pos() const override { return m_chunk.pos(); }
+
+    [[nodiscard]] const BlockState* getBlock(BlockCoord x, BlockCoord y, BlockCoord z) const override {
+        return m_chunk.getBlock(x, y, z);
+    }
+
+    void setBlock(BlockCoord x, BlockCoord y, BlockCoord z, const BlockState* state) override {
+        m_chunk.setBlock(x, y, z, state);
+    }
+
+    [[nodiscard]] u32 getBlockStateId(BlockCoord x, BlockCoord y, BlockCoord z) const override {
+        return m_chunk.getBlockStateId(x, y, z);
+    }
+
+    void setBlockStateId(BlockCoord x, BlockCoord y, BlockCoord z, u32 stateId) override {
+        m_chunk.setBlockStateId(x, y, z, stateId);
+    }
+
+    [[nodiscard]] ChunkSection* getSection(i32 index) override {
+        return m_chunk.getSection(index);
+    }
+
+    [[nodiscard]] const ChunkSection* getSection(i32 index) const override {
+        return m_chunk.getSection(index);
+    }
+
+    [[nodiscard]] bool hasSection(i32 index) const override {
+        return m_chunk.hasSection(index);
+    }
+
+    ChunkSection* createSection(i32 index) override {
+        return m_chunk.createSection(index);
+    }
+
+    [[nodiscard]] BlockCoord getTopBlockY(HeightmapType type, BlockCoord x, BlockCoord z) const override {
+        (void)type;
+        return m_chunk.getHighestBlock(x, z);
+    }
+
+    void updateHeightmap(HeightmapType type, BlockCoord x, BlockCoord y, BlockCoord z, const BlockState* state) override {
+        (void)type;
+        (void)y;
+        (void)state;
+        m_chunk.updateHeightMap(x, z);
+    }
+
+    [[nodiscard]] ChunkLoadStatus getStatus() const override {
+        return m_status;
+    }
+
+    void setStatus(ChunkLoadStatus status) override {
+        m_status = status;
+    }
+
+    [[nodiscard]] bool isModified() const override {
+        return m_chunk.isDirty();
+    }
+
+    void setModified(bool modified) override {
+        m_chunk.setDirty(modified);
+    }
+
+private:
+    ChunkData& m_chunk;
+    ChunkLoadStatus m_status = ChunkLoadStatus::Generated;
+};
+
+} // namespace
+
 // ============================================================================
 // 构造与析构
 // ============================================================================
@@ -73,14 +152,16 @@ void ServerChunkManager::shutdown()
 
 void ServerChunkManager::startWorkers(i32 count)
 {
+    (void)count;
     // 设置生成器函数
     m_workerPool.setGenerator([this](ChunkPrimer& chunk, const ChunkStatus& targetStatus) {
         // 创建 WorldGenRegion（简化版）
         std::array<IChunk*, 9> chunks{};
+        std::array<std::unique_ptr<IChunk>, 9> neighborAdapters{};
         chunks[4] = &chunk;  // 中心区块
 
         // 获取邻居区块（如果可用）
-        getNeighborChunks(chunk.x(), chunk.z(), chunks);
+        getNeighborChunks(chunk.x(), chunk.z(), chunks, neighborAdapters);
 
         WorldGenRegion region(chunk.x(), chunk.z(), chunks);
 
@@ -427,10 +508,11 @@ void ServerChunkManager::executeGenerationTask(ChunkHolder& holder, const ChunkS
 
     // 创建 WorldGenRegion（简化版）
     std::array<IChunk*, 9> chunks{};
+    std::array<std::unique_ptr<IChunk>, 9> neighborAdapters{};
     chunks[4] = primer;
 
     // 获取邻居区块
-    getNeighborChunks(holder.x(), holder.z(), chunks);
+    getNeighborChunks(holder.x(), holder.z(), chunks, neighborAdapters);
 
     WorldGenRegion region(holder.x(), holder.z(), chunks);
 
@@ -501,7 +583,11 @@ bool ServerChunkManager::checkNeighborsReady(ChunkCoord x, ChunkCoord z, const C
     return true;
 }
 
-void ServerChunkManager::getNeighborChunks(ChunkCoord x, ChunkCoord z, std::array<IChunk*, 9>& neighbors)
+void ServerChunkManager::getNeighborChunks(
+    ChunkCoord x,
+    ChunkCoord z,
+    std::array<IChunk*, 9>& neighbors,
+    std::array<std::unique_ptr<IChunk>, 9>& neighborAdapters)
 {
     // 索引顺序：0=NW, 1=N, 2=NE, 3=W, 4=中心, 5=E, 6=SW, 7=S, 8=SE
     // 偏移量（dx, dz）
@@ -520,13 +606,17 @@ void ServerChunkManager::getNeighborChunks(ChunkCoord x, ChunkCoord z, std::arra
         ChunkHolder* holder = getHolder(x + offsets[i][0], z + offsets[i][1]);
         if (holder) {
             if (ChunkData* data = holder->getChunkData()) {
-                neighbors[i] = nullptr;  // TODO: 需要适配 ChunkData 到 IChunk
+                neighborAdapters[i] = std::make_unique<ChunkDataChunkAdapter>(*data);
+                neighbors[i] = neighborAdapters[i].get();
             } else if (ChunkPrimer* primer = holder->getGeneratingChunk()) {
+                neighborAdapters[i].reset();
                 neighbors[i] = primer;
             } else {
+                neighborAdapters[i].reset();
                 neighbors[i] = nullptr;
             }
         } else {
+            neighborAdapters[i].reset();
             neighbors[i] = nullptr;
         }
     }
