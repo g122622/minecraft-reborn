@@ -121,7 +121,13 @@ private:
     /**
      * @brief 根据噪声参数选择生物群系
      */
-    [[nodiscard]] BiomeId selectBiome(f32 temperature, f32 humidity, f32 depth, f32 scale) const;
+    [[nodiscard]] BiomeId selectBiome(
+        f32 temperature,
+        f32 humidity,
+        f32 continentalness,
+        f32 erosion,
+        f32 weirdness,
+        f32 valley) const;
 };
 
 } // namespace mr

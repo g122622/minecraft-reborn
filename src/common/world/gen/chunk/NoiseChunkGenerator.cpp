@@ -128,28 +128,13 @@ void NoiseChunkGenerator::initBiomeWeights()
 
 void NoiseChunkGenerator::generateBiomes(WorldGenRegion& region, ChunkPrimer& chunk)
 {
+    (void)region;
+
     BiomeContainer& biomes = chunk.getBiomes();
     const ChunkCoord chunkX = chunk.x();
     const ChunkCoord chunkZ = chunk.z();
 
-    // 生物群系采样点是 4x4 方块一个大块
-    // 一个区块有 4x4x4 个采样点
-    for (i32 y = 0; y < BiomeContainer::BIOME_HEIGHT; ++y) {
-        for (i32 z = 0; z < BiomeContainer::BIOME_DEPTH; ++z) {
-            for (i32 x = 0; x < BiomeContainer::BIOME_WIDTH; ++x) {
-                // 转换为世界坐标
-                const i32 worldX = (chunkX << 4) + (x << 2);
-                const i32 worldY = y << 4;
-                const i32 worldZ = (chunkZ << 4) + (z << 2);
-
-                // 获取生物群系
-                const BiomeId biome = m_biomeProvider->getBiome(worldX, worldY, worldZ);
-
-                // 直接使用索引 (x, y, z)，而不是位移后的坐标
-                biomes.setBiome(x, y, z, biome);
-            }
-        }
-    }
+    m_biomeProvider->fillBiomeContainer(biomes, chunkX, chunkZ);
 
     // 标记阶段完成
     chunk.setChunkStatus(ChunkStatus::BIOMES);
@@ -161,10 +146,39 @@ void NoiseChunkGenerator::generateBiomes(WorldGenRegion& region, ChunkPrimer& ch
 
 void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chunk)
 {
+    (void)region;
+
     const ChunkCoord chunkX = chunk.x();
     const ChunkCoord chunkZ = chunk.z();
     const i32 startX = chunkX << 4;
     const i32 startZ = chunkZ << 4;
+
+    std::array<std::array<f64, 16>, 16> terrainTargets{};
+    for (i32 localX = 0; localX < 16; ++localX) {
+        for (i32 localZ = 0; localZ < 16; ++localZ) {
+            const i32 worldX = startX + localX;
+            const i32 worldZ = startZ + localZ;
+            const BiomeId biomeId = m_biomeProvider->getBiome(worldX, 64, worldZ);
+            const Biome& biomeDef = m_biomeProvider->getBiomeDefinition(biomeId);
+
+            const f64 macroNoise = m_surfaceDepthNoise
+                ? m_surfaceDepthNoise->noise2D(static_cast<f64>(worldX) * 0.0075, static_cast<f64>(worldZ) * 0.0075)
+                : 0.0;
+            const f64 detailNoise = m_surfaceDepthNoise
+                ? m_surfaceDepthNoise->noise2D(static_cast<f64>(worldX) * 0.035 + 137.0, static_cast<f64>(worldZ) * 0.035 - 91.0)
+                : 0.0;
+            const f64 regionalNoise = m_surfaceDepthNoise
+                ? m_surfaceDepthNoise->noise2D(static_cast<f64>(worldX) * 0.09 - 47.0, static_cast<f64>(worldZ) * 0.09 + 83.0)
+                : 0.0;
+
+            terrainTargets[localX][localZ] = static_cast<f64>(m_settings.seaLevel) + 1.0
+                + static_cast<f64>(biomeDef.depth()) * 18.0
+                + static_cast<f64>(biomeDef.scale()) * 24.0
+                + macroNoise * 28.0
+                + detailNoise * 14.0
+                + regionalNoise * 36.0;
+        }
+    }
 
     // === 参考 MC NoiseChunkGenerator.func_230352_b_ ===
     // 使用双缓冲噪声缓存，只需要两列 X 的数据
@@ -229,15 +243,17 @@ void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chu
 
                             // Z 轴插值 - 最终密度值
                             const f64 density = math::lerp(x0, x1, zLerp);
+                            const i32 localBlockX = worldX & 15;
+                            const i32 localBlockZ = worldZ & 15;
+                            const f64 terrainBias = (terrainTargets[localBlockX][localBlockZ] - static_cast<f64>(worldY)) * 0.16;
+                            const f64 finalDensity = density + terrainBias;
 
                             // 确定方块
-                            const BlockId block = getBlockForDensity(density, worldY);
+                            const BlockId block = getBlockForDensity(finalDensity, worldY);
 
                             if (block != BlockId::Air) {
                                 const BlockState* state = BlockRegistry::instance().get(block);
                                 if (state) {
-                                    const i32 localBlockX = worldX & 15;
-                                    const i32 localBlockZ = worldZ & 15;
                                     chunk.setBlock(localBlockX, worldY, localBlockZ, state);
 
                                     // 更新高度图
@@ -319,6 +335,9 @@ void NoiseChunkGenerator::fillNoiseColumn(std::vector<f64>& column, i32 noiseX, 
 
     // === 随机密度偏移 ===
     const f64 randomDensityOffset = noise.randomDensityOffset ? calculateRandomDensityOffset(noiseX, noiseZ) : 0.0;
+    const f64 columnTerrainBias = m_surfaceDepthNoise
+        ? m_surfaceDepthNoise->noise2D(static_cast<f64>(noiseX) * 0.18, static_cast<f64>(noiseZ) * 0.18) * 0.35
+        : 0.0;
 
     const f64 densityFactor = noise.densityFactor;
     const f64 densityOffset = noise.densityOffset;
@@ -343,6 +362,7 @@ void NoiseChunkGenerator::fillNoiseColumn(std::vector<f64>& column, i32 noiseX, 
 
         // 应用随机密度偏移
         density += randomDensityOffset;
+        density += columnTerrainBias;
 
         // 顶部滑动
         if (noise.topSlide.size > 0) {
@@ -679,12 +699,14 @@ BiomeId NoiseChunkGenerator::getNoiseBiome(i32 noiseX, i32 noiseY, i32 noiseZ) c
 
 i32 NoiseChunkGenerator::getHeight(i32 x, i32 z, HeightmapType type) const
 {
+    (void)type;
+
     // 简化实现：生成一个临时的高度估计
     const f64 depth = m_biomeProvider->getDepth(x, z);
     const f64 scale = m_biomeProvider->getScale(x, z);
 
-    const f64 baseHeight = 64.0 + depth * 32.0;
-    const f64 variation = scale * 16.0;
+    const f64 baseHeight = static_cast<f64>(m_settings.seaLevel) + 1.0 + depth * 18.0;
+    const f64 variation = scale * 26.0;
 
     return static_cast<i32>(baseHeight + variation);
 }

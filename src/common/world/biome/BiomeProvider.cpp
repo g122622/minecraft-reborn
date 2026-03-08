@@ -1,7 +1,27 @@
 #include "BiomeProvider.hpp"
 #include "BiomeRegistry.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 namespace mr {
+
+namespace {
+
+[[nodiscard]] f32 sampleBlendedNoise(const PerlinNoiseGenerator& noise, i32 x, i32 z, f64 largeScale, f64 detailScale)
+{
+    const f64 large = noise.noise(static_cast<f64>(x) * largeScale, 0.0, static_cast<f64>(z) * largeScale);
+    const f64 detail = noise.noise(static_cast<f64>(x) * detailScale, 0.0, static_cast<f64>(z) * detailScale);
+    return static_cast<f32>(large * 0.7 + detail * 0.3);
+}
+
+[[nodiscard]] f32 normalizeShaped(f32 value, f32 stretch)
+{
+    const f32 normalized = 0.5f + value * 0.5f * stretch;
+    return std::clamp(normalized, 0.0f, 1.0f);
+}
+
+} // namespace
 
 // ============================================================================
 // BiomeProvider 实现
@@ -39,62 +59,28 @@ BiomeId SimpleBiomeProvider::getBiome(i32 x, i32 y, i32 z) const
 
 BiomeId SimpleBiomeProvider::getNoiseBiome(i32 noiseX, i32 noiseY, i32 noiseZ) const
 {
-    // 采样噪声
-    constexpr f64 TEMPERATURE_SCALE = 0.05;
-    constexpr f64 HUMIDITY_SCALE = 0.05;
-    constexpr f64 DEPTH_SCALE = 0.025;
-    constexpr f64 SCALE_SCALE = 0.025;
+    (void)noiseY;
 
-    const f64 temperature = m_temperatureNoise->noise(
-        static_cast<f64>(noiseX) * TEMPERATURE_SCALE,
-        0.0,
-        static_cast<f64>(noiseZ) * TEMPERATURE_SCALE
-    );
-    const f64 humidity = m_humidityNoise->noise(
-        static_cast<f64>(noiseX) * HUMIDITY_SCALE,
-        0.0,
-        static_cast<f64>(noiseZ) * HUMIDITY_SCALE
-    );
-    const f64 depth = m_depthNoise->noise(
-        static_cast<f64>(noiseX) * DEPTH_SCALE,
-        0.0,
-        static_cast<f64>(noiseZ) * DEPTH_SCALE
-    );
-    const f64 scale = m_scaleNoise->noise(
-        static_cast<f64>(noiseX) * SCALE_SCALE,
-        0.0,
-        static_cast<f64>(noiseZ) * SCALE_SCALE
-    );
+    const f32 temperature = normalizeShaped(sampleBlendedNoise(*m_temperatureNoise, noiseX, noiseZ, 0.008, 0.026), 1.45f);
+    const f32 humidity = normalizeShaped(sampleBlendedNoise(*m_humidityNoise, noiseX, noiseZ, 0.008, 0.024), 1.40f);
+    const f32 continentalness = normalizeShaped(sampleBlendedNoise(*m_continentalnessNoise, noiseX, noiseZ, 0.004, 0.014), 1.75f);
+    const f32 erosion = normalizeShaped(sampleBlendedNoise(*m_erosionNoise, noiseX, noiseZ, 0.006, 0.021), 1.55f);
+    const f32 weirdness = normalizeShaped(sampleBlendedNoise(*m_scaleNoise, noiseX, noiseZ, 0.010, 0.033), 1.60f);
+    const f32 valley = normalizeShaped(sampleBlendedNoise(*m_depthNoise, noiseX, noiseZ, 0.012, 0.040), 1.55f);
 
-    // 归一化到 [0, 1]
-    const f32 tempNorm = static_cast<f32>((temperature + 1.0) * 0.5);
-    const f32 humidNorm = static_cast<f32>((humidity + 1.0) * 0.5);
-    const f32 depthNorm = static_cast<f32>((depth + 1.0) * 0.5);
-    const f32 scaleNorm = static_cast<f32>((scale + 1.0) * 0.5);
-
-    return selectBiome(tempNorm, humidNorm, depthNorm, scaleNorm);
+    return selectBiome(temperature, humidity, continentalness, erosion, weirdness, valley);
 }
 
 f32 SimpleBiomeProvider::getDepth(i32 x, i32 z) const
 {
-    constexpr f64 DEPTH_SCALE = 0.025;
-    const f64 depth = m_depthNoise->noise(
-        static_cast<f64>(x) * DEPTH_SCALE,
-        0.0,
-        static_cast<f64>(z) * DEPTH_SCALE
-    );
-    return static_cast<f32>((depth + 1.0) * 0.5);
+    const BiomeId biomeId = getBiome(x, 64, z);
+    return getBiomeDefinition(biomeId).depth();
 }
 
 f32 SimpleBiomeProvider::getScale(i32 x, i32 z) const
 {
-    constexpr f64 SCALE_SCALE = 0.025;
-    const f64 scale = m_scaleNoise->noise(
-        static_cast<f64>(x) * SCALE_SCALE,
-        0.0,
-        static_cast<f64>(z) * SCALE_SCALE
-    );
-    return static_cast<f32>((scale + 1.0) * 0.5);
+    const BiomeId biomeId = getBiome(x, 64, z);
+    return getBiomeDefinition(biomeId).scale();
 }
 
 const Biome& SimpleBiomeProvider::getBiomeDefinition(BiomeId id) const
@@ -107,69 +93,134 @@ void SimpleBiomeProvider::fillBiomeContainer(BiomeContainer& container, ChunkCoo
     const i32 startX = chunkX << 4;
     const i32 startZ = chunkZ << 4;
 
-    // 遍历生物群系采样点 (4x4x4 方块为一个采样点)
+    // 遍历生物群系采样点。BiomeContainer 逻辑上是 4x4x4，
+    // 其中 X/Z 每格覆盖 4 方块，Y 每格覆盖 16 方块。
     for (i32 by = 0; by < BiomeContainer::BIOME_HEIGHT; ++by) {
         for (i32 bz = 0; bz < BiomeContainer::BIOME_DEPTH; ++bz) {
             for (i32 bx = 0; bx < BiomeContainer::BIOME_WIDTH; ++bx) {
                 const i32 worldX = startX + (bx << 2);
-                const i32 worldY = by << 2;
+                const i32 worldY = by << 4;
                 const i32 worldZ = startZ + (bz << 2);
 
                 const BiomeId biome = getBiome(worldX, worldY, worldZ);
-                container.setBiome(bx << 2, worldY, bz << 2, biome);
+                container.setBiome(bx, by, bz, biome);
             }
         }
     }
 }
 
-BiomeId SimpleBiomeProvider::selectBiome(f32 temperature, f32 humidity, f32 depth, f32 scale) const
+BiomeId SimpleBiomeProvider::selectBiome(
+    f32 temperature,
+    f32 humidity,
+    f32 continentalness,
+    f32 erosion,
+    f32 weirdness,
+    f32 valley) const
 {
-    // 简化的生物群系选择逻辑
-    // 参考 MC 1.16.5 的生物群系分布
+    const f32 ruggedness = std::clamp((1.0f - erosion) * 0.6f + weirdness * 0.4f, 0.0f, 1.0f);
+    const f32 elevatedness = std::clamp((continentalness - 0.22f) * 1.1f + ruggedness * 0.75f, 0.0f, 1.0f);
+    const bool hot = temperature > 0.8f;
+    const bool cold = temperature < 0.22f;
+    const bool wet = humidity > 0.7f;
+    const bool dry = humidity < 0.3f;
 
-    // 深度低表示海洋
-    if (depth < 0.2f) {
-        if (depth < 0.1f) {
+    if (continentalness < 0.10f) {
+        if (continentalness < 0.06f || (erosion > 0.72f && weirdness < 0.45f)) {
             return Biomes::DeepOcean;
         }
         return Biomes::Ocean;
     }
-    // 温度低的区域
-    else if (temperature < 0.2f) {
-        if (humidity > 0.5f) {
-            return Biomes::SnowyTaiga;
+
+    if (continentalness < 0.18f) {
+        if (cold) {
+            return Biomes::SnowyBeach;
         }
-        return Biomes::SnowyPlains;
-    }
-    // 温度高的区域
-    else if (temperature > 0.8f) {
-        if (humidity < 0.2f) {
-            if (scale > 0.5f) {
-                return Biomes::ErodedBadlands;
-            }
-            return Biomes::Badlands;
+        if (wet && erosion > 0.62f) {
+            return Biomes::Swamp;
         }
-        if (humidity < 0.4f) {
-            return Biomes::Savanna;
-        }
-        return Biomes::Jungle;
-    }
-    // 中等温度
-    else if (humidity > 0.7f) {
-        return Biomes::Forest;
-    }
-    else if (humidity > 0.5f) {
-        return Biomes::BirchForest;
-    }
-    // 山地
-    else if (scale > 0.6f) {
-        return Biomes::Mountains;
-    }
-    else if (scale > 0.4f) {
-        return Biomes::WoodedHills;
+        return Biomes::Beach;
     }
 
-    // 默认平原
+    if (continentalness < 0.30f && valley < 0.18f && erosion > 0.58f) {
+        return Biomes::River;
+    }
+
+    if (elevatedness > 0.88f) {
+        if (hot && dry) {
+            if (weirdness > 0.72f && erosion < 0.35f) {
+                return Biomes::ShatteredSavanna;
+            }
+            if (continentalness > 0.62f) {
+                return humidity < 0.16f ? Biomes::BadlandsPlateau : Biomes::WoodedBadlandsPlateau;
+            }
+            if (erosion < 0.28f) {
+                return Biomes::ErodedBadlands;
+            }
+            return Biomes::SavannaPlateau;
+        }
+
+        if (cold) {
+            return humidity > 0.55f ? Biomes::WoodedMountains : Biomes::Mountains;
+        }
+
+        if (wet) {
+            return weirdness > 0.6f ? Biomes::WoodedMountains : Biomes::GiantTreeTaiga;
+        }
+
+        return humidity > 0.45f ? Biomes::WoodedMountains : Biomes::Mountains;
+    }
+
+    if (elevatedness > 0.70f) {
+        if (hot && dry) {
+            return erosion < 0.4f ? Biomes::ErodedBadlands : Biomes::SavannaPlateau;
+        }
+
+        if (cold) {
+            return humidity > 0.5f ? Biomes::SnowyTaiga : Biomes::MountainEdge;
+        }
+
+        if (wet) {
+            return temperature < 0.45f ? Biomes::GiantTreeTaiga : Biomes::WoodedHills;
+        }
+
+        return humidity > 0.5f ? Biomes::WoodedHills : Biomes::MountainEdge;
+    }
+
+    if (cold) {
+        return humidity > 0.52f ? Biomes::SnowyTaiga : Biomes::SnowyPlains;
+    }
+
+    if (hot) {
+        if (dry) {
+            if (erosion < 0.28f && continentalness > 0.52f) {
+                return Biomes::ErodedBadlands;
+            }
+            return continentalness > 0.45f ? Biomes::Desert : Biomes::Badlands;
+        }
+        if (humidity < 0.45f) {
+            return Biomes::Savanna;
+        }
+        return wet ? Biomes::Jungle : Biomes::Savanna;
+    }
+
+    if (wet) {
+        if (continentalness < 0.38f && erosion > 0.66f) {
+            return Biomes::Swamp;
+        }
+        if (temperature < 0.45f) {
+            return Biomes::GiantTreeTaiga;
+        }
+        return erosion < 0.35f ? Biomes::DarkForest : Biomes::Forest;
+    }
+
+    if (humidity > 0.55f) {
+        return erosion < 0.42f ? Biomes::Forest : Biomes::BirchForest;
+    }
+
+    if (continentalness > 0.58f && dry) {
+        return Biomes::Desert;
+    }
+
     return Biomes::Plains;
 }
 
