@@ -51,17 +51,20 @@ void BiomeGenerationSettings::clear() {
 }
 
 BiomeGenerationSettings BiomeGenerationSettings::createDefault() {
-    // 默认设置：只包含基础矿石
+    // 默认设置：包含所有主世界矿石
     BiomeGenerationSettings settings;
 
     // 添加矿石（UNDERGROUND_ORES 阶段）
-    // 矿石特征ID暂时使用常量
-    // 后续会通过 FeatureRegistry 注册
+    // 矿石特征ID通过 FeatureRegistry 注册的顺序确定
+    // 0: coal_ore, 1: iron_ore, 2: gold_ore, 3: redstone_ore, 4: diamond_ore
+    // 5: lapis_ore, 6: emerald_ore, 7: copper_ore
     settings.addFeature(DecorationStage::UndergroundOres, 0);  // 煤矿
     settings.addFeature(DecorationStage::UndergroundOres, 1);  // 铁矿
     settings.addFeature(DecorationStage::UndergroundOres, 2);  // 金矿
     settings.addFeature(DecorationStage::UndergroundOres, 3);  // 红石
     settings.addFeature(DecorationStage::UndergroundOres, 4);  // 钻石
+    settings.addFeature(DecorationStage::UndergroundOres, 5);  // 青金石
+    settings.addFeature(DecorationStage::UndergroundOres, 7);  // 铜矿
 
     return settings;
 }
@@ -116,6 +119,8 @@ BiomeGenerationSettings BiomeGenerationSettings::createOcean() {
     settings.addFeature(DecorationStage::UndergroundOres, 2);  // 金矿
     settings.addFeature(DecorationStage::UndergroundOres, 3);  // 红石
     settings.addFeature(DecorationStage::UndergroundOres, 4);  // 钻石
+    settings.addFeature(DecorationStage::UndergroundOres, 5);  // 青金石
+    settings.addFeature(DecorationStage::UndergroundOres, 7);  // 铜矿
 
     return settings;
 }

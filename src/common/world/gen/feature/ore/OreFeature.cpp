@@ -315,14 +315,29 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createCoalOre() {
         BlockId::CoalOre,
         17);
 
+    // 创建链式放置：Count -> Square -> HeightRange
+    auto heightPlacement = std::make_unique<HeightRangePlacement>();
+    auto heightConfig = std::make_unique<HeightRangePlacementConfig>(0, 0, 128);  // Y 0-127
+
+    auto squarePlacement = std::make_unique<SquarePlacement>();
+    auto squareConfig = std::make_unique<EmptyPlacementConfig>();
+
     auto countPlacement = std::make_unique<CountPlacement>();
     auto countConfig = std::make_unique<CountPlacementConfig>(20);
 
-    auto placement = std::make_unique<ConfiguredPlacement>(
-        std::move(countPlacement),
-        std::move(countConfig));
+    // 构建链：Count -> Square -> HeightRange
+    auto heightConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(heightPlacement), std::move(heightConfig));
+    auto squareConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(squarePlacement), std::move(squareConfig));
+    auto countConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(countPlacement), std::move(countConfig));
 
-    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(placement), "coal_ore");
+    // 链接：count -> square -> height
+    squareConfigured->setNext(std::move(heightConfigured));
+    countConfigured->setNext(std::move(squareConfigured));
+
+    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(countConfigured), "coal_ore");
 }
 
 std::unique_ptr<ConfiguredOreFeature> OreFeatures::createIronOre() {
@@ -332,14 +347,26 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createIronOre() {
         BlockId::IronOre,
         9);
 
+    auto heightPlacement = std::make_unique<HeightRangePlacement>();
+    auto heightConfig = std::make_unique<HeightRangePlacementConfig>(0, 0, 64);  // Y 0-63
+
+    auto squarePlacement = std::make_unique<SquarePlacement>();
+    auto squareConfig = std::make_unique<EmptyPlacementConfig>();
+
     auto countPlacement = std::make_unique<CountPlacement>();
     auto countConfig = std::make_unique<CountPlacementConfig>(20);
 
-    auto placement = std::make_unique<ConfiguredPlacement>(
-        std::move(countPlacement),
-        std::move(countConfig));
+    auto heightConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(heightPlacement), std::move(heightConfig));
+    auto squareConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(squarePlacement), std::move(squareConfig));
+    auto countConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(countPlacement), std::move(countConfig));
 
-    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(placement), "iron_ore");
+    squareConfigured->setNext(std::move(heightConfigured));
+    countConfigured->setNext(std::move(squareConfigured));
+
+    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(countConfigured), "iron_ore");
 }
 
 std::unique_ptr<ConfiguredOreFeature> OreFeatures::createGoldOre() {
@@ -349,14 +376,26 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createGoldOre() {
         BlockId::GoldOre,
         9);
 
+    auto heightPlacement = std::make_unique<HeightRangePlacement>();
+    auto heightConfig = std::make_unique<HeightRangePlacementConfig>(0, 0, 32);  // Y 0-31
+
+    auto squarePlacement = std::make_unique<SquarePlacement>();
+    auto squareConfig = std::make_unique<EmptyPlacementConfig>();
+
     auto countPlacement = std::make_unique<CountPlacement>();
     auto countConfig = std::make_unique<CountPlacementConfig>(2);
 
-    auto placement = std::make_unique<ConfiguredPlacement>(
-        std::move(countPlacement),
-        std::move(countConfig));
+    auto heightConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(heightPlacement), std::move(heightConfig));
+    auto squareConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(squarePlacement), std::move(squareConfig));
+    auto countConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(countPlacement), std::move(countConfig));
 
-    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(placement), "gold_ore");
+    squareConfigured->setNext(std::move(heightConfigured));
+    countConfigured->setNext(std::move(squareConfigured));
+
+    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(countConfigured), "gold_ore");
 }
 
 std::unique_ptr<ConfiguredOreFeature> OreFeatures::createRedstoneOre() {
@@ -366,14 +405,26 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createRedstoneOre() {
         BlockId::RedstoneOre,
         8);
 
+    auto heightPlacement = std::make_unique<HeightRangePlacement>();
+    auto heightConfig = std::make_unique<HeightRangePlacementConfig>(0, 0, 16);  // Y 0-15
+
+    auto squarePlacement = std::make_unique<SquarePlacement>();
+    auto squareConfig = std::make_unique<EmptyPlacementConfig>();
+
     auto countPlacement = std::make_unique<CountPlacement>();
     auto countConfig = std::make_unique<CountPlacementConfig>(8);
 
-    auto placement = std::make_unique<ConfiguredPlacement>(
-        std::move(countPlacement),
-        std::move(countConfig));
+    auto heightConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(heightPlacement), std::move(heightConfig));
+    auto squareConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(squarePlacement), std::move(squareConfig));
+    auto countConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(countPlacement), std::move(countConfig));
 
-    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(placement), "redstone_ore");
+    squareConfigured->setNext(std::move(heightConfigured));
+    countConfigured->setNext(std::move(squareConfigured));
+
+    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(countConfigured), "redstone_ore");
 }
 
 std::unique_ptr<ConfiguredOreFeature> OreFeatures::createDiamondOre() {
@@ -383,31 +434,55 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createDiamondOre() {
         BlockId::DiamondOre,
         8);
 
+    auto heightPlacement = std::make_unique<HeightRangePlacement>();
+    auto heightConfig = std::make_unique<HeightRangePlacementConfig>(0, 0, 16);  // Y 0-15
+
+    auto squarePlacement = std::make_unique<SquarePlacement>();
+    auto squareConfig = std::make_unique<EmptyPlacementConfig>();
+
     auto countPlacement = std::make_unique<CountPlacement>();
     auto countConfig = std::make_unique<CountPlacementConfig>(1);
 
-    auto placement = std::make_unique<ConfiguredPlacement>(
-        std::move(countPlacement),
-        std::move(countConfig));
+    auto heightConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(heightPlacement), std::move(heightConfig));
+    auto squareConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(squarePlacement), std::move(squareConfig));
+    auto countConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(countPlacement), std::move(countConfig));
 
-    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(placement), "diamond_ore");
+    squareConfigured->setNext(std::move(heightConfigured));
+    countConfigured->setNext(std::move(squareConfigured));
+
+    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(countConfigured), "diamond_ore");
 }
 
 std::unique_ptr<ConfiguredOreFeature> OreFeatures::createLapisOre() {
-    // 青金石：深度平均分布，每区块1个，矿脉大小7
+    // 青金石：Y 0-30，每区块1个，矿脉大小7
     auto config = std::make_unique<OreFeatureConfig>(
         createOreTarget(OreTargetType::NaturalStone),
         BlockId::LapisOre,
         7);
 
+    auto heightPlacement = std::make_unique<HeightRangePlacement>();
+    auto heightConfig = std::make_unique<HeightRangePlacementConfig>(0, 0, 31);  // Y 0-30
+
+    auto squarePlacement = std::make_unique<SquarePlacement>();
+    auto squareConfig = std::make_unique<EmptyPlacementConfig>();
+
     auto countPlacement = std::make_unique<CountPlacement>();
     auto countConfig = std::make_unique<CountPlacementConfig>(1);
 
-    auto placement = std::make_unique<ConfiguredPlacement>(
-        std::move(countPlacement),
-        std::move(countConfig));
+    auto heightConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(heightPlacement), std::move(heightConfig));
+    auto squareConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(squarePlacement), std::move(squareConfig));
+    auto countConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(countPlacement), std::move(countConfig));
 
-    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(placement), "lapis_ore");
+    squareConfigured->setNext(std::move(heightConfigured));
+    countConfigured->setNext(std::move(squareConfigured));
+
+    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(countConfigured), "lapis_ore");
 }
 
 std::unique_ptr<ConfiguredOreFeature> OreFeatures::createEmeraldOre() {
@@ -417,14 +492,26 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createEmeraldOre() {
         BlockId::EmeraldOre,
         1);
 
+    auto heightPlacement = std::make_unique<HeightRangePlacement>();
+    auto heightConfig = std::make_unique<HeightRangePlacementConfig>(4, 0, 32);  // Y 4-31
+
+    auto squarePlacement = std::make_unique<SquarePlacement>();
+    auto squareConfig = std::make_unique<EmptyPlacementConfig>();
+
     auto countPlacement = std::make_unique<CountPlacement>();
     auto countConfig = std::make_unique<CountPlacementConfig>(1);
 
-    auto placement = std::make_unique<ConfiguredPlacement>(
-        std::move(countPlacement),
-        std::move(countConfig));
+    auto heightConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(heightPlacement), std::move(heightConfig));
+    auto squareConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(squarePlacement), std::move(squareConfig));
+    auto countConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(countPlacement), std::move(countConfig));
 
-    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(placement), "emerald_ore");
+    squareConfigured->setNext(std::move(heightConfigured));
+    countConfigured->setNext(std::move(squareConfigured));
+
+    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(countConfigured), "emerald_ore");
 }
 
 std::unique_ptr<ConfiguredOreFeature> OreFeatures::createCopperOre() {
@@ -434,14 +521,26 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createCopperOre() {
         BlockId::CopperOre,
         10);
 
+    auto heightPlacement = std::make_unique<HeightRangePlacement>();
+    auto heightConfig = std::make_unique<HeightRangePlacementConfig>(0, 0, 96);  // Y 0-95
+
+    auto squarePlacement = std::make_unique<SquarePlacement>();
+    auto squareConfig = std::make_unique<EmptyPlacementConfig>();
+
     auto countPlacement = std::make_unique<CountPlacement>();
     auto countConfig = std::make_unique<CountPlacementConfig>(6);
 
-    auto placement = std::make_unique<ConfiguredPlacement>(
-        std::move(countPlacement),
-        std::move(countConfig));
+    auto heightConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(heightPlacement), std::move(heightConfig));
+    auto squareConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(squarePlacement), std::move(squareConfig));
+    auto countConfigured = std::make_unique<ConfiguredPlacement>(
+        std::move(countPlacement), std::move(countConfig));
 
-    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(placement), "copper_ore");
+    squareConfigured->setNext(std::move(heightConfigured));
+    countConfigured->setNext(std::move(squareConfigured));
+
+    return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(countConfigured), "copper_ore");
 }
 
 std::unique_ptr<ConfiguredOreFeature> OreFeatures::createNetherQuartzOre() {

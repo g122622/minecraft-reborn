@@ -29,9 +29,8 @@ void DebugScreen::update(f32 deltaTime) {
 
     updateFps(deltaTime);
     buildDebugText();
-    if (1) {
-        logColumnBlocks();
-    }
+    // 注：logColumnBlocks() 仅在调试时启用
+    // logColumnBlocks();
 }
 
 void DebugScreen::render() {
@@ -118,6 +117,8 @@ void DebugScreen::buildDebugText() {
         oss << "Facing: " << std::fixed << std::setprecision(1)
             << rot.x << ", " << rot.y;
         m_debugLines.push_back(oss.str());
+
+        // TODO: 生物群系信息 - 需要 ClientWorld::getBiomeAtBlock() 方法
     } else {
         m_debugLines.push_back("No camera");
     }

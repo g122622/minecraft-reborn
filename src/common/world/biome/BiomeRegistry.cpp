@@ -173,6 +173,7 @@ Biome createDeepOcean()
     biome.setSurfaceBlock(BlockId::Gravel);
     biome.setSubSurfaceBlock(BlockId::Gravel);
     biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
     return biome;
 }
 
@@ -187,6 +188,7 @@ Biome createTaiga()
     biome.setSurfaceBlock(BlockId::Grass);
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
 
@@ -201,6 +203,7 @@ Biome createSnowyTaiga()
     biome.setSurfaceBlock(BlockId::Grass);
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
 
@@ -215,6 +218,7 @@ Biome createJungle()
     biome.setSurfaceBlock(BlockId::Grass);
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createForest());
     return biome;
 }
 
@@ -229,6 +233,7 @@ Biome createSavanna()
     biome.setSurfaceBlock(BlockId::Grass);
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
 
@@ -243,6 +248,7 @@ Biome createShatteredSavanna()
     biome.setSurfaceBlock(BlockId::Grass);
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
 
@@ -257,6 +263,7 @@ Biome createSavannaPlateau()
     biome.setSurfaceBlock(BlockId::Grass);
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
 
@@ -271,6 +278,7 @@ Biome createBadlands()
     biome.setSurfaceBlock(BlockId::RedSand);
     biome.setSubSurfaceBlock(BlockId::Terracotta);
     biome.setUnderWaterBlock(BlockId::RedSand);
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
 
@@ -285,6 +293,7 @@ Biome createErodedBadlands()
     biome.setSurfaceBlock(BlockId::RedSand);
     biome.setSubSurfaceBlock(BlockId::Terracotta);
     biome.setUnderWaterBlock(BlockId::RedSand);
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
 
@@ -299,6 +308,7 @@ Biome createBadlandsPlateau()
     biome.setSurfaceBlock(BlockId::RedSand);
     biome.setSubSurfaceBlock(BlockId::Terracotta);
     biome.setUnderWaterBlock(BlockId::RedSand);
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
 
@@ -313,6 +323,7 @@ Biome createWoodedBadlandsPlateau()
     biome.setSurfaceBlock(BlockId::RedSand);
     biome.setSubSurfaceBlock(BlockId::Terracotta);
     biome.setUnderWaterBlock(BlockId::RedSand);
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
 
@@ -327,6 +338,7 @@ Biome createBeach()
     biome.setSurfaceBlock(BlockId::Sand);
     biome.setSubSurfaceBlock(BlockId::Sand);
     biome.setUnderWaterBlock(BlockId::Sand);
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
 
@@ -341,6 +353,7 @@ Biome createStoneShore()
     biome.setSurfaceBlock(BlockId::Stone);
     biome.setSubSurfaceBlock(BlockId::Stone);
     biome.setUnderWaterBlock(BlockId::Stone);
+    biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
     return biome;
 }
 
@@ -355,6 +368,7 @@ Biome createSnowyBeach()
     biome.setSurfaceBlock(BlockId::Sand);
     biome.setSubSurfaceBlock(BlockId::Sand);
     biome.setUnderWaterBlock(BlockId::Sand);
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
 
@@ -369,6 +383,7 @@ Biome createSwamp()
     biome.setSurfaceBlock(BlockId::Grass);
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
 
@@ -383,6 +398,7 @@ Biome createRiver()
     biome.setSurfaceBlock(BlockId::Gravel);
     biome.setSubSurfaceBlock(BlockId::Gravel);
     biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
 
@@ -397,6 +413,7 @@ Biome createWoodedHills()
     biome.setSurfaceBlock(BlockId::Grass);
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createForest());
     return biome;
 }
 
@@ -411,6 +428,7 @@ Biome createBirchForest()
     biome.setSurfaceBlock(BlockId::Grass);
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createForest());
     return biome;
 }
 
@@ -425,6 +443,7 @@ Biome createDarkForest()
     biome.setSurfaceBlock(BlockId::Grass);
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createForest());
     return biome;
 }
 
@@ -439,6 +458,7 @@ Biome createSnowyPlains()
     biome.setSurfaceBlock(BlockId::Grass);
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
 
@@ -453,6 +473,7 @@ Biome createGiantTreeTaiga()
     biome.setSurfaceBlock(BlockId::Grass);
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createForest());
     return biome;
 }
 
@@ -467,6 +488,7 @@ Biome createWoodedMountains()
     biome.setSurfaceBlock(BlockId::Grass);
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
     return biome;
 }
 
@@ -481,6 +503,7 @@ Biome createMountainEdge()
     biome.setSurfaceBlock(BlockId::Grass);
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
     return biome;
 }
 

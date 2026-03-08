@@ -1,6 +1,7 @@
 #include "ServerChunkManager.hpp"
 #include "../../common/world/WorldConstants.hpp"
 #include <chrono>
+#include <spdlog/spdlog.h>
 
 namespace mr::server {
 
@@ -91,12 +92,6 @@ void ServerChunkManager::startWorkers(i32 count)
             }
 
             if (!chunk.hasCompletedStatus(status)) {
-                // 检查邻居依赖
-                if (status.taskRange() > 0 && !checkNeighborsReady(chunk.x(), chunk.z(), status)) {
-                    // 等待邻居（简化处理：继续尝试下一阶段）
-                    continue;
-                }
-
                 // 执行生成
                 if (status == ChunkStatus::BIOMES) {
                     m_generator->generateBiomes(region, chunk);
@@ -107,6 +102,10 @@ void ServerChunkManager::startWorkers(i32 count)
                 } else if (status == ChunkStatus::CARVERS) {
                     m_generator->applyCarvers(region, chunk, false);
                 } else if (status == ChunkStatus::FEATURES) {
+                    // 异步路径：暂时跳过邻居检查
+                    // TODO: 实现完整的两阶段生成系统
+                    // 第一阶段：所有区块生成到 CARVERS
+                    // 第二阶段：批量执行 FEATURES
                     m_generator->placeFeatures(region, chunk);
                 } else if (status == ChunkStatus::HEIGHTMAPS) {
                     chunk.updateAllHeightmaps();
@@ -453,6 +452,7 @@ void ServerChunkManager::executeGenerationTask(ChunkHolder& holder, const ChunkS
             } else if (s == ChunkStatus::CARVERS) {
                 m_generator->applyCarvers(region, *primer, false);
             } else if (s == ChunkStatus::FEATURES) {
+                // 同步路径：不检查邻居依赖，直接执行
                 m_generator->placeFeatures(region, *primer);
             } else if (s == ChunkStatus::HEIGHTMAPS) {
                 primer->updateAllHeightmaps();
@@ -472,9 +472,17 @@ void ServerChunkManager::executeGenerationTask(ChunkHolder& holder, const ChunkS
 
 bool ServerChunkManager::checkNeighborsReady(ChunkCoord x, ChunkCoord z, const ChunkStatus& status) const
 {
-    // FEATURES 阶段需要邻居
+    // taskRange 为 0 表示不需要邻居
     if (status.taskRange() == 0) {
         return true;
+    }
+
+    // 需要邻居完成的是前一阶段（parent），而不是当前阶段
+    // 这避免了循环等待死锁：FEATURES 需要邻居完成 CARVERS
+    // 参考 MC ChunkStatus.outputParent 的设计
+    const ChunkStatus* requiredStatus = status.parent();
+    if (!requiredStatus) {
+        requiredStatus = &status;
     }
 
     // 检查 8 个邻居
@@ -484,7 +492,7 @@ bool ServerChunkManager::checkNeighborsReady(ChunkCoord x, ChunkCoord z, const C
             if (dx == 0 && dz == 0) continue;
 
             const ChunkHolder* neighbor = getHolder(x + dx, z + dz);
-            if (!neighbor || !neighbor->hasCompletedStatus(status)) {
+            if (!neighbor || !neighbor->hasCompletedStatus(*requiredStatus)) {
                 return false;
             }
         }

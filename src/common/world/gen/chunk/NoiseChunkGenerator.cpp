@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <random>
+#include <spdlog/spdlog.h>
 
 namespace mr {
 
@@ -641,9 +642,6 @@ void NoiseChunkGenerator::applyCarvers(WorldGenRegion& region, ChunkPrimer& chun
 
 void NoiseChunkGenerator::placeFeatures(WorldGenRegion& region, ChunkPrimer& chunk)
 {
-    const ChunkCoord chunkX = chunk.x();
-    const ChunkCoord chunkZ = chunk.z();
-
     // 初始化特征注册表（首次调用时）
     static bool s_featuresInitialized = false;
     if (!s_featuresInitialized) {
@@ -652,8 +650,6 @@ void NoiseChunkGenerator::placeFeatures(WorldGenRegion& region, ChunkPrimer& chu
     }
 
     // 获取区块中心位置的主要生物群系
-    const i32 centerX = (chunkX << 4) + 8;
-    const i32 centerZ = (chunkZ << 4) + 8;
     const BiomeId biomeId = chunk.getBiomeAtBlock(8, 64, 8);
     const Biome& biome = m_biomeProvider->getBiomeDefinition(biomeId);
     const BiomeGenerationSettings& settings = biome.generationSettings();

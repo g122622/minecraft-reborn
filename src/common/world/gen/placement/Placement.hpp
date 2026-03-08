@@ -23,6 +23,13 @@ struct IPlacementConfig {
 };
 
 /**
+ * @brief 空放置配置（用于不需要配置的放置器）
+ */
+struct EmptyPlacementConfig : public IPlacementConfig {
+    EmptyPlacementConfig() = default;
+};
+
+/**
  * @brief 数量放置配置
  *
  * 控制每个区块中特征出现的次数。
@@ -255,6 +262,14 @@ public:
     [[nodiscard]] std::unique_ptr<ConfiguredPlacement> then(
         std::unique_ptr<Placement> placement,
         std::unique_ptr<IPlacementConfig> config) const;
+
+    /**
+     * @brief 设置下一个放置器
+     * @param next 下一个放置器
+     */
+    void setNext(std::unique_ptr<ConfiguredPlacement> next) {
+        m_next = std::move(next);
+    }
 
 private:
     std::unique_ptr<Placement> m_placement;
