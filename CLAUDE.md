@@ -206,6 +206,14 @@ The client uses Vulkan for rendering:
 
 The resource pack system parses standard Minecraft resource pack format:
 
+### MC Version Compatibility
+The system supports both MC 1.12 and MC 1.13+ resource packs with automatic texture path and name conversion:
+- **Path compatibility**: `textures/block/` ↔ `textures/blocks/` automatic conversion
+- **Name variants**: Handles naming differences like `white_wool` ↔ `wool_colored_white`, `oak_planks` ↔ `planks_oak`
+- **Stone variants**: `granite` ↔ `stone_granite`, `andesite` ↔ `stone_andesite`, etc.
+- **Grass block**: `grass_block_top` ↔ `grass_top`, `grass_block_side` ↔ `grass_side`
+- **Sandstone**: `cut_sandstone` ↔ `sandstone_carved`, `chiseled_sandstone` ↔ `sandstone_smooth`
+
 ### Resource Location
 ```cpp
 // Parse "minecraft:textures/blocks/stone"
@@ -255,7 +263,8 @@ const auto* variant = blockStateLoader.getVariant(
 - `pack.mcmeta` - Pack metadata
 - `blockstates/*.json` - Block state definitions
 - `models/block/*.json` - Block models
-- `textures/blocks/*.png` - Block textures
+- `textures/blocks/*.png` - Block textures (MC 1.12)
+- `textures/block/*.png` - Block textures (MC 1.13+)
 
 ## Error Handling Pattern
 
@@ -352,8 +361,8 @@ Managed via vcpkg:
   - SimpleBiomeProvider: Biome distribution
   - ChunkWorkerPool: Async generation thread pool
   - ServerChunkManager: Central chunk coordination
-- **Renderer**: In progress (Vulkan context, basic mesh generation)
-- **Resource Pack System**: Complete (model/blockstate parsing, texture atlas)
+- **Renderer**: In progress (Vulkan context, basic mesh generation, texture atlas with MC 1.12/1.13+ compatibility)
+- **Resource Pack System**: Complete (model/blockstate parsing, texture atlas, MC version compatibility)
 - **Block Properties**: Complete (property encoding, variant mapping)
 - **Tests**: 250+ tests (163 common + 27 resource + 60+ chunk generation)
 
