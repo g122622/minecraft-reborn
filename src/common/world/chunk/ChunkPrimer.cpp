@@ -202,6 +202,7 @@ std::unique_ptr<ChunkData> ChunkPrimer::toChunkData()
 
     // 标记为完全生成
     if (m_data) {
+        m_data->setBiomes(m_biomes);
         m_data->setFullyGenerated(true);
     }
 

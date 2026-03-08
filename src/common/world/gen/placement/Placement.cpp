@@ -148,11 +148,10 @@ std::vector<BlockPos> BiomePlacement::getPositions(
     (void)random;
     const auto& biomeConfig = static_cast<const BiomePlacementConfig&>(config);
 
-    // 获取位置处的生物群系
-    // TODO: 需要WorldGenRegion提供getBiome方法
-    // 暂时返回空，让矿石不在任何地方生成
-    (void)region;
-    (void)biomeConfig;
+    const BiomeId biomeId = region.getBiome(basePos.x, basePos.y, basePos.z);
+    if (!biomeConfig.isAllowed(biomeId)) {
+        return {};
+    }
 
     return { basePos };
 }

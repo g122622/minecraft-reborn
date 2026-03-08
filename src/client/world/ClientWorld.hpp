@@ -3,6 +3,7 @@
 #include "../../common/core/Types.hpp"
 #include "../../common/core/Result.hpp"
 #include "../../common/world/chunk/ChunkData.hpp"
+#include "../../common/world/biome/Biome.hpp"
 #include "../../common/world/WorldConstants.hpp"
 #include "../renderer/MeshTypes.hpp"
 #include "../../common/network/ChunkSync.hpp"
@@ -85,6 +86,11 @@ public:
      * @brief 获取方块
      */
     [[nodiscard]] const BlockState* getBlockState(i32 x, i32 y, i32 z) const override;
+
+    /**
+     * @brief 获取方块所在生物群系
+     */
+    [[nodiscard]] const Biome* getBiomeAtBlock(i32 x, i32 y, i32 z) const;
 
     /**
      * @brief 设置方块

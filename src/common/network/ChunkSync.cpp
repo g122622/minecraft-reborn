@@ -26,8 +26,10 @@ Result<std::vector<u8>> ChunkSerializer::serializeChunk(const ChunkData& chunk) 
         ser.writeU8(static_cast<u8>(chunk.getHighestBlock(i % 16, i / 16)));
     }
 
-    // 写入生物群系（简化版，暂不实现）
-    ser.writeU8(0); // 生物群落数量 = 0
+    // 写入生物群系
+    const auto biomeData = chunk.getBiomes().serialize();
+    ser.writeU8(static_cast<u8>(BiomeContainer::BIOME_SIZE));
+    ser.writeBytes(biomeData);
 
     // 写入区块段数据
     for (i32 i = 0; i < ChunkData::SECTIONS; ++i) {
@@ -118,10 +120,26 @@ Result<std::unique_ptr<ChunkData>> ChunkSerializer::deserializeChunk(
         return heightmapResult.error();
     }
 
-    // 跳过生物群系
+    // 读取生物群系
     auto biomeCountResult = deser.readU8();
     if (biomeCountResult.failed()) {
         return biomeCountResult.error();
+    }
+
+    const u8 biomeCount = biomeCountResult.value();
+    if (biomeCount > 0) {
+        auto biomeDataResult = deser.readBytes(static_cast<size_t>(biomeCount) * sizeof(BiomeId));
+        if (biomeDataResult.failed()) {
+            return biomeDataResult.error();
+        }
+
+        const auto& biomeData = biomeDataResult.value();
+        auto biomeContainerResult = BiomeContainer::deserialize(biomeData.data(), biomeData.size());
+        if (biomeContainerResult.failed()) {
+            return biomeContainerResult.error();
+        }
+
+        chunk->setBiomes(std::move(biomeContainerResult.value()));
     }
 
     // 读取区块段
@@ -207,7 +225,7 @@ Result<std::unique_ptr<ChunkSection>> ChunkSerializer::deserializeChunkSection(
 }
 
 size_t ChunkSerializer::calculateChunkSize(const ChunkData& chunk) {
-    size_t size = 4 + 4 + 2 + 256 + 1; // 坐标 + 位掩码 + 高度图 + 生物群系数
+    size_t size = 4 + 4 + 2 + 256 + 1 + chunk.getBiomes().serialize().size(); // 坐标 + 位掩码 + 高度图 + 生物群系
 
     for (i32 i = 0; i < ChunkData::SECTIONS; ++i) {
         if (chunk.hasSection(i)) {

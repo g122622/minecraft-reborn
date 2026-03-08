@@ -4,6 +4,7 @@
 #include "../../core/Result.hpp"
 #include "../block/Block.hpp"
 #include "ChunkPos.hpp"
+#include "IChunk.hpp"
 #include "../WorldConstants.hpp"
 #include <vector>
 #include <memory>
@@ -119,6 +120,12 @@ public:
     [[nodiscard]] BlockCoord getHighestBlock(BlockCoord x, BlockCoord z) const;
     void updateHeightMap(BlockCoord x, BlockCoord z);
 
+    // 生物群系
+    [[nodiscard]] BiomeId getBiomeAtBlock(BlockCoord x, BlockCoord y, BlockCoord z) const;
+    [[nodiscard]] const BiomeContainer& getBiomes() const { return m_biomes; }
+    [[nodiscard]] BiomeContainer& getBiomes() { return m_biomes; }
+    void setBiomes(BiomeContainer biomes) { m_biomes = std::move(biomes); }
+
     // 区块段访问
     [[nodiscard]] ChunkSection* getSection(i32 index);
     [[nodiscard]] const ChunkSection* getSection(i32 index) const;
@@ -154,6 +161,9 @@ private:
 
     // 高度图 (最高方块Y坐标)
     std::array<BlockCoord, WIDTH * WIDTH> m_heightMap;
+
+    // 生物群系采样数据
+    BiomeContainer m_biomes;
 
     // 状态
     bool m_fullyGenerated = false;

@@ -96,16 +96,9 @@ BiomeId WorldGenRegion::getBiome(i32 x, i32 y, i32 z) const
         return Biomes::Plains;
     }
 
-    // 如果是 ChunkPrimer，可以获取生物群系
     const i32 localX = world::toLocalCoord(x);
     const i32 localZ = world::toLocalCoord(z);
-
-    // 尝试转换为 ChunkPrimer
-    if (const auto* primer = dynamic_cast<const ChunkPrimer*>(chunk)) {
-        return primer->getBiomeAtBlock(localX, y, localZ);
-    }
-
-    return Biomes::Plains;
+    return chunk->getBiomeAtBlock(localX, y, localZ);
 }
 
 i32 WorldGenRegion::getTopBlockY(i32 x, i32 z, HeightmapType type) const

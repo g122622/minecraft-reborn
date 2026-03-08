@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "common/network/ChunkSync.hpp"
+#include "common/world/biome/Biome.hpp"
 #include "common/world/chunk/ChunkData.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
 
@@ -368,6 +369,25 @@ TEST_F(ChunkSerializerTest, DeserializeChunk) {
     EXPECT_EQ(restored->x(), 100);
     EXPECT_EQ(restored->z(), -200);
     EXPECT_TRUE(restored->isFullyGenerated());
+}
+
+TEST_F(ChunkSerializerTest, DeserializeChunkPreservesBiomeData) {
+    ChunkData original(3, 7);
+
+    BiomeContainer biomes;
+    biomes.setBiome(0, 0, 0, Biomes::Forest);
+    biomes.setBiome(3, 3, 3, Biomes::Badlands);
+    original.setBiomes(std::move(biomes));
+
+    auto serializeResult = ChunkSerializer::serializeChunk(original);
+    ASSERT_TRUE(serializeResult.success());
+
+    auto deserializeResult = ChunkSerializer::deserializeChunk(3, 7, serializeResult.value());
+    ASSERT_TRUE(deserializeResult.success());
+
+    const auto& restored = deserializeResult.value();
+    EXPECT_EQ(restored->getBiomeAtBlock(0, 0, 0), Biomes::Forest);
+    EXPECT_EQ(restored->getBiomeAtBlock(15, 63, 15), Biomes::Badlands);
 }
 
 TEST_F(ChunkSerializerTest, SectionMask) {

@@ -3,6 +3,7 @@
 #include "../../common/world/WorldConstants.hpp"
 #include "../../common/network/ChunkSync.hpp"
 #include "../../common/core/Constants.hpp"
+#include "../../common/world/biome/BiomeRegistry.hpp"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <cmath>
@@ -81,6 +82,27 @@ const BlockState* ClientWorld::getBlockState(i32 x, i32 y, i32 z) const {
     i32 localZ = toLocalCoord(z);
 
     return chunk->data->getBlock(localX, y, localZ);
+}
+
+const Biome* ClientWorld::getBiomeAtBlock(i32 x, i32 y, i32 z) const {
+    if (!isValidY(y)) {
+        return nullptr;
+    }
+
+    i32 chunkX = toChunkCoord(x);
+    i32 chunkZ = toChunkCoord(z);
+    ChunkId id(chunkX, chunkZ);
+
+    const ClientChunk* chunk = getChunk(id);
+    if (!chunk || !chunk->data) {
+        return nullptr;
+    }
+
+    const i32 localX = toLocalCoord(x);
+    const i32 localZ = toLocalCoord(z);
+    const BiomeId biomeId = chunk->data->getBiomeAtBlock(localX, y, localZ);
+
+    return &BiomeRegistry::instance().get(biomeId);
 }
 
 void ClientWorld::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {

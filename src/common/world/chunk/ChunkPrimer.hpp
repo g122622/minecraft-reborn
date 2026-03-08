@@ -127,7 +127,7 @@ public:
     /**
      * @brief 获取方块位置的生物群系
      */
-    [[nodiscard]] BiomeId getBiomeAtBlock(BlockCoord x, BlockCoord y, BlockCoord z) const;
+    [[nodiscard]] BiomeId getBiomeAtBlock(BlockCoord x, BlockCoord y, BlockCoord z) const override;
 
     // ============================================================================
     // 光源位置

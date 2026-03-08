@@ -1,6 +1,7 @@
 #include "DebugScreen.hpp"
 #include "../world/ClientWorld.hpp"
 #include "../../common/world/block/Block.hpp"
+#include "../../common/world/biome/BiomeRegistry.hpp"
 #include "../../common/resource/ResourceLocation.hpp"
 #include "../../common/util/Direction.hpp"
 #include <sstream>
@@ -118,7 +119,16 @@ void DebugScreen::buildDebugText() {
             << rot.x << ", " << rot.y;
         m_debugLines.push_back(oss.str());
 
-        // TODO: 生物群系信息 - 需要 ClientWorld::getBiomeAtBlock() 方法
+        oss.str("");
+        const i32 blockX = static_cast<i32>(std::floor(pos.x));
+        const i32 blockY = static_cast<i32>(std::floor(pos.y));
+        const i32 blockZ = static_cast<i32>(std::floor(pos.z));
+        if (const Biome* biome = m_world != nullptr ? m_world->getBiomeAtBlock(blockX, blockY, blockZ) : nullptr) {
+            oss << "Biome: " << biome->id() << " (" << biome->name() << ")";
+        } else {
+            oss << "Biome: <unloaded>";
+        }
+        m_debugLines.push_back(oss.str());
     } else {
         m_debugLines.push_back("No camera");
     }

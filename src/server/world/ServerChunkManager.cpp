@@ -53,6 +53,10 @@ public:
         return m_chunk ? m_chunk->createSection(index) : nullptr;
     }
 
+    [[nodiscard]] BiomeId getBiomeAtBlock(BlockCoord x, BlockCoord y, BlockCoord z) const override {
+        return m_chunk ? m_chunk->getBiomeAtBlock(x, y, z) : Biomes::Plains;
+    }
+
     [[nodiscard]] BlockCoord getTopBlockY(HeightmapType type, BlockCoord x, BlockCoord z) const override {
         (void)type;
         return m_chunk ? m_chunk->getHighestBlock(x, z) : 0;

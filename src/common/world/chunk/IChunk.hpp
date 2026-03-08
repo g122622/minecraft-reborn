@@ -68,6 +68,9 @@ public:
     [[nodiscard]] virtual bool hasSection(i32 index) const = 0;
     virtual ChunkSection* createSection(i32 index) = 0;
 
+    // === 生物群系 ===
+    [[nodiscard]] virtual BiomeId getBiomeAtBlock(BlockCoord x, BlockCoord y, BlockCoord z) const = 0;
+
     // === 高度图 ===
     [[nodiscard]] virtual BlockCoord getTopBlockY(HeightmapType type, BlockCoord x, BlockCoord z) const = 0;
     virtual void updateHeightmap(HeightmapType type, BlockCoord x, BlockCoord y, BlockCoord z, const BlockState* state) = 0;

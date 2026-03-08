@@ -1,5 +1,6 @@
 #include "ChunkData.hpp"
 #include "../block/BlockRegistry.hpp"
+#include "../biome/Biome.hpp"
 #include <algorithm>
 #include <stdexcept>
 
@@ -282,6 +283,14 @@ BlockCoord ChunkData::getHighestBlock(BlockCoord x, BlockCoord z) const {
     return m_heightMap[x * WIDTH + z];
 }
 
+BiomeId ChunkData::getBiomeAtBlock(BlockCoord x, BlockCoord y, BlockCoord z) const {
+    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT || z < 0 || z >= WIDTH) {
+        return Biomes::Plains;
+    }
+
+    return m_biomes.getBiomeAtBlock(x, y, z);
+}
+
 void ChunkData::updateHeightMap(BlockCoord x, BlockCoord z) {
     // 从上向下查找最高的非空气方块
     for (BlockCoord y = HEIGHT - 1; y >= 0; --y) {
@@ -362,6 +371,13 @@ std::vector<u8> ChunkData::serialize() const {
     data.push_back(static_cast<u8>(sectionMask >> 8));
     data.push_back(static_cast<u8>(sectionMask & 0xFF));
 
+    // 生物群系数据
+    auto biomeData = m_biomes.serialize();
+    const u16 biomeSize = static_cast<u16>(biomeData.size());
+    data.push_back(static_cast<u8>(biomeSize >> 8));
+    data.push_back(static_cast<u8>(biomeSize & 0xFF));
+    data.insert(data.end(), biomeData.begin(), biomeData.end());
+
     // 序列化每个段
     for (size_t i = 0; i < SECTIONS; ++i) {
         if (m_sections[i]) {
@@ -387,7 +403,7 @@ std::vector<u8> ChunkData::serialize() const {
 }
 
 Result<std::unique_ptr<ChunkData>> ChunkData::deserialize(const u8* data, size_t size) {
-    if (size < 11) {
+    if (size < 13) {
         return Error(ErrorCode::InvalidArgument, "Invalid chunk data size");
     }
 
@@ -415,6 +431,26 @@ Result<std::unique_ptr<ChunkData>> ChunkData::deserialize(const u8* data, size_t
     // 区块段掩码
     u16 sectionMask = (static_cast<u16>(data[offset]) << 8) | data[offset + 1];
     offset += 2;
+
+    // 生物群系数据
+    if (offset + 2 > size) {
+        return Error(ErrorCode::InvalidArgument, "Biome data header missing");
+    }
+    const u16 biomeSize = (static_cast<u16>(data[offset]) << 8) | data[offset + 1];
+    offset += 2;
+
+    if (offset + biomeSize > size) {
+        return Error(ErrorCode::InvalidArgument, "Biome data truncated");
+    }
+
+    if (biomeSize > 0) {
+        auto biomeResult = BiomeContainer::deserialize(data + offset, biomeSize);
+        if (biomeResult.failed()) {
+            return biomeResult.error();
+        }
+        chunk->m_biomes = std::move(biomeResult.value());
+    }
+    offset += biomeSize;
 
     // 读取每个段
     for (size_t i = 0; i < SECTIONS; ++i) {
