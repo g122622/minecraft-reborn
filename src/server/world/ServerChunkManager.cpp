@@ -9,56 +9,62 @@ namespace {
 
 class ChunkDataChunkAdapter : public IChunk {
 public:
-    explicit ChunkDataChunkAdapter(ChunkData& chunk)
-        : m_chunk(chunk)
-        , m_status(chunk.isFullyGenerated() ? ChunkLoadStatus::Generated : ChunkLoadStatus::Generating) {}
+    explicit ChunkDataChunkAdapter(std::shared_ptr<ChunkData> chunk)
+        : m_chunk(std::move(chunk))
+        , m_status(m_chunk && m_chunk->isFullyGenerated() ? ChunkLoadStatus::Generated : ChunkLoadStatus::Generating) {}
 
-    [[nodiscard]] ChunkCoord x() const override { return m_chunk.x(); }
-    [[nodiscard]] ChunkCoord z() const override { return m_chunk.z(); }
-    [[nodiscard]] ChunkPos pos() const override { return m_chunk.pos(); }
+    [[nodiscard]] ChunkCoord x() const override { return m_chunk ? m_chunk->x() : 0; }
+    [[nodiscard]] ChunkCoord z() const override { return m_chunk ? m_chunk->z() : 0; }
+    [[nodiscard]] ChunkPos pos() const override { return m_chunk ? m_chunk->pos() : ChunkPos(0, 0); }
 
     [[nodiscard]] const BlockState* getBlock(BlockCoord x, BlockCoord y, BlockCoord z) const override {
-        return m_chunk.getBlock(x, y, z);
+        return m_chunk ? m_chunk->getBlock(x, y, z) : nullptr;
     }
 
     void setBlock(BlockCoord x, BlockCoord y, BlockCoord z, const BlockState* state) override {
-        m_chunk.setBlock(x, y, z, state);
+        if (m_chunk) {
+            m_chunk->setBlock(x, y, z, state);
+        }
     }
 
     [[nodiscard]] u32 getBlockStateId(BlockCoord x, BlockCoord y, BlockCoord z) const override {
-        return m_chunk.getBlockStateId(x, y, z);
+        return m_chunk ? m_chunk->getBlockStateId(x, y, z) : 0;
     }
 
     void setBlockStateId(BlockCoord x, BlockCoord y, BlockCoord z, u32 stateId) override {
-        m_chunk.setBlockStateId(x, y, z, stateId);
+        if (m_chunk) {
+            m_chunk->setBlockStateId(x, y, z, stateId);
+        }
     }
 
     [[nodiscard]] ChunkSection* getSection(i32 index) override {
-        return m_chunk.getSection(index);
+        return m_chunk ? m_chunk->getSection(index) : nullptr;
     }
 
     [[nodiscard]] const ChunkSection* getSection(i32 index) const override {
-        return m_chunk.getSection(index);
+        return m_chunk ? m_chunk->getSection(index) : nullptr;
     }
 
     [[nodiscard]] bool hasSection(i32 index) const override {
-        return m_chunk.hasSection(index);
+        return m_chunk ? m_chunk->hasSection(index) : false;
     }
 
     ChunkSection* createSection(i32 index) override {
-        return m_chunk.createSection(index);
+        return m_chunk ? m_chunk->createSection(index) : nullptr;
     }
 
     [[nodiscard]] BlockCoord getTopBlockY(HeightmapType type, BlockCoord x, BlockCoord z) const override {
         (void)type;
-        return m_chunk.getHighestBlock(x, z);
+        return m_chunk ? m_chunk->getHighestBlock(x, z) : 0;
     }
 
     void updateHeightmap(HeightmapType type, BlockCoord x, BlockCoord y, BlockCoord z, const BlockState* state) override {
         (void)type;
         (void)y;
         (void)state;
-        m_chunk.updateHeightMap(x, z);
+        if (m_chunk) {
+            m_chunk->updateHeightMap(x, z);
+        }
     }
 
     [[nodiscard]] ChunkLoadStatus getStatus() const override {
@@ -70,15 +76,17 @@ public:
     }
 
     [[nodiscard]] bool isModified() const override {
-        return m_chunk.isDirty();
+        return m_chunk ? m_chunk->isDirty() : false;
     }
 
     void setModified(bool modified) override {
-        m_chunk.setDirty(modified);
+        if (m_chunk) {
+            m_chunk->setDirty(modified);
+        }
     }
 
 private:
-    ChunkData& m_chunk;
+    std::shared_ptr<ChunkData> m_chunk;
     ChunkLoadStatus m_status = ChunkLoadStatus::Generated;
 };
 
@@ -211,26 +219,36 @@ void ServerChunkManager::stopWorkers()
 
 ChunkData* ServerChunkManager::getChunk(ChunkCoord x, ChunkCoord z)
 {
-    const u64 key = posToKey(x, z);
-
-    std::lock_guard<std::mutex> lock(m_chunksMutex);
-    auto it = m_chunks.find(key);
-    if (it != m_chunks.end()) {
-        return it->second.get();
-    }
-    return nullptr;
+    return getChunkShared(x, z).get();
 }
 
 const ChunkData* ServerChunkManager::getChunk(ChunkCoord x, ChunkCoord z) const
+{
+    return getChunkShared(x, z).get();
+}
+
+std::shared_ptr<ChunkData> ServerChunkManager::getChunkShared(ChunkCoord x, ChunkCoord z)
 {
     const u64 key = posToKey(x, z);
 
     std::lock_guard<std::mutex> lock(m_chunksMutex);
     auto it = m_chunks.find(key);
     if (it != m_chunks.end()) {
-        return it->second.get();
+        return it->second;
     }
-    return nullptr;
+    return {};
+}
+
+std::shared_ptr<const ChunkData> ServerChunkManager::getChunkShared(ChunkCoord x, ChunkCoord z) const
+{
+    const u64 key = posToKey(x, z);
+
+    std::lock_guard<std::mutex> lock(m_chunksMutex);
+    auto it = m_chunks.find(key);
+    if (it != m_chunks.end()) {
+        return it->second;
+    }
+    return {};
 }
 
 bool ServerChunkManager::hasChunk(ChunkCoord x, ChunkCoord z) const
@@ -291,16 +309,15 @@ std::future<ChunkData*> ServerChunkManager::getChunkAsync(ChunkCoord x, ChunkCoo
     auto promise = std::make_shared<std::promise<ChunkData*>>();
     auto future = promise->get_future();
 
+    if (auto cached = getChunkShared(x, z)) {
+        promise->set_value(cached.get());
+        return future;
+    }
+
     // 获取或创建持有者
     ChunkHolder* holder = getOrCreateHolder(x, z);
     if (!holder) {
         promise->set_value(nullptr);
-        return future;
-    }
-
-    // 如果已完成
-    if (ChunkData* data = holder->getChunkData()) {
-        promise->set_value(data);
         return future;
     }
 
@@ -317,13 +334,7 @@ std::future<ChunkData*> ServerChunkManager::getChunkAsync(ChunkCoord x, ChunkCoo
                     return;
                 }
 
-                // 存入缓存
-                {
-                    std::lock_guard<std::mutex> lock(m_chunksMutex);
-                    m_chunks[posToKey(x, z)] = std::make_unique<ChunkData>(std::move(*data));
-                    // 在锁保护下返回缓存中的指针，避免并发访问未加锁的 map
-                    promise->set_value(m_chunks[posToKey(x, z)].get());
-                }
+                promise->set_value(storeGeneratedChunk(x, z, std::move(data)));
             } else {
                 promise->set_value(nullptr);
             }
@@ -337,16 +348,15 @@ std::future<ChunkData*> ServerChunkManager::getChunkAsync(ChunkCoord x, ChunkCoo
 void ServerChunkManager::getChunkAsync(ChunkCoord x, ChunkCoord z, ChunkCallback callback,
                                         const ChunkStatus* targetStatus)
 {
+    if (auto cached = getChunkShared(x, z)) {
+        if (callback) callback(true, cached.get());
+        return;
+    }
+
     // 获取或创建持有者
     ChunkHolder* holder = getOrCreateHolder(x, z);
     if (!holder) {
         if (callback) callback(false, nullptr);
-        return;
-    }
-
-    // 如果已完成
-    if (ChunkData* data = holder->getChunkData()) {
-        if (callback) callback(true, data);
         return;
     }
 
@@ -363,12 +373,9 @@ void ServerChunkManager::getChunkAsync(ChunkCoord x, ChunkCoord z, ChunkCallback
                     return;
                 }
 
-                // 存入缓存，并在同一把锁内执行回调，避免区块在序列化期间被并发卸载
-                {
-                    std::lock_guard<std::mutex> lock(m_chunksMutex);
-                    m_chunks[posToKey(x, z)] = std::make_unique<ChunkData>(std::move(*data));
-                    if (callback) callback(true, m_chunks[posToKey(x, z)].get());
-                }
+                ChunkData* stored = storeGeneratedChunk(x, z, std::move(data));
+                auto pinned = getChunkShared(x, z);
+                if (callback) callback(pinned != nullptr, pinned.get());
             } else {
                 if (callback) callback(false, nullptr);
             }
@@ -479,8 +486,10 @@ void ServerChunkManager::tick()
 
 void ServerChunkManager::scheduleGeneration(ChunkHolder& holder, const ChunkStatus& targetStatus)
 {
-    // 如果已经在生成中，不需要重新调度
-    if (holder.getGeneratingChunk() && holder.hasCompletedStatus(targetStatus)) {
+    // 如果已经达到目标状态、已有缓存结果或已有正在使用的 primer，则不重复调度
+    if (holder.hasCompletedStatus(targetStatus) ||
+        getChunk(holder.x(), holder.z()) != nullptr ||
+        holder.getGeneratingChunk() != nullptr) {
         return;
     }
 
@@ -489,10 +498,17 @@ void ServerChunkManager::scheduleGeneration(ChunkHolder& holder, const ChunkStat
         holder.x(),
         holder.z(),
         targetStatus,
-        [&holder](bool success, ChunkPrimer* primer) {
-            if (success && primer) {
-                holder.setStatus(ChunkStatus::FULL);
+        [this, x = holder.x(), z = holder.z()](bool success, ChunkPrimer* primer) {
+            if (!success || !primer) {
+                return;
             }
+
+            auto data = primer->toChunkData();
+            if (!data) {
+                return;
+            }
+
+            storeGeneratedChunk(x, z, std::move(data));
         },
         holder.getLevel()
     );
@@ -547,8 +563,7 @@ void ServerChunkManager::executeGenerationTask(ChunkHolder& holder, const ChunkS
     // 完成生成并存入缓存
     auto data = holder.completeGeneration();
     if (data) {
-        std::lock_guard<std::mutex> lock(m_chunksMutex);
-        m_chunks[posToKey(holder.x(), holder.z())] = std::move(data);
+        storeGeneratedChunk(holder.x(), holder.z(), std::move(data));
     }
 }
 
@@ -605,8 +620,8 @@ void ServerChunkManager::getNeighborChunks(
 
         ChunkHolder* holder = getHolder(x + offsets[i][0], z + offsets[i][1]);
         if (holder) {
-            if (ChunkData* data = holder->getChunkData()) {
-                neighborAdapters[i] = std::make_unique<ChunkDataChunkAdapter>(*data);
+            if (auto data = getChunkShared(x + offsets[i][0], z + offsets[i][1])) {
+                neighborAdapters[i] = std::make_unique<ChunkDataChunkAdapter>(std::move(data));
                 neighbors[i] = neighborAdapters[i].get();
             } else if (ChunkPrimer* primer = holder->getGeneratingChunk()) {
                 neighborAdapters[i].reset();
@@ -620,6 +635,29 @@ void ServerChunkManager::getNeighborChunks(
             neighbors[i] = nullptr;
         }
     }
+}
+
+ChunkData* ServerChunkManager::storeGeneratedChunk(ChunkCoord x, ChunkCoord z, std::unique_ptr<ChunkData> data)
+{
+    if (!data) {
+        return nullptr;
+    }
+
+    std::shared_ptr<ChunkData> sharedData(std::move(data));
+
+    ChunkData* stored = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(m_chunksMutex);
+        auto& slot = m_chunks[posToKey(x, z)];
+        slot = std::move(sharedData);
+        stored = slot.get();
+    }
+
+    if (ChunkHolder* holder = getHolder(x, z)) {
+        holder->setStatus(ChunkStatus::FULL);
+    }
+
+    return stored;
 }
 
 void ServerChunkManager::processCompletedTasks()

@@ -279,6 +279,18 @@ private:
         std::array<std::unique_ptr<IChunk>, 9>& neighborAdapters);
 
     /**
+     * @brief 获取缓存区块的共享所有权
+     */
+    [[nodiscard]] std::shared_ptr<ChunkData> getChunkShared(ChunkCoord x, ChunkCoord z);
+    [[nodiscard]] std::shared_ptr<const ChunkData> getChunkShared(ChunkCoord x, ChunkCoord z) const;
+
+    /**
+     * @brief 存储已生成区块并同步更新持有者状态
+     * @return 缓存中的区块指针，失败返回 nullptr
+     */
+    [[nodiscard]] ChunkData* storeGeneratedChunk(ChunkCoord x, ChunkCoord z, std::unique_ptr<ChunkData> data);
+
+    /**
      * @brief 处理完成的异步任务
      */
     void processCompletedTasks();
@@ -307,7 +319,7 @@ private:
     mutable std::mutex m_holdersMutex;
 
     // 已完成的区块数据缓存
-    std::unordered_map<u64, std::unique_ptr<ChunkData>> m_chunks;
+    std::unordered_map<u64, std::shared_ptr<ChunkData>> m_chunks;
     mutable std::mutex m_chunksMutex;
 
     // 票据管理器
