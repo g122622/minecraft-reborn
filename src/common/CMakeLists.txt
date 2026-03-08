@@ -74,7 +74,13 @@ add_library(mr_common STATIC
 
     # World - Generation - Feature
     world/gen/feature/Feature.cpp
+    world/gen/feature/FeatureSpread.cpp
     world/gen/feature/ore/OreFeature.cpp
+    world/gen/feature/tree/TreeFeature.cpp
+    world/gen/feature/tree/trunk/TrunkPlacer.cpp
+    world/gen/feature/tree/trunk/StraightTrunkPlacer.cpp
+    world/gen/feature/tree/foliage/FoliagePlacer.cpp
+    world/gen/feature/tree/foliage/BlobFoliagePlacer.cpp
 
     # World - Generation - Placement
     world/gen/placement/Placement.cpp

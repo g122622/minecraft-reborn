@@ -1,0 +1,50 @@
+#pragma once
+
+#include "TrunkPlacer.hpp"
+
+namespace mr {
+
+/**
+ * @brief 直树干放置器
+ *
+ * 用于橡树、白桦、丛林木等简单的垂直树干。
+ * 生成一条从底部到顶部的直线树干。
+ *
+ * 参考: net.minecraft.world.gen.trunkplacer.StraightTrunkPlacer
+ */
+class StraightTrunkPlacer : public TrunkPlacer {
+public:
+    /**
+     * @brief 构造直树干放置器
+     * @param baseHeight 基础高度
+     * @param heightRandA 高度随机值A
+     * @param heightRandB 高度随机值B
+     */
+    StraightTrunkPlacer(i32 baseHeight, i32 heightRandA, i32 heightRandB);
+
+    /**
+     * @brief 放置直树干
+     *
+     * 在起始位置向上生成一条垂直的树干。
+     *
+     * @param world 世界区域
+     * @param random 随机数生成器
+     * @param height 树干高度
+     * @param startPos 起始位置
+     * @param trunkBlocks 树干方块集合
+     * @param trunkBlock 树干方块ID
+     * @return 树叶位置列表（只有一个树叶位置在树干顶部）
+     */
+    std::vector<FoliagePosition> placeTrunk(
+        WorldGenRegion& world,
+        math::Random& random,
+        i32 height,
+        const BlockPos& startPos,
+        std::set<BlockPos>& trunkBlocks,
+        BlockId trunkBlock
+    ) override;
+
+    [[nodiscard]] const char* name() const override { return "StraightTrunkPlacer"; }
+};
+
+} // namespace mr

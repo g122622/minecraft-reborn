@@ -24,6 +24,7 @@ add_executable(mr_tests
     common/test_surface.cpp
     common/test_ore_feature.cpp
     common/test_carver.cpp
+    common/test_tree_feature.cpp
     common/test_time.cpp
     common/SettingsTest.cpp
     server/ServerWorldTest.cpp
@@ -71,7 +72,13 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/transformers/BiomeTransformers.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/surface/SurfaceBuilders.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/Feature.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/FeatureSpread.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/ore/OreFeature.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/tree/TreeFeature.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/tree/trunk/TrunkPlacer.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/tree/trunk/StraightTrunkPlacer.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/tree/foliage/FoliagePlacer.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/tree/foliage/BlobFoliagePlacer.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/placement/Placement.cpp
         # ${CMAKE_SOURCE_DIR}/src/common/world/BlockID.cpp  # 已移除 - 使用新的方块系统
         ${CMAKE_SOURCE_DIR}/src/common/entity/Player.cpp

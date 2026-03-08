@@ -91,6 +91,41 @@ Block* VanillaBlocks::DARK_OAK_PLANKS = nullptr;
 // 原木和树叶
 Block* VanillaBlocks::OAK_LOG = nullptr;
 Block* VanillaBlocks::OAK_LEAVES = nullptr;
+Block* VanillaBlocks::SPRUCE_LOG = nullptr;
+Block* VanillaBlocks::BIRCH_LOG = nullptr;
+Block* VanillaBlocks::JUNGLE_LOG = nullptr;
+Block* VanillaBlocks::ACACIA_LOG = nullptr;
+Block* VanillaBlocks::DARK_OAK_LOG = nullptr;
+Block* VanillaBlocks::SPRUCE_LEAVES = nullptr;
+Block* VanillaBlocks::BIRCH_LEAVES = nullptr;
+Block* VanillaBlocks::JUNGLE_LEAVES = nullptr;
+Block* VanillaBlocks::ACACIA_LEAVES = nullptr;
+Block* VanillaBlocks::DARK_OAK_LEAVES = nullptr;
+
+// 植被方块
+Block* VanillaBlocks::SHORT_GRASS = nullptr;
+Block* VanillaBlocks::TALL_GRASS = nullptr;
+Block* VanillaBlocks::FERN = nullptr;
+Block* VanillaBlocks::DANDELION = nullptr;
+Block* VanillaBlocks::POPPY = nullptr;
+Block* VanillaBlocks::BLUE_ORCHID = nullptr;
+Block* VanillaBlocks::ALLIUM = nullptr;
+Block* VanillaBlocks::AZURE_BLUET = nullptr;
+Block* VanillaBlocks::RED_TULIP = nullptr;
+Block* VanillaBlocks::ORANGE_TULIP = nullptr;
+Block* VanillaBlocks::WHITE_TULIP = nullptr;
+Block* VanillaBlocks::PINK_TULIP = nullptr;
+Block* VanillaBlocks::OXEYE_DAISY = nullptr;
+Block* VanillaBlocks::BROWN_MUSHROOM = nullptr;
+Block* VanillaBlocks::RED_MUSHROOM = nullptr;
+
+// 树苗
+Block* VanillaBlocks::OAK_SAPLING = nullptr;
+Block* VanillaBlocks::SPRUCE_SAPLING = nullptr;
+Block* VanillaBlocks::BIRCH_SAPLING = nullptr;
+Block* VanillaBlocks::JUNGLE_SAPLING = nullptr;
+Block* VanillaBlocks::ACACIA_SAPLING = nullptr;
+Block* VanillaBlocks::DARK_OAK_SAPLING = nullptr;
 
 // 其他方块
 Block* VanillaBlocks::SNOW = nullptr;
@@ -128,6 +163,8 @@ void VanillaBlocks::initialize() {
     registerWoolBlocks();
     registerPlanksVariants();
     registerNetherBlocks();
+    registerTreeVariants();
+    registerVegetationBlocks();
 
     s_initialized = true;
 }
@@ -634,6 +671,137 @@ void VanillaBlocks::registerNetherBlocks() {
         ResourceLocation("minecraft:crying_obsidian"),
         BlockProperties(Material::ROCK).hardness(50.0f).resistance(1200.0f).lightLevel(10)
     );
+}
+
+// ============================================================================
+// 树木变种注册
+// ============================================================================
+void VanillaBlocks::registerTreeVariants() {
+    auto& registry = BlockRegistry::instance();
+
+    // 木头属性
+    BlockProperties logProps = BlockProperties(Material::WOOD).hardness(2.0f).resistance(2.0f).flammable();
+    // 树叶属性
+    BlockProperties leavesProps = BlockProperties(Material::LEAVES).hardness(0.2f).flammable().notSolid();
+
+    // 云杉原木和树叶
+    SPRUCE_LOG = &registry.registerBlock<RotatedPillarBlock>(
+        ResourceLocation("minecraft:spruce_log"), logProps);
+    SPRUCE_LEAVES = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:spruce_leaves"), leavesProps);
+
+    // 白桦原木和树叶
+    BIRCH_LOG = &registry.registerBlock<RotatedPillarBlock>(
+        ResourceLocation("minecraft:birch_log"), logProps);
+    BIRCH_LEAVES = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:birch_leaves"), leavesProps);
+
+    // 丛林原木和树叶
+    JUNGLE_LOG = &registry.registerBlock<RotatedPillarBlock>(
+        ResourceLocation("minecraft:jungle_log"), logProps);
+    JUNGLE_LEAVES = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:jungle_leaves"), leavesProps);
+
+    // 金合欢原木和树叶
+    ACACIA_LOG = &registry.registerBlock<RotatedPillarBlock>(
+        ResourceLocation("minecraft:acacia_log"), logProps);
+    ACACIA_LEAVES = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:acacia_leaves"), leavesProps);
+
+    // 深色橡木原木和树叶
+    DARK_OAK_LOG = &registry.registerBlock<RotatedPillarBlock>(
+        ResourceLocation("minecraft:dark_oak_log"), logProps);
+    DARK_OAK_LEAVES = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:dark_oak_leaves"), leavesProps);
+}
+
+// ============================================================================
+// 植被方块注册
+// ============================================================================
+void VanillaBlocks::registerVegetationBlocks() {
+    auto& registry = BlockRegistry::instance();
+
+    // 草和蕨的属性
+    BlockProperties grassProps = BlockProperties(Material::REPLACEABLE_PLANT).noCollision().notSolid();
+
+    // 矮草 - ID 51
+    // 参考: new TallGrassBlock(Properties.create(Material.REPLACEABLE_PLANT).doesNotBlockMovement().zeroHardnessAndResistance())
+    SHORT_GRASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:short_grass"), grassProps);
+
+    // 高草 - ID 52
+    TALL_GRASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:tall_grass"), grassProps);
+
+    // 蕨 - ID 53
+    FERN = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:fern"), grassProps);
+
+    // 花朵属性
+    BlockProperties flowerProps = BlockProperties(Material::REPLACEABLE_PLANT).noCollision().notSolid();
+
+    // 蒲公英 - ID 54
+    DANDELION = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:dandelion"), flowerProps);
+
+    // 虞美人 - ID 55
+    POPPY = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:poppy"), flowerProps);
+
+    // 兰花 - ID 56
+    BLUE_ORCHID = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:blue_orchid"), flowerProps);
+
+    // 绒球葱 - ID 57
+    ALLIUM = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:allium"), flowerProps);
+
+    // 蓝花美耳草 - ID 58
+    AZURE_BLUET = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:azure_bluet"), flowerProps);
+
+    // 郁金香系列 - ID 59-62
+    RED_TULIP = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:red_tulip"), flowerProps);
+    ORANGE_TULIP = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:orange_tulip"), flowerProps);
+    WHITE_TULIP = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:white_tulip"), flowerProps);
+    PINK_TULIP = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:pink_tulip"), flowerProps);
+
+    // 滨菊 - ID 63
+    OXEYE_DAISY = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:oxeye_daisy"), flowerProps);
+
+    // 蘑菇属性
+    BlockProperties mushroomProps = BlockProperties(Material::REPLACEABLE_PLANT).noCollision().notSolid().lightLevel(1);
+
+    // 棕色蘑菇 - ID 64
+    BROWN_MUSHROOM = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:brown_mushroom"), mushroomProps);
+
+    // 红色蘑菇 - ID 65
+    RED_MUSHROOM = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:red_mushroom"), mushroomProps);
+
+    // 树苗属性
+    BlockProperties saplingProps = BlockProperties(Material::REPLACEABLE_PLANT).noCollision().notSolid();
+
+    // 橡树树苗 - 已在 registerLogBlocks 中注册，这里不需要重复
+    // 但我们需要添加其他树苗
+    OAK_SAPLING = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:oak_sapling"), saplingProps);
+    SPRUCE_SAPLING = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:spruce_sapling"), saplingProps);
+    BIRCH_SAPLING = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:birch_sapling"), saplingProps);
+    JUNGLE_SAPLING = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:jungle_sapling"), saplingProps);
+    ACACIA_SAPLING = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:acacia_sapling"), saplingProps);
+    DARK_OAK_SAPLING = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:dark_oak_sapling"), saplingProps);
 }
 
 } // namespace mr

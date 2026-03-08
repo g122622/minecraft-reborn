@@ -217,6 +217,43 @@ enum class BlockId : u32 {
     // 砂岩
     Sandstone = 39,
     RedSandstone = 40,
+    // 泥土变种
+    CoarseDirt = 41,
+    Podzol = 42,
+    // 树木变种原木
+    SpruceLog = 43,
+    BirchLog = 44,
+    JungleLog = 45,
+    AcaciaLog = 46,
+    DarkOakLog = 47,
+    // 树叶变种
+    SpruceLeaves = 48,
+    BirchLeaves = 49,
+    JungleLeaves = 50,
+    AcaciaLeaves = 51,
+    DarkOakLeaves = 52,
+    // 植被方块
+    ShortGrass = 53,
+    TallGrass = 54,
+    Fern = 55,
+    Dandelion = 56,         // 蒲公英
+    Poppy = 57,             // 虞美人
+    BlueOrchid = 58,        // 兰花
+    Allium = 59,            // 绒球葱
+    AzureBluet = 60,        // 蓝花美耳草
+    RedTulip = 61,
+    OrangeTulip = 62,
+    WhiteTulip = 63,
+    PinkTulip = 64,
+    OxeyeDaisy = 65,        // 滨菊
+    BrownMushroom = 66,     // 棕色蘑菇
+    RedMushroom = 67,       // 红色蘑菇
+    // 树苗
+    SpruceSapling = 68,
+    BirchSapling = 69,
+    JungleSapling = 70,
+    AcaciaSapling = 71,
+    DarkOakSapling = 72,
     // 可扩展...
     Unknown = 0xFFFFFFFF
 };
