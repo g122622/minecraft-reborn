@@ -84,7 +84,7 @@ protected:
 
 TEST_F(RandomTest, NextIntRange) {
     for (int i = 0; i < 100; ++i) {
-        i32 val = random->nextInt(10);
+        i32 val = random->nextInt(0, 9);  // [0, 9] = [0, 10)
         EXPECT_GE(val, 0);
         EXPECT_LT(val, 10);
     }
@@ -108,14 +108,14 @@ TEST_F(RandomTest, NextDoubleRange) {
 
 TEST_F(RandomTest, Reproducibility) {
     random->setSeed(54321);
-    i32 val1 = random->nextInt(100);
-    i32 val2 = random->nextInt(100);
-    i32 val3 = random->nextInt(100);
+    i32 val1 = random->nextInt(0, 99);  // [0, 99]
+    i32 val2 = random->nextInt(0, 99);
+    i32 val3 = random->nextInt(0, 99);
 
     random->setSeed(54321);
-    EXPECT_EQ(val1, random->nextInt(100));
-    EXPECT_EQ(val2, random->nextInt(100));
-    EXPECT_EQ(val3, random->nextInt(100));
+    EXPECT_EQ(val1, random->nextInt(0, 99));
+    EXPECT_EQ(val2, random->nextInt(0, 99));
+    EXPECT_EQ(val3, random->nextInt(0, 99));
 }
 
 // ============================================================================

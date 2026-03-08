@@ -1,10 +1,9 @@
 #pragma once
 
 #include "DecorationStage.hpp"
-#include "Feature.hpp"
-#include "ore/OreFeature.hpp"
-#include "../placement/Placement.hpp"
+#include "../../../core/Types.hpp"
 #include "../../../math/MathUtils.hpp"
+#include "../../chunk/ChunkPos.hpp"
 #include <memory>
 #include <vector>
 #include <functional>
@@ -16,6 +15,8 @@ class WorldGenRegion;
 class ChunkPrimer;
 class IChunkGenerator;
 class Biome;
+class ConfiguredPlacement;
+class OreFeatureConfig;
 
 /**
  * @brief 配置化特征基类

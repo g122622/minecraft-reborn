@@ -29,7 +29,7 @@ void DebugScreen::update(f32 deltaTime) {
 
     updateFps(deltaTime);
     buildDebugText();
-    if (0) {
+    if (1) {
         logColumnBlocks();
     }
 }

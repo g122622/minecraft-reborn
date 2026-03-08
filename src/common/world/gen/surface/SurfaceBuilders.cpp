@@ -11,7 +11,7 @@ namespace mr {
 // ============================================================================
 
 void DefaultSurfaceBuilder::buildSurface(
-    Random& random,
+    math::Random& random,
     ChunkPrimer& chunk,
     const Biome& biome,
     i32 x, i32 z,
@@ -71,7 +71,7 @@ void DefaultSurfaceBuilder::buildSurface(
     }
 }
 
-i32 DefaultSurfaceBuilder::calculateDepth(f64 noise, Random& random) const
+i32 DefaultSurfaceBuilder::calculateDepth(f64 noise, math::Random& random) const
 {
     // 参考 MC DefaultSurfaceBuilder
     // 地表深度 = noise / 3.0 + 3.0 + random

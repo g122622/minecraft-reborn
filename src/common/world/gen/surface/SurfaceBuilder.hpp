@@ -1,17 +1,20 @@
 #pragma once
 
 #include "../../../core/Types.hpp"
+#include "../../../math/MathUtils.hpp"
 #include "../../block/Block.hpp"
 #include <functional>
 #include <random>
 
 namespace mr {
 
+// 导入 math::Random 到 mr 命名空间
+using math::Random;
+
 // 前向声明
 class BlockState;
 class ChunkPrimer;
 class Biome;
-class Random;
 
 /**
  * @brief 地表构建器配置
@@ -111,38 +114,6 @@ public:
      * @brief 获取地表构建器名称
      */
     [[nodiscard]] virtual const char* name() const = 0;
-};
-
-/**
- * @brief 简单的随机数生成器包装
- */
-class Random {
-public:
-    explicit Random(u64 seed = 0)
-        : m_rng(seed)
-    {}
-
-    void setSeed(u64 seed) {
-        m_rng.seed(seed);
-    }
-
-    i32 nextInt(i32 bound) {
-        std::uniform_int_distribution<i32> dist(0, bound - 1);
-        return dist(m_rng);
-    }
-
-    f32 nextFloat() {
-        std::uniform_real_distribution<f32> dist(0.0f, 1.0f);
-        return dist(m_rng);
-    }
-
-    f64 nextDouble() {
-        std::uniform_real_distribution<f64> dist(0.0, 1.0);
-        return dist(m_rng);
-    }
-
-private:
-    std::mt19937_64 m_rng;
 };
 
 } // namespace mr

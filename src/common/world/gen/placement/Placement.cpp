@@ -1,5 +1,5 @@
 #include "Placement.hpp"
-#include "../surface/SurfaceBuilder.hpp" // for Random
+#include "../../../math/MathUtils.hpp"
 #include <cmath>
 
 namespace mr {
@@ -8,13 +8,13 @@ namespace mr {
 // HeightRangePlacementConfig 实现
 // ============================================================================
 
-i32 HeightRangePlacementConfig::getRandomY(Random& random) const {
+i32 HeightRangePlacementConfig::getRandomY(math::Random& random) const {
     // 在 [bottomOffset, maximum - topOffset) 范围内随机选择
     i32 range = maximum - topOffset - bottomOffset;
     if (range <= 0) {
         return bottomOffset;
     }
-    return bottomOffset + random.nextInt(range);
+    return bottomOffset + random.nextInt(0, range - 1);
 }
 
 // ============================================================================
@@ -43,7 +43,7 @@ ConfiguredPlacement::ConfiguredPlacement(
 
 std::vector<BlockPos> ConfiguredPlacement::getPositions(
     WorldGenRegion& region,
-    Random& random,
+    math::Random& random,
     const BlockPos& basePos) const
 {
     std::vector<BlockPos> positions = m_placement->getPositions(region, random, *m_config, basePos);
@@ -80,11 +80,12 @@ std::unique_ptr<ConfiguredPlacement> ConfiguredPlacement::then(
 
 std::vector<BlockPos> CountPlacement::getPositions(
     WorldGenRegion& region,
-    Random& random,
+    math::Random& random,
     const IPlacementConfig& config,
     const BlockPos& basePos) const
 {
     (void)region;
+    (void)random;
     const auto& countConfig = static_cast<const CountPlacementConfig&>(config);
     std::vector<BlockPos> positions;
 
@@ -101,7 +102,7 @@ std::vector<BlockPos> CountPlacement::getPositions(
 
 std::vector<BlockPos> HeightRangePlacement::getPositions(
     WorldGenRegion& region,
-    Random& random,
+    math::Random& random,
     const IPlacementConfig& config,
     const BlockPos& basePos) const
 {
@@ -118,7 +119,7 @@ std::vector<BlockPos> HeightRangePlacement::getPositions(
 
 std::vector<BlockPos> SquarePlacement::getPositions(
     WorldGenRegion& region,
-    Random& random,
+    math::Random& random,
     const IPlacementConfig& config,
     const BlockPos& basePos) const
 {
@@ -126,8 +127,8 @@ std::vector<BlockPos> SquarePlacement::getPositions(
     (void)config;
 
     // 在XZ平面内随机分散（0-15范围内）
-    i32 x = basePos.x + random.nextInt(16);
-    i32 z = basePos.z + random.nextInt(16);
+    i32 x = basePos.x + random.nextInt(0, 15);
+    i32 z = basePos.z + random.nextInt(0, 15);
 
     return { BlockPos(x, basePos.y, z) };
 }
@@ -138,7 +139,7 @@ std::vector<BlockPos> SquarePlacement::getPositions(
 
 std::vector<BlockPos> BiomePlacement::getPositions(
     WorldGenRegion& region,
-    Random& random,
+    math::Random& random,
     const IPlacementConfig& config,
     const BlockPos& basePos) const
 {
@@ -160,7 +161,7 @@ std::vector<BlockPos> BiomePlacement::getPositions(
 
 std::vector<BlockPos> ChancePlacement::getPositions(
     WorldGenRegion& region,
-    Random& random,
+    math::Random& random,
     const IPlacementConfig& config,
     const BlockPos& basePos) const
 {

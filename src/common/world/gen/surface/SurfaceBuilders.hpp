@@ -49,7 +49,7 @@ public:
     MountainSurfaceBuilder() = default;
 
     void buildSurface(
-        Random& random,
+        math::Random& random,
         ChunkPrimer& chunk,
         const Biome& biome,
         i32 x, i32 z,
@@ -83,7 +83,7 @@ public:
     DesertSurfaceBuilder() = default;
 
     void buildSurface(
-        Random& random,
+        math::Random& random,
         ChunkPrimer& chunk,
         const Biome& biome,
         i32 x, i32 z,
@@ -108,7 +108,7 @@ public:
     SwampSurfaceBuilder() = default;
 
     void buildSurface(
-        Random& random,
+        math::Random& random,
         ChunkPrimer& chunk,
         const Biome& biome,
         i32 x, i32 z,
@@ -141,7 +141,7 @@ public:
     FrozenOceanSurfaceBuilder() = default;
 
     void buildSurface(
-        Random& random,
+        math::Random& random,
         ChunkPrimer& chunk,
         const Biome& biome,
         i32 x, i32 z,
@@ -166,7 +166,7 @@ public:
     BadlandsSurfaceBuilder() = default;
 
     void buildSurface(
-        Random& random,
+        math::Random& random,
         ChunkPrimer& chunk,
         const Biome& biome,
         i32 x, i32 z,
@@ -197,7 +197,7 @@ public:
     BeachSurfaceBuilder() = default;
 
     void buildSurface(
-        Random& random,
+        math::Random& random,
         ChunkPrimer& chunk,
         const Biome& biome,
         i32 x, i32 z,

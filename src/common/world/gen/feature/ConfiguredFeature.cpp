@@ -30,10 +30,13 @@ void FeatureRegistry::initialize() {
 
     // 注册矿石特征（UNDERGROUND_ORES 阶段）
     OreFeatures::initialize();
-    for (const auto& feature : OreFeatures::getAllFeatures()) {
-        // 将 ConfiguredOreFeature 包装为 ConfiguredFeatureBase
-        // 由于 OreFeatures 管理自己的特征，这里我们只是注册引用
-        // 实际上需要创建适配器
+
+    // 将矿石特征移动到全局注册表
+    auto features = OreFeatures::getAllFeaturesAndClear();
+    for (auto& feature : features) {
+        if (feature) {
+            registerFeature(std::move(feature), DecorationStage::UndergroundOres);
+        }
     }
 }
 

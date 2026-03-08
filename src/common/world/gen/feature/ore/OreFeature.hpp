@@ -1,7 +1,8 @@
 #pragma once
 
-#include "../Feature.hpp"
-#include "../../../chunk/ChunkPrimer.hpp"
+#include "../ConfiguredFeature.hpp"
+#include "../../../../math/MathUtils.hpp"
+#include "../../../chunk/ChunkPos.hpp"
 #include "../../placement/Placement.hpp"
 #include <memory>
 
@@ -30,7 +31,7 @@ public:
     bool place(
         WorldGenRegion& region,
         ChunkPrimer& chunk,
-        Random& random,
+        math::Random& random,
         const BlockPos& origin,
         const OreFeatureConfig& config);
 
@@ -61,7 +62,7 @@ private:
      */
     void generateSphere(
         ChunkPrimer& chunk,
-        Random& random,
+        math::Random& random,
         const OreFeatureConfig& config,
         f64 x1, f64 y1, f64 z1,
         f64 x2, f64 y2, f64 z2,
@@ -74,12 +75,24 @@ private:
  * @brief 预配置的矿石特征
  *
  * 组合矿石特征和配置，方便注册和使用。
+ * 继承 ConfiguredFeatureBase 以支持统一的特征注册。
  */
-class ConfiguredOreFeature {
+class ConfiguredOreFeature : public ConfiguredFeatureBase {
 public:
     ConfiguredOreFeature(
         std::unique_ptr<OreFeatureConfig> featureConfig,
-        std::unique_ptr<ConfiguredPlacement> placement);
+        std::unique_ptr<ConfiguredPlacement> placement,
+        const char* featureName = "ore");
+
+    /**
+     * @brief 在指定位置放置矿石（实现 ConfiguredFeatureBase 接口）
+     */
+    bool place(
+        WorldGenRegion& region,
+        ChunkPrimer& chunk,
+        IChunkGenerator& generator,
+        math::Random& random,
+        const BlockPos& pos) override;
 
     /**
      * @brief 在区块中生成矿石
@@ -87,7 +100,17 @@ public:
      * @param chunk 区块数据
      * @param random 随机数生成器
      */
-    void generate(WorldGenRegion& region, ChunkPrimer& chunk, Random& random);
+    void generate(WorldGenRegion& region, ChunkPrimer& chunk, math::Random& random);
+
+    /**
+     * @brief 获取特征名称
+     */
+    [[nodiscard]] const char* name() const override { return m_name.c_str(); }
+
+    /**
+     * @brief 获取装饰阶段
+     */
+    [[nodiscard]] DecorationStage stage() const override { return DecorationStage::UndergroundOres; }
 
     /**
      * @brief 获取矿石配置
@@ -97,12 +120,14 @@ public:
 private:
     std::unique_ptr<OreFeatureConfig> m_config;
     std::unique_ptr<ConfiguredPlacement> m_placement;
+    std::string m_name;
 };
 
 /**
  * @brief 矿石注册表
  *
  * 存储所有预配置的矿石特征。
+ * 注意：调用 getAllFeaturesAndClear() 后，所有权转移给调用者。
  */
 class OreFeatures {
 public:
@@ -112,7 +137,13 @@ public:
     static void initialize();
 
     /**
-     * @brief 获取所有矿石特征
+     * @brief 获取所有矿石特征并转移所有权
+     * @note 调用后内部存储被清空
+     */
+    [[nodiscard]] static std::vector<std::unique_ptr<ConfiguredOreFeature>> getAllFeaturesAndClear();
+
+    /**
+     * @brief 获取所有矿石特征（只读访问）
      */
     [[nodiscard]] static const std::vector<std::unique_ptr<ConfiguredOreFeature>>& getAllFeatures();
 

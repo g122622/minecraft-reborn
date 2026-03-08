@@ -1,6 +1,5 @@
 #include "Feature.hpp"
 #include "../../block/BlockRegistry.hpp"
-#include "../surface/SurfaceBuilder.hpp" // for Random
 
 namespace mr {
 
@@ -15,7 +14,7 @@ namespace mr {
  */
 class StoneRuleTest : public RuleTest {
 public:
-    [[nodiscard]] bool test(const BlockState& state, Random& random) const override;
+    [[nodiscard]] bool test(const BlockState& state, math::Random& random) const override;
     [[nodiscard]] const char* name() const override { return "stone"; }
 };
 
@@ -26,7 +25,7 @@ class BlockIdRuleTest : public RuleTest {
 public:
     explicit BlockIdRuleTest(BlockId blockId) : m_blockId(blockId) {}
 
-    [[nodiscard]] bool test(const BlockState& state, Random& random) const override;
+    [[nodiscard]] bool test(const BlockState& state, math::Random& random) const override;
     [[nodiscard]] const char* name() const override { return "block_id"; }
 
 private:
@@ -40,7 +39,7 @@ private:
 SimpleBlockStateProvider::SimpleBlockStateProvider(BlockId blockId)
     : m_blockId(blockId) {}
 
-const BlockState* SimpleBlockStateProvider::getState(Random& random, i32 x, i32 y, i32 z) const {
+const BlockState* SimpleBlockStateProvider::getState(math::Random& random, i32 x, i32 y, i32 z) const {
     (void)random;
     (void)x; (void)y; (void)z;
     return BlockRegistry::instance().get(m_blockId);
@@ -80,7 +79,7 @@ std::unique_ptr<RuleTest> createOreTarget(OreTargetType type) {
 // StoneRuleTest 实现
 // ============================================================================
 
-bool StoneRuleTest::test(const BlockState& state, Random& random) const {
+bool StoneRuleTest::test(const BlockState& state, math::Random& random) const {
     (void)random;
     u32 blockId = state.blockId();
     // 匹配石头、花岗岩、闪长岩、安山岩
@@ -94,7 +93,7 @@ bool StoneRuleTest::test(const BlockState& state, Random& random) const {
 // BlockIdRuleTest 实现
 // ============================================================================
 
-bool BlockIdRuleTest::test(const BlockState& state, Random& random) const {
+bool BlockIdRuleTest::test(const BlockState& state, math::Random& random) const {
     (void)random;
     return state.blockId() == static_cast<u32>(m_blockId);
 }

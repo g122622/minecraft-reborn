@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../../core/Types.hpp"
+#include "../../../math/MathUtils.hpp"
 #include "../../block/Block.hpp"
 #include "../../chunk/ChunkPos.hpp"
 #include <memory>
@@ -9,7 +10,6 @@
 namespace mr {
 
 // 前向声明
-class Random;
 class ChunkPrimer;
 class WorldGenRegion;
 class IChunkGenerator;
@@ -83,7 +83,7 @@ struct HeightRangePlacementConfig : public IPlacementConfig {
      * @param random 随机数生成器
      * @return Y坐标
      */
-    [[nodiscard]] i32 getRandomY(Random& random) const;
+    [[nodiscard]] i32 getRandomY(math::Random& random) const;
 };
 
 /**
@@ -138,7 +138,7 @@ public:
      */
     [[nodiscard]] virtual std::vector<BlockPos> getPositions(
         WorldGenRegion& region,
-        Random& random,
+        math::Random& random,
         const IPlacementConfig& config,
         const BlockPos& basePos) const = 0;
 
@@ -157,7 +157,7 @@ class CountPlacement : public Placement {
 public:
     [[nodiscard]] std::vector<BlockPos> getPositions(
         WorldGenRegion& region,
-        Random& random,
+        math::Random& random,
         const IPlacementConfig& config,
         const BlockPos& basePos) const override;
 
@@ -173,7 +173,7 @@ class HeightRangePlacement : public Placement {
 public:
     [[nodiscard]] std::vector<BlockPos> getPositions(
         WorldGenRegion& region,
-        Random& random,
+        math::Random& random,
         const IPlacementConfig& config,
         const BlockPos& basePos) const override;
 
@@ -189,7 +189,7 @@ class SquarePlacement : public Placement {
 public:
     [[nodiscard]] std::vector<BlockPos> getPositions(
         WorldGenRegion& region,
-        Random& random,
+        math::Random& random,
         const IPlacementConfig& config,
         const BlockPos& basePos) const override;
 
@@ -205,7 +205,7 @@ class BiomePlacement : public Placement {
 public:
     [[nodiscard]] std::vector<BlockPos> getPositions(
         WorldGenRegion& region,
-        Random& random,
+        math::Random& random,
         const IPlacementConfig& config,
         const BlockPos& basePos) const override;
 
@@ -221,7 +221,7 @@ class ChancePlacement : public Placement {
 public:
     [[nodiscard]] std::vector<BlockPos> getPositions(
         WorldGenRegion& region,
-        Random& random,
+        math::Random& random,
         const IPlacementConfig& config,
         const BlockPos& basePos) const override;
 
@@ -243,7 +243,7 @@ public:
      */
     [[nodiscard]] std::vector<BlockPos> getPositions(
         WorldGenRegion& region,
-        Random& random,
+        math::Random& random,
         const BlockPos& basePos) const;
 
     /**

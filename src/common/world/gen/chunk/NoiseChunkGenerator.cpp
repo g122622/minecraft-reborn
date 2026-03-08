@@ -143,7 +143,9 @@ void NoiseChunkGenerator::generateBiomes(WorldGenRegion& region, ChunkPrimer& ch
 
                 // 获取生物群系
                 const BiomeId biome = m_biomeProvider->getBiome(worldX, worldY, worldZ);
-                biomes.setBiome(x << 2, worldY, z << 2, biome);
+
+                // 直接使用索引 (x, y, z)，而不是位移后的坐标
+                biomes.setBiome(x, y, z, biome);
             }
         }
     }
@@ -518,7 +520,8 @@ void NoiseChunkGenerator::buildSurface(WorldGenRegion& region, ChunkPrimer& chun
             const i32 surfaceHeight = chunk.getTopBlockY(HeightmapType::WorldSurfaceWG, localX, localZ);
 
             // 获取生物群系
-            const BiomeId biome = chunk.getBiomeAtBlock(localX, surfaceHeight, localZ);
+            const BiomeId biomeId = chunk.getBiomeAtBlock(localX, surfaceHeight, localZ);
+            const Biome& biomeDef = m_biomeProvider->getBiomeDefinition(biomeId);
 
             // 计算地表噪声
             const f64 surfaceNoise = m_surfaceDepthNoise->noise2D(
@@ -527,7 +530,7 @@ void NoiseChunkGenerator::buildSurface(WorldGenRegion& region, ChunkPrimer& chun
             ) * 15.0;
 
             // 生成地表
-            buildSurfaceForColumn(chunk, localX, localZ, surfaceHeight, surfaceNoise + surfaceDepthDist(surfaceRng) * 15.0, biome);
+            buildSurfaceForColumn(chunk, localX, localZ, surfaceHeight, surfaceNoise + surfaceDepthDist(surfaceRng) * 15.0, biomeId);
         }
     }
 

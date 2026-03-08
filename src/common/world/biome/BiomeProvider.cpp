@@ -134,17 +134,15 @@ BiomeId SimpleBiomeProvider::selectBiome(f32 temperature, f32 humidity, f32 dept
         }
         return Biomes::Ocean;
     }
-
     // 温度低的区域
-    if (temperature < 0.2f) {
+    else if (temperature < 0.2f) {
         if (humidity > 0.5f) {
             return Biomes::SnowyTaiga;
         }
         return Biomes::SnowyPlains;
     }
-
     // 温度高的区域
-    if (temperature > 0.8f) {
+    else if (temperature > 0.8f) {
         if (humidity < 0.2f) {
             if (scale > 0.5f) {
                 return Biomes::ErodedBadlands;
@@ -156,20 +154,18 @@ BiomeId SimpleBiomeProvider::selectBiome(f32 temperature, f32 humidity, f32 dept
         }
         return Biomes::Jungle;
     }
-
     // 中等温度
-    if (humidity > 0.7f) {
+    else if (humidity > 0.7f) {
         return Biomes::Forest;
     }
-    if (humidity > 0.5f) {
+    else if (humidity > 0.5f) {
         return Biomes::BirchForest;
     }
-
     // 山地
-    if (scale > 0.6f) {
+    else if (scale > 0.6f) {
         return Biomes::Mountains;
     }
-    if (scale > 0.4f) {
+    else if (scale > 0.4f) {
         return Biomes::WoodedHills;
     }
 

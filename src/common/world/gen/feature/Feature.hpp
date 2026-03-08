@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../../core/Types.hpp"
+#include "../../../math/MathUtils.hpp"
 #include "../../block/Block.hpp"
 #include "../../chunk/ChunkPos.hpp"
 #include <memory>
@@ -11,7 +12,6 @@ namespace mr {
 // 前向声明
 class BlockState;
 class ChunkPrimer;
-class Random;
 class Biome;
 class WorldGenRegion;
 class IChunkGenerator;
@@ -32,7 +32,7 @@ public:
      * @param random 随机数生成器
      * @return 是否匹配
      */
-    [[nodiscard]] virtual bool test(const BlockState& state, Random& random) const = 0;
+    [[nodiscard]] virtual bool test(const BlockState& state, math::Random& random) const = 0;
 
     /**
      * @brief 获取规则类型名称
@@ -55,7 +55,7 @@ public:
      * @param pos 位置
      * @return 方块状态
      */
-    [[nodiscard]] virtual const BlockState* getState(Random& random, i32 x, i32 y, i32 z) const = 0;
+    [[nodiscard]] virtual const BlockState* getState(math::Random& random, i32 x, i32 y, i32 z) const = 0;
 };
 
 /**
@@ -65,7 +65,7 @@ class SimpleBlockStateProvider : public BlockStateProvider {
 public:
     explicit SimpleBlockStateProvider(BlockId blockId);
 
-    [[nodiscard]] const BlockState* getState(Random& random, i32 x, i32 y, i32 z) const override;
+    [[nodiscard]] const BlockState* getState(math::Random& random, i32 x, i32 y, i32 z) const override;
 
 private:
     BlockId m_blockId;
