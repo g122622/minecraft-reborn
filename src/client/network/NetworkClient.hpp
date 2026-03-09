@@ -3,6 +3,8 @@
 #include "common/core/Types.hpp"
 #include "common/core/Result.hpp"
 #include "common/entity/Player.hpp"
+#include "common/item/ItemStack.hpp"
+#include "common/network/InventoryPackets.hpp"
 #include "common/network/ProtocolPackets.hpp"
 #include "common/network/LocalConnection.hpp"
 #include <asio.hpp>
@@ -66,6 +68,7 @@ struct NetworkClientCallbacks {
     std::function<void(const String& message, PlayerId senderId)> onChatMessage;
     std::function<void(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch)> onPlayerMove;
     std::function<void(i64 gameTime, i64 dayTime, bool daylightCycleEnabled)> onTimeUpdate;
+    std::function<void(i32 selectedSlot, const std::vector<ItemStack>& items)> onPlayerInventory;
 };
 
 // ============================================================================
@@ -101,6 +104,7 @@ public:
                               i32 x, i32 y, i32 z, Direction face);
     void sendBlockPlacement(i32 x, i32 y, i32 z, Direction face,
                             f32 hitX, f32 hitY, f32 hitZ, u8 hand = 0);
+    void sendHotbarSelect(i32 slot);
     void sendTeleportConfirm(u32 teleportId);
     void sendKeepAlive(u64 id);
     void sendChatMessage(const String& message);
@@ -141,6 +145,7 @@ private:
     void handleBlockUpdate(network::PacketDeserializer& deser);
     void handleChatMessage(network::PacketDeserializer& deser);
     void handleTimeUpdate(network::PacketDeserializer& deser);
+    void handlePlayerInventory(network::PacketDeserializer& deser);
     void handleDisconnect(network::PacketDeserializer& deser);
 
     // ASIO 网络

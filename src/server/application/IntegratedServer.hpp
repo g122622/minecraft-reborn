@@ -2,6 +2,8 @@
 
 #include "common/core/Types.hpp"
 #include "common/core/Result.hpp"
+#include "common/entity/inventory/PlayerInventory.hpp"
+#include "common/network/InventoryPackets.hpp"
 #include "common/network/LocalConnection.hpp"
 #include "common/network/ProtocolPackets.hpp"
 #include "common/network/ChunkSync.hpp"
@@ -113,6 +115,7 @@ private:
     void handlePlayerMove(const u8* data, size_t size);
     void handleBlockInteraction(const u8* data, size_t size);
     void handleBlockPlacement(const u8* data, size_t size);
+    void handleHotbarSelect(const u8* data, size_t size);
     void handleTeleportConfirm(const u8* data, size_t size);
     void handleKeepAlive(const u8* data, size_t size);
     void handleChatMessage(const u8* data, size_t size);
@@ -122,6 +125,7 @@ private:
     void sendKeepAlive(u64 timestamp);
     void sendTeleport(f64 x, f64 y, f64 z, f32 yaw, f32 pitch, u32 teleportId);
     void sendBlockUpdate(i32 x, i32 y, i32 z, u32 blockStateId);
+    void sendPlayerInventory();
     void sendChunkData(ChunkCoord x, ChunkCoord z, const std::vector<u8>& data);
     void sendUnloadChunk(ChunkCoord x, ChunkCoord z);
     void sendToClient(const u8* data, size_t size);
@@ -156,6 +160,8 @@ private:
         f32 pitch = 0.0f;
         u32 pendingTeleportId = 0;
         bool waitingTeleportConfirm = false;
+        GameMode gameMode = GameMode::Survival;
+        PlayerInventory inventory;
 
         // 已加载的区块
         std::unordered_set<ChunkId> loadedChunks;

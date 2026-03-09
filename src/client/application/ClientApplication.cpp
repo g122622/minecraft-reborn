@@ -246,6 +246,7 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         server::IntegratedServerConfig serverConfig;
         serverConfig.seed = 12345;
         serverConfig.viewDistance = m_settings.renderDistance.get();
+        serverConfig.defaultGameMode = GameMode::Creative;
 
         auto serverResult = m_integratedServer->initialize(serverConfig);
         if (serverResult.failed()) {
@@ -312,6 +313,7 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
     m_player->setPhysicsEngine(m_physicsEngine.get());
     // 默认创造模式并启用飞行
     m_player->setGameMode(GameMode::Creative);
+    m_player->setCreativeModeInventory();
     m_player->abilities().flying = true;
     spdlog::info("Player created at (8, 50, 8)");
 
@@ -496,6 +498,9 @@ void ClientApplication::handleEvents()
             i32 delta = scrollDelta > 0.0 ? -1 : 1;
             selectedSlot = (selectedSlot + delta + PlayerInventory::HOTBAR_SIZE) % PlayerInventory::HOTBAR_SIZE;
             m_player->inventory().setSelectedSlot(selectedSlot);
+            if (m_networkClient && m_networkClient->isLoggedIn()) {
+                m_networkClient->sendHotbarSelect(selectedSlot);
+            }
         }
 
     }
@@ -567,7 +572,7 @@ void ClientApplication::update(f32 deltaTime)
     handleBlockInteractionInput(deltaTime);
 
     // 处理方块放置输入
-    handleBlockPlacementInput();
+    handleBlockPlacementInput(deltaTime);
 
     // 更新世界（根据相机位置加载/卸载区块）
     m_world.update(m_camera.position(), m_settings.renderDistance.get());
@@ -824,6 +829,19 @@ void ClientApplication::setupNetworkCallbacks()
         m_hasServerTimeSync = true;
     };
 
+    callbacks.onPlayerInventory = [this](i32 selectedSlot, const std::vector<ItemStack>& items) {
+        if (!m_player) {
+            return;
+        }
+
+        m_player->inventory().clear();
+        const i32 maxSlots = std::min(static_cast<i32>(items.size()), PlayerInventory::TOTAL_SIZE);
+        for (i32 slot = 0; slot < maxSlots; ++slot) {
+            m_player->inventory().setItem(slot, items[slot]);
+        }
+        m_player->inventory().setSelectedSlot(selectedSlot);
+    };
+
     m_networkClient->setCallbacks(callbacks);
 }
 
@@ -926,10 +944,8 @@ void ClientApplication::handleBlockInteractionInput(f32 deltaTime)
     }
 }
 
-void ClientApplication::handleBlockPlacementInput()
+void ClientApplication::handleBlockPlacementInput(f32 deltaTime)
 {
-    // 更新放置冷却 - 注意：deltaTime 在 update() 中传递，这里使用帧时间
-    f32 deltaTime = static_cast<f32>(glfwGetTime() - m_lastFrameTime);
     m_placeCooldown = std::max(0.0f, m_placeCooldown - deltaTime);
 
     if (!m_mouseCaptured || !m_player) {

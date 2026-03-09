@@ -1,6 +1,8 @@
 #include "IntegratedServer.hpp"
+#include "common/item/BlockItem.hpp"
 #include "common/item/Items.hpp"
 #include "common/item/BlockItemRegistry.hpp"
+#include "common/item/BlockItemUseContext.hpp"
 #include "common/world/gen/chunk/NoiseChunkGenerator.hpp"
 #include "common/world/gen/settings/DimensionSettings.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
@@ -16,6 +18,46 @@
 #include <cmath>
 
 namespace mr::server {
+
+namespace {
+
+class ServerChunkReader final : public IBlockReader {
+public:
+    explicit ServerChunkReader(ServerChunkManager& chunkManager)
+        : m_chunkManager(chunkManager)
+    {
+    }
+
+    [[nodiscard]] const BlockState* getBlockState(i32 x, i32 y, i32 z) const override
+    {
+        if (!isWithinWorldBounds(x, y, z)) {
+            return nullptr;
+        }
+
+        const ChunkCoord chunkX = static_cast<ChunkCoord>(std::floor(static_cast<f64>(x) / 16.0));
+        const ChunkCoord chunkZ = static_cast<ChunkCoord>(std::floor(static_cast<f64>(z) / 16.0));
+        ChunkData* chunk = m_chunkManager.getChunkSync(chunkX, chunkZ);
+        if (chunk == nullptr) {
+            return nullptr;
+        }
+
+        const i32 localX = x - chunkX * 16;
+        const i32 localZ = z - chunkZ * 16;
+        return chunk->getBlock(localX, y, localZ);
+    }
+
+    [[nodiscard]] bool isWithinWorldBounds(i32 x, i32 y, i32 z) const override
+    {
+        (void)x;
+        (void)z;
+        return y >= world::MIN_BUILD_HEIGHT && y < world::MAX_BUILD_HEIGHT;
+    }
+
+private:
+    ServerChunkManager& m_chunkManager;
+};
+
+}
 
 IntegratedServer::IntegratedServer() = default;
 
@@ -328,6 +370,10 @@ void IntegratedServer::onPacketReceived(const u8* data, size_t size) {
             handleBlockPlacement(data + network::PACKET_HEADER_SIZE, size - network::PACKET_HEADER_SIZE);
             break;
 
+        case network::PacketType::HotbarSelect:
+            handleHotbarSelect(data + network::PACKET_HEADER_SIZE, size - network::PACKET_HEADER_SIZE);
+            break;
+
         case network::PacketType::TeleportConfirm:
             handleTeleportConfirm(data + network::PACKET_HEADER_SIZE, size - network::PACKET_HEADER_SIZE);
             break;
@@ -365,6 +411,19 @@ void IntegratedServer::handleLoginRequest(const u8* data, size_t size) {
     m_client.playerId = m_nextPlayerId++;
     m_client.username = username;
     m_client.loggedIn = true;
+    m_client.gameMode = m_config.defaultGameMode;
+    m_client.inventory.clear();
+    m_client.inventory.setSelectedSlot(0);
+    if (m_client.gameMode == GameMode::Creative) {
+        i32 slot = 0;
+        BlockItemRegistry::instance().forEachBlockItem([this, &slot](const BlockItem& item) {
+            if (slot >= PlayerInventory::TOTAL_SIZE) {
+                return;
+            }
+            m_client.inventory.setItem(slot, ItemStack(item, 64));
+            ++slot;
+        });
+    }
 
     // 设置初始位置（出生点）
     m_client.x = 0.0;
@@ -379,6 +438,7 @@ void IntegratedServer::handleLoginRequest(const u8* data, size_t size) {
     m_client.pendingTeleportId = teleportId;
     m_client.waitingTeleportConfirm = true;
     sendTeleport(m_client.x, m_client.y, m_client.z, m_client.yaw, m_client.pitch, teleportId);
+    sendPlayerInventory();
 
     // 初始化玩家票据位置
     ChunkCoord spawnChunkX = static_cast<ChunkCoord>(std::floor(m_client.x / 16.0));
@@ -558,6 +618,10 @@ void IntegratedServer::handleBlockPlacement(const u8* data, size_t size)
         return;
     }
 
+    if (m_client.gameMode == GameMode::Spectator) {
+        return;
+    }
+
     // 检查 Y 范围
     if (packet.y() < world::MIN_BUILD_HEIGHT || packet.y() >= world::MAX_BUILD_HEIGHT) {
         spdlog::warn("[Place] Invalid Y position: {}", packet.y());
@@ -577,43 +641,41 @@ void IntegratedServer::handleBlockPlacement(const u8* data, size_t size)
         return;
     }
 
-    // TODO: 获取玩家手持物品
-    // 目前简化处理：放置石头方块
-    Block* blockToPlace = VanillaBlocks::STONE;
-    if (!blockToPlace) {
-        spdlog::error("[Place] Failed to get block to place");
+    ItemStack heldStack = m_client.inventory.getSelectedStack();
+    if (heldStack.isEmpty()) {
+        spdlog::debug("[Place] Selected stack is empty");
         return;
     }
 
-    // 获取点击方块的当前状态
-    const i32 localX = packet.x() - chunkX * 16;
-    const i32 localZ = packet.z() - chunkZ * 16;
-    const BlockState* clickedState = chunk->getBlock(localX, packet.y(), localZ);
-
-    // 确定实际放置位置
-    // 如果点击的方块是可替换的（如水、草），则替换它
-    // 否则放置在相邻位置
-    BlockPos placePos = clickedPos;
-    bool replaceClicked = false;
-
-    if (clickedState != nullptr && !clickedState->isAir()) {
-        const Material& material = clickedState->owner().material();
-        if (material.isReplaceable() || material.isLiquid()) {
-            replaceClicked = true;
-            placePos = clickedPos;
-        } else {
-            // 放置在相邻位置
-            placePos = BlockPos(
-                clickedPos.x + Directions::xOffset(face),
-                clickedPos.y + Directions::yOffset(face),
-                clickedPos.z + Directions::zOffset(face)
-            );
-        }
+    const Item* heldItem = heldStack.getItem();
+    if (heldItem == nullptr) {
+        return;
     }
 
-    // 检查放置位置是否在世界范围内
-    if (placePos.y < world::MIN_BUILD_HEIGHT || placePos.y >= world::MAX_BUILD_HEIGHT) {
-        spdlog::debug("[Place] Placement position out of world bounds: y={}", placePos.y);
+    const BlockItem* blockItem = BlockItemRegistry::instance().getBlockItemByItemId(heldItem->itemId());
+    if (blockItem == nullptr) {
+        spdlog::debug("[Place] Selected item is not a block item: {}", heldItem->itemLocation().toString());
+        return;
+    }
+
+    ServerChunkReader worldReader(*m_chunkManager);
+    BlockItemUseContext context(worldReader,
+                                nullptr,
+                                heldStack,
+                                packet.hitPosition(),
+                                clickedPos,
+                                face,
+                                m_client.yaw);
+
+    if (!blockItem->tryPlace(context)) {
+        spdlog::debug("[Place] Block item placement validation failed");
+        return;
+    }
+
+    const BlockPos placePos = context.placementPos();
+    const BlockState* newState = blockItem->getStateForPlacement(context);
+    if (newState == nullptr) {
+        spdlog::debug("[Place] Block item did not provide a placement state");
         return;
     }
 
@@ -628,33 +690,41 @@ void IntegratedServer::handleBlockPlacement(const u8* data, size_t size)
         return;
     }
 
-    // 检查放置位置是否可以放置
     const i32 placeLocalX = placePos.x - placeChunkX * 16;
     const i32 placeLocalZ = placePos.z - placeChunkZ * 16;
-    const BlockState* currentState = placeChunk->getBlock(placeLocalX, placePos.y, placeLocalZ);
-
-    if (currentState != nullptr && !currentState->isAir()) {
-        const Material& currentMaterial = currentState->owner().material();
-        if (!currentMaterial.isReplaceable() && !currentMaterial.isLiquid()) {
-            spdlog::debug("[Place] Cannot place block: position occupied by {}",
-                          currentState->blockLocation().toString());
-            return;
-        }
-    }
-
-    // 放置方块
-    const BlockState* newState = &blockToPlace->defaultState();
     placeChunk->setBlock(placeLocalX, placePos.y, placeLocalZ, newState);
     placeChunk->setDirty(true);
+
+    if (m_client.gameMode != GameMode::Creative) {
+        const i32 selectedSlot = m_client.inventory.getSelectedSlot();
+        ItemStack updatedStack = m_client.inventory.getItem(selectedSlot);
+        updatedStack.shrink(1);
+        m_client.inventory.setItem(selectedSlot, updatedStack);
+        sendPlayerInventory();
+    }
 
     // 广播方块更新
     sendBlockUpdate(placePos.x, placePos.y, placePos.z, newState->stateId());
 
     spdlog::info("[Place] Placed block {} at ({}, {}, {})",
-                 blockToPlace->blockLocation().toString(),
+                 blockItem->block().blockLocation().toString(),
                  placePos.x, placePos.y, placePos.z);
+}
 
-    // TODO: 非创造模式下减少物品数量
+void IntegratedServer::handleHotbarSelect(const u8* data, size_t size)
+{
+    if (!m_client.loggedIn) {
+        return;
+    }
+
+    network::PacketDeserializer deser(data, size);
+    auto result = HotbarSelectPacket::deserialize(deser);
+    if (result.failed()) {
+        spdlog::debug("Failed to parse hotbar select packet: {}", result.error().message());
+        return;
+    }
+
+    m_client.inventory.setSelectedSlot(result.value().slot());
 }
 
 void IntegratedServer::handlePlayerChunkMove(ChunkCoord newChunkX, ChunkCoord newChunkZ) {
@@ -800,6 +870,22 @@ void IntegratedServer::sendBlockUpdate(i32 x, i32 y, i32 z, u32 blockStateId) {
     network::PacketSerializer fullPacket;
     fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
     fullPacket.writeU16(static_cast<u16>(network::PacketType::BlockUpdate));
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeBytes(ser.buffer());
+
+    sendToClient(fullPacket.data(), fullPacket.size());
+}
+
+void IntegratedServer::sendPlayerInventory() {
+    PlayerInventoryPacket packet(m_client.inventory);
+    network::PacketSerializer ser;
+    packet.serialize(ser);
+
+    network::PacketSerializer fullPacket;
+    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
+    fullPacket.writeU16(static_cast<u16>(network::PacketType::PlayerInventory));
     fullPacket.writeU16(0);
     fullPacket.writeU16(0);
     fullPacket.writeU16(0);

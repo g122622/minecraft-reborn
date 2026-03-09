@@ -3,7 +3,6 @@
 #include "BlockItem.hpp"
 #include "../world/block/Block.hpp"
 #include <unordered_map>
-#include <memory>
 #include <functional>
 
 namespace mr {
@@ -52,7 +51,7 @@ public:
      * @param blockId 方块ID
      * @param item 物品指针（所有权转移）
      */
-    void registerBlockItem(u32 blockId, std::unique_ptr<BlockItem> item);
+    void registerBlockItem(const Block& block, BlockItem& item);
 
     /**
      * @brief 根据方块ID获取方块物品
@@ -126,13 +125,15 @@ private:
     ~BlockItemRegistry() = default;
 
     // 方块ID -> BlockItem
-    std::unordered_map<u32, std::unique_ptr<BlockItem>> m_blockToItem;
+    std::unordered_map<u32, const BlockItem*> m_blockToItem;
 
     // 物品ID -> 方块
     std::unordered_map<ItemId, const Block*> m_itemToBlock;
 
     // 物品ID -> BlockItem（快速查找）
     std::unordered_map<ItemId, const BlockItem*> m_itemIdToBlockItem;
+
+    bool m_initialized = false;
 };
 
 } // namespace mr

@@ -12,26 +12,21 @@ BlockItemRegistry& BlockItemRegistry::instance()
     return instance;
 }
 
-void BlockItemRegistry::registerBlockItem(u32 blockId, std::unique_ptr<BlockItem> item)
+void BlockItemRegistry::registerBlockItem(const Block& block, BlockItem& item)
 {
-    if (item == nullptr) {
-        return;
-    }
-
-    const BlockItem* itemPtr = item.get();
-    ItemId itemId = item->itemId();
-    const Block* block = &item->block();
+    const BlockItem* itemPtr = &item;
+    const ItemId itemId = item.itemId();
 
     // 存储映射关系
-    m_blockToItem[blockId] = std::move(item);
-    m_itemToBlock[itemId] = block;
+    m_blockToItem[block.blockId()] = itemPtr;
+    m_itemToBlock[itemId] = &block;
     m_itemIdToBlockItem[itemId] = itemPtr;
 }
 
 const BlockItem* BlockItemRegistry::getBlockItem(u32 blockId) const
 {
     auto it = m_blockToItem.find(blockId);
-    return it != m_blockToItem.end() ? it->second.get() : nullptr;
+    return it != m_blockToItem.end() ? it->second : nullptr;
 }
 
 const BlockItem* BlockItemRegistry::getBlockItemByItemId(ItemId itemId) const
@@ -67,7 +62,7 @@ bool BlockItemRegistry::isBlockItem(ItemId itemId) const
 void BlockItemRegistry::forEachBlockItem(std::function<void(const BlockItem&)> callback) const
 {
     for (const auto& [blockId, item] : m_blockToItem) {
-        if (item) {
+        if (item != nullptr) {
             callback(*item);
         }
     }
@@ -78,10 +73,15 @@ void BlockItemRegistry::clear()
     m_blockToItem.clear();
     m_itemToBlock.clear();
     m_itemIdToBlockItem.clear();
+    m_initialized = false;
 }
 
 void BlockItemRegistry::initializeVanillaBlockItems()
 {
+    if (m_initialized) {
+        return;
+    }
+
     spdlog::info("Initializing vanilla block items...");
 
     auto registerSimpleBlock = [this](Block* block, const String& name) {
@@ -94,21 +94,30 @@ void BlockItemRegistry::initializeVanillaBlockItems()
         const ResourceLocation& blockLoc = block->blockLocation();
         ResourceLocation itemLoc(blockLoc.namespace_(), blockLoc.path());
 
-        // 在 ItemRegistry 中注册 BlockItem
-        // ItemRegistry::registerItem 会设置 itemId 并存储物品
-        BlockItem& registeredItem = ItemRegistry::instance().registerItem<BlockItem>(
-            itemLoc,
-            *block,
-            ItemProperties().maxStackSize(64)
-        );
+        BlockItem* registeredItem = nullptr;
+        Item* existingItem = ItemRegistry::instance().getItem(itemLoc);
+        if (existingItem != nullptr) {
+            registeredItem = dynamic_cast<BlockItem*>(existingItem);
+            if (registeredItem == nullptr) {
+                spdlog::warn("Item '{}' already exists but is not a BlockItem, skipping", itemLoc.toString());
+                return;
+            }
+        } else {
+            registeredItem = &ItemRegistry::instance().registerItem<BlockItem>(
+                itemLoc,
+                *block,
+                ItemProperties().maxStackSize(64)
+            );
+        }
 
         // 获取注册后的信息
         u32 blockId = block->blockId();
-        ItemId itemId = registeredItem.itemId();
+        ItemId itemId = registeredItem->itemId();
 
         // 存储映射关系（ItemRegistry 拥有物品的所有权）
+        m_blockToItem[blockId] = registeredItem;
         m_itemToBlock[itemId] = block;
-        m_itemIdToBlockItem[itemId] = &registeredItem;
+        m_itemIdToBlockItem[itemId] = registeredItem;
 
         spdlog::debug("Registered block item: {} -> blockId={}, itemId={}",
                       name, blockId, itemId);
@@ -213,6 +222,7 @@ void BlockItemRegistry::initializeVanillaBlockItems()
     registerSimpleBlock(VanillaBlocks::NETHERRACK, "netherrack");
     registerSimpleBlock(VanillaBlocks::END_STONE, "end_stone");
 
+    m_initialized = true;
     spdlog::info("Registered {} block items", m_itemToBlock.size());
 }
 

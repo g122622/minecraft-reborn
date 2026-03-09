@@ -229,6 +229,23 @@ void NetworkClient::sendBlockPlacement(i32 x, i32 y, i32 z, Direction face,
     sendRawData(fullPacket.data(), fullPacket.size());
 }
 
+void NetworkClient::sendHotbarSelect(i32 slot) {
+    HotbarSelectPacket packet(slot);
+
+    network::PacketSerializer ser;
+    packet.serialize(ser);
+
+    network::PacketSerializer fullPacket;
+    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
+    fullPacket.writeU16(static_cast<u16>(network::PacketType::HotbarSelect));
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeBytes(ser.buffer());
+
+    sendRawData(fullPacket.data(), fullPacket.size());
+}
+
 void NetworkClient::sendTeleportConfirm(u32 teleportId) {
     network::TeleportConfirmPacket packet(teleportId);
 
@@ -467,6 +484,11 @@ void NetworkClient::processPacket(const u8* data, size_t size) {
             break;
         }
 
+        case network::PacketType::PlayerInventory: {
+            handlePlayerInventory(bodyDeser);
+            break;
+        }
+
         default:
             spdlog::debug("Unhandled packet type: {}", static_cast<int>(packetType));
             break;
@@ -674,6 +696,19 @@ void NetworkClient::handleChatMessage(network::PacketDeserializer& deser) {
 
     if (m_callbacks.onChatMessage) {
         m_callbacks.onChatMessage(packet.message(), packet.senderId());
+    }
+}
+
+void NetworkClient::handlePlayerInventory(network::PacketDeserializer& deser) {
+    auto result = PlayerInventoryPacket::deserialize(deser);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize player inventory packet");
+        return;
+    }
+
+    const auto& packet = result.value();
+    if (m_callbacks.onPlayerInventory) {
+        m_callbacks.onPlayerInventory(packet.selectedSlot(), packet.items());
     }
 }
 

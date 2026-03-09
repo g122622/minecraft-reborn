@@ -28,6 +28,7 @@ add_executable(mr_tests
     common/test_decoration_stage.cpp
     common/test_time.cpp
     common/test_item.cpp
+    common/test_block_item.cpp
     common/test_inventory.cpp
     common/test_item_entity.cpp
     common/test_container.cpp

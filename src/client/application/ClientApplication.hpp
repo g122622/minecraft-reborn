@@ -134,7 +134,7 @@ private:
     void setupSettingCallbacks();
     void toggleMouseCapture();
     void handleBlockInteractionInput(f32 deltaTime);
-    void handleBlockPlacementInput();
+    void handleBlockPlacementInput(f32 deltaTime);
     void sendBlockInteraction(network::BlockInteractionAction action,
                               const BlockPos& pos,
                               Direction face);

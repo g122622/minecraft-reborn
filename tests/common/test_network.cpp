@@ -203,6 +203,30 @@ TEST(KeepAlivePacket, PacketTooSmall) {
     EXPECT_EQ(result.error().code(), mr::ErrorCode::InvalidArgument);
 }
 
+TEST(PlayerTryUseItemOnBlockPacket, SerializeDeserialize) {
+    PlayerTryUseItemOnBlockPacket original(10, 64, -3,
+                                           Direction::Up,
+                                           0.25f, 0.75f, 0.5f,
+                                           0);
+
+    PacketSerializer serializer;
+    original.serialize(serializer);
+
+    PacketDeserializer deserializer(serializer.data(), serializer.size());
+    auto result = PlayerTryUseItemOnBlockPacket::deserialize(deserializer);
+    ASSERT_TRUE(result.success());
+
+    const auto& packet = result.value();
+    EXPECT_EQ(packet.x(), 10);
+    EXPECT_EQ(packet.y(), 64);
+    EXPECT_EQ(packet.z(), -3);
+    EXPECT_EQ(packet.face(), Direction::Up);
+    EXPECT_FLOAT_EQ(packet.hitX(), 0.25f);
+    EXPECT_FLOAT_EQ(packet.hitY(), 0.75f);
+    EXPECT_FLOAT_EQ(packet.hitZ(), 0.5f);
+    EXPECT_EQ(packet.hand(), 0);
+}
+
 // ============================================================================
 // DisconnectPacket 测试
 // ============================================================================
