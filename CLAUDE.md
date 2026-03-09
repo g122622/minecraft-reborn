@@ -340,6 +340,60 @@ Managed via vcpkg:
 - Use `const&` for large object parameters
 - Use `string_view` for read-only string parameters
 
+## Random Module
+
+The project provides a unified random number generation module with multiple algorithm implementations:
+
+### Directory Structure
+```
+src/common/math/random/
+├── IRandom.hpp/cpp              # Random interface with MC-style methods
+├── Mt19937Random.hpp/cpp        # Mersenne Twister (default, highest compatibility)
+├── Xoroshiro128ppRandom.hpp/cpp # xoroshiro128++ (small state, high performance)
+├── Xoshiro256ppRandom.hpp/cpp   # xoshiro256++ (high quality)
+├── LcgRandom.hpp/cpp            # Linear Congruential (minimal state)
+├── Random.hpp                   # Unified wrapper (algorithm selection via macro)
+├── UniformIntDistribution.hpp/cpp   # Integer distribution wrapper
+└── UniformRealDistribution.hpp/cpp  # Float distribution wrapper
+```
+
+注意：Xoroshiro128ppRandom这些类是内部使用的，禁止外部引用。外部统一使用Random类进行随机数生成。
+
+### Usage
+```cpp
+#include "math/random/Random.hpp"
+
+mr::math::Random rng(seed);
+i32 value = rng.nextInt(100);   // [0, 100)
+i32 range = rng.nextInt(10, 20); // [10, 20]
+f32 f = rng.nextFloat();         // [0.0, 1.0)
+f64 d = rng.nextDouble();        // [0.0, 1.0)
+bool b = rng.nextBoolean();      // true/false
+f32 g = rng.nextGaussian();      // Standard normal distribution
+```
+
+### Algorithm Selection
+Compile-time algorithm selection via macro in `Random.hpp`:
+- `MR_RANDOM_XOROSHIRO128PP` - xoroshiro128++ (small state, high performance)
+- `MR_RANDOM_XOSHIRO256PP` - xoshiro256++ (high quality)
+- `MR_RANDOM_LCG` - Linear Congruential (minimal state)
+- Default: Mersenne Twister (highest compatibility)
+
+### Interface Methods
+All random implementations provide MC-style methods:
+- `setSeed(u64)` - Set random seed
+- `nextU64()` - 64-bit random integer
+- `nextU32()` - 32-bit random integer
+- `nextInt()` - Random i32
+- `nextInt(bound)` - Random i32 in [0, bound)
+- `nextInt(min, max)` - Random i32 in [min, max]
+- `nextBoolean()` - Random bool
+- `nextFloat()` - Random f32 in [0.0, 1.0)
+- `nextFloat(min, max)` - Random f32 in [min, max)
+- `nextDouble()` - Random f64 in [0.0, 1.0)
+- `nextGaussian(mean, stddev)` - Normal distribution
+- `skip(count)` - Skip ahead in sequence
+
 ## 注意，你可随时访问mc java版本的源码来供自己参考：`D:\Minecraft\MC研究\Minecraft1.16.5源码\net\minecraft`，这很重要，因为当前项目是一个复刻项目，目标是完全使用cpp尽可能一致地复刻java版mc的游戏体验，并在存档、数据包等层面上尽可能兼容和复用现有java版minecraft生态。务必要有清晰、优雅、能让人赏心悦目的目录结构，不要把很多文件全部堆在一个目录下，要划分好细分的子目录。
 
 ## 你需要先阅读readme文件了解怎么构建项目
