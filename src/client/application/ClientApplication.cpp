@@ -434,8 +434,7 @@ void ClientApplication::mainLoop()
 
         // 每秒输出一次FPS
         if (m_frameCount % 60 == 0) {
-            const f32 fps = 1.0f / deltaTime;
-            SPDLOG_TRACE("FPS: {:.1f}, Frame: {}", fps, m_frameCount);
+            SPDLOG_TRACE("FPS: {:.1f}, Frame: {}", 1.0f / deltaTime, m_frameCount);
         }
     }
 
@@ -678,7 +677,7 @@ Result<void> ClientApplication::loadSettings(const String& path)
     }
 
     // 确保设置目录存在
-    ClientSettings::ensureSettingsDir("minecraft-reborn");
+    (void)ClientSettings::ensureSettingsDir("minecraft-reborn");
 
     // 启用自动保存
     m_settings.enableAutoSave(path);
@@ -792,7 +791,7 @@ void ClientApplication::setupNetworkCallbacks()
         m_world.onChunkUnload(x, z);
     };
 
-    callbacks.onTeleport = [this](f64 x, f64 y, f64 z, f32 yaw, f32 pitch, u32 teleportId) {
+    callbacks.onTeleport = [this](f64 x, f64 y, f64 z, f32 yaw, f32 pitch, u32 /*teleportId*/) {
         if (m_player) {
             // 网络协议使用 f64，内部使用 f32
             m_player->setPosition(static_cast<f32>(x), static_cast<f32>(y), static_cast<f32>(z));
@@ -995,7 +994,7 @@ Result<void> ClientApplication::initializeResources()
     auto vanillaPack = VanillaResources::createResourcePack();
     auto vanillaResult = vanillaPack->initialize();
     if (vanillaResult.success()) {
-        m_resourceManager->addResourcePack(std::move(vanillaPack));
+        (void)m_resourceManager->addResourcePack(std::move(vanillaPack));
         spdlog::info("Added vanilla built-in resource pack");
     } else {
         spdlog::warn("Failed to initialize vanilla resource pack: {}", vanillaResult.error().toString());
@@ -1086,7 +1085,7 @@ void ClientApplication::reloadResources()
     auto vanillaPack = VanillaResources::createResourcePack();
     auto vanillaResult = vanillaPack->initialize();
     if (vanillaResult.success()) {
-        m_resourceManager->addResourcePack(std::move(vanillaPack));
+        (void)m_resourceManager->addResourcePack(std::move(vanillaPack));
     }
 
     // 重新添加启用的资源包

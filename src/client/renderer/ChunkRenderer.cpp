@@ -258,7 +258,7 @@ void ChunkRenderer::render(VkCommandBuffer commandBuffer, VkPipelineLayout /*pip
     }
 }
 
-void ChunkRenderer::render(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout,
+void ChunkRenderer::render(VkCommandBuffer commandBuffer, VkPipelineLayout /*pipelineLayout*/,
                            PushConstantsCallback pushConstantsCallback) {
     // 绑定纹理
     if (m_textureAtlas.isValid()) {
@@ -420,7 +420,7 @@ Result<void> ChunkRenderer::createChunkBuffer(
     m_stagingBuffer->unmap();
 
     // 复制顶点数据到设备本地缓冲区
-    m_stagingBuffer->copyTo(commandBuffer, buffer.vertexBuffer, vertexSize);
+    (void)m_stagingBuffer->copyTo(commandBuffer, buffer.vertexBuffer, vertexSize);
 
     // 上传索引数据
     mapped = m_stagingBuffer->map().value();
@@ -432,7 +432,7 @@ Result<void> ChunkRenderer::createChunkBuffer(
     m_stagingBuffer->unmap();
 
     // 复制索引数据到设备本地缓冲区
-    m_stagingBuffer->copyTo(commandBuffer, buffer.indexBuffer, indexSize);
+    (void)m_stagingBuffer->copyTo(commandBuffer, buffer.indexBuffer, indexSize);
 
     endSingleTimeCommands(commandBuffer);
 

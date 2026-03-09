@@ -106,10 +106,10 @@ ServerChunkManager::ServerChunkManager(ServerWorld& world, std::unique_ptr<IChun
     , m_workerPool(-1)  // 自动检测线程数
 {
     // 设置票据管理器回调
-    m_ticketManager.setLevelChangeCallback([this](ChunkCoord x, ChunkCoord z, i32 oldLevel, i32 newLevel) {
+    m_ticketManager.setLevelChangeCallback([this](ChunkCoord x, ChunkCoord z, i32 /*oldLevel*/, i32 newLevel) {
         // 级别变化时创建或更新 ChunkHolder
         if (newLevel <= world::ChunkLoadTicketManager::MAX_LOADED_LEVEL) {
-            getOrCreateHolder(x, z);
+            (void)getOrCreateHolder(x, z);
         }
     });
 }
@@ -120,10 +120,10 @@ ServerChunkManager::ServerChunkManager(std::unique_ptr<IChunkGenerator> generato
     , m_workerPool(-1)  // 自动检测线程数
 {
     // 设置票据管理器回调
-    m_ticketManager.setLevelChangeCallback([this](ChunkCoord x, ChunkCoord z, i32 oldLevel, i32 newLevel) {
+    m_ticketManager.setLevelChangeCallback([this](ChunkCoord x, ChunkCoord z, i32 /*oldLevel*/, i32 newLevel) {
         // 级别变化时创建或更新 ChunkHolder
         if (newLevel <= world::ChunkLoadTicketManager::MAX_LOADED_LEVEL) {
-            getOrCreateHolder(x, z);
+            (void)getOrCreateHolder(x, z);
         }
     });
 }
@@ -377,8 +377,8 @@ void ServerChunkManager::getChunkAsync(ChunkCoord x, ChunkCoord z, ChunkCallback
                     return;
                 }
 
-                storeGeneratedChunk(x, z, std::move(data));
-                auto pinned = getChunkShared(x, z);
+                (void)storeGeneratedChunk(x, z, std::move(data));
+                const auto pinned = getChunkShared(x, z);
                 if (callback) callback(pinned != nullptr, pinned.get());
             } else {
                 if (callback) callback(false, nullptr);
@@ -512,7 +512,7 @@ void ServerChunkManager::scheduleGeneration(ChunkHolder& holder, const ChunkStat
                 return;
             }
 
-            storeGeneratedChunk(x, z, std::move(data));
+            (void)storeGeneratedChunk(x, z, std::move(data));
         },
         holder.getLevel()
     );
@@ -567,7 +567,7 @@ void ServerChunkManager::executeGenerationTask(ChunkHolder& holder, const ChunkS
     // 完成生成并存入缓存
     auto data = holder.completeGeneration();
     if (data) {
-        storeGeneratedChunk(holder.x(), holder.z(), std::move(data));
+        (void)storeGeneratedChunk(holder.x(), holder.z(), std::move(data));
     }
 }
 

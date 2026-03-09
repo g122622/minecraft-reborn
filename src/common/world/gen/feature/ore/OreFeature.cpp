@@ -118,7 +118,7 @@ void OreFeature::generateSphere(
         f32 cy = y1 + (y2 - y1) * progress;
         f32 cz = z1 + (z2 - z1) * progress;
 
-        f32 radiusFactor = random.nextDouble() * static_cast<f32>(config.size) / 16.0f;
+        f32 radiusFactor = static_cast<f32>(random.nextDouble() * static_cast<f64>(config.size) / 16.0);
         f32 radius = (std::sin(static_cast<f32>(M_PI) * progress) + 1.0f) * radiusFactor + 1.0f;
 
         sphereCenters[static_cast<size_t>(i) * 4 + 0] = cx;

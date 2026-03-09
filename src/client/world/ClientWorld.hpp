@@ -102,7 +102,7 @@ public:
     /**
      * @brief 检查位置是否在世界范围内
      */
-    [[nodiscard]] bool isWithinWorldBounds(i32 x, i32 y, i32 z) const override {
+    [[nodiscard]] bool isWithinWorldBounds(i32 /*x*/, i32 y, i32 /*z*/) const override {
         return y >= m_minBuildHeight && y < m_maxBuildHeight;
     }
 

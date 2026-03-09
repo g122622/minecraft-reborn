@@ -131,7 +131,7 @@ public:
         return static_cast<i32>(m_entries.size());
     }
 
-    bool setValue(const SettingsValue& value) override {
+    bool setValue(const SettingsValue& /*value*/) override {
         // 不支持通过 setValue 设置列表
         // 列表应该通过 add/remove/clear 等方法操作
         return false;

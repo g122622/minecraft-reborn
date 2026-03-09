@@ -50,7 +50,7 @@ Result<void> IntegratedServer::initialize(const IntegratedServerConfig& config) 
     DimensionSettings settings = DimensionSettings::overworld();
     auto generator = std::make_unique<NoiseChunkGenerator>(m_config.seed, std::move(settings));
     m_chunkManager = std::make_unique<ServerChunkManager>(std::move(generator));
-    m_chunkManager->initialize();
+    (void)m_chunkManager->initialize();
     m_chunkManager->startWorkers();
     m_chunkManager->setViewDistance(m_config.viewDistance);
 

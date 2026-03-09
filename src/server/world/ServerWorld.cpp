@@ -147,7 +147,7 @@ void ServerWorld::addPlayer(PlayerId playerId, const String& username, std::shar
     player.chunkTracker->setViewDistance(m_config.viewDistance);
 
     // 更新区块同步管理器
-    m_chunkSyncManager.getTracker(playerId);
+    (void)m_chunkSyncManager.getTracker(playerId);
     m_chunkSyncManager.updatePlayerPosition(playerId, player.x, player.z);
 
     spdlog::info("Player {} ({}) joined the world", username, playerId);
@@ -348,8 +348,6 @@ void ServerWorld::sendInitialChunks(PlayerId playerId) {
     auto it = m_players.find(playerId);
     if (it == m_players.end()) return;
 
-    auto& player = it->second;
-
     std::vector<mr::ChunkPos> chunksToLoad;
     std::vector<mr::ChunkPos> chunksToUnload;
 
@@ -485,7 +483,7 @@ void ServerWorld::broadcastBlockUpdate(i32 x, i32 y, i32 z, u32 blockStateId) {
 // 发送数据包
 // ============================================================================
 
-void ServerWorld::sendPacket(PlayerId playerId, const std::vector<u8>& data) {
+void ServerWorld::sendPacket(PlayerId playerId, const std::vector<u8>& /*data*/) {
     std::lock_guard<std::mutex> lock(m_playerMutex);
 
     auto it = m_players.find(playerId);
@@ -497,7 +495,7 @@ void ServerWorld::sendPacket(PlayerId playerId, const std::vector<u8>& data) {
     }
 }
 
-void ServerWorld::broadcastPacket(const std::vector<u8>& data) {
+void ServerWorld::broadcastPacket(const std::vector<u8>& /*data*/) {
     std::lock_guard<std::mutex> lock(m_playerMutex);
 
     for (const auto& [playerId, player] : m_players) {
@@ -508,7 +506,7 @@ void ServerWorld::broadcastPacket(const std::vector<u8>& data) {
     }
 }
 
-void ServerWorld::broadcastPacketExcept(PlayerId excludePlayerId, const std::vector<u8>& data) {
+void ServerWorld::broadcastPacketExcept(PlayerId excludePlayerId, const std::vector<u8>& /*data*/) {
     std::lock_guard<std::mutex> lock(m_playerMutex);
 
     for (const auto& [playerId, player] : m_players) {

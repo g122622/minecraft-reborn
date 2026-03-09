@@ -265,7 +265,7 @@ void ItemEntity::applyLavaPhysics() {
 void ItemEntity::serialize(network::PacketSerializer& ser) const {
     // 实体类型和ID
     ser.writeU32(static_cast<u32>(m_type));
-    ser.writeU32(m_id);
+    ser.writeU32(static_cast<u32>(m_id));
 
     // 位置（网络协议使用 f64）
     ser.writeF64(static_cast<f64>(m_position.x));

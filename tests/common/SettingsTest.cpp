@@ -75,7 +75,7 @@ TEST_F(SettingsTypesTest, BooleanOption_CallbackNotCalledOnSameValue) {
     BooleanOption option("test_bool", false);
     int callCount = 0;
 
-    option.onChange([&](bool value) {
+    option.onChange([&](bool /*value*/) {
         callCount++;
     });
 

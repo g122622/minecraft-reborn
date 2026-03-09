@@ -63,7 +63,7 @@ bool ChunkMesher::shouldRenderBlock(const BlockState* state) {
     return !state->isAir();
 }
 
-bool ChunkMesher::shouldRenderFace(const BlockState* block, const BlockState* neighbor) {
+bool ChunkMesher::shouldRenderFace(const BlockState* /*block*/, const BlockState* neighbor) {
     // 如果邻居是空气，渲染面
     if (!neighbor || neighbor->isAir()) {
         return true;
