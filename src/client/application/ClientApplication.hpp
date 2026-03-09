@@ -205,10 +205,10 @@ private:
     f64 m_lastFrameTime = 0.0;
     u64 m_frameCount = 0;
 
-    // 位置同步
-    f64 m_lastSentX = 0.0;
-    f64 m_lastSentY = 0.0;
-    f64 m_lastSentZ = 0.0;
+    // 位置同步（内部使用 f32，发送时转换为 f64）
+    f32 m_lastSentX = 0.0f;
+    f32 m_lastSentY = 0.0f;
+    f32 m_lastSentZ = 0.0f;
     f32 m_lastSentYaw = 0.0f;
     f32 m_lastSentPitch = 0.0f;
     f32 m_positionSendAccumulator = 0.0f;

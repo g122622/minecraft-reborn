@@ -233,24 +233,29 @@ void ServerWorld::updatePlayerPosition(PlayerId playerId, f64 x, f64 y, f64 z, f
 
         auto& player = it->second;
 
+        // 转换 f64 网络坐标到 f32 内部坐标
+        f32 fx = static_cast<f32>(x);
+        f32 fy = static_cast<f32>(y);
+        f32 fz = static_cast<f32>(z);
+
         ChunkCoord oldChunkX = blockToChunk(player.x);
         ChunkCoord oldChunkZ = blockToChunk(player.z);
-        ChunkCoord newChunkX = blockToChunk(x);
-        ChunkCoord newChunkZ = blockToChunk(z);
+        ChunkCoord newChunkX = blockToChunk(fx);
+        ChunkCoord newChunkZ = blockToChunk(fz);
 
-        player.x = x;
-        player.y = y;
-        player.z = z;
+        player.x = fx;
+        player.y = fy;
+        player.z = fz;
         player.yaw = yaw;
         player.pitch = pitch;
         player.onGround = onGround;
 
         // 检查是否跨越区块边界
         if (oldChunkX != newChunkX || oldChunkZ != newChunkZ) {
-            // 更新区块同步
+            // 更新区块同步（使用 f64 坐标）
             m_chunkSyncManager.updatePlayerPosition(playerId, x, z);
 
-            // 更新区块管理器中的玩家位置
+            // 更新区块管理器中的玩家位置（使用 f64）
             if (m_chunkManager) {
                 m_chunkManager->updatePlayerPosition(playerId, x, z);
             }
@@ -431,8 +436,8 @@ void ServerWorld::sendUnloadChunkToPlayer(PlayerId playerId, ChunkCoord x, Chunk
 // ============================================================================
 
 void ServerWorld::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {
-    ChunkCoord chunkX = blockToChunk(static_cast<f64>(x));
-    ChunkCoord chunkZ = blockToChunk(static_cast<f64>(z));
+    ChunkCoord chunkX = blockToChunk(static_cast<f32>(x));
+    ChunkCoord chunkZ = blockToChunk(static_cast<f32>(z));
 
     ChunkData* chunk = getChunkSync(chunkX, chunkZ);
     if (!chunk) return;
@@ -448,8 +453,8 @@ void ServerWorld::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {
 }
 
 const BlockState* ServerWorld::getBlockState(i32 x, i32 y, i32 z) const {
-    ChunkCoord chunkX = blockToChunk(static_cast<f64>(x));
-    ChunkCoord chunkZ = blockToChunk(static_cast<f64>(z));
+    ChunkCoord chunkX = blockToChunk(static_cast<f32>(x));
+    ChunkCoord chunkZ = blockToChunk(static_cast<f32>(z));
 
     const ChunkData* chunk = getChunk(chunkX, chunkZ);
     if (!chunk) return nullptr;

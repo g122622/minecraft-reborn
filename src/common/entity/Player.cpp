@@ -235,7 +235,7 @@ void Player::handleMovementInput(f32 forward, f32 strafe, bool jumping, bool sne
     if (forward != 0.0f || strafe != 0.0f) {
         // MC坐标系: yaw单位是度，转换为弧度
         // MC中: yaw=0 看向 -Z, yaw=90 看向 +X
-        f32 yawRad = static_cast<f32>(m_yaw * 3.14159265358979323846 / 180.0);
+        f32 yawRad = m_yaw * math::DEG_TO_RAD;
         f32 sinYaw = std::sin(yawRad);
         f32 cosYaw = std::cos(yawRad);
 
@@ -396,11 +396,7 @@ void Player::updatePhysics() {
 
     // 6. 使用碰撞检测移动
     if (m_physicsEngine && (movement.x != 0.0f || movement.y != 0.0f || movement.z != 0.0f)) {
-        Vector3 actualMovement = moveWithCollision(
-            static_cast<f64>(movement.x),
-            static_cast<f64>(movement.y),
-            static_cast<f64>(movement.z)
-        );
+        Vector3 actualMovement = moveWithCollision(movement.x, movement.y, movement.z);
 
         // 7. 碰撞后重置速度（参考MC: Entity.move）
         // if (pos.x != vector3d.x) setMotion(0, y, z)
@@ -515,7 +511,10 @@ Result<std::unique_ptr<Player>> Player::deserialize(network::PacketDeserializer&
     auto zResult = deser.readF64();
     if (zResult.failed()) return zResult.error();
 
-    player->setPosition(xResult.value(), yResult.value(), zResult.value());
+    // 网络协议使用 f64，内部使用 f32
+    player->setPosition(static_cast<f32>(xResult.value()),
+                        static_cast<f32>(yResult.value()),
+                        static_cast<f32>(zResult.value()));
 
     auto yawResult = deser.readF32();
     if (yawResult.failed()) return yawResult.error();

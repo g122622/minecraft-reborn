@@ -462,14 +462,14 @@ Result<void> SkyRenderer::createStarVBO() {
 
     // 在单位球面上均匀分布星星
     for (i32 i = 0; i < CelestialCalculations::getStarCount(); ++i) {
-        // 使用球面均匀分布算法
-        f64 theta = 2.0 * mr::math::PI_DOUBLE * rng.nextDouble();
-        f64 phi = std::acos(2.0 * rng.nextDouble() - 1.0);
-        f64 radius = 100.0; // 星星距离
+        // 使用球面均匀分布算法（Random.nextDouble() 返回 f64，转换为 f32 用于内部计算）
+        f32 theta = static_cast<f32>(2.0 * mr::math::PI_DOUBLE * rng.nextDouble());
+        f32 phi = static_cast<f32>(std::acos(2.0 * rng.nextDouble() - 1.0));
+        constexpr f32 radius = 100.0f; // 星星距离
 
-        f32 x = static_cast<f32>(radius * std::sin(phi) * std::cos(theta));
-        f32 y = static_cast<f32>(radius * std::sin(phi) * std::sin(theta));
-        f32 z = static_cast<f32>(radius * std::cos(phi));
+        f32 x = radius * std::sin(phi) * std::cos(theta);
+        f32 y = radius * std::sin(phi) * std::sin(theta);
+        f32 z = radius * std::cos(phi);
 
         // 只保留 y > 0 的星星 (地平线以上)
         if (y > 0.0f) {

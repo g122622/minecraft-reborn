@@ -1,16 +1,11 @@
 #include "CanyonCarver.hpp"
 #include "../../block/BlockRegistry.hpp"
 #include "../../../math/random/Random.hpp"
+#include "../../../core/Constants.hpp"
 #include <cmath>
 #include <algorithm>
 
 namespace mr {
-
-// ============================================================================
-// 常量
-// ============================================================================
-
-constexpr f32 PI = 3.14159265358979323846f;
 
 // ============================================================================
 // CanyonCarver 实现
@@ -75,12 +70,12 @@ bool CanyonCarver::carve(
     const i32 startZ = chunkZ << 4;
 
     // 峡谷起点
-    const f64 canyonX = static_cast<f64>(startX) + rng.nextDouble(0.0, 16.0);
-    const f64 canyonY = static_cast<f64>(rng.nextInt(20, 67));
-    const f64 canyonZ = static_cast<f64>(startZ) + rng.nextDouble(0.0, 16.0);
+    const f32 canyonX = static_cast<f32>(startX) + rng.nextFloat(0.0f, 16.0f);
+    const f32 canyonY = static_cast<f32>(rng.nextInt(20, 67));
+    const f32 canyonZ = static_cast<f32>(startZ) + rng.nextFloat(0.0f, 16.0f);
 
     // 峡谷方向和尺寸
-    const f32 yaw = rng.nextFloat(0.0f, 2.0f * PI);
+    const f32 yaw = rng.nextFloat(0.0f, math::TWO_PI);
     const f32 pitch = rng.nextFloat(-0.125f, 0.125f);  // MC使用 2.0F / 8.0F
     const f32 radius = (rng.nextFloat(1.0f, 2.0f) * 2.0f + rng.nextFloat());  // MC: nextFloat() * 2.0F + nextFloat()) * 2.0F
 
@@ -92,23 +87,23 @@ bool CanyonCarver::carve(
                    static_cast<i64>(rng.nextU64()),
                    canyonX, canyonY, canyonZ,
                    radius, yaw, pitch,
-                   0, length, 3.0,
+                   0, length, 3.0f,
                    carvingMask);
 
     return true;
 }
 
-bool CanyonCarver::shouldSkipEllipsoidPosition(f64 dx, f64 dy, f64 dz, i32 y) const
+bool CanyonCarver::shouldSkipEllipsoidPosition(f32 dx, f32 dy, f32 dz, i32 y) const
 {
     // 参考 MC CanyonWorldCarver.func_222708_a_
     // 峡谷使用特殊的厚度检测：考虑Y坐标的半径变化
     if (y < 1 || y >= static_cast<i32>(m_heightThresholds.size())) {
-        return dx * dx + dz * dz >= 1.0;
+        return dx * dx + dz * dz >= 1.0f;
     }
 
     // 使用预计算的阈值
     const f32 threshold = m_heightThresholds[static_cast<size_t>(y - 1)];
-    return dx * dx + dz * dz >= static_cast<f64>(threshold) || dy * dy / 6.0 >= 1.0;
+    return dx * dx + dz * dz >= threshold || dy * dy / 6.0f >= 1.0f;
 }
 
 void CanyonCarver::generateCanyon(
@@ -118,31 +113,31 @@ void CanyonCarver::generateCanyon(
     ChunkCoord chunkX,
     ChunkCoord chunkZ,
     i64 seed,
-    f64 startX, f64 startY, f64 startZ,
+    f32 startX, f32 startY, f32 startZ,
     f32 radius,
     f32 yaw, f32 pitch,
     i32 startIndex, i32 endIndex,
-    f64 horizontalScale,
+    f32 horizontalScale,
     CarvingMask& carvingMask)
 {
     // 参考 MC CanyonWorldCarver.func_227204_a_
     math::Random rng(static_cast<u64>(seed));
 
-    f64 currentX = startX;
-    f64 currentY = startY;
-    f64 currentZ = startZ;
+    f32 currentX = startX;
+    f32 currentY = startY;
+    f32 currentZ = startZ;
     f32 yawModifier = 0.0f;
     f32 pitchModifier = 0.0f;
 
     for (i32 i = startIndex; i < endIndex; ++i) {
         // 计算当前半径（正弦曲线变化）
         const f32 progress = static_cast<f32>(i) / static_cast<f32>(endIndex);
-        const f32 sinProgress = std::sin(progress * PI);
+        const f32 sinProgress = std::sin(progress * math::PI);
         f32 horizontalRadius = radius * sinProgress;
         f32 verticalRadius = horizontalRadius * 0.5f;  // 垂直半径为水平的一半
 
         // 应用水平缩放
-        horizontalRadius = static_cast<f32>(static_cast<f64>(horizontalRadius) * horizontalScale);
+        horizontalRadius *= horizontalScale;
 
         // 添加随机变化（参考MC）
         horizontalRadius *= rng.nextFloat() * 0.25f + 0.75f;
@@ -150,9 +145,9 @@ void CanyonCarver::generateCanyon(
 
         // 更新位置（参考MC的方向计算）
         const f32 cosPitch = std::cos(pitch);
-        currentX += static_cast<f64>(std::cos(yaw) * cosPitch);
-        currentY += static_cast<f64>(std::sin(pitch));
-        currentZ += static_cast<f64>(std::sin(yaw) * cosPitch);
+        currentX += std::cos(yaw) * cosPitch;
+        currentY += std::sin(pitch);
+        currentZ += std::sin(yaw) * cosPitch;
 
         // 更新俯仰角（衰减）
         pitch *= 0.7f;
@@ -176,8 +171,8 @@ void CanyonCarver::generateCanyon(
         if (isInCarvingRange(chunkX, chunkZ, currentX, currentZ, i, endIndex, radius)) {
             carveEllipsoid(chunk, biomeProvider, seaLevel, chunkX, chunkZ,
                            currentX, currentY, currentZ,
-                           static_cast<f64>(horizontalRadius),
-                           static_cast<f64>(verticalRadius),
+                           horizontalRadius,
+                           verticalRadius,
                            carvingMask, static_cast<i64>(rng.nextU64()));
         }
     }

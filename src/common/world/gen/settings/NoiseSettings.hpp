@@ -33,8 +33,8 @@ struct NoiseSettings {
     SlideSettings bottomSlide{-30, 0, 0};   ///< 底部滑动
 
     // === 密度参数 ===
-    f64 densityFactor = 1.0;                ///< 密度因子
-    f64 densityOffset = -0.46875;           ///< 密度偏移
+    f32 densityFactor = 1.0f;                ///< 密度因子
+    f32 densityOffset = -0.46875f;           ///< 密度偏移
 
     // === 噪声选项 ===
     bool simplexSurfaceNoise = true;        ///< 使用 Simplex 地表噪声
@@ -72,8 +72,8 @@ struct NoiseSettings {
         settings.height = 256;
         settings.sizeHorizontal = 1;
         settings.sizeVertical = 2;
-        settings.densityFactor = 1.0;
-        settings.densityOffset = -0.46875;
+        settings.densityFactor = 1.0f;
+        settings.densityOffset = -0.46875f;
         settings.topSlide = SlideSettings{-10, 3, 0};
         settings.bottomSlide = SlideSettings{-30, 0, 0};
         settings.simplexSurfaceNoise = true;
@@ -87,7 +87,7 @@ struct NoiseSettings {
     static NoiseSettings amplified() {
         NoiseSettings settings = overworld();
         settings.isAmplified = true;
-        settings.densityFactor = 2.0;
+        settings.densityFactor = 2.0f;
         return settings;
     }
 
@@ -99,8 +99,8 @@ struct NoiseSettings {
         settings.height = 128;
         settings.sizeHorizontal = 1;
         settings.sizeVertical = 2;
-        settings.densityFactor = 0.0;
-        settings.densityOffset = 0.019921875;
+        settings.densityFactor = 0.0f;
+        settings.densityOffset = 0.019921875f;
         settings.topSlide = SlideSettings{120, 3, 0};
         settings.bottomSlide = SlideSettings{320, 4, -1};
         settings.simplexSurfaceNoise = false;
@@ -116,8 +116,8 @@ struct NoiseSettings {
         settings.height = 128;
         settings.sizeHorizontal = 2;
         settings.sizeVertical = 1;
-        settings.densityFactor = 0.0;
-        settings.densityOffset = 0.0;
+        settings.densityFactor = 0.0f;
+        settings.densityOffset = 0.0f;
         settings.simplexSurfaceNoise = false;
         settings.randomDensityOffset = false;
         return settings;

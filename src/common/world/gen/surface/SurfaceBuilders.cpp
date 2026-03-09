@@ -16,7 +16,7 @@ void DefaultSurfaceBuilder::buildSurface(
     const Biome& biome,
     i32 x, i32 z,
     i32 startHeight,
-    f64 surfaceNoise,
+    f32 surfaceNoise,
     const BlockState* defaultBlock,
     const BlockState* defaultFluid,
     i32 seaLevel,
@@ -71,7 +71,7 @@ void DefaultSurfaceBuilder::buildSurface(
     }
 }
 
-i32 DefaultSurfaceBuilder::calculateDepth(f64 noise, math::Random& random) const
+i32 DefaultSurfaceBuilder::calculateDepth(f32 noise, math::Random& random) const
 {
     // 参考 MC DefaultSurfaceBuilder
     // 地表深度 = noise / 3.0 + 3.0 + random
@@ -89,7 +89,7 @@ void MountainSurfaceBuilder::buildSurface(
     const Biome& biome,
     i32 x, i32 z,
     i32 startHeight,
-    f64 surfaceNoise,
+    f32 surfaceNoise,
     const BlockState* defaultBlock,
     const BlockState* defaultFluid,
     i32 seaLevel,
@@ -156,7 +156,7 @@ void DesertSurfaceBuilder::buildSurface(
     const Biome& biome,
     i32 x, i32 z,
     i32 startHeight,
-    f64 surfaceNoise,
+    f32 surfaceNoise,
     const BlockState* defaultBlock,
     const BlockState* defaultFluid,
     i32 seaLevel,
@@ -212,7 +212,7 @@ void SwampSurfaceBuilder::buildSurface(
     const Biome& biome,
     i32 x, i32 z,
     i32 startHeight,
-    f64 surfaceNoise,
+    f32 surfaceNoise,
     const BlockState* defaultBlock,
     const BlockState* defaultFluid,
     i32 seaLevel,
@@ -262,7 +262,7 @@ void SwampSurfaceBuilder::buildSurface(
     }
 }
 
-bool SwampSurfaceBuilder::shouldPlaceClay(f64 noise) const
+bool SwampSurfaceBuilder::shouldPlaceClay(f32 noise) const
 {
     // 噪声值大于阈值时放置粘土
     return noise > 0.5;
@@ -278,7 +278,7 @@ void FrozenOceanSurfaceBuilder::buildSurface(
     const Biome& biome,
     i32 x, i32 z,
     i32 startHeight,
-    f64 surfaceNoise,
+    f32 surfaceNoise,
     const BlockState* defaultBlock,
     const BlockState* defaultFluid,
     i32 seaLevel,
@@ -334,7 +334,7 @@ void BadlandsSurfaceBuilder::buildSurface(
     const Biome& biome,
     i32 x, i32 z,
     i32 startHeight,
-    f64 surfaceNoise,
+    f32 surfaceNoise,
     const BlockState* defaultBlock,
     const BlockState* defaultFluid,
     i32 seaLevel,
@@ -414,7 +414,7 @@ void BeachSurfaceBuilder::buildSurface(
     const Biome& biome,
     i32 x, i32 z,
     i32 startHeight,
-    f64 surfaceNoise,
+    f32 surfaceNoise,
     const BlockState* defaultBlock,
     const BlockState* defaultFluid,
     i32 seaLevel,

@@ -192,8 +192,8 @@ protected:
         i32 seaLevel,
         ChunkCoord chunkX,
         ChunkCoord chunkZ,
-        f64 centerX, f64 centerY, f64 centerZ,
-        f64 horizontalRadius, f64 verticalRadius,
+        f32 centerX, f32 centerY, f32 centerZ,
+        f32 horizontalRadius, f32 verticalRadius,
         CarvingMask& carvingMask,
         i64 seed);
 
@@ -211,7 +211,7 @@ protected:
      */
     [[nodiscard]] static bool isInCarvingRange(
         ChunkCoord chunkX, ChunkCoord chunkZ,
-        f64 x, f64 z,
+        f32 x, f32 z,
         i32 step, i32 maxSteps,
         f32 radius);
 
@@ -245,7 +245,7 @@ protected:
      * @return 是否应该跳过
      */
     [[nodiscard]] virtual bool shouldSkipEllipsoidPosition(
-        f64 dx, f64 dy, f64 dz, i32 y) const = 0;
+        f32 dx, f32 dy, f32 dz, i32 y) const = 0;
 };
 
 /**

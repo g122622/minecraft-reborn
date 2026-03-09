@@ -70,7 +70,7 @@ protected:
      * @note 峡谷雕刻器使用特殊的厚度检测
      */
     [[nodiscard]] bool shouldSkipEllipsoidPosition(
-        f64 dx, f64 dy, f64 dz, i32 y) const override;
+        f32 dx, f32 dy, f32 dz, i32 y) const override;
 
 private:
     /// 预计算的半径变化表（参考 MC field_202536_i）
@@ -108,11 +108,11 @@ private:
         ChunkCoord chunkX,
         ChunkCoord chunkZ,
         i64 seed,
-        f64 startX, f64 startY, f64 startZ,
+        f32 startX, f32 startY, f32 startZ,
         f32 radius,
         f32 yaw, f32 pitch,
         i32 startIndex, i32 endIndex,
-        f64 horizontalScale,
+        f32 horizontalScale,
         CarvingMask& carvingMask);
 
     /**

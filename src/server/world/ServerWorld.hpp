@@ -28,10 +28,10 @@ struct ServerPlayerData {
     std::shared_ptr<network::PlayerChunkTracker> chunkTracker;
     std::weak_ptr<TcpSession> session;
 
-    // 位置
-    f64 x = 0.0;
-    f64 y = 64.0;
-    f64 z = 0.0;
+    // 位置（内部使用 f32，网络边界使用 f64）
+    f32 x = 0.0f;
+    f32 y = 64.0f;
+    f32 z = 0.0f;
     f32 yaw = 0.0f;
     f32 pitch = 0.0f;
     bool onGround = true;
@@ -109,11 +109,11 @@ public:
     [[nodiscard]] bool hasPlayer(PlayerId playerId) const;
     [[nodiscard]] size_t playerCount() const;
 
-    // 位置更新
+    // 位置更新（网络协议使用 f64，内部转换为 f32）
     void updatePlayerPosition(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch, bool onGround);
     void confirmTeleport(PlayerId playerId, u32 teleportId);
 
-    // 传送玩家
+    // 传送玩家（网络协议使用 f64）
     void teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw = 0.0f, f32 pitch = 0.0f);
 
     // 区块同步
@@ -136,9 +136,9 @@ public:
     [[nodiscard]] size_t chunkCount() const;
     [[nodiscard]] size_t loadedChunkCount() const;
 
-    // 区块坐标转换
-    static ChunkCoord blockToChunk(f64 blockCoord) {
-        return static_cast<ChunkCoord>(std::floor(blockCoord / 16.0));
+    // 区块坐标转换（使用 f32 坐标）
+    static ChunkCoord blockToChunk(f32 blockCoord) {
+        return static_cast<ChunkCoord>(std::floor(blockCoord / 16.0f));
     }
 
     // 获取区块管理器

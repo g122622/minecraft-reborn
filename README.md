@@ -14,6 +14,8 @@ $env:VCPKG_ROOT = "D:\tools\vcpkg"
 cmake -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=D:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake
 
 # 编译
+chcp 65001 # 务必记得先执行这一行，避免中文乱码
+
 cmake --build build --config Debug
 
 # 运行测试

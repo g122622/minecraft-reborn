@@ -463,9 +463,10 @@ void ClientApplication::handleEvents()
     // 传递键盘输入到玩家和鼠标控制
     if (m_mouseCaptured && m_player) {
         // 鼠标视角控制 - 更新玩家朝向（使用设置中的灵敏度）
+        // InputManager 返回 f64 (GLFW)，转换为 f32 用于内部计算
         f32 sensitivity = m_settings.mouseSensitivity.get() * 0.2f;
-        f32 deltaYaw = m_input.mouseDeltaX() * sensitivity;
-        f32 deltaPitch = m_input.mouseDeltaY() * sensitivity;
+        f32 deltaYaw = static_cast<f32>(m_input.mouseDeltaX()) * sensitivity;
+        f32 deltaPitch = static_cast<f32>(m_input.mouseDeltaY()) * sensitivity;
         m_player->rotate(deltaYaw, -deltaPitch);  // pitch方向相反
 
         // 收集移动输入
@@ -484,9 +485,11 @@ void ClientApplication::handleEvents()
         // 传递输入给玩家
         m_player->handleMovementInput(forward, strafe, jumping, sneaking);
 
-        if (m_input.scrollDeltaY() != 0.0) {
+        // 滚轮选择物品栏槽位（scrollDeltaY 返回 f64）
+        const f64 scrollDelta = m_input.scrollDeltaY();
+        if (scrollDelta != 0.0) {
             i32 selectedSlot = m_player->inventory().getSelectedSlot();
-            i32 delta = m_input.scrollDeltaY() > 0.0 ? -1 : 1;
+            i32 delta = scrollDelta > 0.0 ? -1 : 1;
             selectedSlot = (selectedSlot + delta + PlayerInventory::HOTBAR_SIZE) % PlayerInventory::HOTBAR_SIZE;
             m_player->inventory().setSelectedSlot(selectedSlot);
         }
@@ -791,7 +794,8 @@ void ClientApplication::setupNetworkCallbacks()
 
     callbacks.onTeleport = [this](f64 x, f64 y, f64 z, f32 yaw, f32 pitch, u32 teleportId) {
         if (m_player) {
-            m_player->setPosition(x, y, z);
+            // 网络协议使用 f64，内部使用 f32
+            m_player->setPosition(static_cast<f32>(x), static_cast<f32>(y), static_cast<f32>(z));
             m_player->setRotation(yaw, pitch);
         }
         m_camera.setPosition(static_cast<f32>(x), static_cast<f32>(y), static_cast<f32>(z));
@@ -944,9 +948,9 @@ void ClientApplication::sendPlayerPosition()
 
     // 检查是否需要发送（位置或旋转变化）
     bool positionChanged =
-        std::abs(pos.x - m_lastSentX) > 0.001 ||
-        std::abs(pos.y - m_lastSentY) > 0.001 ||
-        std::abs(pos.z - m_lastSentZ) > 0.001;
+        std::abs(pos.x - m_lastSentX) > 0.001f ||
+        std::abs(pos.y - m_lastSentY) > 0.001f ||
+        std::abs(pos.z - m_lastSentZ) > 0.001f;
 
     bool rotationChanged =
         std::abs(m_player->yaw() - m_lastSentYaw) > 0.01f ||

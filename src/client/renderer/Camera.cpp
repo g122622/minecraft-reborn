@@ -256,13 +256,13 @@ void CameraController::handleKeyboardInput(i32 key, i32 action) {
     }
 }
 
-void CameraController::handleMouseMove(f64 deltaX, f64 deltaY) {
+void CameraController::handleMouseMove(f32 deltaX, f32 deltaY) {
     if (!m_camera) return;
 
     m_camera->look(static_cast<f32>(deltaX), static_cast<f32>(deltaY));
 }
 
-void CameraController::handleScroll(f64 deltaY) {
+void CameraController::handleScroll(f32 deltaY) {
     if (!m_camera) return;
 
     // 滚轮可以用来调整FOV或缩放

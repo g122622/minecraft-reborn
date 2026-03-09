@@ -20,13 +20,13 @@ public:
      * @param z Z 坐标
      * @return 噪声值 [-1, 1]
      */
-    [[nodiscard]] virtual f64 noise(f64 x, f64 y, f64 z) const = 0;
+    [[nodiscard]] virtual f32 noise(f32 x, f32 y, f32 z) const = 0;
 
     /**
      * @brief 采样 2D 噪声值
      */
-    [[nodiscard]] virtual f64 noise2D(f64 x, f64 z) const {
-        return noise(x, 0.0, z);
+    [[nodiscard]] virtual f32 noise2D(f32 x, f32 z) const {
+        return noise(x, 0.0f, z);
     }
 };
 

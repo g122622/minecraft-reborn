@@ -18,7 +18,7 @@ namespace mr {
  * @code
  * // 创建 16 个倍频（从 -15 到 0）
  * OctavesNoiseGenerator noise(seed, -15, 0);
- * f64 value = noise.noise(x, y, z);
+ * f32 value = noise.noise(x, y, z);
  * @endcode
  *
  * @note 参考 MC 1.16.5 的实现
@@ -58,7 +58,7 @@ public:
      * @param z Z 坐标
      * @return 噪声值
      */
-    [[nodiscard]] f64 noise(f64 x, f64 y, f64 z) const override;
+    [[nodiscard]] f32 noise(f32 x, f32 y, f32 z) const override;
 
     /**
      * @brief 采样 3D 噪声值（带额外参数）
@@ -72,7 +72,7 @@ public:
      * @param fixY 是否固定 Y 轴
      * @return 噪声值
      */
-    [[nodiscard]] f64 getValue(f64 x, f64 y, f64 z, f64 yScale, f64 yBound, bool fixY) const;
+    [[nodiscard]] f32 getValue(f32 x, f32 y, f32 z, f32 yScale, f32 yBound, bool fixY) const;
 
     /**
      * @brief 采样 2D 噪声值（简化版）
@@ -84,7 +84,7 @@ public:
      * @param scale 缩放因子
      * @return 噪声值
      */
-    [[nodiscard]] f64 noiseAt(f64 x, f64 y, f64 z, f64 scale) const;
+    [[nodiscard]] f32 noiseAt(f32 x, f32 y, f32 z, f32 scale) const;
 
     /**
      * @brief 获取指定倍频层的噪声生成器
@@ -114,10 +114,10 @@ public:
      *
      * 防止大坐标导致的精度问题
      */
-    [[nodiscard]] static f64 maintainPrecision(f64 value) {
+    [[nodiscard]] static f32 maintainPrecision(f32 value) {
         // 参考 MC: value - floor(value / 33554432.0 + 0.5) * 33554432.0
-        constexpr f64 PRECISION_FACTOR = 33554432.0;
-        return value - std::floor(value / PRECISION_FACTOR + 0.5) * PRECISION_FACTOR;
+        constexpr f32 PRECISION_FACTOR = 33554432.0f;
+        return value - std::floor(value / PRECISION_FACTOR + 0.5f) * PRECISION_FACTOR;
     }
 
 private:
@@ -126,8 +126,8 @@ private:
     i32 m_maxOctave;
 
     // 缓存的振幅值
-    f64 m_amplitudeLow;  // 低频振幅
-    f64 m_amplitudeHigh; // 高频振幅
+    f32 m_amplitudeLow;  // 低频振幅
+    f32 m_amplitudeHigh; // 高频振幅
 
     void initOctaves(math::IRandom& rng);
 };
@@ -151,17 +151,17 @@ public:
 
     ~PerlinNoiseGenerator() override = default;
 
-    [[nodiscard]] f64 noise(f64 x, f64 y, f64 z) const override;
+    [[nodiscard]] f32 noise(f32 x, f32 y, f32 z) const override;
 
     /**
      * @brief 采样 2D 噪声
      */
-    [[nodiscard]] f64 noise2D(f64 x, f64 z) const;
+    [[nodiscard]] f32 noise2D(f32 x, f32 z) const;
 
 private:
     std::vector<std::unique_ptr<ImprovedNoiseGenerator>> m_noiseLevels;
-    std::vector<f64> m_amplitudes;
-    f64 m_maxAmplitude = 0.0;
+    std::vector<f32> m_amplitudes;
+    f32 m_maxAmplitude = 0.0f;
     i32 m_minOctave = 0;
 };
 
@@ -177,26 +177,26 @@ public:
 
     ~SimplexNoiseGenerator() override = default;
 
-    [[nodiscard]] f64 noise(f64 x, f64 y, f64 z) const override;
+    [[nodiscard]] f32 noise(f32 x, f32 y, f32 z) const override;
 
     /**
      * @brief 采样 2D 噪声
      */
-    [[nodiscard]] f64 noise2D(f64 x, f64 z) const;
+    [[nodiscard]] f32 noise2D(f32 x, f32 z) const;
 
     /**
      * @brief 采样用于末地维度的高度
      */
-    [[nodiscard]] f64 sampleEndHeight(i32 x, i32 z) const;
+    [[nodiscard]] f32 sampleEndHeight(i32 x, i32 z) const;
 
 private:
     std::array<u8, 256> m_permutation;
     std::array<u8, 512> m_p;
-    std::array<f64, 3> m_offset;
+    std::array<f32, 3> m_offset;
 
     void initPermutation(math::IRandom& rng);
-    [[nodiscard]] static i32 fastFloor(f64 x);
-    [[nodiscard]] f64 grad(i32 hash, f64 x, f64 y, f64 z) const;
+    [[nodiscard]] static i32 fastFloor(f32 x);
+    [[nodiscard]] f32 grad(i32 hash, f32 x, f32 y, f32 z) const;
 };
 
 } // namespace mr

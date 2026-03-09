@@ -103,15 +103,15 @@ public:
     // ========== 位置 ==========
 
     [[nodiscard]] Vector3 position() const { return m_position; }
-    [[nodiscard]] f64 x() const { return m_position.x; }
-    [[nodiscard]] f64 y() const { return m_position.y; }
-    [[nodiscard]] f64 z() const { return m_position.z; }
+    [[nodiscard]] f32 x() const { return m_position.x; }
+    [[nodiscard]] f32 y() const { return m_position.y; }
+    [[nodiscard]] f32 z() const { return m_position.z; }
 
     // 前一帧位置（用于插值）
     [[nodiscard]] Vector3 prevPosition() const { return m_prevPosition; }
-    [[nodiscard]] f64 prevX() const { return m_prevPosition.x; }
-    [[nodiscard]] f64 prevY() const { return m_prevPosition.y; }
-    [[nodiscard]] f64 prevZ() const { return m_prevPosition.z; }
+    [[nodiscard]] f32 prevX() const { return m_prevPosition.x; }
+    [[nodiscard]] f32 prevY() const { return m_prevPosition.y; }
+    [[nodiscard]] f32 prevZ() const { return m_prevPosition.z; }
 
     // ========== 旋转 ==========
 
@@ -123,9 +123,9 @@ public:
     // ========== 速度 ==========
 
     [[nodiscard]] Vector3 velocity() const { return m_velocity; }
-    [[nodiscard]] f64 velocityX() const { return m_velocity.x; }
-    [[nodiscard]] f64 velocityY() const { return m_velocity.y; }
-    [[nodiscard]] f64 velocityZ() const { return m_velocity.z; }
+    [[nodiscard]] f32 velocityX() const { return m_velocity.x; }
+    [[nodiscard]] f32 velocityY() const { return m_velocity.y; }
+    [[nodiscard]] f32 velocityZ() const { return m_velocity.z; }
 
     // ========== 状态 ==========
 
@@ -136,10 +136,10 @@ public:
 
     // ========== 设置属性 ==========
 
-    void setPosition(f64 x, f64 y, f64 z);
+    void setPosition(f32 x, f32 y, f32 z);
     void setPosition(const Vector3& pos) { setPosition(pos.x, pos.y, pos.z); }
     void setRotation(f32 yaw, f32 pitch);
-    void setVelocity(f64 x, f64 y, f64 z);
+    void setVelocity(f32 x, f32 y, f32 z);
     void setVelocity(const Vector3& vel) { setVelocity(vel.x, vel.y, vel.z); }
     void setOnGround(bool onGround) { m_onGround = onGround; }
     void setPose(EntityPose pose) { m_pose = pose; }
@@ -201,7 +201,7 @@ public:
      * @brief 直接移动实体（无碰撞检测）
      * @param dx, dy, dz 移动增量
      */
-    void move(f64 dx, f64 dy, f64 dz);
+    void move(f32 dx, f32 dy, f32 dz);
 
     /**
      * @brief 旋转实体
@@ -232,7 +232,7 @@ public:
      * @param dx, dy, dz 期望移动增量
      * @return 实际移动增量
      */
-    Vector3 moveWithCollision(f64 dx, f64 dy, f64 dz);
+    Vector3 moveWithCollision(f32 dx, f32 dy, f32 dz);
 
     /**
      * @brief 应用物理效果（重力、阻力）

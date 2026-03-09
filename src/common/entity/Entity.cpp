@@ -28,9 +28,9 @@ Entity::Entity(EntityType type, EntityId id)
     m_uuid = ss.str();
 }
 
-void Entity::setPosition(f64 x, f64 y, f64 z) {
+void Entity::setPosition(f32 x, f32 y, f32 z) {
     m_prevPosition = m_position;
-    m_position = Vector3(static_cast<f32>(x), static_cast<f32>(y), static_cast<f32>(z));
+    m_position = Vector3(x, y, z);
 }
 
 void Entity::setRotation(f32 yaw, f32 pitch) {
@@ -40,8 +40,8 @@ void Entity::setRotation(f32 yaw, f32 pitch) {
     m_pitch = pitch;
 }
 
-void Entity::setVelocity(f64 x, f64 y, f64 z) {
-    m_velocity = Vector3(static_cast<f32>(x), static_cast<f32>(y), static_cast<f32>(z));
+void Entity::setVelocity(f32 x, f32 y, f32 z) {
+    m_velocity = Vector3(x, y, z);
 }
 
 void Entity::tick() {
@@ -55,11 +55,11 @@ void Entity::update() {
     m_prevPitch = m_pitch;
 }
 
-void Entity::move(f64 dx, f64 dy, f64 dz) {
+void Entity::move(f32 dx, f32 dy, f32 dz) {
     m_prevPosition = m_position;
-    m_position.x += static_cast<f32>(dx);
-    m_position.y += static_cast<f32>(dy);
-    m_position.z += static_cast<f32>(dz);
+    m_position.x += dx;
+    m_position.y += dy;
+    m_position.z += dz;
 }
 
 void Entity::rotate(f32 deltaYaw, f32 deltaPitch) {
@@ -86,8 +86,8 @@ void Entity::rotate(f32 deltaYaw, f32 deltaPitch) {
  * 3. 更新碰撞状态和地面状态
  * 4. 更新坠落距离
  */
-Vector3 Entity::moveWithCollision(f64 dx, f64 dy, f64 dz) {
-    Vector3 desiredMovement(static_cast<f32>(dx), static_cast<f32>(dy), static_cast<f32>(dz));
+Vector3 Entity::moveWithCollision(f32 dx, f32 dy, f32 dz) {
+    Vector3 desiredMovement(dx, dy, dz);
 
     // 重置碰撞状态
     m_collidedHorizontally = false;

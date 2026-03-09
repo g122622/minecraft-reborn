@@ -64,8 +64,8 @@ private:
         ChunkPrimer& chunk,
         math::Random& random,
         const OreFeatureConfig& config,
-        f64 x1, f64 y1, f64 z1,
-        f64 x2, f64 y2, f64 z2,
+        f32 x1, f32 y1, f32 z1,
+        f32 x2, f32 y2, f32 z2,
         i32 minX, i32 minY, i32 minZ,
         i32 sizeX, i32 sizeY, i32 sizeZ,
         i32& placedCount);

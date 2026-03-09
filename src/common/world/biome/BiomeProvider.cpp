@@ -8,10 +8,10 @@ namespace mr {
 
 namespace {
 
-[[nodiscard]] f32 sampleBlendedNoise(const PerlinNoiseGenerator& noise, i32 x, i32 z, f64 largeScale, f64 detailScale)
+[[nodiscard]] f32 sampleBlendedNoise(const PerlinNoiseGenerator& noise, i32 x, i32 z, f32 largeScale, f32 detailScale)
 {
-    const f64 large = noise.noise(static_cast<f64>(x) * largeScale, 0.0, static_cast<f64>(z) * largeScale);
-    const f64 detail = noise.noise(static_cast<f64>(x) * detailScale, 0.0, static_cast<f64>(z) * detailScale);
+    const f32 large = noise.noise(static_cast<f32>(x) * largeScale, 0.0, static_cast<f32>(z) * largeScale);
+    const f32 detail = noise.noise(static_cast<f32>(x) * detailScale, 0.0, static_cast<f32>(z) * detailScale);
     return static_cast<f32>(large * 0.7 + detail * 0.3);
 }
 

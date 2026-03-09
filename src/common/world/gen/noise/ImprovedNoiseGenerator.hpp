@@ -43,7 +43,7 @@ public:
      * @param z Z 坐标
      * @return 噪声值 [-1, 1]
      */
-    [[nodiscard]] f64 noise(f64 x, f64 y, f64 z) const override;
+    [[nodiscard]] f32 noise(f32 x, f32 y, f32 z) const override;
 
     /**
      * @brief 采样 3D 噪声值（带 Y 轴缩放）
@@ -54,21 +54,21 @@ public:
      * @param yBound Y 轴边界
      * @return 噪声值 [-1, 1]
      */
-    [[nodiscard]] f64 noise(f64 x, f64 y, f64 z, f64 yScale, f64 yBound) const;
+    [[nodiscard]] f32 noise(f32 x, f32 y, f32 z, f32 yScale, f32 yBound) const;
 
     /**
      * @brief 原始采样（使用整数坐标和偏移）
      *
      * 参考 MC 的 func_215459_a 方法
      */
-    [[nodiscard]] f64 noiseRaw(i32 x, i32 y, i32 z,
-                                f64 deltaX, f64 deltaY, f64 deltaZ,
-                                f64 fadeX, f64 fadeY, f64 fadeZ) const;
+    [[nodiscard]] f32 noiseRaw(i32 x, i32 y, i32 z,
+                                f32 deltaX, f32 deltaY, f32 deltaZ,
+                                f32 fadeX, f32 fadeY, f32 fadeZ) const;
 
     // 坐标偏移（参考 MC 的公开字段）
-    [[nodiscard]] f64 xOffset() const { return m_xOffset; }
-    [[nodiscard]] f64 yOffset() const { return m_yOffset; }
-    [[nodiscard]] f64 zOffset() const { return m_zOffset; }
+    [[nodiscard]] f32 xOffset() const { return m_xOffset; }
+    [[nodiscard]] f32 yOffset() const { return m_yOffset; }
+    [[nodiscard]] f32 zOffset() const { return m_zOffset; }
 
 private:
     // 排列表（256 字节，复制一份用于快速查找）
@@ -77,9 +77,9 @@ private:
     mutable std::array<u8, 512> m_p;
 
     // 坐标偏移
-    f64 m_xOffset = 0.0;
-    f64 m_yOffset = 0.0;
-    f64 m_zOffset = 0.0;
+    f32 m_xOffset = 0.0f;
+    f32 m_yOffset = 0.0f;
+    f32 m_zOffset = 0.0f;
 
     /**
      * @brief 初始化排列数组
@@ -96,28 +96,28 @@ private:
     /**
      * @brief 梯度计算
      */
-    [[nodiscard]] static f64 grad(i32 hash, f64 x, f64 y, f64 z);
+    [[nodiscard]] static f32 grad(i32 hash, f32 x, f32 y, f32 z);
 
     /**
      * @brief 平滑插值（Perlin 的 fade 函数）
      */
-    [[nodiscard]] static f64 fade(f64 t) {
-        return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+    [[nodiscard]] static f32 fade(f32 t) {
+        return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
     }
 
     /**
      * @brief 线性插值
      */
-    [[nodiscard]] static f64 lerp(f64 a, f64 b, f64 t) {
+    [[nodiscard]] static f32 lerp(f32 a, f32 b, f32 t) {
         return a + t * (b - a);
     }
 
     /**
      * @brief 3D 线性插值
      */
-    [[nodiscard]] static f64 lerp3(f64 t1, f64 t2, f64 t3,
-                                    f64 v0, f64 v1, f64 v2, f64 v3,
-                                    f64 v4, f64 v5, f64 v6, f64 v7);
+    [[nodiscard]] static f32 lerp3(f32 t1, f32 t2, f32 t3,
+                                    f32 v0, f32 v1, f32 v2, f32 v3,
+                                    f32 v4, f32 v5, f32 v6, f32 v7);
 };
 
 // ============================================================================
@@ -129,11 +129,11 @@ private:
  *
  * 格式: {x, y, z}
  */
-constexpr f64 PERLIN_GRADIENTS[16][3] = {
-    { 1.0,  1.0,  0.0}, {-1.0,  1.0,  0.0}, { 1.0, -1.0,  0.0}, {-1.0, -1.0,  0.0},
-    { 1.0,  0.0,  1.0}, {-1.0,  0.0,  1.0}, { 1.0,  0.0, -1.0}, {-1.0,  0.0, -1.0},
-    { 0.0,  1.0,  1.0}, { 0.0, -1.0,  1.0}, { 0.0,  1.0, -1.0}, { 0.0, -1.0, -1.0},
-    { 1.0,  1.0,  0.0}, {-1.0,  1.0,  0.0}, { 0.0, -1.0,  1.0}, { 0.0,  1.0, -1.0}
+constexpr f32 PERLIN_GRADIENTS[16][3] = {
+    { 1.0f,  1.0f,  0.0f}, {-1.0f,  1.0f,  0.0f}, { 1.0f, -1.0f,  0.0f}, {-1.0f, -1.0f,  0.0f},
+    { 1.0f,  0.0f,  1.0f}, {-1.0f,  0.0f,  1.0f}, { 1.0f,  0.0f, -1.0f}, {-1.0f,  0.0f, -1.0f},
+    { 0.0f,  1.0f,  1.0f}, { 0.0f, -1.0f,  1.0f}, { 0.0f,  1.0f, -1.0f}, { 0.0f, -1.0f, -1.0f},
+    { 1.0f,  1.0f,  0.0f}, {-1.0f,  1.0f,  0.0f}, { 0.0f, -1.0f,  1.0f}, { 0.0f,  1.0f, -1.0f}
 };
 
 } // namespace mr

@@ -506,13 +506,13 @@ f32 ClientWorld::getInterpolatedCelestialAngle(f32 partialTick) const {
     }
 
     // 计算天体角度 (MC 1.16.5 算法)
-    f64 d0 = std::fmod(static_cast<f64>(dayTimeForInterp) / static_cast<f64>(mr::game::DAY_LENGTH_TICKS) - 0.25, 1.0);
-    if (d0 < 0.0) {
-        d0 += 1.0;
+    f32 d0 = std::fmod(static_cast<f32>(dayTimeForInterp) / static_cast<f32>(mr::game::DAY_LENGTH_TICKS) - 0.25f, 1.0f);
+    if (d0 < 0.0f) {
+        d0 += 1.0f;
     }
-    f64 d1 = 0.5 - std::cos(d0 * mr::math::PI_DOUBLE) / 2.0;
+    f32 d1 = 0.5f - std::cos(d0 * mr::math::PI) / 2.0f;
 
-    return static_cast<f32>((d0 * 2.0 + d1) / 3.0);
+    return (d0 * 2.0f + d1) / 3.0f;
 }
 
 // ============================================================================

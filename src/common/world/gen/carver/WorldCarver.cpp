@@ -94,18 +94,18 @@ bool WorldCarver<Config>::carveEllipsoid(
     i32 seaLevel,
     ChunkCoord chunkX,
     ChunkCoord chunkZ,
-    f64 centerX, f64 centerY, f64 centerZ,
-    f64 horizontalRadius, f64 verticalRadius,
+    f32 centerX, f32 centerY, f32 centerZ,
+    f32 horizontalRadius, f32 verticalRadius,
     CarvingMask& carvingMask,
     i64 seed)
 {
     // 参考 MC WorldCarver.func_227208_a_
-    const i32 startX = static_cast<i32>(centerX - horizontalRadius - 1.0);
-    const i32 endX = static_cast<i32>(centerX + horizontalRadius + 1.0);
-    const i32 startY = static_cast<i32>(centerY - verticalRadius - 1.0);
-    const i32 endY = static_cast<i32>(centerY + verticalRadius + 1.0);
-    const i32 startZ = static_cast<i32>(centerZ - horizontalRadius - 1.0);
-    const i32 endZ = static_cast<i32>(centerZ + horizontalRadius + 1.0);
+    const i32 startX = static_cast<i32>(centerX - horizontalRadius - 1.0f);
+    const i32 endX = static_cast<i32>(centerX + horizontalRadius + 1.0f);
+    const i32 startY = static_cast<i32>(centerY - verticalRadius - 1.0f);
+    const i32 endY = static_cast<i32>(centerY + verticalRadius + 1.0f);
+    const i32 startZ = static_cast<i32>(centerZ - horizontalRadius - 1.0f);
+    const i32 endZ = static_cast<i32>(centerZ + horizontalRadius + 1.0f);
 
     // 区块边界
     const i32 chunkStartX = chunkX << 4;
@@ -135,21 +135,21 @@ bool WorldCarver<Config>::carveEllipsoid(
     math::Random rng(static_cast<u64>(seed) + static_cast<u64>(chunkX) + static_cast<u64>(chunkZ));
     bool carved = false;
 
-    const f64 hRadiusSq = horizontalRadius * horizontalRadius;
-    const f64 vRadiusSq = verticalRadius * verticalRadius;
+    const f32 hRadiusSq = horizontalRadius * horizontalRadius;
+    const f32 vRadiusSq = verticalRadius * verticalRadius;
 
     for (i32 lx = localMinX; lx <= localMaxX; ++lx) {
         const i32 worldX = (chunkX << 4) + lx;
-        const f64 dx = (static_cast<f64>(worldX) + 0.5 - centerX) / horizontalRadius;
-        const f64 dxSq = dx * dx;
+        const f32 dx = (static_cast<f32>(worldX) + 0.5f - centerX) / horizontalRadius;
+        const f32 dxSq = dx * dx;
 
         for (i32 lz = localMinZ; lz <= localMaxZ; ++lz) {
             const i32 worldZ = (chunkZ << 4) + lz;
-            const f64 dz = (static_cast<f64>(worldZ) + 0.5 - centerZ) / horizontalRadius;
-            const f64 dzSq = dz * dz;
+            const f32 dz = (static_cast<f32>(worldZ) + 0.5f - centerZ) / horizontalRadius;
+            const f32 dzSq = dz * dz;
 
             // 检查是否在椭球投影范围内
-            if (dxSq + dzSq >= 1.0) {
+            if (dxSq + dzSq >= 1.0f) {
                 continue;
             }
 
@@ -159,7 +159,7 @@ bool WorldCarver<Config>::carveEllipsoid(
                     continue;
                 }
 
-                const f64 dy = (static_cast<f64>(y) - 0.5 - centerY) / verticalRadius;
+                const f32 dy = (static_cast<f32>(y) - 0.5f - centerY) / verticalRadius;
 
                 // 检查是否应该跳过
                 if (shouldSkipEllipsoidPosition(dx, dy, dz, y)) {
@@ -227,19 +227,19 @@ bool WorldCarver<Config>::carveEllipsoid(
 template<typename Config>
 bool WorldCarver<Config>::isInCarvingRange(
     ChunkCoord chunkX, ChunkCoord chunkZ,
-    f64 x, f64 z,
+    f32 x, f32 z,
     i32 step, i32 maxSteps,
     f32 radius)
 {
     // 参考 MC WorldCarver.func_222702_a_
-    const f64 chunkCenterX = static_cast<f64>(chunkX * 16 + 8);
-    const f64 chunkCenterZ = static_cast<f64>(chunkZ * 16 + 8);
+    const f32 chunkCenterX = static_cast<f32>(chunkX * 16 + 8);
+    const f32 chunkCenterZ = static_cast<f32>(chunkZ * 16 + 8);
 
-    const f64 dx = x - chunkCenterX;
-    const f64 dz = z - chunkCenterZ;
+    const f32 dx = x - chunkCenterX;
+    const f32 dz = z - chunkCenterZ;
 
-    const f64 remainingSteps = static_cast<f64>(maxSteps - step);
-    const f64 maxDist = static_cast<f64>(radius + 2.0f + 16.0f);
+    const f32 remainingSteps = static_cast<f32>(maxSteps - step);
+    const f32 maxDist = radius + 2.0f + 16.0f;
 
     return dx * dx + dz * dz - remainingSteps * remainingSteps <= maxDist * maxDist;
 }

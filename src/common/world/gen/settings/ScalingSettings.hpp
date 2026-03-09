@@ -14,10 +14,10 @@ namespace mr {
  * @note 用于控制噪声在不同轴上的缩放比例
  */
 struct ScalingSettings {
-    f64 xzScale = 0.9999999814507745;   ///< XZ 平面缩放
-    f64 yScale = 0.9999999814507745;    ///< Y 轴缩放
-    f64 xzFactor = 80.0;                 ///< XZ 因子
-    f64 yFactor = 160.0;                 ///< Y 因子
+    f32 xzScale = 0.9999999814507745f;   ///< XZ 平面缩放
+    f32 yScale = 0.9999999814507745f;    ///< Y 轴缩放
+    f32 xzFactor = 80.0f;                 ///< XZ 因子
+    f32 yFactor = 160.0f;                 ///< Y 因子
 };
 
 } // namespace mr

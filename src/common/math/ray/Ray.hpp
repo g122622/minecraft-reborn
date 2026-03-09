@@ -65,8 +65,7 @@ public:
         // MC中 yaw=0 看向南方(正Z)，yaw=90 看向西方(负X)
         // Vector3::fromAngles: yaw=0 看向X正方向
         // 所以我们需要将MC的yaw转换为数学角度
-        constexpr f32 PI = 3.14159265358979323846f;
-        const Vector3 dir = Vector3::fromAngles(-pitchRad, -yawRad + PI * 0.5f);
+        const Vector3 dir = Vector3::fromAngles(-pitchRad, -yawRad + math::PI * 0.5f);
         return Ray(origin, dir.normalized());
     }
 };

@@ -155,8 +155,8 @@ public:
 
     // 输入处理
     void handleKeyboardInput(i32 key, i32 action);
-    void handleMouseMove(f64 deltaX, f64 deltaY);
-    void handleScroll(f64 deltaY);
+    void handleMouseMove(f32 deltaX, f32 deltaY);
+    void handleScroll(f32 deltaY);
 
     // 更新
     void update(f32 deltaTime);

@@ -99,7 +99,7 @@ public:
         const Biome& biome,
         i32 x, i32 z,
         i32 startHeight,
-        f64 surfaceNoise,
+        f32 surfaceNoise,
         const BlockState* defaultBlock,
         const BlockState* defaultFluid,
         i32 seaLevel,

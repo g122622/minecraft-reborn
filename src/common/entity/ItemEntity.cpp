@@ -10,7 +10,7 @@ namespace mr {
 // 构造函数
 // ============================================================================
 
-ItemEntity::ItemEntity(EntityId id, const ItemStack& stack, f64 x, f64 y, f64 z)
+ItemEntity::ItemEntity(EntityId id, const ItemStack& stack, f32 x, f32 y, f32 z)
     : Entity(EntityType::Item, id)
     , m_itemStack(stack)
 {
@@ -20,14 +20,14 @@ ItemEntity::ItemEntity(EntityId id, const ItemStack& stack, f64 x, f64 y, f64 z)
     // 初始化速度（轻微随机）
     math::Random rng(static_cast<u64>(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
 
-    m_velocity.x = rng.nextDouble(-0.1, 0.1);
-    m_velocity.y = 0.2;  // 轻微向上
-    m_velocity.z = rng.nextDouble(-0.1, 0.1);
+    m_velocity.x = rng.nextFloat(-0.1f, 0.1f);
+    m_velocity.y = 0.2f;  // 轻微向上
+    m_velocity.z = rng.nextFloat(-0.1f, 0.1f);
 }
 
 ItemEntity::ItemEntity(EntityId id, const ItemStack& stack,
-                       f64 x, f64 y, f64 z,
-                       f64 vx, f64 vy, f64 vz)
+                       f32 x, f32 y, f32 z,
+                       f32 vx, f32 vy, f32 vz)
     : Entity(EntityType::Item, id)
     , m_itemStack(stack)
 {
@@ -178,12 +178,12 @@ void ItemEntity::updatePhysics() {
     applyNormalPhysics();
 
     // 应用速度
-    if (!m_onGround || std::abs(m_velocity.x) > 0.01 ||
-        std::abs(m_velocity.z) > 0.01 || m_velocity.y > 0.01) {
+    if (!m_onGround || std::abs(m_velocity.x) > 0.01f ||
+        std::abs(m_velocity.z) > 0.01f || m_velocity.y > 0.01f) {
         // 使用简单物理
-        f64 dx = m_velocity.x;
-        f64 dy = m_velocity.y;
-        f64 dz = m_velocity.z;
+        f32 dx = m_velocity.x;
+        f32 dy = m_velocity.y;
+        f32 dz = m_velocity.z;
 
         // 带碰撞移动
         if (m_physicsEngine) {
@@ -197,19 +197,19 @@ void ItemEntity::updatePhysics() {
 
         // 碰撞后减速
         if (m_collidedHorizontally) {
-            m_velocity.x *= -0.5;
-            m_velocity.z *= -0.5;
+            m_velocity.x *= -0.5f;
+            m_velocity.z *= -0.5f;
         }
 
         if (m_collidedVertically) {
-            if (m_velocity.y < 0) {
+            if (m_velocity.y < 0.0f) {
                 // 落地
-                m_velocity.y = 0;
+                m_velocity.y = 0.0f;
                 m_onGround = true;
                 m_fallDistance = 0.0f;
             } else {
                 // 撞到天花板
-                m_velocity.y = -m_velocity.y * 0.5;
+                m_velocity.y = -m_velocity.y * 0.5f;
             }
         }
     }
@@ -220,13 +220,13 @@ void ItemEntity::updatePhysics() {
 
 void ItemEntity::applyNormalPhysics() {
     // 重力
-    constexpr f64 GRAVITY = 0.04;  // 物品重力比实体小
+    constexpr f32 GRAVITY = 0.04f;  // 物品重力比实体小
 
     // 空气阻力
-    constexpr f64 DRAG = 0.98;
+    constexpr f32 DRAG = 0.98f;
 
     // 水平阻力
-    constexpr f64 HORIZONTAL_DRAG = 0.98;
+    constexpr f32 HORIZONTAL_DRAG = 0.98f;
 
     m_velocity.y -= GRAVITY;
     m_velocity.y *= DRAG;
@@ -235,10 +235,10 @@ void ItemEntity::applyNormalPhysics() {
     m_velocity.z *= HORIZONTAL_DRAG;
 
     // 速度阈值
-    constexpr f64 VELOCITY_THRESHOLD = 0.001;
-    if (std::abs(m_velocity.x) < VELOCITY_THRESHOLD) m_velocity.x = 0;
-    if (std::abs(m_velocity.y) < VELOCITY_THRESHOLD) m_velocity.y = 0;
-    if (std::abs(m_velocity.z) < VELOCITY_THRESHOLD) m_velocity.z = 0;
+    constexpr f32 VELOCITY_THRESHOLD = 0.001f;
+    if (std::abs(m_velocity.x) < VELOCITY_THRESHOLD) m_velocity.x = 0.0f;
+    if (std::abs(m_velocity.y) < VELOCITY_THRESHOLD) m_velocity.y = 0.0f;
+    if (std::abs(m_velocity.z) < VELOCITY_THRESHOLD) m_velocity.z = 0.0f;
 }
 
 void ItemEntity::applyWaterPhysics() {
@@ -267,15 +267,15 @@ void ItemEntity::serialize(network::PacketSerializer& ser) const {
     ser.writeU32(static_cast<u32>(m_type));
     ser.writeU32(m_id);
 
-    // 位置
-    ser.writeF64(m_position.x);
-    ser.writeF64(m_position.y);
-    ser.writeF64(m_position.z);
+    // 位置（网络协议使用 f64）
+    ser.writeF64(static_cast<f64>(m_position.x));
+    ser.writeF64(static_cast<f64>(m_position.y));
+    ser.writeF64(static_cast<f64>(m_position.z));
 
-    // 速度
-    ser.writeF64(m_velocity.x);
-    ser.writeF64(m_velocity.y);
-    ser.writeF64(m_velocity.z);
+    // 速度（网络协议使用 f64）
+    ser.writeF64(static_cast<f64>(m_velocity.x));
+    ser.writeF64(static_cast<f64>(m_velocity.y));
+    ser.writeF64(static_cast<f64>(m_velocity.z));
 
     // 旋转
     ser.writeF32(m_yaw);
@@ -294,28 +294,31 @@ void ItemEntity::serialize(network::PacketSerializer& ser) const {
 Result<std::unique_ptr<ItemEntity>> ItemEntity::deserialize(
     network::PacketDeserializer& deser, EntityId id) {
 
-    // 读取位置
+    // 读取位置（网络协议使用 f64）
     auto xResult = deser.readF64();
     if (xResult.failed()) return xResult.error();
-    f64 x = xResult.value();
+    f32 x = static_cast<f32>(xResult.value());
 
     auto yResult = deser.readF64();
     if (yResult.failed()) return yResult.error();
-    f64 y = yResult.value();
+    f32 y = static_cast<f32>(yResult.value());
 
     auto zResult = deser.readF64();
     if (zResult.failed()) return zResult.error();
-    f64 z = zResult.value();
+    f32 z = static_cast<f32>(zResult.value());
 
-    // 读取速度
+    // 读取速度（网络协议使用 f64）
     auto vxResult = deser.readF64();
     if (vxResult.failed()) return vxResult.error();
+    f32 vx = static_cast<f32>(vxResult.value());
 
     auto vyResult = deser.readF64();
     if (vyResult.failed()) return vyResult.error();
+    f32 vy = static_cast<f32>(vyResult.value());
 
     auto vzResult = deser.readF64();
     if (vzResult.failed()) return vzResult.error();
+    f32 vz = static_cast<f32>(vzResult.value());
 
     // 读取旋转
     auto yawResult = deser.readF32();
@@ -329,7 +332,7 @@ Result<std::unique_ptr<ItemEntity>> ItemEntity::deserialize(
     if (stackResult.failed()) return stackResult.error();
 
     auto entity = std::make_unique<ItemEntity>(id, stackResult.value(), x, y, z);
-    entity->setVelocity(vxResult.value(), vyResult.value(), vzResult.value());
+    entity->setVelocity(vx, vy, vz);
     entity->setRotation(yawResult.value(), pitchResult.value());
 
     // 读取额外数据

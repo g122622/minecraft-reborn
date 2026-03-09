@@ -20,7 +20,7 @@ public:
         const Biome& biome,
         i32 x, i32 z,
         i32 startHeight,
-        f64 surfaceNoise,
+        f32 surfaceNoise,
         const BlockState* defaultBlock,
         const BlockState* defaultFluid,
         i32 seaLevel,
@@ -35,7 +35,7 @@ protected:
      * @param random 随机数生成器
      * @return 地表深度（方块数）
      */
-    [[nodiscard]] i32 calculateDepth(f64 noise, math::Random& random) const;
+    [[nodiscard]] i32 calculateDepth(f32 noise, math::Random& random) const;
 };
 
 /**
@@ -54,7 +54,7 @@ public:
         const Biome& biome,
         i32 x, i32 z,
         i32 startHeight,
-        f64 surfaceNoise,
+        f32 surfaceNoise,
         const BlockState* defaultBlock,
         const BlockState* defaultFluid,
         i32 seaLevel,
@@ -88,7 +88,7 @@ public:
         const Biome& biome,
         i32 x, i32 z,
         i32 startHeight,
-        f64 surfaceNoise,
+        f32 surfaceNoise,
         const BlockState* defaultBlock,
         const BlockState* defaultFluid,
         i32 seaLevel,
@@ -113,7 +113,7 @@ public:
         const Biome& biome,
         i32 x, i32 z,
         i32 startHeight,
-        f64 surfaceNoise,
+        f32 surfaceNoise,
         const BlockState* defaultBlock,
         const BlockState* defaultFluid,
         i32 seaLevel,
@@ -127,7 +127,7 @@ private:
      * @param noise 噪声值
      * @return 是否放置粘土
      */
-    [[nodiscard]] bool shouldPlaceClay(f64 noise) const;
+    [[nodiscard]] bool shouldPlaceClay(f32 noise) const;
 };
 
 /**
@@ -146,7 +146,7 @@ public:
         const Biome& biome,
         i32 x, i32 z,
         i32 startHeight,
-        f64 surfaceNoise,
+        f32 surfaceNoise,
         const BlockState* defaultBlock,
         const BlockState* defaultFluid,
         i32 seaLevel,
@@ -171,7 +171,7 @@ public:
         const Biome& biome,
         i32 x, i32 z,
         i32 startHeight,
-        f64 surfaceNoise,
+        f32 surfaceNoise,
         const BlockState* defaultBlock,
         const BlockState* defaultFluid,
         i32 seaLevel,
@@ -202,7 +202,7 @@ public:
         const Biome& biome,
         i32 x, i32 z,
         i32 startHeight,
-        f64 surfaceNoise,
+        f32 surfaceNoise,
         const BlockState* defaultBlock,
         const BlockState* defaultFluid,
         i32 seaLevel,

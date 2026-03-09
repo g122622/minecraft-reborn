@@ -42,32 +42,32 @@ void OctavesNoiseGenerator::initOctaves(math::IRandom& rng)
 
     // 计算振幅
     // 参考 MC: field_227460_b_ 和 field_227461_c_
-    m_amplitudeLow = std::pow(2.0, static_cast<f64>(-m_minOctave));
-    m_amplitudeHigh = std::pow(2.0, static_cast<f64>(octaveCount - 1)) /
-                      (std::pow(2.0, static_cast<f64>(octaveCount)) - 1.0);
+    m_amplitudeLow = static_cast<f32>(std::pow(2.0, static_cast<f64>(-m_minOctave)));
+    m_amplitudeHigh = static_cast<f32>(std::pow(2.0, static_cast<f64>(octaveCount - 1)) /
+                      (std::pow(2.0, static_cast<f64>(octaveCount)) - 1.0));
 }
 
-f64 OctavesNoiseGenerator::noise(f64 x, f64 y, f64 z) const
+f32 OctavesNoiseGenerator::noise(f32 x, f32 y, f32 z) const
 {
-    return getValue(x, y, z, 0.0, 0.0, false);
+    return getValue(x, y, z, 0.0f, 0.0f, false);
 }
 
-f64 OctavesNoiseGenerator::getValue(f64 x, f64 y, f64 z, f64 yScale, f64 yBound, bool fixY) const
+f32 OctavesNoiseGenerator::getValue(f32 x, f32 y, f32 z, f32 yScale, f32 yBound, bool fixY) const
 {
-    f64 result = 0.0;
-    f64 freq = m_amplitudeLow;
-    f64 amp = m_amplitudeHigh;
+    f32 result = 0.0f;
+    f32 freq = m_amplitudeLow;
+    f32 amp = m_amplitudeHigh;
 
     for (size_t i = 0; i < m_octaves.size(); ++i) {
         const auto& octave = m_octaves[i];
         if (octave) {
             // 保持精度
-            const f64 px = maintainPrecision(x * freq);
-            const f64 py = maintainPrecision(y * freq);
-            const f64 pz = maintainPrecision(z * freq);
+            const f32 px = maintainPrecision(x * freq);
+            const f32 py = maintainPrecision(y * freq);
+            const f32 pz = maintainPrecision(z * freq);
 
             // 采样噪声
-            const f64 sample = octave->noise(
+            const f32 sample = octave->noise(
                 px,
                 fixY ? -octave->yOffset() : py,
                 pz,
@@ -78,16 +78,16 @@ f64 OctavesNoiseGenerator::getValue(f64 x, f64 y, f64 z, f64 yScale, f64 yBound,
             result += amp * sample;
         }
 
-        freq *= 2.0;
-        amp /= 2.0;
+        freq *= 2.0f;
+        amp /= 2.0f;
     }
 
     return result;
 }
 
-f64 OctavesNoiseGenerator::noiseAt(f64 x, f64 y, f64 z, f64 scale) const
+f32 OctavesNoiseGenerator::noiseAt(f32 x, f32 y, f32 z, f32 scale) const
 {
-    return getValue(x, y, 0.0, z, scale, false);
+    return getValue(x, y, 0.0f, z, scale, false);
 }
 
 ImprovedNoiseGenerator* OctavesNoiseGenerator::getOctave(i32 octave)
@@ -119,15 +119,15 @@ PerlinNoiseGenerator::PerlinNoiseGenerator(u64 seed, i32 minOctave, i32 maxOctav
 
     const i32 count = maxOctave - minOctave + 1;
     m_noiseLevels.resize(count);
-    m_amplitudes.resize(count, 1.0);
+    m_amplitudes.resize(count, 1.0f);
 
     for (i32 i = 0; i < count; ++i) {
         m_noiseLevels[i] = std::make_unique<ImprovedNoiseGenerator>(rng);
     }
 
     // 计算最大振幅
-    m_maxAmplitude = 0.0;
-    for (f64 amp : m_amplitudes) {
+    m_maxAmplitude = 0.0f;
+    for (f32 amp : m_amplitudes) {
         m_maxAmplitude += amp;
     }
 }
@@ -137,24 +137,24 @@ PerlinNoiseGenerator::PerlinNoiseGenerator(math::IRandom& rng, i32 minOctave, i3
 {
     const i32 count = maxOctave - minOctave + 1;
     m_noiseLevels.resize(count);
-    m_amplitudes.resize(count, 1.0);
+    m_amplitudes.resize(count, 1.0f);
 
     for (i32 i = 0; i < count; ++i) {
         m_noiseLevels[i] = std::make_unique<ImprovedNoiseGenerator>(rng);
     }
 
     // 计算最大振幅
-    m_maxAmplitude = 0.0;
-    for (f64 amp : m_amplitudes) {
+    m_maxAmplitude = 0.0f;
+    for (f32 amp : m_amplitudes) {
         m_maxAmplitude += amp;
     }
 }
 
-f64 PerlinNoiseGenerator::noise(f64 x, f64 y, f64 z) const
+f32 PerlinNoiseGenerator::noise(f32 x, f32 y, f32 z) const
 {
-    f64 result = 0.0;
-    f64 freq = 1.0;
-    f64 amp = 1.0;
+    f32 result = 0.0f;
+    f32 freq = 1.0f;
+    f32 amp = 1.0f;
 
     for (size_t i = 0; i < m_noiseLevels.size(); ++i) {
         if (m_noiseLevels[i]) {
@@ -164,16 +164,16 @@ f64 PerlinNoiseGenerator::noise(f64 x, f64 y, f64 z) const
                 z * freq
             ) * amp;
         }
-        freq *= 2.0;
-        amp /= 2.0;
+        freq *= 2.0f;
+        amp /= 2.0f;
     }
 
     return result / m_maxAmplitude;
 }
 
-f64 PerlinNoiseGenerator::noise2D(f64 x, f64 z) const
+f32 PerlinNoiseGenerator::noise2D(f32 x, f32 z) const
 {
-    return noise(x, 0.0, z);
+    return noise(x, 0.0f, z);
 }
 
 // ============================================================================
@@ -181,19 +181,19 @@ f64 PerlinNoiseGenerator::noise2D(f64 x, f64 z) const
 // ============================================================================
 
 // Simplex 噪声的梯度向量
-constexpr f64 SIMPLEX_GRAD[12][3] = {
-    {1.0, 1.0, 0.0}, {-1.0, 1.0, 0.0}, {1.0, -1.0, 0.0}, {-1.0, -1.0, 0.0},
-    {1.0, 0.0, 1.0}, {-1.0, 0.0, 1.0}, {1.0, 0.0, -1.0}, {-1.0, 0.0, -1.0},
-    {0.0, 1.0, 1.0}, {0.0, -1.0, 1.0}, {0.0, 1.0, -1.0}, {0.0, -1.0, -1.0}
+constexpr f32 SIMPLEX_GRAD[12][3] = {
+    {1.0f, 1.0f, 0.0f}, {-1.0f, 1.0f, 0.0f}, {1.0f, -1.0f, 0.0f}, {-1.0f, -1.0f, 0.0f},
+    {1.0f, 0.0f, 1.0f}, {-1.0f, 0.0f, 1.0f}, {1.0f, 0.0f, -1.0f}, {-1.0f, 0.0f, -1.0f},
+    {0.0f, 1.0f, 1.0f}, {0.0f, -1.0f, 1.0f}, {0.0f, 1.0f, -1.0f}, {0.0f, -1.0f, -1.0f}
 };
 
 // Simplex 斜切因子
 // F2 = 0.5 * (sqrt(3.0) - 1.0) = 0.3660254037844386...
 // G2 = (3.0 - sqrt(3.0)) / 6.0 = 0.2113248654051871...
-constexpr f64 F2 = 0.36602540378443864676372317075294;
-constexpr f64 G2 = 0.21132486540518711774542545986184;
-constexpr f64 F3 = 1.0 / 3.0;
-constexpr f64 G3 = 1.0 / 6.0;
+constexpr f32 F2 = 0.36602540378443864676372317075294f;
+constexpr f32 G2 = 0.21132486540518711774542545986184f;
+constexpr f32 F3 = 1.0f / 3.0f;
+constexpr f32 G3 = 1.0f / 6.0f;
 
 SimplexNoiseGenerator::SimplexNoiseGenerator(u64 seed)
 {
@@ -226,17 +226,17 @@ void SimplexNoiseGenerator::initPermutation(math::IRandom& rng)
     }
 
     // 设置随机偏移
-    m_offset[0] = rng.nextDouble(0.0, 256.0);
-    m_offset[1] = rng.nextDouble(0.0, 256.0);
-    m_offset[2] = rng.nextDouble(0.0, 256.0);
+    m_offset[0] = rng.nextFloat(0.0f, 256.0f);
+    m_offset[1] = rng.nextFloat(0.0f, 256.0f);
+    m_offset[2] = rng.nextFloat(0.0f, 256.0f);
 }
 
-i32 SimplexNoiseGenerator::fastFloor(f64 x)
+i32 SimplexNoiseGenerator::fastFloor(f32 x)
 {
     return static_cast<i32>(x > 0 ? x : x - 1);
 }
 
-f64 SimplexNoiseGenerator::noise(f64 x, f64 y, f64 z) const
+f32 SimplexNoiseGenerator::noise(f32 x, f32 y, f32 z) const
 {
     // 添加偏移
     x += m_offset[0];
@@ -244,19 +244,19 @@ f64 SimplexNoiseGenerator::noise(f64 x, f64 y, f64 z) const
     z += m_offset[2];
 
     // 斜切输入空间以确定单元格
-    const f64 s = (x + y + z) * F3;
+    const f32 s = (x + y + z) * F3;
     const i32 i = fastFloor(x + s);
     const i32 j = fastFloor(y + s);
     const i32 k = fastFloor(z + s);
 
-    const f64 t = static_cast<f64>(i + j + k) * G3;
-    const f64 X0 = static_cast<f64>(i) - t;
-    const f64 Y0 = static_cast<f64>(j) - t;
-    const f64 Z0 = static_cast<f64>(k) - t;
+    const f32 t = static_cast<f32>(i + j + k) * G3;
+    const f32 X0 = static_cast<f32>(i) - t;
+    const f32 Y0 = static_cast<f32>(j) - t;
+    const f32 Z0 = static_cast<f32>(k) - t;
 
-    const f64 x0 = x - X0;
-    const f64 y0 = y - Y0;
-    const f64 z0 = z - Z0;
+    const f32 x0 = x - X0;
+    const f32 y0 = y - Y0;
+    const f32 z0 = z - Z0;
 
     // 确定单纯形
     i32 i1, j1, k1;
@@ -280,15 +280,15 @@ f64 SimplexNoiseGenerator::noise(f64 x, f64 y, f64 z) const
         }
     }
 
-    const f64 x1 = x0 - static_cast<f64>(i1) + G3;
-    const f64 y1 = y0 - static_cast<f64>(j1) + G3;
-    const f64 z1 = z0 - static_cast<f64>(k1) + G3;
-    const f64 x2 = x0 - static_cast<f64>(i2) + 2.0 * G3;
-    const f64 y2 = y0 - static_cast<f64>(j2) + 2.0 * G3;
-    const f64 z2 = z0 - static_cast<f64>(k2) + 2.0 * G3;
-    const f64 x3 = x0 - 1.0 + 3.0 * G3;
-    const f64 y3 = y0 - 1.0 + 3.0 * G3;
-    const f64 z3 = z0 - 1.0 + 3.0 * G3;
+    const f32 x1 = x0 - static_cast<f32>(i1) + G3;
+    const f32 y1 = y0 - static_cast<f32>(j1) + G3;
+    const f32 z1 = z0 - static_cast<f32>(k1) + G3;
+    const f32 x2 = x0 - static_cast<f32>(i2) + 2.0f * G3;
+    const f32 y2 = y0 - static_cast<f32>(j2) + 2.0f * G3;
+    const f32 z2 = z0 - static_cast<f32>(k2) + 2.0f * G3;
+    const f32 x3 = x0 - 1.0f + 3.0f * G3;
+    const f32 y3 = y0 - 1.0f + 3.0f * G3;
+    const f32 z3 = z0 - 1.0f + 3.0f * G3;
 
     // 哈希坐标
     const i32 ii = i & 255;
@@ -296,46 +296,46 @@ f64 SimplexNoiseGenerator::noise(f64 x, f64 y, f64 z) const
     const i32 kk = k & 255;
 
     // 计算贡献
-    f64 n0 = 0.0, n1 = 0.0, n2 = 0.0, n3 = 0.0;
+    f32 n0 = 0.0f, n1 = 0.0f, n2 = 0.0f, n3 = 0.0f;
 
-    f64 t0 = 0.6 - x0 * x0 - y0 * y0 - z0 * z0;
-    if (t0 >= 0.0) {
+    f32 t0 = 0.6f - x0 * x0 - y0 * y0 - z0 * z0;
+    if (t0 >= 0.0f) {
         t0 *= t0;
         const i32 gi0 = m_p[ii + m_p[jj + m_p[kk]]] % 12;
         n0 = t0 * t0 * (SIMPLEX_GRAD[gi0][0] * x0 + SIMPLEX_GRAD[gi0][1] * y0 + SIMPLEX_GRAD[gi0][2] * z0);
     }
 
-    f64 t1 = 0.6 - x1 * x1 - y1 * y1 - z1 * z1;
-    if (t1 >= 0.0) {
+    f32 t1 = 0.6f - x1 * x1 - y1 * y1 - z1 * z1;
+    if (t1 >= 0.0f) {
         t1 *= t1;
         const i32 gi1 = m_p[ii + i1 + m_p[jj + j1 + m_p[kk + k1]]] % 12;
         n1 = t1 * t1 * (SIMPLEX_GRAD[gi1][0] * x1 + SIMPLEX_GRAD[gi1][1] * y1 + SIMPLEX_GRAD[gi1][2] * z1);
     }
 
-    f64 t2 = 0.6 - x2 * x2 - y2 * y2 - z2 * z2;
-    if (t2 >= 0.0) {
+    f32 t2 = 0.6f - x2 * x2 - y2 * y2 - z2 * z2;
+    if (t2 >= 0.0f) {
         t2 *= t2;
         const i32 gi2 = m_p[ii + i2 + m_p[jj + j2 + m_p[kk + k2]]] % 12;
         n2 = t2 * t2 * (SIMPLEX_GRAD[gi2][0] * x2 + SIMPLEX_GRAD[gi2][1] * y2 + SIMPLEX_GRAD[gi2][2] * z2);
     }
 
-    f64 t3 = 0.6 - x3 * x3 - y3 * y3 - z3 * z3;
-    if (t3 >= 0.0) {
+    f32 t3 = 0.6f - x3 * x3 - y3 * y3 - z3 * z3;
+    if (t3 >= 0.0f) {
         t3 *= t3;
         const i32 gi3 = m_p[ii + 1 + m_p[jj + 1 + m_p[kk + 1]]] % 12;
         n3 = t3 * t3 * (SIMPLEX_GRAD[gi3][0] * x3 + SIMPLEX_GRAD[gi3][1] * y3 + SIMPLEX_GRAD[gi3][2] * z3);
     }
 
     // 缩放到 [-1, 1]
-    return 32.0 * (n0 + n1 + n2 + n3);
+    return 32.0f * (n0 + n1 + n2 + n3);
 }
 
-f64 SimplexNoiseGenerator::noise2D(f64 x, f64 z) const
+f32 SimplexNoiseGenerator::noise2D(f32 x, f32 z) const
 {
-    return noise(x, 0.0, z);
+    return noise(x, 0.0f, z);
 }
 
-f64 SimplexNoiseGenerator::sampleEndHeight(i32 x, i32 z) const
+f32 SimplexNoiseGenerator::sampleEndHeight(i32 x, i32 z) const
 {
     // 参考 MC EndBiomeProvider.func_235317_a_
     // 计算末地维度的高度偏移
@@ -345,15 +345,15 @@ f64 SimplexNoiseGenerator::sampleEndHeight(i32 x, i32 z) const
     const i32 l = z % 2;
 
     // 使用 2D Simplex 噪声
-    constexpr f64 SCALE = 0.05;
-    const f64 sample = noise2D(static_cast<f64>(i) * SCALE, static_cast<f64>(j) * SCALE);
+    constexpr f32 SCALE = 0.05f;
+    const f32 sample = noise2D(static_cast<f32>(i) * SCALE, static_cast<f32>(j) * SCALE);
 
     // 计算高度
-    constexpr f64 BASE_HEIGHT = 8.0;
-    return static_cast<f64>((sample + 1.0) * 0.5 * BASE_HEIGHT);
+    constexpr f32 BASE_HEIGHT = 8.0f;
+    return static_cast<f32>((sample + 1.0f) * 0.5f * BASE_HEIGHT);
 }
 
-f64 SimplexNoiseGenerator::grad(i32 hash, f64 x, f64 y, f64 z) const
+f32 SimplexNoiseGenerator::grad(i32 hash, f32 x, f32 y, f32 z) const
 {
     const i32 h = hash & 11;
     return SIMPLEX_GRAD[h][0] * x + SIMPLEX_GRAD[h][1] * y + SIMPLEX_GRAD[h][2] * z;

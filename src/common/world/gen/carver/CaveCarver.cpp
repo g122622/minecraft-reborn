@@ -2,16 +2,11 @@
 #include "../../block/BlockRegistry.hpp"
 #include "../../../math/MathUtils.hpp"
 #include "../../../math/random/Random.hpp"
+#include "../../../core/Constants.hpp"
 #include <cmath>
 #include <algorithm>
 
 namespace mr {
-
-// ============================================================================
-// 常量
-// ============================================================================
-
-constexpr f32 PI = 3.14159265358979323846f;
 
 // ============================================================================
 // CaveCarver 实现
@@ -62,9 +57,9 @@ bool CaveCarver::carve(
 
     for (i32 i = 0; i < numCaves; ++i) {
         // 随机起始位置
-        const f64 startXPos = static_cast<f64>(startX) + rng.nextDouble(0.0, 16.0);
-        const f64 startZPos = static_cast<f64>(startZ) + rng.nextDouble(0.0, 16.0);
-        const f64 startYPos = static_cast<f64>(getCaveStartY(rng));
+        const f32 startXPos = static_cast<f32>(startX) + rng.nextFloat(0.0f, 16.0f);
+        const f32 startZPos = static_cast<f32>(startZ) + rng.nextFloat(0.0f, 16.0f);
+        const f32 startYPos = static_cast<f32>(getCaveStartY(rng));
 
         // 有概率生成大型圆形房间
         i32 numTunnels = 1;
@@ -75,7 +70,7 @@ bool CaveCarver::carve(
             carveRoom(chunk, biomeProvider, seaLevel, chunkX, chunkZ,
                       static_cast<i64>(rng.nextU64()),
                       startXPos, startYPos, startZPos,
-                      roomRadius, 0.5,
+                      roomRadius, 0.5f,
                       carvingMask);
             numTunnels += rng.nextInt(5);
         }
@@ -83,7 +78,7 @@ bool CaveCarver::carve(
         // 生成隧道
         for (i32 tunnelIdx = 0; tunnelIdx < numTunnels; ++tunnelIdx) {
             // 随机方向
-            const f32 yaw = rng.nextFloat(0.0f, 2.0f * PI);
+            const f32 yaw = rng.nextFloat(0.0f, math::TWO_PI);
             const f32 pitch = rng.nextFloat(-0.25f, 0.25f);
             const f32 radius = getCaveRadius(rng);
 
@@ -104,13 +99,13 @@ bool CaveCarver::carve(
     return carved;
 }
 
-bool CaveCarver::shouldSkipEllipsoidPosition(f64 dx, f64 dy, f64 dz, i32 y) const
+bool CaveCarver::shouldSkipEllipsoidPosition(f32 dx, f32 dy, f32 dz, i32 y) const
 {
     // 参考 MC CaveWorldCarver.func_222708_a_
     // 洞穴雕刻器的标准椭球检测
     // return y <= 0.7D || dx * dx + dy * dy + dz * dz >= 1.0D;
     (void)y; // 基类不使用y参数
-    return dx * dx + dy * dy + dz * dz >= 1.0;
+    return dx * dx + dy * dy + dz * dz >= 1.0f;
 }
 
 i32 CaveCarver::getCaveStartY(math::IRandom& rng) const
@@ -140,11 +135,11 @@ void CaveCarver::carveTunnel(
     ChunkCoord chunkX,
     ChunkCoord chunkZ,
     i64 seed,
-    f64 startX, f64 startY, f64 startZ,
+    f32 startX, f32 startY, f32 startZ,
     f32 radius,
     f32 yaw, f32 pitch,
     i32 startIndex, i32 endIndex,
-    f64 verticalScale,
+    f32 verticalScale,
     CarvingMask& carvingMask)
 {
     // 参考 MC CaveWorldCarver.func_227206_a_
@@ -158,22 +153,22 @@ void CaveCarver::carveTunnel(
     f32 currentPitch = pitch;
     f32 yawModifier = 0.0f;
     f32 pitchModifier = 0.0f;
-    f64 currentX = startX;
-    f64 currentY = startY;
-    f64 currentZ = startZ;
+    f32 currentX = startX;
+    f32 currentY = startY;
+    f32 currentZ = startZ;
 
     for (i32 i = startIndex; i < endIndex; ++i) {
         // 椭球半径随距离变化（正弦曲线）
         const f32 progress = static_cast<f32>(i) / static_cast<f32>(endIndex);
-        const f32 sinProgress = std::sin(progress * PI);
-        const f64 horizontalRadius = static_cast<f64>(radius) * static_cast<f64>(sinProgress);
-        const f64 vertRadius = horizontalRadius * verticalScale;
+        const f32 sinProgress = std::sin(progress * math::PI);
+        const f32 horizontalRadius = radius * sinProgress;
+        const f32 vertRadius = horizontalRadius * verticalScale;
 
         // 更新位置（参考MC的方向计算）
         const f32 cosPitch = std::cos(currentPitch);
-        currentX += static_cast<f64>(std::cos(currentYaw) * cosPitch);
-        currentY += static_cast<f64>(std::sin(currentPitch));
-        currentZ += static_cast<f64>(std::sin(currentYaw) * cosPitch);
+        currentX += std::cos(currentYaw) * cosPitch;
+        currentY += std::sin(currentPitch);
+        currentZ += std::sin(currentYaw) * cosPitch;
 
         // 更新角度
         currentPitch *= (canBranch ? 0.92f : 0.7f);
@@ -195,16 +190,16 @@ void CaveCarver::carveTunnel(
                         static_cast<i64>(rng.nextU64()),
                         currentX, currentY, currentZ,
                         branchRadius,
-                        currentYaw - PI / 2.0f, currentPitch / 3.0f,
-                        i, endIndex, 1.0,
+                        currentYaw - math::HALF_PI, currentPitch / 3.0f,
+                        i, endIndex, 1.0f,
                         carvingMask);
 
             carveTunnel(chunk, biomeProvider, seaLevel, chunkX, chunkZ,
                         static_cast<i64>(rng.nextU64()),
                         currentX, currentY, currentZ,
                         branchRadius,
-                        currentYaw + PI / 2.0f, currentPitch / 3.0f,
-                        i, endIndex, 1.0,
+                        currentYaw + math::HALF_PI, currentPitch / 3.0f,
+                        i, endIndex, 1.0f,
                         carvingMask);
             return;
         }
@@ -231,18 +226,18 @@ void CaveCarver::carveRoom(
     ChunkCoord chunkX,
     ChunkCoord chunkZ,
     i64 seed,
-    f64 centerX, f64 centerY, f64 centerZ,
+    f32 centerX, f32 centerY, f32 centerZ,
     f32 radius,
-    f64 verticalScale,
+    f32 verticalScale,
     CarvingMask& carvingMask)
 {
     // 参考 MC CaveWorldCarver.func_227205_a_
     // 生成一个椭圆形房间
-    const f64 horizontalRadius = 1.5 + static_cast<f64>(std::sin(PI / 2.0f) * radius);
-    const f64 vertRadius = horizontalRadius * verticalScale;
+    const f32 horizontalRadius = 1.5f + std::sin(math::HALF_PI) * radius;
+    const f32 vertRadius = horizontalRadius * verticalScale;
 
     carveEllipsoid(chunk, biomeProvider, seaLevel, chunkX, chunkZ,
-                   centerX + 1.0, centerY, centerZ,
+                   centerX + 1.0f, centerY, centerZ,
                    horizontalRadius, vertRadius,
                    carvingMask, seed);
 }

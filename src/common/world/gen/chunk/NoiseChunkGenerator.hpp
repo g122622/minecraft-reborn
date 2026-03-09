@@ -113,16 +113,16 @@ private:
      * 参考 MC fillNoiseColumn，计算噪声柱的高度值。
      * 这是地形生成的核心算法。
      */
-    void fillNoiseColumn(std::vector<f64>& column, i32 noiseX, i32 noiseZ);
+    void fillNoiseColumn(std::vector<f32>& column, i32 noiseX, i32 noiseZ);
 
     /**
      * @brief 计算噪声密度
      *
      * 参考 MC func_222552_a，计算 3D 噪声采样值。
      */
-    [[nodiscard]] f64 calculateNoiseDensity(i32 noiseX, i32 noiseY, i32 noiseZ,
-                                             f64 xzScale, f64 yScale,
-                                             f64 xzFactor, f64 yFactor) const;
+    [[nodiscard]] f32 calculateNoiseDensity(i32 noiseX, i32 noiseY, i32 noiseZ,
+                                             f32 xzScale, f32 yScale,
+                                             f32 xzFactor, f32 yFactor) const;
 
     /**
      * @brief 计算生物群系深度和比例
@@ -130,19 +130,19 @@ private:
      * 参考 MC fillNoiseColumn 中的生物群系权重计算。
      */
     [[nodiscard]] void calculateBiomeDepthAndScale(i32 noiseX, i32 noiseZ,
-                                                    f64& outDepth, f64& outScale) const;
+                                                    f32& outDepth, f32& outScale) const;
 
     /**
      * @brief 计算随机密度偏移
      *
      * 参考 MC func_236095_c_，用于增加地形的随机变化。
      */
-    [[nodiscard]] f64 calculateRandomDensityOffset(i32 noiseX, i32 noiseZ) const;
+    [[nodiscard]] f32 calculateRandomDensityOffset(i32 noiseX, i32 noiseZ) const;
 
     /**
      * @brief 判断密度值对应的方块
      */
-    [[nodiscard]] BlockId getBlockForDensity(f64 density, i32 y) const;
+    [[nodiscard]] BlockId getBlockForDensity(f32 density, i32 y) const;
 
     // === 初始化方法 ===
 
@@ -152,7 +152,7 @@ private:
     // === 地表生成 ===
 
     void buildSurfaceForColumn(ChunkPrimer& chunk, i32 x, i32 z,
-                                i32 surfaceHeight, f64 surfaceNoise, BiomeId biome);
+                                i32 surfaceHeight, f32 surfaceNoise, BiomeId biome);
 };
 
 } // namespace mr

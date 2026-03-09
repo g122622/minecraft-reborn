@@ -69,7 +69,7 @@ protected:
      * @note 洞穴雕刻器使用标准椭球检测
      */
     [[nodiscard]] bool shouldSkipEllipsoidPosition(
-        f64 dx, f64 dy, f64 dz, i32 y) const override;
+        f32 dx, f32 dy, f32 dz, i32 y) const override;
 
     /**
      * @brief 获取最大洞穴生成尝试次数
@@ -94,7 +94,7 @@ protected:
      * @brief 获取垂直缩放因子
      * @return 垂直缩放
      */
-    [[nodiscard]] virtual f64 getVerticalScale() const { return 1.0; }
+    [[nodiscard]] virtual f32 getVerticalScale() const { return 1.0f; }
 
 private:
     /**
@@ -124,11 +124,11 @@ private:
         ChunkCoord chunkX,
         ChunkCoord chunkZ,
         i64 seed,
-        f64 startX, f64 startY, f64 startZ,
+        f32 startX, f32 startY, f32 startZ,
         f32 radius,
         f32 yaw, f32 pitch,
         i32 startIndex, i32 endIndex,
-        f64 verticalScale,
+        f32 verticalScale,
         CarvingMask& carvingMask);
 
     /**
@@ -154,9 +154,9 @@ private:
         ChunkCoord chunkX,
         ChunkCoord chunkZ,
         i64 seed,
-        f64 centerX, f64 centerY, f64 centerZ,
+        f32 centerX, f32 centerY, f32 centerZ,
         f32 radius,
-        f64 verticalScale,
+        f32 verticalScale,
         CarvingMask& carvingMask);
 };
 

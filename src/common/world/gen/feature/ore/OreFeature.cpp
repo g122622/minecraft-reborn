@@ -54,13 +54,13 @@ bool OreFeature::place(
     i32 halfSize = static_cast<i32>(std::ceil((static_cast<f32>(config.size) / 16.0f * 2.0f + 1.0f) / 2.0f));
 
     // 计算矿脉两端位置
-    f64 x1 = static_cast<f64>(origin.x) + std::sin(static_cast<f64>(angle)) * static_cast<f64>(sizeFactor);
-    f64 x2 = static_cast<f64>(origin.x) - std::sin(static_cast<f64>(angle)) * static_cast<f64>(sizeFactor);
-    f64 z1 = static_cast<f64>(origin.z) + std::cos(static_cast<f64>(angle)) * static_cast<f64>(sizeFactor);
-    f64 z2 = static_cast<f64>(origin.z) - std::cos(static_cast<f64>(angle)) * static_cast<f64>(sizeFactor);
+    f32 x1 = static_cast<f32>(origin.x) + std::sin(static_cast<f32>(angle)) * static_cast<f32>(sizeFactor);
+    f32 x2 = static_cast<f32>(origin.x) - std::sin(static_cast<f32>(angle)) * static_cast<f32>(sizeFactor);
+    f32 z1 = static_cast<f32>(origin.z) + std::cos(static_cast<f32>(angle)) * static_cast<f32>(sizeFactor);
+    f32 z2 = static_cast<f32>(origin.z) - std::cos(static_cast<f32>(angle)) * static_cast<f32>(sizeFactor);
 
-    f64 y1 = static_cast<f64>(origin.y + random.nextInt(-2, 2));
-    f64 y2 = static_cast<f64>(origin.y + random.nextInt(-2, 2));
+    f32 y1 = static_cast<f32>(origin.y + random.nextInt(-2, 2));
+    f32 y2 = static_cast<f32>(origin.y + random.nextInt(-2, 2));
 
     // 计算边界框
     i32 minX = origin.x - static_cast<i32>(std::ceil(sizeFactor)) - halfSize;
@@ -92,8 +92,8 @@ void OreFeature::generateSphere(
     ChunkPrimer& chunk,
     math::Random& random,
     const OreFeatureConfig& config,
-    f64 x1, f64 y1, f64 z1,
-    f64 x2, f64 y2, f64 z2,
+    f32 x1, f32 y1, f32 z1,
+    f32 x2, f32 y2, f32 z2,
     i32 minX, i32 minY, i32 minZ,
     i32 sizeX, i32 sizeY, i32 sizeZ,
     i32& placedCount)
@@ -108,18 +108,18 @@ void OreFeature::generateSphere(
     std::vector<bool> processed(totalSize, false);
 
     // 计算每个"球心"的位置
-    std::vector<f64> sphereCenters;
+    std::vector<f32> sphereCenters;
     sphereCenters.resize(static_cast<size_t>(config.size) * 4);
 
     for (i32 i = 0; i < config.size; ++i) {
         f32 progress = static_cast<f32>(i) / static_cast<f32>(config.size);
 
-        f64 cx = x1 + (x2 - x1) * progress;
-        f64 cy = y1 + (y2 - y1) * progress;
-        f64 cz = z1 + (z2 - z1) * progress;
+        f32 cx = x1 + (x2 - x1) * progress;
+        f32 cy = y1 + (y2 - y1) * progress;
+        f32 cz = z1 + (z2 - z1) * progress;
 
-        f64 radiusFactor = random.nextDouble() * static_cast<f64>(config.size) / 16.0;
-        f64 radius = (std::sin(static_cast<f32>(M_PI) * progress) + 1.0f) * radiusFactor + 1.0;
+        f32 radiusFactor = random.nextDouble() * static_cast<f32>(config.size) / 16.0;
+        f32 radius = (std::sin(static_cast<f32>(M_PI) * progress) + 1.0f) * radiusFactor + 1.0;
 
         sphereCenters[static_cast<size_t>(i) * 4 + 0] = cx;
         sphereCenters[static_cast<size_t>(i) * 4 + 1] = cy;
@@ -129,26 +129,26 @@ void OreFeature::generateSphere(
 
     // 处理每个球心
     for (i32 i = 0; i < config.size - 1; ++i) {
-        f64 radius1 = sphereCenters[static_cast<size_t>(i) * 4 + 3];
+        f32 radius1 = sphereCenters[static_cast<size_t>(i) * 4 + 3];
 
         if (radius1 <= 0.0) {
             continue;
         }
 
         for (i32 j = i + 1; j < config.size; ++j) {
-            f64 radius2 = sphereCenters[static_cast<size_t>(j) * 4 + 3];
+            f32 radius2 = sphereCenters[static_cast<size_t>(j) * 4 + 3];
 
             if (radius2 <= 0.0) {
                 continue;
             }
 
             // 计算两球心之间的距离
-            f64 dx = sphereCenters[static_cast<size_t>(i) * 4 + 0] - sphereCenters[static_cast<size_t>(j) * 4 + 0];
-            f64 dy = sphereCenters[static_cast<size_t>(i) * 4 + 1] - sphereCenters[static_cast<size_t>(j) * 4 + 1];
-            f64 dz = sphereCenters[static_cast<size_t>(i) * 4 + 2] - sphereCenters[static_cast<size_t>(j) * 4 + 2];
+            f32 dx = sphereCenters[static_cast<size_t>(i) * 4 + 0] - sphereCenters[static_cast<size_t>(j) * 4 + 0];
+            f32 dy = sphereCenters[static_cast<size_t>(i) * 4 + 1] - sphereCenters[static_cast<size_t>(j) * 4 + 1];
+            f32 dz = sphereCenters[static_cast<size_t>(i) * 4 + 2] - sphereCenters[static_cast<size_t>(j) * 4 + 2];
 
-            f64 distSq = dx * dx + dy * dy + dz * dz;
-            f64 radiusSum = radius1 + radius2;
+            f32 distSq = dx * dx + dy * dy + dz * dz;
+            f32 radiusSum = radius1 + radius2;
 
             // 如果两球重叠太多，移除较小的那个
             if (radiusSum * radiusSum > distSq) {
@@ -170,15 +170,15 @@ void OreFeature::generateSphere(
 
     // 在每个球心周围放置矿石
     for (i32 i = 0; i < config.size; ++i) {
-        f64 radius = sphereCenters[static_cast<size_t>(i) * 4 + 3];
+        f32 radius = sphereCenters[static_cast<size_t>(i) * 4 + 3];
 
         if (radius < 0.0) {
             continue;
         }
 
-        f64 cx = sphereCenters[static_cast<size_t>(i) * 4 + 0];
-        f64 cy = sphereCenters[static_cast<size_t>(i) * 4 + 1];
-        f64 cz = sphereCenters[static_cast<size_t>(i) * 4 + 2];
+        f32 cx = sphereCenters[static_cast<size_t>(i) * 4 + 0];
+        f32 cy = sphereCenters[static_cast<size_t>(i) * 4 + 1];
+        f32 cz = sphereCenters[static_cast<size_t>(i) * 4 + 2];
 
         // 计算边界
         i32 localMinX = std::max(static_cast<i32>(std::floor(cx - radius)), minX);
@@ -190,21 +190,21 @@ void OreFeature::generateSphere(
 
         // 遍历边界内的每个方块
         for (i32 bx = localMinX; bx <= localMaxX; ++bx) {
-            f64 dx = (static_cast<f64>(bx) + 0.5 - cx) / radius;
+            f32 dx = (static_cast<f32>(bx) + 0.5 - cx) / radius;
 
             if (dx * dx >= 1.0) {
                 continue;
             }
 
             for (i32 by = localMinY; by <= localMaxY; ++by) {
-                f64 dy = (static_cast<f64>(by) + 0.5 - cy) / radius;
+                f32 dy = (static_cast<f32>(by) + 0.5 - cy) / radius;
 
                 if (dx * dx + dy * dy >= 1.0) {
                     continue;
                 }
 
                 for (i32 bz = localMinZ; bz <= localMaxZ; ++bz) {
-                    f64 dz = (static_cast<f64>(bz) + 0.5 - cz) / radius;
+                    f32 dz = (static_cast<f32>(bz) + 0.5 - cz) / radius;
 
                     if (dx * dx + dy * dy + dz * dz >= 1.0) {
                         continue;

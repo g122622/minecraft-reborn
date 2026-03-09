@@ -105,7 +105,7 @@ TEST(ImprovedNoiseGenerator, BasicNoise) {
 
     // 噪声值应在合理范围内
     for (int i = 0; i < 10; ++i) {
-        f64 value = noise.noise(i * 10.0, i * 10.0, i * 10.0);
+        f32 value = noise.noise(i * 10.0, i * 10.0, i * 10.0);
         EXPECT_GE(value, -1.0);
         EXPECT_LE(value, 1.0);
     }
@@ -129,8 +129,8 @@ TEST(ImprovedNoiseGenerator, DifferentSeeds) {
     // 不同种子应产生不同结果
     int differences = 0;
     for (int i = 0; i < 100; ++i) {
-        f64 val1 = noise1.noise(i * 0.1, i * 0.2, i * 0.3);
-        f64 val2 = noise2.noise(i * 0.1, i * 0.2, i * 0.3);
+        f32 val1 = noise1.noise(i * 0.1, i * 0.2, i * 0.3);
+        f32 val2 = noise2.noise(i * 0.1, i * 0.2, i * 0.3);
         if (std::abs(val1 - val2) > 0.01) {
             differences++;
         }
@@ -143,9 +143,9 @@ TEST(ImprovedNoiseGenerator, Smoothness) {
     ImprovedNoiseGenerator noise(12345);
 
     // 相邻点应该平滑过渡
-    f64 val1 = noise.noise(10.0, 10.0, 10.0);
-    f64 val2 = noise.noise(10.01, 10.0, 10.0);
-    f64 val3 = noise.noise(10.0, 10.01, 10.0);
+    f32 val1 = noise.noise(10.0, 10.0, 10.0);
+    f32 val2 = noise.noise(10.01, 10.0, 10.0);
+    f32 val3 = noise.noise(10.0, 10.01, 10.0);
 
     // Perlin 噪声是连续的
     EXPECT_LT(std::abs(val1 - val2), 0.1);
@@ -162,7 +162,7 @@ TEST(OctavesNoiseGenerator, BasicNoise) {
 
     // 噪声值应在合理范围内
     for (int i = 0; i < 10; ++i) {
-        f64 value = noise.noise(i * 10.0, i * 10.0, i * 10.0);
+        f32 value = noise.noise(i * 10.0, i * 10.0, i * 10.0);
         // 多倍频噪声范围更大，但应该有界
         EXPECT_GE(value, -5.0);
         EXPECT_LE(value, 5.0);
@@ -197,8 +197,8 @@ TEST(OctavesNoiseGenerator, GetOctave) {
 
 TEST(OctavesNoiseGenerator, MaintainPrecision) {
     // 大坐标精度测试
-    f64 large = 1000000000.0;
-    f64 maintained = OctavesNoiseGenerator::maintainPrecision(large);
+    f32 large = 1000000000.0;
+    f32 maintained = OctavesNoiseGenerator::maintainPrecision(large);
 
     // maintained 应该更接近原点
     EXPECT_LT(std::abs(maintained), std::abs(large));
