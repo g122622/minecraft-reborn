@@ -1,6 +1,7 @@
 #include "Player.hpp"
 #include "../physics/PhysicsEngine.hpp"
 #include "../math/random/Random.hpp"
+#include "../item/BlockItemRegistry.hpp"
 #include <algorithm>
 #include <cmath>
 #include <chrono>
@@ -445,6 +446,21 @@ i32 Player::armorValue() const {
     // 参考 MC: PlayerEntity.getTotalArmorValue()
     // 护甲值 = 头盔护甲值 + 胸甲护甲值 + 护腿护甲值 + 靴子护甲值
     return 0;
+}
+
+void Player::setCreativeModeInventory() {
+    // 清空当前背包
+    m_inventory.clear();
+
+    // 遍历所有注册的方块物品，添加到背包
+    i32 slot = 0;
+    BlockItemRegistry::instance().forEachBlockItem([&](const BlockItem& item) {
+        if (slot < PlayerInventory::TOTAL_SIZE) {
+            // 创造模式下每个物品堆叠数量为64
+            m_inventory.setItem(slot, ItemStack(item, 64));
+            slot++;
+        }
+    });
 }
 
 void Player::respawn() {

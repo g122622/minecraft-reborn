@@ -22,6 +22,7 @@ enum class PacketType : u16 {
     TeleportConfirm = 102,
     ChatMessage = 103,
     BlockInteraction = 104,
+    PlayerTryUseItemOnBlock = 105,  // 方块放置
 
     // 服务端 -> 客户端 (登录阶段)
     LoginResponse = 200,

@@ -1,5 +1,6 @@
 #include "IntegratedServer.hpp"
 #include "common/item/Items.hpp"
+#include "common/item/BlockItemRegistry.hpp"
 #include "common/world/gen/chunk/NoiseChunkGenerator.hpp"
 #include "common/world/gen/settings/DimensionSettings.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
@@ -8,6 +9,7 @@
 #include "common/network/ChunkSync.hpp"
 #include "common/world/WorldConstants.hpp"
 #include "common/world/chunk/ChunkLoadTicket.hpp"
+#include "common/util/Direction.hpp"
 
 #include <spdlog/spdlog.h>
 #include <chrono>
@@ -36,6 +38,10 @@ Result<void> IntegratedServer::initialize(const IntegratedServerConfig& config) 
     Items::initialize();
     DropTableRegistry::instance().initializeVanillaDrops();
     spdlog::info("Vanilla items and drop tables initialized");
+
+    // 初始化方块物品注册表
+    BlockItemRegistry::instance().initializeVanillaBlockItems();
+    spdlog::info("Block items initialized");
 
     spdlog::info("Initializing integrated server...");
     spdlog::info("World: {}, Seed: {}, View distance: {}",
@@ -318,6 +324,10 @@ void IntegratedServer::onPacketReceived(const u8* data, size_t size) {
             handleBlockInteraction(data + network::PACKET_HEADER_SIZE, size - network::PACKET_HEADER_SIZE);
             break;
 
+        case network::PacketType::PlayerTryUseItemOnBlock:
+            handleBlockPlacement(data + network::PACKET_HEADER_SIZE, size - network::PACKET_HEADER_SIZE);
+            break;
+
         case network::PacketType::TeleportConfirm:
             handleTeleportConfirm(data + network::PACKET_HEADER_SIZE, size - network::PACKET_HEADER_SIZE);
             break;
@@ -510,6 +520,141 @@ void IntegratedServer::handleBlockInteraction(const u8* data, size_t size) {
     spdlog::info("[Mining] Destroyed block {} at ({}, {}, {})",
                  state->blockLocation().toString(),
                  packet.x(), packet.y(), packet.z());
+}
+
+void IntegratedServer::handleBlockPlacement(const u8* data, size_t size)
+{
+    if (!m_client.loggedIn || !m_chunkManager) {
+        return;
+    }
+
+    network::PacketDeserializer deser(data, size);
+    auto result = network::PlayerTryUseItemOnBlockPacket::deserialize(deser);
+    if (result.failed()) {
+        spdlog::debug("Failed to parse block placement packet: {}", result.error().message());
+        return;
+    }
+
+    const auto& packet = result.value();
+    spdlog::info("[Place] Server received placement pos=({}, {}, {}) face={} hit=({:.2f}, {:.2f}, {:.2f})",
+                 packet.x(), packet.y(), packet.z(),
+                 static_cast<i32>(packet.face()),
+                 packet.hitX(), packet.hitY(), packet.hitZ());
+
+    // 验证距离（最大6格）
+    const f64 eyeX = m_client.x;
+    const f64 eyeY = m_client.y + Player::PLAYER_EYE_HEIGHT;
+    const f64 eyeZ = m_client.z;
+    const f64 targetX = static_cast<f64>(packet.x()) + 0.5;
+    const f64 targetY = static_cast<f64>(packet.y()) + 0.5;
+    const f64 targetZ = static_cast<f64>(packet.z()) + 0.5;
+    const f64 dx = targetX - eyeX;
+    const f64 dy = targetY - eyeY;
+    const f64 dz = targetZ - eyeZ;
+    const f64 distanceSquared = dx * dx + dy * dy + dz * dz;
+
+    if (distanceSquared > 36.0) {
+        spdlog::warn("[Place] Out-of-range placement attempt: distanceSq={:.2f}", distanceSquared);
+        return;
+    }
+
+    // 检查 Y 范围
+    if (packet.y() < world::MIN_BUILD_HEIGHT || packet.y() >= world::MAX_BUILD_HEIGHT) {
+        spdlog::warn("[Place] Invalid Y position: {}", packet.y());
+        return;
+    }
+
+    // 计算放置位置（击中面的相邻方块）
+    BlockPos clickedPos(packet.x(), packet.y(), packet.z());
+    Direction face = packet.face();
+
+    // 检查区块是否已加载
+    ChunkCoord chunkX = static_cast<ChunkCoord>(std::floor(static_cast<f64>(packet.x()) / 16.0));
+    ChunkCoord chunkZ = static_cast<ChunkCoord>(std::floor(static_cast<f64>(packet.z()) / 16.0));
+    ChunkData* chunk = m_chunkManager->getChunkSync(chunkX, chunkZ);
+    if (!chunk) {
+        spdlog::warn("[Place] Chunk not loaded at ({}, {})", chunkX, chunkZ);
+        return;
+    }
+
+    // TODO: 获取玩家手持物品
+    // 目前简化处理：放置石头方块
+    Block* blockToPlace = VanillaBlocks::STONE;
+    if (!blockToPlace) {
+        spdlog::error("[Place] Failed to get block to place");
+        return;
+    }
+
+    // 获取点击方块的当前状态
+    const i32 localX = packet.x() - chunkX * 16;
+    const i32 localZ = packet.z() - chunkZ * 16;
+    const BlockState* clickedState = chunk->getBlock(localX, packet.y(), localZ);
+
+    // 确定实际放置位置
+    // 如果点击的方块是可替换的（如水、草），则替换它
+    // 否则放置在相邻位置
+    BlockPos placePos = clickedPos;
+    bool replaceClicked = false;
+
+    if (clickedState != nullptr && !clickedState->isAir()) {
+        const Material& material = clickedState->owner().material();
+        if (material.isReplaceable() || material.isLiquid()) {
+            replaceClicked = true;
+            placePos = clickedPos;
+        } else {
+            // 放置在相邻位置
+            placePos = BlockPos(
+                clickedPos.x + Directions::xOffset(face),
+                clickedPos.y + Directions::yOffset(face),
+                clickedPos.z + Directions::zOffset(face)
+            );
+        }
+    }
+
+    // 检查放置位置是否在世界范围内
+    if (placePos.y < world::MIN_BUILD_HEIGHT || placePos.y >= world::MAX_BUILD_HEIGHT) {
+        spdlog::debug("[Place] Placement position out of world bounds: y={}", placePos.y);
+        return;
+    }
+
+    // 检查放置位置的区块是否已加载
+    ChunkCoord placeChunkX = static_cast<ChunkCoord>(std::floor(static_cast<f64>(placePos.x) / 16.0));
+    ChunkCoord placeChunkZ = static_cast<ChunkCoord>(std::floor(static_cast<f64>(placePos.z) / 16.0));
+    ChunkData* placeChunk = (placeChunkX == chunkX && placeChunkZ == chunkZ) ? chunk
+        : m_chunkManager->getChunkSync(placeChunkX, placeChunkZ);
+
+    if (!placeChunk) {
+        spdlog::warn("[Place] Target chunk not loaded at ({}, {})", placeChunkX, placeChunkZ);
+        return;
+    }
+
+    // 检查放置位置是否可以放置
+    const i32 placeLocalX = placePos.x - placeChunkX * 16;
+    const i32 placeLocalZ = placePos.z - placeChunkZ * 16;
+    const BlockState* currentState = placeChunk->getBlock(placeLocalX, placePos.y, placeLocalZ);
+
+    if (currentState != nullptr && !currentState->isAir()) {
+        const Material& currentMaterial = currentState->owner().material();
+        if (!currentMaterial.isReplaceable() && !currentMaterial.isLiquid()) {
+            spdlog::debug("[Place] Cannot place block: position occupied by {}",
+                          currentState->blockLocation().toString());
+            return;
+        }
+    }
+
+    // 放置方块
+    const BlockState* newState = &blockToPlace->defaultState();
+    placeChunk->setBlock(placeLocalX, placePos.y, placeLocalZ, newState);
+    placeChunk->setDirty(true);
+
+    // 广播方块更新
+    sendBlockUpdate(placePos.x, placePos.y, placePos.z, newState->stateId());
+
+    spdlog::info("[Place] Placed block {} at ({}, {}, {})",
+                 blockToPlace->blockLocation().toString(),
+                 placePos.x, placePos.y, placePos.z);
+
+    // TODO: 非创造模式下减少物品数量
 }
 
 void IntegratedServer::handlePlayerChunkMove(ChunkCoord newChunkX, ChunkCoord newChunkZ) {

@@ -208,6 +208,27 @@ void NetworkClient::sendBlockInteraction(network::BlockInteractionAction action,
     sendRawData(fullPacket.data(), fullPacket.size());
 }
 
+void NetworkClient::sendBlockPlacement(i32 x, i32 y, i32 z, Direction face,
+                                        f32 hitX, f32 hitY, f32 hitZ, u8 hand) {
+    network::PlayerTryUseItemOnBlockPacket packet(x, y, z, face, hitX, hitY, hitZ, hand);
+
+    spdlog::info("[Place] Send block placement pos=({}, {}, {}) face={} hit=({:.2f}, {:.2f}, {:.2f})",
+                 x, y, z, static_cast<i32>(face), hitX, hitY, hitZ);
+
+    network::PacketSerializer ser;
+    packet.serialize(ser);
+
+    network::PacketSerializer fullPacket;
+    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
+    fullPacket.writeU16(static_cast<u16>(network::PacketType::PlayerTryUseItemOnBlock));
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeBytes(ser.buffer());
+
+    sendRawData(fullPacket.data(), fullPacket.size());
+}
+
 void NetworkClient::sendTeleportConfirm(u32 teleportId) {
     network::TeleportConfirmPacket packet(teleportId);
 

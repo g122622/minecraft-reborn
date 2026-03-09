@@ -134,9 +134,11 @@ private:
     void setupSettingCallbacks();
     void toggleMouseCapture();
     void handleBlockInteractionInput(f32 deltaTime);
+    void handleBlockPlacementInput();
     void sendBlockInteraction(network::BlockInteractionAction action,
                               const BlockPos& pos,
                               Direction face);
+    void sendBlockPlacement(const BlockPos& pos, Direction face, const Vector3& hitPos);
 
     // 玩家位置同步
     void sendPlayerPosition();
@@ -193,6 +195,10 @@ private:
     BlockPos m_breakingBlockPos{};
     Direction m_breakingBlockFace = Direction::None;
     f32 m_breakingBlockProgress = 0.0f;
+
+    // 方块放置冷却
+    f32 m_placeCooldown = 0.0f;
+    static constexpr f32 PLACE_COOLDOWN_TIME = 0.05f;  // 50ms 放置冷却
 
     // 内置服务端
     std::unique_ptr<server::IntegratedServer> m_integratedServer;

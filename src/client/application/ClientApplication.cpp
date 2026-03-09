@@ -1,5 +1,6 @@
 #include "ClientApplication.hpp"
 #include "common/item/Items.hpp"
+#include "common/item/BlockItemRegistry.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
 #include "common/world/drop/DropTables.hpp"
 #include "common/math/ray/Raycast.hpp"
@@ -133,6 +134,10 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
     Items::initialize();
     DropTableRegistry::instance().initializeVanillaDrops();
     spdlog::info("Vanilla items and drop tables initialized");
+
+    // 初始化方块物品注册表
+    BlockItemRegistry::instance().initializeVanillaBlockItems();
+    spdlog::info("Block items initialized");
 
     // 初始化资源系统
     spdlog::info("Initializing resource system...");
@@ -561,6 +566,9 @@ void ClientApplication::update(f32 deltaTime)
 
     handleBlockInteractionInput(deltaTime);
 
+    // 处理方块放置输入
+    handleBlockPlacementInput();
+
     // 更新世界（根据相机位置加载/卸载区块）
     m_world.update(m_camera.position(), m_settings.renderDistance.get());
 
@@ -916,6 +924,76 @@ void ClientApplication::handleBlockInteractionInput(f32 deltaTime)
         m_breakingBlockProgress = 0.0f;
         m_breakingBlockFace = Direction::None;
     }
+}
+
+void ClientApplication::handleBlockPlacementInput()
+{
+    // 更新放置冷却 - 注意：deltaTime 在 update() 中传递，这里使用帧时间
+    f32 deltaTime = static_cast<f32>(glfwGetTime() - m_lastFrameTime);
+    m_placeCooldown = std::max(0.0f, m_placeCooldown - deltaTime);
+
+    if (!m_mouseCaptured || !m_player) {
+        return;
+    }
+
+    // 检查右键是否刚刚按下
+    const bool usePressed = m_input.isMouseButtonJustPressed(GLFW_MOUSE_BUTTON_RIGHT);
+    if (!usePressed) {
+        return;
+    }
+
+    // 检查放置冷却
+    if (m_placeCooldown > 0.0f) {
+        return;
+    }
+
+    // 检查射线是否击中方块
+    if (m_raycastResult.isMiss()) {
+        return;
+    }
+
+    // 获取手持物品
+    ItemStack heldItem = m_player->inventory().getSelectedStack();
+    if (heldItem.isEmpty()) {
+        return;
+    }
+
+    // 检查是否为方块物品
+    const Item* item = heldItem.getItem();
+    if (!item) {
+        return;
+    }
+    const BlockItem* blockItem = BlockItemRegistry::instance().getBlockItemByItemId(item->itemId());
+    if (!blockItem) {
+        return;
+    }
+
+    // 计算击中点相对坐标
+    BlockPos pos = m_raycastResult.blockPos();
+    Direction face = m_raycastResult.face();
+    Vector3 hitPos = m_raycastResult.hitPosition();
+    Vector3 blockPosFloat(static_cast<f32>(pos.x), static_cast<f32>(pos.y), static_cast<f32>(pos.z));
+    Vector3 relativeHit = hitPos - blockPosFloat;  // 转换为方块内相对坐标
+
+    // 发送放置包
+    sendBlockPlacement(pos, face, relativeHit);
+    m_placeCooldown = PLACE_COOLDOWN_TIME;
+}
+
+void ClientApplication::sendBlockPlacement(const BlockPos& pos, Direction face, const Vector3& hitPos)
+{
+    if (!m_networkClient || !m_networkClient->isLoggedIn()) {
+        spdlog::info("[Place] Skip sending block placement because client is not logged in");
+        return;
+    }
+
+    spdlog::info("[Place] Send placement pos=({}, {}, {}) face={} hit=({:.2f}, {:.2f}, {:.2f})",
+                 pos.x, pos.y, pos.z,
+                 static_cast<i32>(face),
+                 hitPos.x, hitPos.y, hitPos.z);
+
+    m_networkClient->sendBlockPlacement(pos.x, pos.y, pos.z, face,
+                                        hitPos.x, hitPos.y, hitPos.z);
 }
 
 void ClientApplication::sendBlockInteraction(network::BlockInteractionAction action,

@@ -289,6 +289,14 @@ public:
     PlayerInventory& inventory() { return m_inventory; }
 
     /**
+     * @brief 设置创造模式背包
+     *
+     * 为创造模式玩家添加常见方块到背包。
+     * 清空当前背包并填入所有已注册的方块物品。
+     */
+    void setCreativeModeInventory();
+
+    /**
      * @brief 获取吸收伤害值（金苹果效果）
      */
     [[nodiscard]] f32 absorptionAmount() const { return m_absorptionAmount; }

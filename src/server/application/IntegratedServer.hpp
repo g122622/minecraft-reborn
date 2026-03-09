@@ -112,6 +112,7 @@ private:
     void handleLoginRequest(const u8* data, size_t size);
     void handlePlayerMove(const u8* data, size_t size);
     void handleBlockInteraction(const u8* data, size_t size);
+    void handleBlockPlacement(const u8* data, size_t size);
     void handleTeleportConfirm(const u8* data, size_t size);
     void handleKeepAlive(const u8* data, size_t size);
     void handleChatMessage(const u8* data, size_t size);

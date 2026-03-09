@@ -4,6 +4,7 @@
 #include "../core/Result.hpp"
 #include "../math/Vector3.hpp"
 #include "../util/Direction.hpp"
+#include "../world/block/BlockPos.hpp"
 #include "PacketSerializer.hpp"
 #include <memory>
 
@@ -415,6 +416,144 @@ private:
     i32 m_y = 0;
     i32 m_z = 0;
     Direction m_face = Direction::None;
+};
+
+// ============================================================================
+// 方块放置包 (客户端 -> 服务端)
+// ============================================================================
+
+/**
+ * @brief 玩家尝试在方块上使用物品/放置方块
+ *
+ * 当玩家右键点击方块时发送。
+ * 包含点击位置、面、点击坐标（方块内相对位置）和手持信息。
+ */
+class PlayerTryUseItemOnBlockPacket {
+public:
+    PlayerTryUseItemOnBlockPacket() = default;
+
+    /**
+     * @brief 构造方块放置包
+     * @param x 方块X坐标
+     * @param y 方块Y坐标
+     * @param z 方块Z坐标
+     * @param face 点击的面
+     * @param hitX 点击点在方块内的X坐标 (0-1)
+     * @param hitY 点击点在方块内的Y坐标 (0-1)
+     * @param hitZ 点击点在方块内的Z坐标 (0-1)
+     * @param hand 手 (0=主手, 1=副手)
+     */
+    PlayerTryUseItemOnBlockPacket(i32 x, i32 y, i32 z, Direction face,
+                                   f32 hitX, f32 hitY, f32 hitZ, u8 hand)
+        : m_x(x), m_y(y), m_z(z)
+        , m_face(face)
+        , m_hitX(hitX), m_hitY(hitY), m_hitZ(hitZ)
+        , m_hand(hand)
+    {}
+
+    // Getters
+    [[nodiscard]] i32 x() const { return m_x; }
+    [[nodiscard]] i32 y() const { return m_y; }
+    [[nodiscard]] i32 z() const { return m_z; }
+    [[nodiscard]] Direction face() const { return m_face; }
+    [[nodiscard]] f32 hitX() const { return m_hitX; }
+    [[nodiscard]] f32 hitY() const { return m_hitY; }
+    [[nodiscard]] f32 hitZ() const { return m_hitZ; }
+    [[nodiscard]] u8 hand() const { return m_hand; }
+
+    // Setters
+    void setX(i32 x) { m_x = x; }
+    void setY(i32 y) { m_y = y; }
+    void setZ(i32 z) { m_z = z; }
+    void setFace(Direction face) { m_face = face; }
+    void setHitX(f32 hitX) { m_hitX = hitX; }
+    void setHitY(f32 hitY) { m_hitY = hitY; }
+    void setHitZ(f32 hitZ) { m_hitZ = hitZ; }
+    void setHand(u8 hand) { m_hand = hand; }
+
+    /**
+     * @brief 获取方块位置
+     */
+    [[nodiscard]] BlockPos blockPos() const { return BlockPos(m_x, m_y, m_z); }
+
+    /**
+     * @brief 获取击中点（世界坐标）
+     */
+    [[nodiscard]] Vector3 hitPosition() const {
+        return Vector3(static_cast<f32>(m_x) + m_hitX,
+                       static_cast<f32>(m_y) + m_hitY,
+                       static_cast<f32>(m_z) + m_hitZ);
+    }
+
+    // 序列化
+    void serialize(PacketSerializer& ser) const {
+        ser.writeI32(m_x);
+        ser.writeI32(m_y);
+        ser.writeI32(m_z);
+        ser.writeU8(static_cast<u8>(m_face));
+        ser.writeF32(m_hitX);
+        ser.writeF32(m_hitY);
+        ser.writeF32(m_hitZ);
+        ser.writeU8(m_hand);
+    }
+
+    [[nodiscard]] static Result<PlayerTryUseItemOnBlockPacket> deserialize(PacketDeserializer& deser) {
+        PlayerTryUseItemOnBlockPacket packet;
+
+        auto xResult = deser.readI32();
+        if (xResult.failed()) return xResult.error();
+        packet.m_x = xResult.value();
+
+        auto yResult = deser.readI32();
+        if (yResult.failed()) return yResult.error();
+        packet.m_y = yResult.value();
+
+        auto zResult = deser.readI32();
+        if (zResult.failed()) return zResult.error();
+        packet.m_z = zResult.value();
+
+        auto faceResult = deser.readU8();
+        if (faceResult.failed()) return faceResult.error();
+        packet.m_face = static_cast<Direction>(faceResult.value());
+
+        auto hitXResult = deser.readF32();
+        if (hitXResult.failed()) return hitXResult.error();
+        packet.m_hitX = hitXResult.value();
+
+        auto hitYResult = deser.readF32();
+        if (hitYResult.failed()) return hitYResult.error();
+        packet.m_hitY = hitYResult.value();
+
+        auto hitZResult = deser.readF32();
+        if (hitZResult.failed()) return hitZResult.error();
+        packet.m_hitZ = hitZResult.value();
+
+        auto handResult = deser.readU8();
+        if (handResult.failed()) return handResult.error();
+        packet.m_hand = handResult.value();
+
+        // 验证面方向
+        if (packet.m_face != Direction::Down &&
+            packet.m_face != Direction::Up &&
+            packet.m_face != Direction::North &&
+            packet.m_face != Direction::South &&
+            packet.m_face != Direction::West &&
+            packet.m_face != Direction::East) {
+            return Error(ErrorCode::InvalidData, "Invalid face direction for block placement");
+        }
+
+        return packet;
+    }
+
+private:
+    i32 m_x = 0;
+    i32 m_y = 0;
+    i32 m_z = 0;
+    Direction m_face = Direction::None;
+    f32 m_hitX = 0.5f;
+    f32 m_hitY = 0.5f;
+    f32 m_hitZ = 0.5f;
+    u8 m_hand = 0;  // 0=主手, 1=副手
 };
 
 // ============================================================================

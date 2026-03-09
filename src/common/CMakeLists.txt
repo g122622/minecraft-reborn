@@ -45,6 +45,10 @@ add_library(mr_common STATIC
     item/ItemStack.cpp
     item/ItemRegistry.cpp
     item/Items.cpp
+    item/BlockItem.cpp
+    item/BlockItemRegistry.cpp
+    item/ItemUseContext.cpp
+    item/BlockItemUseContext.cpp
 
     # World - Drop Tables
     world/drop/DropTables.cpp
