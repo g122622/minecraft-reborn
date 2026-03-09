@@ -17,8 +17,8 @@ void FoliagePlacer::placeFoliage(
     math::Random& random,
     i32 trunkHeight,
     const std::vector<FoliagePosition>& foliagePositions,
-    const std::set<BlockPos>& trunkBlocks,
-    i32 trunkOffset,
+    const std::set<BlockPos>& /*trunkBlocks*/,
+    i32 /*trunkOffset*/,
     BlockId foliageBlock
 ) {
     std::set<BlockPos> foliageBlocks;

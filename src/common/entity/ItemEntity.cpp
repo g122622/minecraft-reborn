@@ -82,7 +82,7 @@ void ItemEntity::tick() {
 // 玩家拾取
 // ============================================================================
 
-bool ItemEntity::onPlayerPickup(Player& player) {
+bool ItemEntity::onPlayerPickup(Player& /*player*/) {
     // 检查是否可以拾取
     if (!canBePickedUp()) {
         return false;
@@ -244,15 +244,15 @@ void ItemEntity::applyNormalPhysics() {
 void ItemEntity::applyWaterPhysics() {
     // 在水中：缓慢下沉
     m_velocity.y -= SINK_SPEED;
-    m_velocity.x *= 0.95;
-    m_velocity.z *= 0.95;
+    m_velocity.x *= 0.95f;
+    m_velocity.z *= 0.95f;
 }
 
 void ItemEntity::applyLavaPhysics() {
     // 在熔岩中：漂浮并着火
     m_velocity.y += BUOYANCY;
-    m_velocity.x *= 0.95;
-    m_velocity.z *= 0.95;
+    m_velocity.x *= 0.95f;
+    m_velocity.z *= 0.95f;
 
     // TODO: 设置着火
     // addFlag(EntityFlags::OnFire);

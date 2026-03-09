@@ -128,7 +128,7 @@ void InputManager::bindActionCallback(const String& action, ActionCallback callb
     m_actionCallbacks[action] = std::move(callback);
 }
 
-void InputManager::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+void InputManager::keyCallback(GLFWwindow* window, int key, int /*scancode*/, int action, int /*mods*/)
 {
     auto* input = static_cast<InputManager*>(glfwGetWindowUserPointer(window));
     if (input && key >= 0) {
@@ -144,7 +144,7 @@ void InputManager::mouseCallback(GLFWwindow* window, double xpos, double ypos)
     }
 }
 
-void InputManager::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+void InputManager::mouseButtonCallback(GLFWwindow* window, int button, int action, int /*mods*/)
 {
     auto* input = static_cast<InputManager*>(glfwGetWindowUserPointer(window));
     if (input && button >= 0) {

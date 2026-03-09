@@ -19,8 +19,8 @@ CaveCarver::CaveCarver(i32 maxHeight)
 
 bool CaveCarver::shouldCarve(
     math::IRandom& rng,
-    ChunkCoord chunkX,
-    ChunkCoord chunkZ,
+    ChunkCoord /*chunkX*/,
+    ChunkCoord /*chunkZ*/,
     const ProbabilityConfig& config) const
 {
     return rng.nextFloat() <= config.probability;

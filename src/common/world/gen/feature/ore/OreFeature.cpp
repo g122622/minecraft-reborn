@@ -118,8 +118,8 @@ void OreFeature::generateSphere(
         f32 cy = y1 + (y2 - y1) * progress;
         f32 cz = z1 + (z2 - z1) * progress;
 
-        f32 radiusFactor = random.nextDouble() * static_cast<f32>(config.size) / 16.0;
-        f32 radius = (std::sin(static_cast<f32>(M_PI) * progress) + 1.0f) * radiusFactor + 1.0;
+        f32 radiusFactor = random.nextDouble() * static_cast<f32>(config.size) / 16.0f;
+        f32 radius = (std::sin(static_cast<f32>(M_PI) * progress) + 1.0f) * radiusFactor + 1.0f;
 
         sphereCenters[static_cast<size_t>(i) * 4 + 0] = cx;
         sphereCenters[static_cast<size_t>(i) * 4 + 1] = cy;
@@ -190,23 +190,23 @@ void OreFeature::generateSphere(
 
         // 遍历边界内的每个方块
         for (i32 bx = localMinX; bx <= localMaxX; ++bx) {
-            f32 dx = (static_cast<f32>(bx) + 0.5 - cx) / radius;
+            f32 dx = (static_cast<f32>(bx) + 0.5f - cx) / radius;
 
-            if (dx * dx >= 1.0) {
+            if (dx * dx >= 1.0f) {
                 continue;
             }
 
             for (i32 by = localMinY; by <= localMaxY; ++by) {
-                f32 dy = (static_cast<f32>(by) + 0.5 - cy) / radius;
+                f32 dy = (static_cast<f32>(by) + 0.5f - cy) / radius;
 
-                if (dx * dx + dy * dy >= 1.0) {
+                if (dx * dx + dy * dy >= 1.0f) {
                     continue;
                 }
 
                 for (i32 bz = localMinZ; bz <= localMaxZ; ++bz) {
-                    f32 dz = (static_cast<f32>(bz) + 0.5 - cz) / radius;
+                    f32 dz = (static_cast<f32>(bz) + 0.5f - cz) / radius;
 
-                    if (dx * dx + dy * dy + dz * dz >= 1.0) {
+                    if (dx * dx + dy * dy + dz * dz >= 1.0f) {
                         continue;
                     }
 

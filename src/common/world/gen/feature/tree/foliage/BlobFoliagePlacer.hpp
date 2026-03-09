@@ -22,7 +22,7 @@ public:
      */
     BlobFoliagePlacer(const FeatureSpread& radius, const FeatureSpread& offset, i32 height);
 
-    [[nodiscard]] i32 getFoliageHeight(math::Random& random, i32 trunkHeight) const override {
+    [[nodiscard]] i32 getFoliageHeight(math::Random& /*random*/, i32 /*trunkHeight*/) const override {
         return m_height;
     }
 

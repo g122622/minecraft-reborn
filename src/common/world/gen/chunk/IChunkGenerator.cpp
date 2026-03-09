@@ -148,7 +148,7 @@ BaseChunkGenerator::BaseChunkGenerator(u64 seed, DimensionSettings settings)
 {
 }
 
-void BaseChunkGenerator::generateBiomes(WorldGenRegion& region, ChunkPrimer& chunk)
+void BaseChunkGenerator::generateBiomes(WorldGenRegion& /*region*/, ChunkPrimer& chunk)
 {
     // 默认实现：设置默认生物群系
     BiomeContainer& biomes = chunk.getBiomes();
@@ -162,13 +162,13 @@ void BaseChunkGenerator::generateBiomes(WorldGenRegion& region, ChunkPrimer& chu
     }
 }
 
-void BaseChunkGenerator::applyCarvers(WorldGenRegion& region, ChunkPrimer& chunk, bool isLiquid)
+void BaseChunkGenerator::applyCarvers(WorldGenRegion& /*region*/, ChunkPrimer& /*chunk*/, bool /*isLiquid*/)
 {
     // 默认实现：无雕刻
     // 子类可以覆盖以添加洞穴和峡谷生成
 }
 
-void BaseChunkGenerator::placeFeatures(WorldGenRegion& region, ChunkPrimer& chunk)
+void BaseChunkGenerator::placeFeatures(WorldGenRegion& /*region*/, ChunkPrimer& /*chunk*/)
 {
     // 默认实现：无特性
     // 子类可以覆盖以添加树木、矿石等

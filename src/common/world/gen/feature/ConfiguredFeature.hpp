@@ -16,7 +16,7 @@ class ChunkPrimer;
 class IChunkGenerator;
 class Biome;
 class ConfiguredPlacement;
-class OreFeatureConfig;
+struct OreFeatureConfig;
 
 /**
  * @brief 配置化特征基类

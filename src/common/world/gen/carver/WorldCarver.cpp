@@ -90,8 +90,8 @@ bool WorldCarver<Config>::canCarveBlock(const BlockState* state, const BlockStat
 template<typename Config>
 bool WorldCarver<Config>::carveEllipsoid(
     ChunkPrimer& chunk,
-    const BiomeProvider& biomeProvider,
-    i32 seaLevel,
+    const BiomeProvider& /*biomeProvider*/,
+    i32 /*seaLevel*/,
     ChunkCoord chunkX,
     ChunkCoord chunkZ,
     f32 centerX, f32 centerY, f32 centerZ,
@@ -134,9 +134,6 @@ bool WorldCarver<Config>::carveEllipsoid(
 
     math::Random rng(static_cast<u64>(seed) + static_cast<u64>(chunkX) + static_cast<u64>(chunkZ));
     bool carved = false;
-
-    const f32 hRadiusSq = horizontalRadius * horizontalRadius;
-    const f32 vRadiusSq = verticalRadius * verticalRadius;
 
     for (i32 lx = localMinX; lx <= localMaxX; ++lx) {
         const i32 worldX = (chunkX << 4) + lx;
@@ -247,7 +244,7 @@ bool WorldCarver<Config>::isInCarvingRange(
 template<typename Config>
 bool WorldCarver<Config>::checkAreaForFluid(
     ChunkPrimer& chunk,
-    ChunkCoord chunkX, ChunkCoord chunkZ,
+    ChunkCoord /*chunkX*/, ChunkCoord /*chunkZ*/,
     i32 minX, i32 maxX,
     i32 minY, i32 maxY,
     i32 minZ, i32 maxZ) const

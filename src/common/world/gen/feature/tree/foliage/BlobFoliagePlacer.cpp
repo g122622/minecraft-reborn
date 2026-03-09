@@ -12,7 +12,7 @@ BlobFoliagePlacer::BlobFoliagePlacer(const FeatureSpread& radius, const FeatureS
 void BlobFoliagePlacer::placeFoliageInternal(
     WorldGenRegion& world,
     math::Random& random,
-    i32 trunkHeight,
+    i32 /*trunkHeight*/,
     const FoliagePosition& foliagePos,
     i32 foliageHeight,
     i32 radius,

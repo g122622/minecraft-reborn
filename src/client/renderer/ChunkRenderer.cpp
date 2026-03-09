@@ -225,7 +225,7 @@ Result<void> ChunkRenderer::loadTextureAtlas(
     return {};
 }
 
-void ChunkRenderer::render(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) {
+void ChunkRenderer::render(VkCommandBuffer commandBuffer, VkPipelineLayout /*pipelineLayout*/) {
     // 绑定纹理
     if (m_textureAtlas.isValid()) {
         VkDescriptorImageInfo imageInfo{};
@@ -447,7 +447,7 @@ Result<void> ChunkRenderer::createChunkBuffer(
 }
 
 Result<void> ChunkRenderer::uploadBufferData(
-    VulkanBuffer& dstBuffer,
+    VulkanBuffer& /*dstBuffer*/,
     const void* data,
     VkDeviceSize size)
 {

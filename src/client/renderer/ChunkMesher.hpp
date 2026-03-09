@@ -11,7 +11,7 @@ namespace mr {
 
 // 前向声明
 class BlockModelCache;
-class BlockAppearance;
+struct BlockAppearance;
 
 // ============================================================================
 // 区块网格生成器

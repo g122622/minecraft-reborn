@@ -278,7 +278,7 @@ public:
      * @brief 获取使用时间（如食物食用时间）
      * @return 使用时间（ticks），0表示不可使用
      */
-    [[nodiscard]] virtual i32 getUseDuration(const ItemStack& stack) const { return 0; }
+    [[nodiscard]] virtual i32 getUseDuration(const ItemStack& /*stack*/) const { return 0; }
 
     /**
      * @brief 转换为字符串

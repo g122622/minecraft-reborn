@@ -10,9 +10,9 @@ namespace {
 
 [[nodiscard]] f32 sampleBlendedNoise(const PerlinNoiseGenerator& noise, i32 x, i32 z, f32 largeScale, f32 detailScale)
 {
-    const f32 large = noise.noise(static_cast<f32>(x) * largeScale, 0.0, static_cast<f32>(z) * largeScale);
-    const f32 detail = noise.noise(static_cast<f32>(x) * detailScale, 0.0, static_cast<f32>(z) * detailScale);
-    return static_cast<f32>(large * 0.7 + detail * 0.3);
+    const f32 large = noise.noise(static_cast<f32>(x) * largeScale, 0.0f, static_cast<f32>(z) * largeScale);
+    const f32 detail = noise.noise(static_cast<f32>(x) * detailScale, 0.0f, static_cast<f32>(z) * detailScale);
+    return large * 0.7f + detail * 0.3f;
 }
 
 [[nodiscard]] f32 normalizeShaped(f32 value, f32 stretch)
@@ -61,12 +61,12 @@ BiomeId SimpleBiomeProvider::getNoiseBiome(i32 noiseX, i32 noiseY, i32 noiseZ) c
 {
     (void)noiseY;
 
-    const f32 temperature = normalizeShaped(sampleBlendedNoise(*m_temperatureNoise, noiseX, noiseZ, 0.008, 0.026), 1.45f);
-    const f32 humidity = normalizeShaped(sampleBlendedNoise(*m_humidityNoise, noiseX, noiseZ, 0.008, 0.024), 1.40f);
-    const f32 continentalness = normalizeShaped(sampleBlendedNoise(*m_continentalnessNoise, noiseX, noiseZ, 0.004, 0.014), 1.75f);
-    const f32 erosion = normalizeShaped(sampleBlendedNoise(*m_erosionNoise, noiseX, noiseZ, 0.006, 0.021), 1.55f);
-    const f32 weirdness = normalizeShaped(sampleBlendedNoise(*m_scaleNoise, noiseX, noiseZ, 0.010, 0.033), 1.60f);
-    const f32 valley = normalizeShaped(sampleBlendedNoise(*m_depthNoise, noiseX, noiseZ, 0.012, 0.040), 1.55f);
+    const f32 temperature = normalizeShaped(sampleBlendedNoise(*m_temperatureNoise, noiseX, noiseZ, 0.008f, 0.026f), 1.45f);
+    const f32 humidity = normalizeShaped(sampleBlendedNoise(*m_humidityNoise, noiseX, noiseZ, 0.008f, 0.024f), 1.40f);
+    const f32 continentalness = normalizeShaped(sampleBlendedNoise(*m_continentalnessNoise, noiseX, noiseZ, 0.004f, 0.014f), 1.75f);
+    const f32 erosion = normalizeShaped(sampleBlendedNoise(*m_erosionNoise, noiseX, noiseZ, 0.006f, 0.021f), 1.55f);
+    const f32 weirdness = normalizeShaped(sampleBlendedNoise(*m_scaleNoise, noiseX, noiseZ, 0.010f, 0.033f), 1.60f);
+    const f32 valley = normalizeShaped(sampleBlendedNoise(*m_depthNoise, noiseX, noiseZ, 0.012f, 0.040f), 1.55f);
 
     return selectBiome(temperature, humidity, continentalness, erosion, weirdness, valley);
 }

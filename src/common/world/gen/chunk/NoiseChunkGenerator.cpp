@@ -519,7 +519,7 @@ BlockId NoiseChunkGenerator::getBlockForDensity(f32 density, i32 y) const
 // 地表生成
 // ============================================================================
 
-void NoiseChunkGenerator::buildSurface(WorldGenRegion& region, ChunkPrimer& chunk)
+void NoiseChunkGenerator::buildSurface(WorldGenRegion& /*region*/, ChunkPrimer& chunk)
 {
     const ChunkCoord chunkX = chunk.x();
     const ChunkCoord chunkZ = chunk.z();
@@ -540,7 +540,6 @@ void NoiseChunkGenerator::buildSurface(WorldGenRegion& region, ChunkPrimer& chun
 
             // 获取生物群系
             const BiomeId biomeId = chunk.getBiomeAtBlock(localX, surfaceHeight, localZ);
-            const Biome& biomeDef = m_biomeProvider->getBiomeDefinition(biomeId);
 
             // 计算地表噪声
             const f32 surfaceNoise = m_surfaceDepthNoise->noise2D(
@@ -637,7 +636,7 @@ void NoiseChunkGenerator::buildSurfaceForColumn(ChunkPrimer& chunk, i32 x, i32 z
 // 雕刻和特性
 // ============================================================================
 
-void NoiseChunkGenerator::applyCarvers(WorldGenRegion& region, ChunkPrimer& chunk, bool isLiquid)
+void NoiseChunkGenerator::applyCarvers(WorldGenRegion& /*region*/, ChunkPrimer& chunk, bool isLiquid)
 {
     const ChunkCoord chunkX = chunk.x();
     const ChunkCoord chunkZ = chunk.z();
