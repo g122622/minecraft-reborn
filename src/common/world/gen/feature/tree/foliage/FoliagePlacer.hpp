@@ -7,6 +7,7 @@
 #include "../trunk/TrunkPlacer.hpp"
 #include <vector>
 #include <set>
+#include <memory>
 
 namespace mr {
 

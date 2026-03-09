@@ -6,6 +6,7 @@
 #include "../../../../chunk/ChunkPos.hpp"
 #include <vector>
 #include <set>
+#include <memory>
 
 namespace mr {
 

@@ -4,6 +4,7 @@
 #include "../../../math/random/Random.hpp"
 #include <vector>
 #include <memory>
+#include <cmath>
 
 namespace mr {
 

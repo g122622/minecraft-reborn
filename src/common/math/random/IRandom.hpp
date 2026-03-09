@@ -2,6 +2,8 @@
 
 #include "../../core/Types.hpp"
 #include <limits>
+#include <cmath>
+#include <memory>
 
 namespace mr::math {
 
