@@ -1,4 +1,5 @@
 #include "VulkanRenderer.hpp"
+#include "ShaderPath.hpp"
 #include "VulkanBuffer.hpp"
 #include "DefaultTextureAtlas.hpp"
 #include "sky/CelestialCalculations.hpp"
@@ -1152,9 +1153,15 @@ Result<void> VulkanRenderer::createChunkPipeline() {
 
     PipelineConfig config{};
 
-    // 着色器路径 - 使用区块着色器
-    config.vertexShaderPath = "D:/MiscProjects/minecraft-reborn/shaders/chunk.vert.spv";
-    config.fragmentShaderPath = "D:/MiscProjects/minecraft-reborn/shaders/chunk.frag.spv";
+    const auto chunkVertPath = resolveShaderPath("chunk.vert.spv");
+    const auto chunkFragPath = resolveShaderPath("chunk.frag.spv");
+    if (chunkVertPath.empty() || chunkFragPath.empty()) {
+        return Error(ErrorCode::FileNotFound, "Failed to resolve chunk shader binaries");
+    }
+
+    // 着色器路径 - 优先使用最新构建产物
+    config.vertexShaderPath = chunkVertPath.string();
+    config.fragmentShaderPath = chunkFragPath.string();
 
     // 顶点输入描述 - 与Vertex结构匹配
     VkVertexInputBindingDescription bindingDesc{};

@@ -34,6 +34,8 @@ message(STATUS "Shader compiler: ${SHADER_COMPILER}")
 set(SHADER_SOURCES
     block.vert
     block.frag
+    chunk.vert
+    chunk.frag
     debug.vert
     debug.frag
     gui.vert

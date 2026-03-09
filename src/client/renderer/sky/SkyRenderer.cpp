@@ -1,9 +1,11 @@
 #include "SkyRenderer.hpp"
+#include "../ShaderPath.hpp"
 #include "../VulkanBuffer.hpp"
 #include "../../../common/core/Constants.hpp"
 #include <spdlog/spdlog.h>
 #include <random>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <array>
 
@@ -16,7 +18,7 @@ constexpr f32 SKY_CLIP_SCALE = 0.0075f;
 Result<std::vector<u8>> readBinaryFile(const char* path) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
-        return Error(ErrorCode::FileNotFound, std::string("Failed to open shader file: ") + path);
+        return Error(ErrorCode::FileNotFound, "Failed to open shader file: " + std::string(path));
     }
 
     const std::streamsize fileSize = file.tellg();
@@ -29,7 +31,7 @@ Result<std::vector<u8>> readBinaryFile(const char* path) {
     file.read(reinterpret_cast<char*>(data.data()), fileSize);
 
     if (!file.good()) {
-        return Error(ErrorCode::Unknown, std::string("Failed to read shader file: ") + path);
+        return Error(ErrorCode::Unknown, "Failed to read shader file: " + std::string(path));
     }
 
     return data;
@@ -43,7 +45,7 @@ Result<VkShaderModule> createShaderModule(VkDevice device, const char* path) {
 
     const auto& code = codeResult.value();
     if (code.size() % 4 != 0) {
-        return Error(ErrorCode::InvalidData, std::string("Invalid SPIR-V file size: ") + path);
+        return Error(ErrorCode::InvalidData, "Invalid SPIR-V file size: " + std::string(path));
     }
 
     VkShaderModuleCreateInfo createInfo{};
@@ -55,7 +57,7 @@ Result<VkShaderModule> createShaderModule(VkDevice device, const char* path) {
     const VkResult result = vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule);
     if (result != VK_SUCCESS) {
         return Error(ErrorCode::InitializationFailed,
-                     std::string("Failed to create shader module: ") + path);
+                     "Failed to create shader module: " + std::string(path));
     }
 
     return shaderModule;
@@ -654,19 +656,38 @@ Result<void> SkyRenderer::createPipelineLayout() {
 Result<void> SkyRenderer::createPipelines() {
     const VkDevice device = m_ctx->device();
 
-    auto createPipeline = [this, device](const char* vertPath,
-                                         const char* fragPath,
+    const auto skyVertPath = resolveShaderPath("sky.vert.spv");
+    const auto skyFragPath = resolveShaderPath("sky.frag.spv");
+    const auto sunVertPath = resolveShaderPath("sun.vert.spv");
+    const auto sunFragPath = resolveShaderPath("sun.frag.spv");
+    const auto moonVertPath = resolveShaderPath("moon.vert.spv");
+    const auto moonFragPath = resolveShaderPath("moon.frag.spv");
+    const auto starVertPath = resolveShaderPath("star.vert.spv");
+    const auto starFragPath = resolveShaderPath("star.frag.spv");
+
+    if (skyVertPath.empty() || skyFragPath.empty() ||
+        sunVertPath.empty() || sunFragPath.empty() ||
+        moonVertPath.empty() || moonFragPath.empty() ||
+        starVertPath.empty() || starFragPath.empty()) {
+        return Error(ErrorCode::FileNotFound, "Failed to resolve one or more sky shader binaries");
+    }
+
+    auto createPipeline = [this, device](const std::filesystem::path& vertPath,
+                                         const std::filesystem::path& fragPath,
                                          VkPrimitiveTopology topology,
                                          VkBool32 blendEnable,
                                          VkBool32 depthTestEnable,
                                          VkBool32 depthWriteEnable,
                                          VkPipeline* outPipeline) -> Result<void> {
-        auto vertResult = createShaderModule(device, vertPath);
+        const auto vertPathString = vertPath.string();
+        const auto fragPathString = fragPath.string();
+
+        auto vertResult = createShaderModule(device, vertPathString.c_str());
         if (vertResult.failed()) {
             return vertResult.error();
         }
 
-        auto fragResult = createShaderModule(device, fragPath);
+        auto fragResult = createShaderModule(device, fragPathString.c_str());
         if (fragResult.failed()) {
             vkDestroyShaderModule(device, vertResult.value(), nullptr);
             return fragResult.error();
@@ -791,15 +812,15 @@ Result<void> SkyRenderer::createPipelines() {
         if (pipelineResult != VK_SUCCESS) {
             return Error(ErrorCode::InitializationFailed,
                          std::string("Failed to create sky graphics pipeline for shaders: ") +
-                         vertPath + " / " + fragPath);
+                         vertPathString + " / " + fragPathString);
         }
 
         return Result<void>::ok();
     };
 
     // 天空穹顶
-    auto skyResult = createPipeline("D:/MiscProjects/minecraft-reborn/shaders/sky.vert.spv",
-                                    "D:/MiscProjects/minecraft-reborn/shaders/sky.frag.spv",
+    auto skyResult = createPipeline(skyVertPath,
+                                    skyFragPath,
                                     VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE, VK_FALSE,
                                     VK_FALSE, &m_skyPipeline);
     if (skyResult.failed()) {
@@ -807,8 +828,8 @@ Result<void> SkyRenderer::createPipelines() {
     }
 
     // 太阳
-    auto sunResult = createPipeline("D:/MiscProjects/minecraft-reborn/shaders/sun.vert.spv",
-                                    "D:/MiscProjects/minecraft-reborn/shaders/sun.frag.spv", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+    auto sunResult = createPipeline(sunVertPath,
+                                    sunFragPath, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
                                     VK_TRUE, VK_FALSE, VK_FALSE, &m_sunPipeline);
     if (sunResult.failed()) {
         return sunResult.error();
@@ -816,8 +837,8 @@ Result<void> SkyRenderer::createPipelines() {
 
     // 月亮
     auto moonResult = createPipeline(
-        "D:/MiscProjects/minecraft-reborn/shaders/moon.vert.spv",
-        "D:/MiscProjects/minecraft-reborn/shaders/moon.frag.spv",
+        moonVertPath,
+        moonFragPath,
         VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
         VK_TRUE,
         VK_FALSE,
@@ -829,8 +850,8 @@ Result<void> SkyRenderer::createPipelines() {
 
     // 星星
     auto starResult = createPipeline(
-        "D:/MiscProjects/minecraft-reborn/shaders/star.vert.spv",
-        "D:/MiscProjects/minecraft-reborn/shaders/star.frag.spv",
+        starVertPath,
+        starFragPath,
         VK_PRIMITIVE_TOPOLOGY_POINT_LIST,
         VK_TRUE,
         VK_FALSE,

@@ -98,6 +98,10 @@ void HudRenderer::renderHotbar(GuiRenderer& gui, const PlayerInventory& inventor
     gui.fillRect(hotbarX, hotbarY, HOTBAR_WIDTH, HOTBAR_HEIGHT,
                  HudColors::HOTBAR_BACKGROUND);
 
+    // 绘制边框
+    gui.drawRect(hotbarX, hotbarY, HOTBAR_WIDTH, HOTBAR_HEIGHT,
+                 HudColors::HOTBAR_BORDER);
+
     // 绘制槽位
     i32 selectedSlot = inventory.getSelectedSlot();
     for (i32 i = 0; i < 9; ++i) {
@@ -137,7 +141,6 @@ void HudRenderer::renderHealth(GuiRenderer& gui, const Player& player,
 
     // 获取生命值
     f32 health = player.health();
-    f32 maxHealth = player.maxHealth();
     i32 absorption = static_cast<i32>(player.absorptionAmount());
     i32 armor = player.armorValue();
 

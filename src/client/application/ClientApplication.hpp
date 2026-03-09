@@ -15,6 +15,7 @@
 #include "../network/NetworkClient.hpp"
 #include "../ui/DebugScreen.hpp"
 #include "../ui/crosshair/CrosshairRenderer.hpp"
+#include "../ui/hud/HudRenderer.hpp"
 #include "../resource/ResourceManager.hpp"
 #include "../resource/BlockModelCache.hpp"
 #include "server/application/IntegratedServer.hpp"
@@ -178,6 +179,9 @@ private:
 
     // 准星渲染器
     CrosshairRenderer m_crosshair;
+
+    // HUD渲染器
+    HudRenderer m_hudRenderer;
 
     // 射线检测结果
     BlockRaycastResult m_raycastResult;

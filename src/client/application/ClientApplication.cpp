@@ -3,6 +3,7 @@
 #include "common/math/ray/Raycast.hpp"
 #include "common/resource/VanillaResources.hpp"
 #include "client/renderer/ChunkMesher.hpp"
+#include "client/ui/hud/HudRenderer.hpp"
 #include "minecraft-reborn/version.h"
 
 #include <spdlog/spdlog.h>
@@ -291,10 +292,14 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
 
     // 初始化调试屏幕
     if (m_renderer->isGuiRendererInitialized()) {
-        m_debugScreen.initialize(&m_renderer->guiRenderer());
-        m_debugScreen.setCamera(&m_camera);
-        m_debugScreen.setWorld(&m_world);
-        spdlog::info("Debug screen initialized");
+        auto debugResult = m_debugScreen.initialize(&m_renderer->guiRenderer());
+        if (debugResult.failed()) {
+            spdlog::warn("Failed to initialize debug screen: {}", debugResult.error().toString());
+        } else {
+            m_debugScreen.setCamera(&m_camera);
+            m_debugScreen.setWorld(&m_world);
+            spdlog::info("Debug screen initialized");
+        }
 
         // 初始化准星渲染器
         auto crosshairResult = m_crosshair.initialize(&m_renderer->guiRenderer());
@@ -304,10 +309,26 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
             spdlog::info("Crosshair initialized");
         }
 
+        // 初始化HUD渲染器
+        if (m_hudRenderer.initialize()) {
+            spdlog::info("HUD renderer initialized");
+        } else {
+            spdlog::warn("Failed to initialize HUD renderer");
+        }
+
         // 设置GUI渲染回调
         m_renderer->setGuiRenderCallback([this]() {
             // 先渲染准星
             m_crosshair.render();
+            // 渲染HUD（快捷栏、生命值、饥饿值等）
+            if (m_player) {
+                if (m_hudRenderer.isVisible()) {
+                    m_hudRenderer.render(m_renderer->guiRenderer(), *m_player,
+                                         m_player->inventory(),
+                                         static_cast<f32>(m_window.width()),
+                                         static_cast<f32>(m_window.height()));
+                }
+            }
             // 再渲染调试屏幕
             if (m_debugScreenVisible) {
                 m_debugScreen.render();
