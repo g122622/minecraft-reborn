@@ -619,6 +619,28 @@ TEST(BlockUpdatePacket, SerializeDeserialize) {
     EXPECT_EQ(result.value().blockStateId(), 42u);
 }
 
+TEST(BlockInteractionPacket, SerializeDeserialize) {
+    BlockInteractionPacket original(
+        BlockInteractionAction::StartDestroyBlock,
+        12,
+        70,
+        -5,
+        Direction::North);
+
+    PacketSerializer ser;
+    original.serialize(ser);
+
+    PacketDeserializer deser(ser.buffer());
+    auto result = BlockInteractionPacket::deserialize(deser);
+
+    EXPECT_TRUE(result.success());
+    EXPECT_EQ(result.value().action(), BlockInteractionAction::StartDestroyBlock);
+    EXPECT_EQ(result.value().x(), 12);
+    EXPECT_EQ(result.value().y(), 70);
+    EXPECT_EQ(result.value().z(), -5);
+    EXPECT_EQ(result.value().face(), Direction::North);
+}
+
 TEST(ChatMessagePacket, SerializeDeserialize) {
     ChatMessagePacket original("Hello, world!", 12345);
 

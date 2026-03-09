@@ -1,0 +1,355 @@
+#include "ItemEntity.hpp"
+#include "Player.hpp"
+#include <cmath>
+
+namespace mr {
+
+// ============================================================================
+// 构造函数
+// ============================================================================
+
+ItemEntity::ItemEntity(EntityId id, const ItemStack& stack, f64 x, f64 y, f64 z)
+    : Entity(EntityType::Item, id)
+    , m_itemStack(stack)
+{
+    setPosition(x, y, z);
+    setRotation(0.0f, 0.0f);
+
+    // 初始化速度（轻微随机）
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<f64> dis(-0.1, 0.1);
+
+    m_velocity.x = dis(gen);
+    m_velocity.y = 0.2;  // 轻微向上
+    m_velocity.z = dis(gen);
+}
+
+ItemEntity::ItemEntity(EntityId id, const ItemStack& stack,
+                       f64 x, f64 y, f64 z,
+                       f64 vx, f64 vy, f64 vz)
+    : Entity(EntityType::Item, id)
+    , m_itemStack(stack)
+{
+    setPosition(x, y, z);
+    setRotation(0.0f, 0.0f);
+    setVelocity(vx, vy, vz);
+}
+
+// ============================================================================
+// 物品操作
+// ============================================================================
+
+void ItemEntity::setItemStack(const ItemStack& stack) {
+    m_itemStack = stack;
+}
+
+// ============================================================================
+// Entity 接口
+// ============================================================================
+
+void ItemEntity::tick() {
+    // 更新前保存位置
+    m_prevPosition = m_position;
+    m_prevYaw = m_yaw;
+    m_prevPitch = m_pitch;
+
+    // 增加年龄
+    m_age++;
+
+    // 检查是否过期
+    if (isExpired()) {
+        remove();
+        return;
+    }
+
+    // 减少拾取延迟
+    if (m_pickupDelay > 0) {
+        m_pickupDelay--;
+    }
+
+    // 更新物理
+    updatePhysics();
+
+    // 更新存活时间
+    m_ticksExisted++;
+
+    // TODO: 更新合并检测
+    // updateMerge();
+}
+
+// ============================================================================
+// 玩家拾取
+// ============================================================================
+
+bool ItemEntity::onPlayerPickup(Player& player) {
+    // 检查是否可以拾取
+    if (!canBePickedUp()) {
+        return false;
+    }
+
+    // 检查所有者限制（防止立即拾取自己丢弃的物品）
+    // 这里简化处理，实际应该检查玩家的UUID
+    // if (!m_ownerUuid.empty() && m_age < 20) {
+    //     return false;
+    // }
+
+    // TODO: 将物品添加到玩家背包
+    // PlayerInventory& inventory = player.inventory();
+    // i32 remaining = inventory.add(m_itemStack);
+    // if (remaining > 0) {
+    //     m_itemStack.setCount(remaining);
+    //     return false;  // 只拾取了部分
+    // }
+
+    // 标记为移除
+    remove();
+    return true;
+}
+
+void ItemEntity::setOwner(const String& ownerUuid, const String& throwerUuid) {
+    m_ownerUuid = ownerUuid;
+    m_throwerUuid = throwerUuid;
+}
+
+// ============================================================================
+// 物品合并
+// ============================================================================
+
+bool ItemEntity::tryMergeWith(ItemEntity& other) {
+    if (!canMergeWith(other)) {
+        return false;
+    }
+
+    // 计算合并后的数量
+    i32 total = m_itemStack.getCount() + other.m_itemStack.getCount();
+    i32 maxStack = m_itemStack.getMaxStackSize();
+
+    if (total <= maxStack) {
+        // 全部合并到当前实体
+        m_itemStack.setCount(total);
+        other.remove();
+        return true;
+    }
+
+    // 部分合并
+    i32 toTake = maxStack - m_itemStack.getCount();
+    m_itemStack.grow(toTake);
+    other.m_itemStack.shrink(toTake);
+    return true;
+}
+
+bool ItemEntity::canMergeWith(const ItemEntity& other) const {
+    // 检查是否可以合并
+    if (m_itemStack.isEmpty() || other.m_itemStack.isEmpty()) {
+        return false;
+    }
+
+    // 检查物品类型是否相同
+    if (!m_itemStack.isSameItem(other.m_itemStack)) {
+        return false;
+    }
+
+    // 检查耐久度是否相同
+    if (m_itemStack.getDamage() != other.m_itemStack.getDamage()) {
+        return false;
+    }
+
+    // 检查是否已达到堆叠上限
+    if (m_itemStack.getCount() >= m_itemStack.getMaxStackSize()) {
+        return false;
+    }
+
+    // 检查其他实体是否已达到堆叠上限
+    if (other.m_itemStack.getCount() >= other.m_itemStack.getMaxStackSize()) {
+        return false;
+    }
+
+    return true;
+}
+
+// ============================================================================
+// 物理更新
+// ============================================================================
+
+void ItemEntity::updatePhysics() {
+    // TODO: 检测是否在水中或熔岩中
+    // 目前使用普通物理
+    applyNormalPhysics();
+
+    // 应用速度
+    if (!m_onGround || std::abs(m_velocity.x) > 0.01 ||
+        std::abs(m_velocity.z) > 0.01 || m_velocity.y > 0.01) {
+        // 使用简单物理
+        f64 dx = m_velocity.x;
+        f64 dy = m_velocity.y;
+        f64 dz = m_velocity.z;
+
+        // 带碰撞移动
+        if (m_physicsEngine) {
+            Vector3 actual = moveWithCollision(dx, dy, dz);
+            dx = actual.x;
+            dy = actual.y;
+            dz = actual.z;
+        } else {
+            move(dx, dy, dz);
+        }
+
+        // 碰撞后减速
+        if (m_collidedHorizontally) {
+            m_velocity.x *= -0.5;
+            m_velocity.z *= -0.5;
+        }
+
+        if (m_collidedVertically) {
+            if (m_velocity.y < 0) {
+                // 落地
+                m_velocity.y = 0;
+                m_onGround = true;
+                m_fallDistance = 0.0f;
+            } else {
+                // 撞到天花板
+                m_velocity.y = -m_velocity.y * 0.5;
+            }
+        }
+    }
+
+    // 应用阻力和重力
+    applyPhysics(1.0f / 20.0f);
+}
+
+void ItemEntity::applyNormalPhysics() {
+    // 重力
+    constexpr f64 GRAVITY = 0.04;  // 物品重力比实体小
+
+    // 空气阻力
+    constexpr f64 DRAG = 0.98;
+
+    // 水平阻力
+    constexpr f64 HORIZONTAL_DRAG = 0.98;
+
+    m_velocity.y -= GRAVITY;
+    m_velocity.y *= DRAG;
+
+    m_velocity.x *= HORIZONTAL_DRAG;
+    m_velocity.z *= HORIZONTAL_DRAG;
+
+    // 速度阈值
+    constexpr f64 VELOCITY_THRESHOLD = 0.001;
+    if (std::abs(m_velocity.x) < VELOCITY_THRESHOLD) m_velocity.x = 0;
+    if (std::abs(m_velocity.y) < VELOCITY_THRESHOLD) m_velocity.y = 0;
+    if (std::abs(m_velocity.z) < VELOCITY_THRESHOLD) m_velocity.z = 0;
+}
+
+void ItemEntity::applyWaterPhysics() {
+    // 在水中：缓慢下沉
+    m_velocity.y -= SINK_SPEED;
+    m_velocity.x *= 0.95;
+    m_velocity.z *= 0.95;
+}
+
+void ItemEntity::applyLavaPhysics() {
+    // 在熔岩中：漂浮并着火
+    m_velocity.y += BUOYANCY;
+    m_velocity.x *= 0.95;
+    m_velocity.z *= 0.95;
+
+    // TODO: 设置着火
+    // addFlag(EntityFlags::OnFire);
+}
+
+// ============================================================================
+// 序列化
+// ============================================================================
+
+void ItemEntity::serialize(network::PacketSerializer& ser) const {
+    // 实体类型和ID
+    ser.writeU32(static_cast<u32>(m_type));
+    ser.writeU32(m_id);
+
+    // 位置
+    ser.writeF64(m_position.x);
+    ser.writeF64(m_position.y);
+    ser.writeF64(m_position.z);
+
+    // 速度
+    ser.writeF64(m_velocity.x);
+    ser.writeF64(m_velocity.y);
+    ser.writeF64(m_velocity.z);
+
+    // 旋转
+    ser.writeF32(m_yaw);
+    ser.writeF32(m_pitch);
+
+    // 物品堆
+    m_itemStack.serialize(ser);
+
+    // 额外数据
+    ser.writeI32(m_age);
+    ser.writeI32(m_pickupDelay);
+    ser.writeI32(m_lifetime);
+    ser.writeBool(m_unpickable);
+}
+
+Result<std::unique_ptr<ItemEntity>> ItemEntity::deserialize(
+    network::PacketDeserializer& deser, EntityId id) {
+
+    // 读取位置
+    auto xResult = deser.readF64();
+    if (xResult.failed()) return xResult.error();
+    f64 x = xResult.value();
+
+    auto yResult = deser.readF64();
+    if (yResult.failed()) return yResult.error();
+    f64 y = yResult.value();
+
+    auto zResult = deser.readF64();
+    if (zResult.failed()) return zResult.error();
+    f64 z = zResult.value();
+
+    // 读取速度
+    auto vxResult = deser.readF64();
+    if (vxResult.failed()) return vxResult.error();
+
+    auto vyResult = deser.readF64();
+    if (vyResult.failed()) return vyResult.error();
+
+    auto vzResult = deser.readF64();
+    if (vzResult.failed()) return vzResult.error();
+
+    // 读取旋转
+    auto yawResult = deser.readF32();
+    if (yawResult.failed()) return yawResult.error();
+
+    auto pitchResult = deser.readF32();
+    if (pitchResult.failed()) return pitchResult.error();
+
+    // 读取物品堆
+    auto stackResult = ItemStack::deserialize(deser);
+    if (stackResult.failed()) return stackResult.error();
+
+    auto entity = std::make_unique<ItemEntity>(id, stackResult.value(), x, y, z);
+    entity->setVelocity(vxResult.value(), vyResult.value(), vzResult.value());
+    entity->setRotation(yawResult.value(), pitchResult.value());
+
+    // 读取额外数据
+    auto ageResult = deser.readI32();
+    if (ageResult.failed()) return ageResult.error();
+    entity->m_age = ageResult.value();
+
+    auto delayResult = deser.readI32();
+    if (delayResult.failed()) return delayResult.error();
+    entity->m_pickupDelay = delayResult.value();
+
+    auto lifetimeResult = deser.readI32();
+    if (lifetimeResult.failed()) return lifetimeResult.error();
+    entity->m_lifetime = lifetimeResult.value();
+
+    auto unpickableResult = deser.readBool();
+    if (unpickableResult.failed()) return unpickableResult.error();
+    entity->m_unpickable = unpickableResult.value();
+
+    return entity;
+}
+
+} // namespace mr

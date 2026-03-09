@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Entity.hpp"
+#include "inventory/PlayerInventory.hpp"
 #include "../network/ProtocolPackets.hpp"
 #include <array>
 
@@ -279,6 +280,25 @@ public:
 
     [[nodiscard]] network::PlayerPosition playerPosition() const;
 
+    // ========== 背包 ==========
+
+    /**
+     * @brief 获取玩家背包
+     */
+    [[nodiscard]] const PlayerInventory& inventory() const { return m_inventory; }
+    PlayerInventory& inventory() { return m_inventory; }
+
+    /**
+     * @brief 获取吸收伤害值（金苹果效果）
+     */
+    [[nodiscard]] f32 absorptionAmount() const { return m_absorptionAmount; }
+    void setAbsorptionAmount(f32 amount) { m_absorptionAmount = amount; }
+
+    /**
+     * @brief 获取护甲值
+     */
+    [[nodiscard]] i32 armorValue() const;
+
     // ========== 重生 ==========
 
     void respawn();
@@ -310,6 +330,7 @@ private:
 
     FoodStats m_foodStats;
     PlayerAbilities m_abilities;
+    PlayerInventory m_inventory{this};  // 玩家背包
 
     i32 m_experienceLevel = 0;
     f32 m_experienceProgress = 0.0f;

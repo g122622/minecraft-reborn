@@ -27,32 +27,47 @@ void InputManager::initialize(GLFWwindow* window)
 
 void InputManager::update()
 {
-    // 清除"刚按下/刚释放"状态
-    m_keysJustPressed.clear();
-    m_keysJustReleased.clear();
-    m_mouseButtonsJustPressed.clear();
-    m_mouseButtonsJustReleased.clear();
+    if (m_window) {
+        std::unordered_set<i32> currentMouseButtonsPressed;
+        for (i32 button = GLFW_MOUSE_BUTTON_1; button <= GLFW_MOUSE_BUTTON_LAST; ++button) {
+            if (glfwGetMouseButton(m_window, button) == GLFW_PRESS) {
+                currentMouseButtonsPressed.insert(button);
+            }
+        }
 
-    // 重置滚轮增量
-    m_scrollDeltaX = 0.0;
-    m_scrollDeltaY = 0.0;
+        for (i32 button : currentMouseButtonsPressed) {
+            if (m_previousMouseButtonsPressed.count(button) == 0) {
+                m_mouseButtonsJustPressed.insert(button);
+                m_mouseButtonsJustReleased.erase(button);
+            }
+        }
+
+        for (i32 button : m_previousMouseButtonsPressed) {
+            if (currentMouseButtonsPressed.count(button) == 0) {
+                m_mouseButtonsJustReleased.insert(button);
+                m_mouseButtonsJustPressed.erase(button);
+            }
+        }
+
+        m_mouseButtonsPressed = std::move(currentMouseButtonsPressed);
+        m_previousMouseButtonsPressed = m_mouseButtonsPressed;
+    }
 
     // 计算鼠标增量
     m_mouseDeltaX = m_mouseX - m_lastMouseX;
     m_mouseDeltaY = m_mouseY - m_lastMouseY;
     m_lastMouseX = m_mouseX;
     m_lastMouseY = m_mouseY;
+}
 
-    // 触发按键绑定
-    for (const auto& key : m_keysJustPressed) {
-        auto it = m_keyBindings.find(key);
-        if (it != m_keyBindings.end()) {
-            auto callbackIt = m_actionCallbacks.find(it->second);
-            if (callbackIt != m_actionCallbacks.end() && callbackIt->second) {
-                callbackIt->second();
-            }
-        }
-    }
+void InputManager::endFrame()
+{
+    m_keysJustPressed.clear();
+    m_keysJustReleased.clear();
+    m_mouseButtonsJustPressed.clear();
+    m_mouseButtonsJustReleased.clear();
+    m_scrollDeltaX = 0.0;
+    m_scrollDeltaY = 0.0;
 }
 
 bool InputManager::isKeyPressed(i32 key) const

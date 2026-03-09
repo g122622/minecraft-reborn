@@ -1,19 +1,21 @@
 #include "GuiRenderer.hpp"
+#include "../renderer/ShaderPath.hpp"
 #include "../renderer/VulkanContext.hpp"
 #include "../renderer/VulkanBuffer.hpp"
 #include "../renderer/VulkanTexture.hpp"
 #include <cstring>
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <spdlog/spdlog.h>
 
 namespace mr::client {
 
 // 从文件加载SPIR-V着色器
-static std::vector<u8> loadShaderFile(const String& path) {
+static std::vector<u8> loadShaderFile(const std::filesystem::path& path) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
-        spdlog::error("Failed to open shader file: {}", path);
+        spdlog::error("Failed to open shader file: {}", path.string());
         return {};
     }
     
@@ -23,7 +25,7 @@ static std::vector<u8> loadShaderFile(const String& path) {
     file.read(reinterpret_cast<char*>(code.data()), fileSize);
     file.close();
     
-    spdlog::info("Loaded GUI shader: {} ({} bytes)", path, fileSize);
+    spdlog::info("Loaded GUI shader: {} ({} bytes)", path.string(), fileSize);
     return code;
 }
 
@@ -150,7 +152,10 @@ void GuiRenderer::destroy() {
 void GuiRenderer::setFont(Font* font) {
     m_font = font;
     if (m_initialized && m_font != nullptr) {
-        m_fontRenderer.initialize(m_font);
+        const auto initResult = m_fontRenderer.initialize(m_font);
+        if (initResult.failed()) {
+            spdlog::warn("Failed to reinitialize GUI font renderer: {}", initResult.error().toString());
+        }
         m_needsTextureUpdate = true;
     }
 
@@ -265,7 +270,7 @@ void GuiRenderer::fillRect(f32 x, f32 y, f32 width, f32 height, u32 color) {
     u32 baseIndex = static_cast<u32>(m_vertices.size());
 
     // 四个顶点
-    // 注意：使用负UV作为“纯色矩形”标记，片段着色器将跳过字体纹理采样。
+    // 注意：使用负UV作为”纯色矩形”标记，片段着色器将跳过字体纹理采样。
     // 否则会错误地使用字体纹理alpha，导致准星/背景矩形不可见。
     constexpr f32 SOLID_RECT_UV = -1.0f;
     m_vertices.emplace_back(x, y, SOLID_RECT_UV, SOLID_RECT_UV, color);                  // 左上
@@ -342,9 +347,19 @@ Result<void> GuiRenderer::createPipelineLayout() {
 Result<void> GuiRenderer::createPipeline(VkRenderPass renderPass) {
     VkDevice device = m_context->device();
 
+    const auto vertPath = resolveShaderPath("gui.vert.spv");
+    const auto fragPath = resolveShaderPath("gui.frag.spv");
+
+    if (vertPath.empty()) {
+        return Error(ErrorCode::FileNotFound, "Failed to resolve GUI vertex shader: gui.vert.spv");
+    }
+    if (fragPath.empty()) {
+        return Error(ErrorCode::FileNotFound, "Failed to resolve GUI fragment shader: gui.frag.spv");
+    }
+
     // 加载SPIR-V着色器
-    auto vertCode = loadShaderFile("D:/MiscProjects/minecraft-reborn/shaders/gui.vert.spv");
-    auto fragCode = loadShaderFile("D:/MiscProjects/minecraft-reborn/shaders/gui.frag.spv");
+    auto vertCode = loadShaderFile(vertPath);
+    auto fragCode = loadShaderFile(fragPath);
 
     if (vertCode.empty()) {
         return Error(ErrorCode::FileNotFound, "Failed to load GUI vertex shader");

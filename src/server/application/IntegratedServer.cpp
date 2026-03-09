@@ -1,7 +1,9 @@
 #include "IntegratedServer.hpp"
+#include "common/item/Items.hpp"
 #include "common/world/gen/chunk/NoiseChunkGenerator.hpp"
 #include "common/world/gen/settings/DimensionSettings.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
+#include "common/world/drop/DropTables.hpp"
 #include "common/network/Packet.hpp"
 #include "common/network/ChunkSync.hpp"
 #include "common/world/WorldConstants.hpp"
@@ -30,6 +32,10 @@ Result<void> IntegratedServer::initialize(const IntegratedServerConfig& config) 
     // 初始化方块注册表（必须在创建地形生成器之前）
     VanillaBlocks::initialize();
     spdlog::info("Vanilla blocks initialized");
+
+    Items::initialize();
+    DropTableRegistry::instance().initializeVanillaDrops();
+    spdlog::info("Vanilla items and drop tables initialized");
 
     spdlog::info("Initializing integrated server...");
     spdlog::info("World: {}, Seed: {}, View distance: {}",
@@ -308,6 +314,10 @@ void IntegratedServer::onPacketReceived(const u8* data, size_t size) {
             handlePlayerMove(data + network::PACKET_HEADER_SIZE, size - network::PACKET_HEADER_SIZE);
             break;
 
+        case network::PacketType::BlockInteraction:
+            handleBlockInteraction(data + network::PACKET_HEADER_SIZE, size - network::PACKET_HEADER_SIZE);
+            break;
+
         case network::PacketType::TeleportConfirm:
             handleTeleportConfirm(data + network::PACKET_HEADER_SIZE, size - network::PACKET_HEADER_SIZE);
             break;
@@ -389,12 +399,26 @@ void IntegratedServer::handlePlayerMove(const u8* data, size_t size) {
     auto& packet = result.value();
     const auto& pos = packet.position();
 
-    // 更新玩家位置
-    m_client.x = pos.x;
-    m_client.y = pos.y;
-    m_client.z = pos.z;
-    m_client.yaw = pos.yaw;
-    m_client.pitch = pos.pitch;
+    switch (packet.type()) {
+        case network::PlayerMovePacket::MoveType::Full:
+            m_client.x = pos.x;
+            m_client.y = pos.y;
+            m_client.z = pos.z;
+            m_client.yaw = pos.yaw;
+            m_client.pitch = pos.pitch;
+            break;
+        case network::PlayerMovePacket::MoveType::Position:
+            m_client.x = pos.x;
+            m_client.y = pos.y;
+            m_client.z = pos.z;
+            break;
+        case network::PlayerMovePacket::MoveType::Rotation:
+            m_client.yaw = pos.yaw;
+            m_client.pitch = pos.pitch;
+            break;
+        case network::PlayerMovePacket::MoveType::GroundOnly:
+            break;
+    }
 
     // 检查是否跨越区块边界
     ChunkCoord newChunkX = static_cast<ChunkCoord>(std::floor(m_client.x / 16.0));
@@ -405,6 +429,87 @@ void IntegratedServer::handlePlayerMove(const u8* data, size_t size) {
         m_lastPlayerChunkX = newChunkX;
         m_lastPlayerChunkZ = newChunkZ;
     }
+}
+
+void IntegratedServer::handleBlockInteraction(const u8* data, size_t size) {
+    if (!m_client.loggedIn || !m_chunkManager) {
+        return;
+    }
+
+    network::PacketDeserializer deser(data, size);
+    auto result = network::BlockInteractionPacket::deserialize(deser);
+    if (result.failed()) {
+        spdlog::debug("Failed to parse block interaction packet: {}", result.error().message());
+        return;
+    }
+
+    const auto& packet = result.value();
+    spdlog::info("[Mining] Server received action={} pos=({}, {}, {}) face={} playerPos=({}, {}, {})",
+                 static_cast<i32>(packet.action()),
+                 packet.x(),
+                 packet.y(),
+                 packet.z(),
+                 static_cast<i32>(packet.face()),
+                 m_client.x,
+                 m_client.y,
+                 m_client.z);
+
+    if (packet.action() != network::BlockInteractionAction::StopDestroyBlock) {
+        return;
+    }
+
+    if (packet.y() < world::MIN_BUILD_HEIGHT || packet.y() >= world::MAX_BUILD_HEIGHT) {
+        return;
+    }
+
+    const f64 eyeX = m_client.x;
+    const f64 eyeY = m_client.y + Player::PLAYER_EYE_HEIGHT;
+    const f64 eyeZ = m_client.z;
+    const f64 targetX = static_cast<f64>(packet.x()) + 0.5;
+    const f64 targetY = static_cast<f64>(packet.y()) + 0.5;
+    const f64 targetZ = static_cast<f64>(packet.z()) + 0.5;
+    const f64 dx = targetX - eyeX;
+    const f64 dy = targetY - eyeY;
+    const f64 dz = targetZ - eyeZ;
+    const f64 distanceSquared = dx * dx + dy * dy + dz * dz;
+
+    if (distanceSquared > 36.0) {
+        spdlog::warn("[Mining] Out-of-range interaction accepted in integrated server: distanceSq={}, target=({}, {}, {}), eye=({}, {}, {})",
+                     distanceSquared,
+                     packet.x(), packet.y(), packet.z(),
+                     eyeX, eyeY, eyeZ);
+    }
+
+    ChunkCoord chunkX = static_cast<ChunkCoord>(std::floor(static_cast<f64>(packet.x()) / 16.0));
+    ChunkCoord chunkZ = static_cast<ChunkCoord>(std::floor(static_cast<f64>(packet.z()) / 16.0));
+    ChunkData* chunk = m_chunkManager->getChunkSync(chunkX, chunkZ);
+    if (!chunk) {
+        spdlog::warn("[Mining] Missing chunk for block interaction at chunk ({}, {})", chunkX, chunkZ);
+        return;
+    }
+
+    const i32 localX = packet.x() - chunkX * 16;
+    const i32 localZ = packet.z() - chunkZ * 16;
+    const BlockState* state = chunk->getBlock(localX, packet.y(), localZ);
+    if (state == nullptr || state->isAir() || state->hardness() < 0.0f) {
+        spdlog::warn("[Mining] Block interaction rejected due to invalid target state at ({}, {}, {})",
+                     packet.x(), packet.y(), packet.z());
+        return;
+    }
+
+    Block* airBlock = Block::getBlock(ResourceLocation("minecraft:air"));
+    if (!airBlock) {
+        spdlog::error("Failed to resolve minecraft:air while destroying block");
+        return;
+    }
+
+    chunk->setBlock(localX, packet.y(), localZ, &airBlock->defaultState());
+    chunk->setDirty(true);
+    sendBlockUpdate(packet.x(), packet.y(), packet.z(), airBlock->defaultState().stateId());
+
+    spdlog::info("[Mining] Destroyed block {} at ({}, {}, {})",
+                 state->blockLocation().toString(),
+                 packet.x(), packet.y(), packet.z());
 }
 
 void IntegratedServer::handlePlayerChunkMove(ChunkCoord newChunkX, ChunkCoord newChunkZ) {
@@ -534,6 +639,22 @@ void IntegratedServer::sendTeleport(f64 x, f64 y, f64 z, f32 yaw, f32 pitch, u32
     network::PacketSerializer fullPacket;
     fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
     fullPacket.writeU16(static_cast<u16>(network::PacketType::Teleport));
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeBytes(ser.buffer());
+
+    sendToClient(fullPacket.data(), fullPacket.size());
+}
+
+void IntegratedServer::sendBlockUpdate(i32 x, i32 y, i32 z, u32 blockStateId) {
+    network::BlockUpdatePacket packet(x, y, z, blockStateId);
+    network::PacketSerializer ser;
+    packet.serialize(ser);
+
+    network::PacketSerializer fullPacket;
+    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
+    fullPacket.writeU16(static_cast<u16>(network::PacketType::BlockUpdate));
     fullPacket.writeU16(0);
     fullPacket.writeU16(0);
     fullPacket.writeU16(0);

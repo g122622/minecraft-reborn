@@ -1,0 +1,886 @@
+#include "Items.hpp"
+
+namespace mr {
+
+bool Items::s_initialized = false;
+
+// ============================================================================
+// 静态成员初始化
+// ============================================================================
+
+Item* Items::AIR = nullptr;
+
+// 矿物和材料
+Item* Items::DIAMOND = nullptr;
+Item* Items::EMERALD = nullptr;
+Item* Items::GOLD_INGOT = nullptr;
+Item* Items::IRON_INGOT = nullptr;
+Item* Items::COPPER_INGOT = nullptr;
+Item* Items::NETHERITE_INGOT = nullptr;
+Item* Items::NETHERITE_SCRAP = nullptr;
+
+// 宝石碎片
+Item* Items::DIAMOND_SHARD = nullptr;
+Item* Items::EMERALD_SHARD = nullptr;
+
+// 煤炭相关
+Item* Items::COAL = nullptr;
+Item* Items::CHARCOAL = nullptr;
+
+// 红石相关
+Item* Items::REDSTONE = nullptr;
+Item* Items::LAPIS_LAZULI = nullptr;
+Item* Items::QUARTZ = nullptr;
+Item* Items::GLOWSTONE_DUST = nullptr;
+
+// 矿物原矿（物品形式，通常是方块）
+Item* Items::COAL_ORE = nullptr;
+Item* Items::IRON_ORE = nullptr;
+Item* Items::GOLD_ORE = nullptr;
+Item* Items::DIAMOND_ORE = nullptr;
+Item* Items::EMERALD_ORE = nullptr;
+Item* Items::LAPIS_ORE = nullptr;
+Item* Items::REDSTONE_ORE = nullptr;
+Item* Items::COPPER_ORE = nullptr;
+Item* Items::NETHER_QUARTZ_ORE = nullptr;
+Item* Items::NETHER_GOLD_ORE = nullptr;
+Item* Items::ANCIENT_DEBRIS = nullptr;
+
+// 钻石工具
+Item* Items::DIAMOND_PICKAXE = nullptr;
+Item* Items::DIAMOND_AXE = nullptr;
+Item* Items::DIAMOND_SHOVEL = nullptr;
+Item* Items::DIAMOND_HOE = nullptr;
+Item* Items::DIAMOND_SWORD = nullptr;
+
+// 铁工具
+Item* Items::IRON_PICKAXE = nullptr;
+Item* Items::IRON_AXE = nullptr;
+Item* Items::IRON_SHOVEL = nullptr;
+Item* Items::IRON_HOE = nullptr;
+Item* Items::IRON_SWORD = nullptr;
+
+// 石工具
+Item* Items::STONE_PICKAXE = nullptr;
+Item* Items::STONE_AXE = nullptr;
+Item* Items::STONE_SHOVEL = nullptr;
+Item* Items::STONE_HOE = nullptr;
+Item* Items::STONE_SWORD = nullptr;
+
+// 木工具
+Item* Items::WOODEN_PICKAXE = nullptr;
+Item* Items::WOODEN_AXE = nullptr;
+Item* Items::WOODEN_SHOVEL = nullptr;
+Item* Items::WOODEN_HOE = nullptr;
+Item* Items::WOODEN_SWORD = nullptr;
+
+// 金工具
+Item* Items::GOLDEN_PICKAXE = nullptr;
+Item* Items::GOLDEN_AXE = nullptr;
+Item* Items::GOLDEN_SHOVEL = nullptr;
+Item* Items::GOLDEN_HOE = nullptr;
+Item* Items::GOLDEN_SWORD = nullptr;
+
+// 钻石护甲
+Item* Items::DIAMOND_HELMET = nullptr;
+Item* Items::DIAMOND_CHESTPLATE = nullptr;
+Item* Items::DIAMOND_LEGGINGS = nullptr;
+Item* Items::DIAMOND_BOOTS = nullptr;
+
+// 铁护甲
+Item* Items::IRON_HELMET = nullptr;
+Item* Items::IRON_CHESTPLATE = nullptr;
+Item* Items::IRON_LEGGINGS = nullptr;
+Item* Items::IRON_BOOTS = nullptr;
+
+// 金护甲
+Item* Items::GOLDEN_HELMET = nullptr;
+Item* Items::GOLDEN_CHESTPLATE = nullptr;
+Item* Items::GOLDEN_LEGGINGS = nullptr;
+Item* Items::GOLDEN_BOOTS = nullptr;
+
+// 皮革护甲
+Item* Items::LEATHER_HELMET = nullptr;
+Item* Items::LEATHER_CHESTPLATE = nullptr;
+Item* Items::LEATHER_LEGGINGS = nullptr;
+Item* Items::LEATHER_BOOTS = nullptr;
+
+// 食物
+Item* Items::APPLE = nullptr;
+Item* Items::GOLDEN_APPLE = nullptr;
+Item* Items::ENCHANTED_GOLDEN_APPLE = nullptr;
+Item* Items::BREAD = nullptr;
+Item* Items::COOKED_BEEF = nullptr;
+Item* Items::COOKED_PORKCHOP = nullptr;
+Item* Items::COOKED_CHICKEN = nullptr;
+Item* Items::COOKED_MUTTON = nullptr;
+Item* Items::COOKED_RABBIT = nullptr;
+Item* Items::COOKED_COD = nullptr;
+Item* Items::COOKED_SALMON = nullptr;
+Item* Items::BEEF = nullptr;
+Item* Items::PORKCHOP = nullptr;
+Item* Items::CHICKEN = nullptr;
+Item* Items::MUTTON = nullptr;
+Item* Items::RABBIT = nullptr;
+Item* Items::COD = nullptr;
+Item* Items::SALMON = nullptr;
+
+// 木棍和骨头
+Item* Items::STICK = nullptr;
+Item* Items::BONE = nullptr;
+Item* Items::BONE_MEAL = nullptr;
+
+// 杂项
+Item* Items::FLINT = nullptr;
+Item* Items::FLINT_AND_STEEL = nullptr;
+Item* Items::STRING = nullptr;
+Item* Items::FEATHER = nullptr;
+Item* Items::GUNPOWDER = nullptr;
+Item* Items::LEATHER = nullptr;
+Item* Items::SLIME_BALL = nullptr;
+Item* Items::EGG = nullptr;
+Item* Items::COMPASS = nullptr;
+Item* Items::CLOCK = nullptr;
+Item* Items::SPIDER_EYE = nullptr;
+Item* Items::FERMENTED_SPIDER_EYE = nullptr;
+Item* Items::BLAZE_ROD = nullptr;
+Item* Items::BLAZE_POWDER = nullptr;
+Item* Items::ENDER_PEARL = nullptr;
+Item* Items::ENDER_EYE = nullptr;
+Item* Items::NETHER_STAR = nullptr;
+Item* Items::FIRE_CHARGE = nullptr;
+Item* Items::FIREWORK_STAR = nullptr;
+Item* Items::FIREWORK_ROCKET = nullptr;
+
+// 染料
+Item* Items::INK_SAC = nullptr;
+Item* Items::RED_DYE = nullptr;
+Item* Items::GREEN_DYE = nullptr;
+Item* Items::COCOA_BEANS = nullptr;
+Item* Items::LAPIS_LAZULI_DYE = nullptr;
+Item* Items::PURPLE_DYE = nullptr;
+Item* Items::CYAN_DYE = nullptr;
+Item* Items::LIGHT_GRAY_DYE = nullptr;
+Item* Items::GRAY_DYE = nullptr;
+Item* Items::PINK_DYE = nullptr;
+Item* Items::LIME_DYE = nullptr;
+Item* Items::YELLOW_DYE = nullptr;
+Item* Items::LIGHT_BLUE_DYE = nullptr;
+Item* Items::MAGENTA_DYE = nullptr;
+Item* Items::ORANGE_DYE = nullptr;
+Item* Items::WHITE_DYE = nullptr;
+
+// 种子
+Item* Items::WHEAT_SEEDS = nullptr;
+Item* Items::PUMPKIN_SEEDS = nullptr;
+Item* Items::MELON_SEEDS = nullptr;
+Item* Items::BEETROOT_SEEDS = nullptr;
+
+// 农产品
+Item* Items::WHEAT = nullptr;
+Item* Items::PUMPKIN = nullptr;
+Item* Items::MELON = nullptr;
+Item* Items::MELON_SLICE = nullptr;
+Item* Items::CARROT = nullptr;
+Item* Items::POTATO = nullptr;
+Item* Items::BEETROOT = nullptr;
+Item* Items::SUGAR_CANE = nullptr;
+Item* Items::SUGAR = nullptr;
+
+// ============================================================================
+// 初始化
+// ============================================================================
+
+void Items::initialize() {
+    if (s_initialized) {
+        return;
+    }
+
+    auto& registry = ItemRegistry::instance();
+
+    // 空气物品（ID 0）
+    AIR = &registry.registerItem(
+        ResourceLocation("minecraft:air"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    registerMaterials();
+    registerTools();
+    registerArmor();
+    registerFood();
+    registerMisc();
+    registerDyes();
+    registerSeeds();
+    registerCrops();
+
+    s_initialized = true;
+}
+
+void Items::registerMaterials() {
+    auto& registry = ItemRegistry::instance();
+
+    // 宝石
+    DIAMOND = &registry.registerItem(
+        ResourceLocation("minecraft:diamond"),
+        ItemProperties().maxStackSize(64).rarity(ItemRarity::Rare)
+    );
+
+    EMERALD = &registry.registerItem(
+        ResourceLocation("minecraft:emerald"),
+        ItemProperties().maxStackSize(64).rarity(ItemRarity::Rare)
+    );
+
+    // 锭
+    GOLD_INGOT = &registry.registerItem(
+        ResourceLocation("minecraft:gold_ingot"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    IRON_INGOT = &registry.registerItem(
+        ResourceLocation("minecraft:iron_ingot"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    COPPER_INGOT = &registry.registerItem(
+        ResourceLocation("minecraft:copper_ingot"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    NETHERITE_INGOT = &registry.registerItem(
+        ResourceLocation("minecraft:netherite_ingot"),
+        ItemProperties().maxStackSize(64).rarity(ItemRarity::Rare)
+    );
+
+    NETHERITE_SCRAP = &registry.registerItem(
+        ResourceLocation("minecraft:netherite_scrap"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    // 煤炭
+    COAL = &registry.registerItem(
+        ResourceLocation("minecraft:coal"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    CHARCOAL = &registry.registerItem(
+        ResourceLocation("minecraft:charcoal"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    // 红石相关
+    REDSTONE = &registry.registerItem(
+        ResourceLocation("minecraft:redstone"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    LAPIS_LAZULI = &registry.registerItem(
+        ResourceLocation("minecraft:lapis_lazuli"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    QUARTZ = &registry.registerItem(
+        ResourceLocation("minecraft:quartz"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    GLOWSTONE_DUST = &registry.registerItem(
+        ResourceLocation("minecraft:glowstone_dust"),
+        ItemProperties().maxStackSize(64)
+    );
+}
+
+void Items::registerTools() {
+    auto& registry = ItemRegistry::instance();
+
+    // 钻石工具
+    DIAMOND_PICKAXE = &registry.registerItem(
+        ResourceLocation("minecraft:diamond_pickaxe"),
+        ItemProperties().maxDamage(1561).rarity(ItemRarity::Common)
+    );
+
+    DIAMOND_AXE = &registry.registerItem(
+        ResourceLocation("minecraft:diamond_axe"),
+        ItemProperties().maxDamage(1561).rarity(ItemRarity::Common)
+    );
+
+    DIAMOND_SHOVEL = &registry.registerItem(
+        ResourceLocation("minecraft:diamond_shovel"),
+        ItemProperties().maxDamage(1561).rarity(ItemRarity::Common)
+    );
+
+    DIAMOND_HOE = &registry.registerItem(
+        ResourceLocation("minecraft:diamond_hoe"),
+        ItemProperties().maxDamage(1561).rarity(ItemRarity::Common)
+    );
+
+    DIAMOND_SWORD = &registry.registerItem(
+        ResourceLocation("minecraft:diamond_sword"),
+        ItemProperties().maxDamage(1561).rarity(ItemRarity::Common)
+    );
+
+    // 铁工具
+    IRON_PICKAXE = &registry.registerItem(
+        ResourceLocation("minecraft:iron_pickaxe"),
+        ItemProperties().maxDamage(250)
+    );
+
+    IRON_AXE = &registry.registerItem(
+        ResourceLocation("minecraft:iron_axe"),
+        ItemProperties().maxDamage(250)
+    );
+
+    IRON_SHOVEL = &registry.registerItem(
+        ResourceLocation("minecraft:iron_shovel"),
+        ItemProperties().maxDamage(250)
+    );
+
+    IRON_HOE = &registry.registerItem(
+        ResourceLocation("minecraft:iron_hoe"),
+        ItemProperties().maxDamage(250)
+    );
+
+    IRON_SWORD = &registry.registerItem(
+        ResourceLocation("minecraft:iron_sword"),
+        ItemProperties().maxDamage(250)
+    );
+
+    // 石工具
+    STONE_PICKAXE = &registry.registerItem(
+        ResourceLocation("minecraft:stone_pickaxe"),
+        ItemProperties().maxDamage(131)
+    );
+
+    STONE_AXE = &registry.registerItem(
+        ResourceLocation("minecraft:stone_axe"),
+        ItemProperties().maxDamage(131)
+    );
+
+    STONE_SHOVEL = &registry.registerItem(
+        ResourceLocation("minecraft:stone_shovel"),
+        ItemProperties().maxDamage(131)
+    );
+
+    STONE_HOE = &registry.registerItem(
+        ResourceLocation("minecraft:stone_hoe"),
+        ItemProperties().maxDamage(131)
+    );
+
+    STONE_SWORD = &registry.registerItem(
+        ResourceLocation("minecraft:stone_sword"),
+        ItemProperties().maxDamage(131)
+    );
+
+    // 木工具
+    WOODEN_PICKAXE = &registry.registerItem(
+        ResourceLocation("minecraft:wooden_pickaxe"),
+        ItemProperties().maxDamage(59)
+    );
+
+    WOODEN_AXE = &registry.registerItem(
+        ResourceLocation("minecraft:wooden_axe"),
+        ItemProperties().maxDamage(59)
+    );
+
+    WOODEN_SHOVEL = &registry.registerItem(
+        ResourceLocation("minecraft:wooden_shovel"),
+        ItemProperties().maxDamage(59)
+    );
+
+    WOODEN_HOE = &registry.registerItem(
+        ResourceLocation("minecraft:wooden_hoe"),
+        ItemProperties().maxDamage(59)
+    );
+
+    WOODEN_SWORD = &registry.registerItem(
+        ResourceLocation("minecraft:wooden_sword"),
+        ItemProperties().maxDamage(59)
+    );
+
+    // 金工具
+    GOLDEN_PICKAXE = &registry.registerItem(
+        ResourceLocation("minecraft:golden_pickaxe"),
+        ItemProperties().maxDamage(32)
+    );
+
+    GOLDEN_AXE = &registry.registerItem(
+        ResourceLocation("minecraft:golden_axe"),
+        ItemProperties().maxDamage(32)
+    );
+
+    GOLDEN_SHOVEL = &registry.registerItem(
+        ResourceLocation("minecraft:golden_shovel"),
+        ItemProperties().maxDamage(32)
+    );
+
+    GOLDEN_HOE = &registry.registerItem(
+        ResourceLocation("minecraft:golden_hoe"),
+        ItemProperties().maxDamage(32)
+    );
+
+    GOLDEN_SWORD = &registry.registerItem(
+        ResourceLocation("minecraft:golden_sword"),
+        ItemProperties().maxDamage(32)
+    );
+}
+
+void Items::registerArmor() {
+    auto& registry = ItemRegistry::instance();
+
+    // 钻石护甲
+    DIAMOND_HELMET = &registry.registerItem(
+        ResourceLocation("minecraft:diamond_helmet"),
+        ItemProperties().maxDamage(363)
+    );
+
+    DIAMOND_CHESTPLATE = &registry.registerItem(
+        ResourceLocation("minecraft:diamond_chestplate"),
+        ItemProperties().maxDamage(528)
+    );
+
+    DIAMOND_LEGGINGS = &registry.registerItem(
+        ResourceLocation("minecraft:diamond_leggings"),
+        ItemProperties().maxDamage(495)
+    );
+
+    DIAMOND_BOOTS = &registry.registerItem(
+        ResourceLocation("minecraft:diamond_boots"),
+        ItemProperties().maxDamage(396)
+    );
+
+    // 铁护甲
+    IRON_HELMET = &registry.registerItem(
+        ResourceLocation("minecraft:iron_helmet"),
+        ItemProperties().maxDamage(165)
+    );
+
+    IRON_CHESTPLATE = &registry.registerItem(
+        ResourceLocation("minecraft:iron_chestplate"),
+        ItemProperties().maxDamage(240)
+    );
+
+    IRON_LEGGINGS = &registry.registerItem(
+        ResourceLocation("minecraft:iron_leggings"),
+        ItemProperties().maxDamage(225)
+    );
+
+    IRON_BOOTS = &registry.registerItem(
+        ResourceLocation("minecraft:iron_boots"),
+        ItemProperties().maxDamage(195)
+    );
+
+    // 金护甲
+    GOLDEN_HELMET = &registry.registerItem(
+        ResourceLocation("minecraft:golden_helmet"),
+        ItemProperties().maxDamage(77)
+    );
+
+    GOLDEN_CHESTPLATE = &registry.registerItem(
+        ResourceLocation("minecraft:golden_chestplate"),
+        ItemProperties().maxDamage(112)
+    );
+
+    GOLDEN_LEGGINGS = &registry.registerItem(
+        ResourceLocation("minecraft:golden_leggings"),
+        ItemProperties().maxDamage(105)
+    );
+
+    GOLDEN_BOOTS = &registry.registerItem(
+        ResourceLocation("minecraft:golden_boots"),
+        ItemProperties().maxDamage(91)
+    );
+
+    // 皮革护甲
+    LEATHER_HELMET = &registry.registerItem(
+        ResourceLocation("minecraft:leather_helmet"),
+        ItemProperties().maxDamage(55)
+    );
+
+    LEATHER_CHESTPLATE = &registry.registerItem(
+        ResourceLocation("minecraft:leather_chestplate"),
+        ItemProperties().maxDamage(80)
+    );
+
+    LEATHER_LEGGINGS = &registry.registerItem(
+        ResourceLocation("minecraft:leather_leggings"),
+        ItemProperties().maxDamage(75)
+    );
+
+    LEATHER_BOOTS = &registry.registerItem(
+        ResourceLocation("minecraft:leather_boots"),
+        ItemProperties().maxDamage(65)
+    );
+}
+
+void Items::registerFood() {
+    auto& registry = ItemRegistry::instance();
+
+    APPLE = &registry.registerItem(
+        ResourceLocation("minecraft:apple"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    GOLDEN_APPLE = &registry.registerItem(
+        ResourceLocation("minecraft:golden_apple"),
+        ItemProperties().maxStackSize(64).rarity(ItemRarity::Rare)
+    );
+
+    ENCHANTED_GOLDEN_APPLE = &registry.registerItem(
+        ResourceLocation("minecraft:enchanted_golden_apple"),
+        ItemProperties().maxStackSize(64).rarity(ItemRarity::Epic)
+    );
+
+    BREAD = &registry.registerItem(
+        ResourceLocation("minecraft:bread"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    // 熟食
+    COOKED_BEEF = &registry.registerItem(
+        ResourceLocation("minecraft:cooked_beef"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    COOKED_PORKCHOP = &registry.registerItem(
+        ResourceLocation("minecraft:cooked_porkchop"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    COOKED_CHICKEN = &registry.registerItem(
+        ResourceLocation("minecraft:cooked_chicken"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    COOKED_MUTTON = &registry.registerItem(
+        ResourceLocation("minecraft:cooked_mutton"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    COOKED_RABBIT = &registry.registerItem(
+        ResourceLocation("minecraft:cooked_rabbit"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    COOKED_COD = &registry.registerItem(
+        ResourceLocation("minecraft:cooked_cod"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    COOKED_SALMON = &registry.registerItem(
+        ResourceLocation("minecraft:cooked_salmon"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    // 生食
+    BEEF = &registry.registerItem(
+        ResourceLocation("minecraft:beef"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    PORKCHOP = &registry.registerItem(
+        ResourceLocation("minecraft:porkchop"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    CHICKEN = &registry.registerItem(
+        ResourceLocation("minecraft:chicken"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    MUTTON = &registry.registerItem(
+        ResourceLocation("minecraft:mutton"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    RABBIT = &registry.registerItem(
+        ResourceLocation("minecraft:rabbit"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    COD = &registry.registerItem(
+        ResourceLocation("minecraft:cod"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    SALMON = &registry.registerItem(
+        ResourceLocation("minecraft:salmon"),
+        ItemProperties().maxStackSize(64)
+    );
+}
+
+void Items::registerMisc() {
+    auto& registry = ItemRegistry::instance();
+
+    STICK = &registry.registerItem(
+        ResourceLocation("minecraft:stick"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    BONE = &registry.registerItem(
+        ResourceLocation("minecraft:bone"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    BONE_MEAL = &registry.registerItem(
+        ResourceLocation("minecraft:bone_meal"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    FLINT = &registry.registerItem(
+        ResourceLocation("minecraft:flint"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    FLINT_AND_STEEL = &registry.registerItem(
+        ResourceLocation("minecraft:flint_and_steel"),
+        ItemProperties().maxDamage(64)
+    );
+
+    STRING = &registry.registerItem(
+        ResourceLocation("minecraft:string"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    FEATHER = &registry.registerItem(
+        ResourceLocation("minecraft:feather"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    GUNPOWDER = &registry.registerItem(
+        ResourceLocation("minecraft:gunpowder"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    LEATHER = &registry.registerItem(
+        ResourceLocation("minecraft:leather"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    SLIME_BALL = &registry.registerItem(
+        ResourceLocation("minecraft:slime_ball"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    EGG = &registry.registerItem(
+        ResourceLocation("minecraft:egg"),
+        ItemProperties().maxStackSize(16)
+    );
+
+    COMPASS = &registry.registerItem(
+        ResourceLocation("minecraft:compass"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    CLOCK = &registry.registerItem(
+        ResourceLocation("minecraft:clock"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    SPIDER_EYE = &registry.registerItem(
+        ResourceLocation("minecraft:spider_eye"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    FERMENTED_SPIDER_EYE = &registry.registerItem(
+        ResourceLocation("minecraft:fermented_spider_eye"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    BLAZE_ROD = &registry.registerItem(
+        ResourceLocation("minecraft:blaze_rod"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    BLAZE_POWDER = &registry.registerItem(
+        ResourceLocation("minecraft:blaze_powder"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    ENDER_PEARL = &registry.registerItem(
+        ResourceLocation("minecraft:ender_pearl"),
+        ItemProperties().maxStackSize(16)
+    );
+
+    ENDER_EYE = &registry.registerItem(
+        ResourceLocation("minecraft:ender_eye"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    NETHER_STAR = &registry.registerItem(
+        ResourceLocation("minecraft:nether_star"),
+        ItemProperties().maxStackSize(64).rarity(ItemRarity::Uncommon)
+    );
+
+    FIRE_CHARGE = &registry.registerItem(
+        ResourceLocation("minecraft:fire_charge"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    FIREWORK_STAR = &registry.registerItem(
+        ResourceLocation("minecraft:firework_star"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    FIREWORK_ROCKET = &registry.registerItem(
+        ResourceLocation("minecraft:firework_rocket"),
+        ItemProperties().maxStackSize(64)
+    );
+}
+
+void Items::registerDyes() {
+    auto& registry = ItemRegistry::instance();
+
+    INK_SAC = &registry.registerItem(
+        ResourceLocation("minecraft:ink_sac"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    RED_DYE = &registry.registerItem(
+        ResourceLocation("minecraft:red_dye"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    GREEN_DYE = &registry.registerItem(
+        ResourceLocation("minecraft:green_dye"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    COCOA_BEANS = &registry.registerItem(
+        ResourceLocation("minecraft:cocoa_beans"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    LAPIS_LAZULI_DYE = &registry.registerItem(
+        ResourceLocation("minecraft:lapis_lazuli_dye"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    PURPLE_DYE = &registry.registerItem(
+        ResourceLocation("minecraft:purple_dye"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    CYAN_DYE = &registry.registerItem(
+        ResourceLocation("minecraft:cyan_dye"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    LIGHT_GRAY_DYE = &registry.registerItem(
+        ResourceLocation("minecraft:light_gray_dye"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    GRAY_DYE = &registry.registerItem(
+        ResourceLocation("minecraft:gray_dye"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    PINK_DYE = &registry.registerItem(
+        ResourceLocation("minecraft:pink_dye"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    LIME_DYE = &registry.registerItem(
+        ResourceLocation("minecraft:lime_dye"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    YELLOW_DYE = &registry.registerItem(
+        ResourceLocation("minecraft:yellow_dye"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    LIGHT_BLUE_DYE = &registry.registerItem(
+        ResourceLocation("minecraft:light_blue_dye"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    MAGENTA_DYE = &registry.registerItem(
+        ResourceLocation("minecraft:magenta_dye"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    ORANGE_DYE = &registry.registerItem(
+        ResourceLocation("minecraft:orange_dye"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    WHITE_DYE = &registry.registerItem(
+        ResourceLocation("minecraft:white_dye"),
+        ItemProperties().maxStackSize(64)
+    );
+}
+
+void Items::registerSeeds() {
+    auto& registry = ItemRegistry::instance();
+
+    WHEAT_SEEDS = &registry.registerItem(
+        ResourceLocation("minecraft:wheat_seeds"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    PUMPKIN_SEEDS = &registry.registerItem(
+        ResourceLocation("minecraft:pumpkin_seeds"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    MELON_SEEDS = &registry.registerItem(
+        ResourceLocation("minecraft:melon_seeds"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    BEETROOT_SEEDS = &registry.registerItem(
+        ResourceLocation("minecraft:beetroot_seeds"),
+        ItemProperties().maxStackSize(64)
+    );
+}
+
+void Items::registerCrops() {
+    auto& registry = ItemRegistry::instance();
+
+    WHEAT = &registry.registerItem(
+        ResourceLocation("minecraft:wheat"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    PUMPKIN = &registry.registerItem(
+        ResourceLocation("minecraft:pumpkin"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    MELON = &registry.registerItem(
+        ResourceLocation("minecraft:melon"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    MELON_SLICE = &registry.registerItem(
+        ResourceLocation("minecraft:melon_slice"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    CARROT = &registry.registerItem(
+        ResourceLocation("minecraft:carrot"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    POTATO = &registry.registerItem(
+        ResourceLocation("minecraft:potato"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    BEETROOT = &registry.registerItem(
+        ResourceLocation("minecraft:beetroot"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    SUGAR_CANE = &registry.registerItem(
+        ResourceLocation("minecraft:sugar_cane"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    SUGAR = &registry.registerItem(
+        ResourceLocation("minecraft:sugar"),
+        ItemProperties().maxStackSize(64)
+    );
+}
+
+} // namespace mr

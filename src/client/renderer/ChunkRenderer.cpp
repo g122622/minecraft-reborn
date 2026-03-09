@@ -89,6 +89,13 @@ Result<void> ChunkRenderer::updateChunk(
     const ChunkId& chunkId,
     const MeshData& meshData)
 {
+    spdlog::info("[Mining] Upload chunk mesh chunk=({}, {}) vertices={} indices={} empty={}",
+                 chunkId.x,
+                 chunkId.z,
+                 meshData.vertexCount(),
+                 meshData.indexCount(),
+                 meshData.empty());
+
     if (meshData.empty()) {
         removeChunk(chunkId);
         return {};

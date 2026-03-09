@@ -20,7 +20,8 @@ class PhysicsEngine;
 enum class EntityType : u32 {
     Unknown = 0,
     Player = 1,
-    // 后续添加: Item, Mob, Projectile 等
+    Item = 2,           // 物品实体
+    // 后续添加: Mob, Projectile 等
 };
 
 // ============================================================================

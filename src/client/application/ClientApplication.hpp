@@ -15,6 +15,7 @@
 #include "../network/NetworkClient.hpp"
 #include "../ui/DebugScreen.hpp"
 #include "../ui/crosshair/CrosshairRenderer.hpp"
+#include "../ui/hud/HudRenderer.hpp"
 #include "../resource/ResourceManager.hpp"
 #include "../resource/BlockModelCache.hpp"
 #include "server/application/IntegratedServer.hpp"
@@ -132,6 +133,10 @@ private:
     void setupNetworkCallbacks();
     void setupSettingCallbacks();
     void toggleMouseCapture();
+    void handleBlockInteractionInput(f32 deltaTime);
+    void sendBlockInteraction(network::BlockInteractionAction action,
+                              const BlockPos& pos,
+                              Direction face);
 
     // 玩家位置同步
     void sendPlayerPosition();
@@ -179,8 +184,15 @@ private:
     // 准星渲染器
     CrosshairRenderer m_crosshair;
 
+    // HUD渲染器
+    HudRenderer m_hudRenderer;
+
     // 射线检测结果
     BlockRaycastResult m_raycastResult;
+    bool m_breakingBlockActive = false;
+    BlockPos m_breakingBlockPos{};
+    Direction m_breakingBlockFace = Direction::None;
+    f32 m_breakingBlockProgress = 0.0f;
 
     // 内置服务端
     std::unique_ptr<server::IntegratedServer> m_integratedServer;

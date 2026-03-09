@@ -125,15 +125,23 @@ void ClientWorld::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {
     i32 localX = toLocalCoord(x);
     i32 localZ = toLocalCoord(z);
 
+    spdlog::info("[Mining] ClientWorld setBlock pos=({}, {}, {}) state={} loadedChunk=({}, {})",
+                 x,
+                 y,
+                 z,
+                 state ? state->blockLocation().toString() : String("<null>"),
+                 chunkX,
+                 chunkZ);
+
     chunk->data->setBlock(localX, y, localZ, state);
-    chunk->needsMeshUpdate = true;
     chunk->data->setDirty(true);
+    scheduleChunkMeshRebuild(id);
 
     // 标记相邻区块也需要更新（如果方块在边界）
-    if (localX == 0) markChunkDirty(ChunkId(chunkX - 1, chunkZ));
-    if (localX == CHUNK_WIDTH - 1) markChunkDirty(ChunkId(chunkX + 1, chunkZ));
-    if (localZ == 0) markChunkDirty(ChunkId(chunkX, chunkZ - 1));
-    if (localZ == CHUNK_WIDTH - 1) markChunkDirty(ChunkId(chunkX, chunkZ + 1));
+    if (localX == 0) scheduleChunkMeshRebuild(ChunkId(chunkX - 1, chunkZ));
+    if (localX == CHUNK_WIDTH - 1) scheduleChunkMeshRebuild(ChunkId(chunkX + 1, chunkZ));
+    if (localZ == 0) scheduleChunkMeshRebuild(ChunkId(chunkX, chunkZ - 1));
+    if (localZ == CHUNK_WIDTH - 1) scheduleChunkMeshRebuild(ChunkId(chunkX, chunkZ + 1));
 }
 
 const ChunkData* ClientWorld::getChunkAt(ChunkCoord x, ChunkCoord z) const {
@@ -330,6 +338,23 @@ void ClientWorld::rebuildMesh(ClientChunk& chunk) {
     ChunkMesher::generateMesh(*chunk.data, chunk.solidMesh, neighbors);
 
     chunk.needsMeshUpdate = false;
+}
+
+void ClientWorld::scheduleChunkMeshRebuild(const ChunkId& id) {
+    ClientChunk* chunk = getChunk(id);
+    if (!chunk || !chunk->data) {
+        return;
+    }
+
+    rebuildMesh(*chunk);
+    chunk->needsMeshUpdate = true;
+    chunk->meshBuilding = false;
+
+    spdlog::info("[Mining] Rebuilt chunk mesh synchronously for chunk ({}, {}), vertices={}, indices={}",
+                 id.x,
+                 id.z,
+                 chunk->solidMesh.vertexCount(),
+                 chunk->solidMesh.indexCount());
 }
 
 std::array<std::shared_ptr<const ChunkData>, 6> ClientWorld::getNeighborChunkData(const ChunkId& id) {

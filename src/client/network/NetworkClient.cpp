@@ -79,7 +79,8 @@ Result<void> NetworkClient::connect(const NetworkClientConfig& config) {
     }
 }
 
-Result<void> NetworkClient::connectLocal(network::LocalEndpoint* endpoint) {
+Result<void> NetworkClient::connectLocal(network::LocalEndpoint* endpoint,
+                                         const NetworkClientConfig& config) {
     if (m_state != ClientState::Disconnected) {
         return Error(ErrorCode::InvalidState, "Already connected or connecting");
     }
@@ -88,6 +89,7 @@ Result<void> NetworkClient::connectLocal(network::LocalEndpoint* endpoint) {
         return Error(ErrorCode::InvalidArgument, "Local endpoint is null");
     }
 
+    m_config = config;
     m_localEndpoint = endpoint;
     m_username = m_config.username;
     m_running = true;
@@ -177,6 +179,27 @@ void NetworkClient::sendPlayerMove(const network::PlayerPosition& pos, network::
     network::PacketSerializer fullPacket;
     fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
     fullPacket.writeU16(static_cast<u16>(network::PacketType::PlayerMove));
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeBytes(ser.buffer());
+
+    sendRawData(fullPacket.data(), fullPacket.size());
+}
+
+void NetworkClient::sendBlockInteraction(network::BlockInteractionAction action,
+                                         i32 x, i32 y, i32 z, Direction face) {
+    network::BlockInteractionPacket packet(action, x, y, z, face);
+
+    spdlog::info("[Mining] Queue block interaction action={} pos=({}, {}, {}) face={}",
+                 static_cast<i32>(action), x, y, z, static_cast<i32>(face));
+
+    network::PacketSerializer ser;
+    packet.serialize(ser);
+
+    network::PacketSerializer fullPacket;
+    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
+    fullPacket.writeU16(static_cast<u16>(network::PacketType::BlockInteraction));
     fullPacket.writeU16(0);
     fullPacket.writeU16(0);
     fullPacket.writeU16(0);
@@ -607,6 +630,9 @@ void NetworkClient::handleBlockUpdate(network::PacketDeserializer& deser) {
     }
 
     auto& packet = result.value();
+
+    spdlog::info("[Mining] Received block update pos=({}, {}, {}) stateId={}",
+                 packet.x(), packet.y(), packet.z(), packet.blockStateId());
 
     if (m_callbacks.onBlockUpdate) {
         m_callbacks.onBlockUpdate(
