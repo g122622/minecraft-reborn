@@ -3,6 +3,7 @@
 #include "../core/Types.hpp"
 #include "../core/Result.hpp"
 #include "../math/Vector3.hpp"
+#include "../util/Direction.hpp"
 #include "PacketSerializer.hpp"
 #include <memory>
 
@@ -339,6 +340,81 @@ public:
 private:
     PlayerPosition m_position;
     MoveType m_type = MoveType::Full;
+};
+
+// ============================================================================
+// 方块交互包 (客户端 -> 服务端)
+// ============================================================================
+
+enum class BlockInteractionAction : u8 {
+    StartDestroyBlock = 0,
+    AbortDestroyBlock = 1,
+    StopDestroyBlock = 2
+};
+
+class BlockInteractionPacket {
+public:
+    BlockInteractionPacket() = default;
+    BlockInteractionPacket(BlockInteractionAction action, i32 x, i32 y, i32 z, Direction face)
+        : m_action(action)
+        , m_x(x)
+        , m_y(y)
+        , m_z(z)
+        , m_face(face)
+    {}
+
+    [[nodiscard]] BlockInteractionAction action() const { return m_action; }
+    [[nodiscard]] i32 x() const { return m_x; }
+    [[nodiscard]] i32 y() const { return m_y; }
+    [[nodiscard]] i32 z() const { return m_z; }
+    [[nodiscard]] Direction face() const { return m_face; }
+
+    void serialize(PacketSerializer& ser) const {
+        ser.writeU8(static_cast<u8>(m_action));
+        ser.writeI32(m_x);
+        ser.writeI32(m_y);
+        ser.writeI32(m_z);
+        ser.writeU8(static_cast<u8>(m_face));
+    }
+
+    [[nodiscard]] static Result<BlockInteractionPacket> deserialize(PacketDeserializer& deser) {
+        BlockInteractionPacket packet;
+
+        auto actionResult = deser.readU8();
+        if (actionResult.failed()) return actionResult.error();
+        packet.m_action = static_cast<BlockInteractionAction>(actionResult.value());
+
+        auto xResult = deser.readI32();
+        if (xResult.failed()) return xResult.error();
+        packet.m_x = xResult.value();
+
+        auto yResult = deser.readI32();
+        if (yResult.failed()) return yResult.error();
+        packet.m_y = yResult.value();
+
+        auto zResult = deser.readI32();
+        if (zResult.failed()) return zResult.error();
+        packet.m_z = zResult.value();
+
+        auto faceResult = deser.readU8();
+        if (faceResult.failed()) return faceResult.error();
+        packet.m_face = static_cast<Direction>(faceResult.value());
+
+        if (packet.m_action != BlockInteractionAction::StartDestroyBlock &&
+            packet.m_action != BlockInteractionAction::AbortDestroyBlock &&
+            packet.m_action != BlockInteractionAction::StopDestroyBlock) {
+            return Error(ErrorCode::InvalidData, "Invalid block interaction action");
+        }
+
+        return packet;
+    }
+
+private:
+    BlockInteractionAction m_action = BlockInteractionAction::StartDestroyBlock;
+    i32 m_x = 0;
+    i32 m_y = 0;
+    i32 m_z = 0;
+    Direction m_face = Direction::None;
 };
 
 // ============================================================================

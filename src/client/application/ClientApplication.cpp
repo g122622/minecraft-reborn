@@ -1,5 +1,7 @@
 #include "ClientApplication.hpp"
+#include "common/item/Items.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
+#include "common/world/drop/DropTables.hpp"
 #include "common/math/ray/Raycast.hpp"
 #include "common/resource/VanillaResources.hpp"
 #include "client/renderer/ChunkMesher.hpp"
@@ -8,12 +10,31 @@
 
 #include <spdlog/spdlog.h>
 #include <GLFW/glfw3.h>
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 
 namespace mr::client {
 
 namespace {
+
+[[nodiscard]] f32 calculateBlockBreakingDelta(const Player& player, const BlockState& state)
+{
+    const f32 hardness = state.hardness();
+    if (hardness < 0.0f) {
+        return 0.0f;
+    }
+
+    if (hardness == 0.0f) {
+        return 1.0f;
+    }
+
+    const ItemStack heldItem = player.inventory().getSelectedStack();
+    const f32 destroySpeed = std::max(heldItem.getDestroySpeed(state), 1.0f);
+    const bool canHarvest = heldItem.isEmpty() ? true : heldItem.canHarvestBlock(state);
+    const f32 divisor = canHarvest ? 30.0f : 100.0f;
+    return destroySpeed / hardness / divisor;
+}
 
 /**
  * @brief ClientWorld 到 IBlockReader 的轻量适配器
@@ -108,6 +129,10 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
     // 初始化方块注册表
     VanillaBlocks::initialize();
     spdlog::info("Vanilla blocks initialized");
+
+    Items::initialize();
+    DropTableRegistry::instance().initializeVanillaDrops();
+    spdlog::info("Vanilla items and drop tables initialized");
 
     // 初始化资源系统
     spdlog::info("Initializing resource system...");
@@ -231,7 +256,7 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
 
         NetworkClientConfig clientConfig;
         clientConfig.username = m_settings.username.get();
-        auto clientResult = m_networkClient->connectLocal(m_integratedServer->getClientEndpoint());
+        auto clientResult = m_networkClient->connectLocal(m_integratedServer->getClientEndpoint(), clientConfig);
         if (clientResult.failed()) {
             spdlog::error("Failed to connect to integrated server: {}", clientResult.error().toString());
             m_integratedServer->stop();
@@ -401,6 +426,9 @@ void ClientApplication::mainLoop()
         // 渲染
         render();
 
+        // 清理本帧的瞬时输入状态
+        m_input.endFrame();
+
         // 帧计数
         ++m_frameCount;
 
@@ -455,6 +483,14 @@ void ClientApplication::handleEvents()
 
         // 传递输入给玩家
         m_player->handleMovementInput(forward, strafe, jumping, sneaking);
+
+        if (m_input.scrollDeltaY() != 0.0) {
+            i32 selectedSlot = m_player->inventory().getSelectedSlot();
+            i32 delta = m_input.scrollDeltaY() > 0.0 ? -1 : 1;
+            selectedSlot = (selectedSlot + delta + PlayerInventory::HOTBAR_SIZE) % PlayerInventory::HOTBAR_SIZE;
+            m_player->inventory().setSelectedSlot(selectedSlot);
+        }
+
     }
 }
 
@@ -520,6 +556,8 @@ void ClientApplication::update(f32 deltaTime)
         // 没有玩家时清除目标方块
         m_debugScreen.setTargetBlock(nullptr);
     }
+
+    handleBlockInteractionInput(deltaTime);
 
     // 更新世界（根据相机位置加载/卸载区块）
     m_world.update(m_camera.position(), m_settings.renderDistance.get());
@@ -788,6 +826,112 @@ void ClientApplication::toggleMouseCapture()
     } else {
         spdlog::debug("Mouse released - UI mode");
     }
+}
+
+void ClientApplication::handleBlockInteractionInput(f32 deltaTime)
+{
+    auto abortBreakingBlock = [this]() {
+        if (!m_breakingBlockActive) {
+            return;
+        }
+
+        sendBlockInteraction(network::BlockInteractionAction::AbortDestroyBlock,
+                             m_breakingBlockPos,
+                             m_breakingBlockFace);
+        m_breakingBlockActive = false;
+        m_breakingBlockProgress = 0.0f;
+        m_breakingBlockFace = Direction::None;
+    };
+
+    if (!m_mouseCaptured || !m_player) {
+        abortBreakingBlock();
+        return;
+    }
+
+    const bool attackPressed = m_input.isMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT);
+    const bool attackJustPressed = m_input.isMouseButtonJustPressed(GLFW_MOUSE_BUTTON_LEFT);
+    const bool hasTargetBlock = m_raycastResult.isHit();
+
+    if (!attackPressed) {
+        abortBreakingBlock();
+        return;
+    }
+
+    if (!hasTargetBlock) {
+        abortBreakingBlock();
+        return;
+    }
+
+    const BlockPos currentTargetPos = m_raycastResult.blockPos();
+    const Direction currentTargetFace = m_raycastResult.face();
+    const bool targetChanged = !m_breakingBlockActive ||
+        currentTargetPos != m_breakingBlockPos ||
+        currentTargetFace != m_breakingBlockFace;
+
+    if (targetChanged) {
+        abortBreakingBlock();
+        m_breakingBlockPos = currentTargetPos;
+        m_breakingBlockFace = currentTargetFace;
+        m_breakingBlockActive = true;
+        m_breakingBlockProgress = 0.0f;
+        sendBlockInteraction(network::BlockInteractionAction::StartDestroyBlock,
+                             m_breakingBlockPos,
+                             m_breakingBlockFace);
+    }
+
+    const BlockState* targetState = m_world.getBlockState(
+        m_breakingBlockPos.x,
+        m_breakingBlockPos.y,
+        m_breakingBlockPos.z);
+    if (targetState == nullptr || targetState->isAir() || targetState->hardness() < 0.0f) {
+        abortBreakingBlock();
+        return;
+    }
+
+    if (m_player->gameMode() == GameMode::Creative || targetState->hardness() == 0.0f) {
+        if (!attackJustPressed) {
+            return;
+        }
+
+        sendBlockInteraction(network::BlockInteractionAction::StopDestroyBlock,
+                             m_breakingBlockPos,
+                             m_breakingBlockFace);
+        m_breakingBlockActive = false;
+        m_breakingBlockProgress = 0.0f;
+        m_breakingBlockFace = Direction::None;
+        return;
+    }
+
+    m_breakingBlockProgress += deltaTime * constants::TICK_RATE *
+        calculateBlockBreakingDelta(*m_player, *targetState);
+
+    if (m_breakingBlockProgress >= 1.0f) {
+        sendBlockInteraction(network::BlockInteractionAction::StopDestroyBlock,
+                             m_breakingBlockPos,
+                             m_breakingBlockFace);
+        m_breakingBlockActive = false;
+        m_breakingBlockProgress = 0.0f;
+        m_breakingBlockFace = Direction::None;
+    }
+}
+
+void ClientApplication::sendBlockInteraction(network::BlockInteractionAction action,
+                                             const BlockPos& pos,
+                                             Direction face)
+{
+    if (!m_networkClient || !m_networkClient->isLoggedIn()) {
+        spdlog::info("[Mining] Skip sending block interaction because client is not logged in");
+        return;
+    }
+
+    spdlog::info("[Mining] Send action={} pos=({}, {}, {}) face={}",
+                 static_cast<i32>(action),
+                 pos.x,
+                 pos.y,
+                 pos.z,
+                 static_cast<i32>(face));
+
+    m_networkClient->sendBlockInteraction(action, pos.x, pos.y, pos.z, face);
 }
 
 void ClientApplication::sendPlayerPosition()

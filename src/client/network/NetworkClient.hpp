@@ -83,7 +83,8 @@ public:
 
     // 连接管理
     [[nodiscard]] Result<void> connect(const NetworkClientConfig& config);
-    [[nodiscard]] Result<void> connectLocal(network::LocalEndpoint* endpoint);
+    [[nodiscard]] Result<void> connectLocal(network::LocalEndpoint* endpoint,
+                                            const NetworkClientConfig& config = {});
     void disconnect(const String& reason = "Client disconnect");
     [[nodiscard]] bool isConnected() const;
     [[nodiscard]] ClientState state() const;
@@ -96,6 +97,8 @@ public:
     // 发送数据包
     void sendLoginRequest();
     void sendPlayerMove(const network::PlayerPosition& pos, network::PlayerMovePacket::MoveType type);
+    void sendBlockInteraction(network::BlockInteractionAction action,
+                              i32 x, i32 y, i32 z, Direction face);
     void sendTeleportConfirm(u32 teleportId);
     void sendKeepAlive(u64 id);
     void sendChatMessage(const String& message);

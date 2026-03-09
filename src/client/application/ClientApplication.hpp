@@ -133,6 +133,10 @@ private:
     void setupNetworkCallbacks();
     void setupSettingCallbacks();
     void toggleMouseCapture();
+    void handleBlockInteractionInput(f32 deltaTime);
+    void sendBlockInteraction(network::BlockInteractionAction action,
+                              const BlockPos& pos,
+                              Direction face);
 
     // 玩家位置同步
     void sendPlayerPosition();
@@ -185,6 +189,10 @@ private:
 
     // 射线检测结果
     BlockRaycastResult m_raycastResult;
+    bool m_breakingBlockActive = false;
+    BlockPos m_breakingBlockPos{};
+    Direction m_breakingBlockFace = Direction::None;
+    f32 m_breakingBlockProgress = 0.0f;
 
     // 内置服务端
     std::unique_ptr<server::IntegratedServer> m_integratedServer;

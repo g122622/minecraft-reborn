@@ -264,6 +264,7 @@ private:
     // 区块生成
     void generateChunk(ClientChunk& chunk);
     void rebuildMesh(ClientChunk& chunk);
+    void scheduleChunkMeshRebuild(const ChunkId& id);
 
     // 获取相邻区块
     void getNeighborChunks(const ChunkId& id, const ChunkData* neighbors[6]);

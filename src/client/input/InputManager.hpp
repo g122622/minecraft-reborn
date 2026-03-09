@@ -36,6 +36,11 @@ public:
     void update();
 
     /**
+     * @brief 结束当前帧，清理瞬时输入状态
+     */
+    void endFrame();
+
+    /**
      * @brief 检查按键是否按下
      */
     [[nodiscard]] bool isKeyPressed(i32 key) const;
@@ -121,6 +126,7 @@ private:
     std::unordered_set<i32> m_mouseButtonsPressed;
     std::unordered_set<i32> m_mouseButtonsJustPressed;
     std::unordered_set<i32> m_mouseButtonsJustReleased;
+    std::unordered_set<i32> m_previousMouseButtonsPressed;
 
     // 鼠标位置
     f64 m_mouseX = 0.0;

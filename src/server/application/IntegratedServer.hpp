@@ -111,6 +111,7 @@ private:
     // 数据包处理
     void handleLoginRequest(const u8* data, size_t size);
     void handlePlayerMove(const u8* data, size_t size);
+    void handleBlockInteraction(const u8* data, size_t size);
     void handleTeleportConfirm(const u8* data, size_t size);
     void handleKeepAlive(const u8* data, size_t size);
     void handleChatMessage(const u8* data, size_t size);
@@ -119,6 +120,7 @@ private:
     void sendLoginResponse(bool success, PlayerId playerId, const String& username, const String& message);
     void sendKeepAlive(u64 timestamp);
     void sendTeleport(f64 x, f64 y, f64 z, f32 yaw, f32 pitch, u32 teleportId);
+    void sendBlockUpdate(i32 x, i32 y, i32 z, u32 blockStateId);
     void sendChunkData(ChunkCoord x, ChunkCoord z, const std::vector<u8>& data);
     void sendUnloadChunk(ChunkCoord x, ChunkCoord z);
     void sendToClient(const u8* data, size_t size);
