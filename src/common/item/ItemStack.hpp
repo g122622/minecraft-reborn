@@ -188,6 +188,28 @@ public:
      */
     [[nodiscard]] bool canHarvestBlock(const BlockState& state) const;
 
+    // ========== 显示名称 ==========
+
+    /**
+     * @brief 是否有自定义名称
+     *
+     * 如果物品堆有自定义名称（如通过铁砧重命名），返回true。
+     * 目前返回false，未来可支持NBT标签。
+     *
+     * @return 是否有自定义名称
+     */
+    [[nodiscard]] bool hasCustomName() const { return false; }
+
+    /**
+     * @brief 获取显示名称
+     *
+     * 返回用于UI显示的名称。如果有自定义名称，返回自定义名称；
+     * 否则返回物品的翻译键。
+     *
+     * @return 显示名称
+     */
+    [[nodiscard]] String getDisplayName() const;
+
     // ========== 序列化 ==========
 
     /**

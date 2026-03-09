@@ -102,4 +102,9 @@ String Item::getTranslationKey(const ItemStack& stack) const {
     return getTranslationKey();
 }
 
+String Item::getName() const {
+    // 默认返回翻译键，未来可支持语言文件
+    return getTranslationKey();
+}
+
 } // namespace mr

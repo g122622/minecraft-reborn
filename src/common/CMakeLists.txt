@@ -21,6 +21,7 @@ add_library(mr_common STATIC
     network/PacketSerializer.cpp
     network/ChunkSync.cpp
     network/LocalConnection.cpp
+    network/InventoryPackets.cpp
 
     # Entity
     entity/Entity.cpp
@@ -29,6 +30,7 @@ add_library(mr_common STATIC
     entity/ItemEntity.cpp
     entity/inventory/Slot.cpp
     entity/inventory/PlayerInventory.cpp
+    entity/inventory/Container.cpp
 
     # Item System
     item/Item.cpp

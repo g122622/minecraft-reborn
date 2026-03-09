@@ -34,7 +34,17 @@ enum class PacketType : u16 {
     BlockUpdate = 205,
     Teleport = 206,
     ChatBroadcast = 207,
-    TimeUpdate = 208    // 时间同步
+    TimeUpdate = 208,   // 时间同步
+
+    // 背包相关包 (双向)
+    ContainerContent = 300,     // 容器内容同步 (S->C)
+    ContainerSlot = 301,        // 单个槽位更新 (S->C)
+    ContainerClick = 302,       // 容器点击 (C->S)
+    CloseContainer = 303,       // 关闭容器 (双向)
+    OpenContainer = 304,        // 打开容器 (S->C)
+    PlayerInventory = 305,      // 玩家背包同步 (S->C)
+    HotbarSelect = 306,         // 快捷栏选择 (C->S)
+    HotbarSet = 307             // 快捷栏设置 (S->C)
 };
 
 // 数据包头

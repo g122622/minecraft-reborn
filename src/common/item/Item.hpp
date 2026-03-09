@@ -254,6 +254,16 @@ public:
     [[nodiscard]] virtual String getTranslationKey(const ItemStack& stack) const;
 
     /**
+     * @brief 获取物品名称
+     *
+     * 返回物品的简单名称（不含格式）。
+     * 子类可重写以提供自定义名称。
+     *
+     * @return 物品名称
+     */
+    [[nodiscard]] virtual String getName() const;
+
+    /**
      * @brief 获取附魔能力
      * @return 附魔能力值（0表示不可附魔）
      */

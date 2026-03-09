@@ -30,6 +30,7 @@ add_executable(mr_tests
     common/test_item.cpp
     common/test_inventory.cpp
     common/test_item_entity.cpp
+    common/test_container.cpp
     common/SettingsTest.cpp
     server/ServerWorldTest.cpp
     server/test_integrated_server.cpp
@@ -109,6 +110,7 @@ target_sources(mr_tests
         # 背包系统
         ${CMAKE_SOURCE_DIR}/src/common/entity/inventory/Slot.cpp
         ${CMAKE_SOURCE_DIR}/src/common/entity/inventory/PlayerInventory.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/entity/inventory/Container.cpp
         # 物品实体和掉落表
         ${CMAKE_SOURCE_DIR}/src/common/entity/ItemEntity.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/drop/DropTables.cpp
