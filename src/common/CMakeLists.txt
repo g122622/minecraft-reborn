@@ -26,12 +26,18 @@ add_library(mr_common STATIC
     entity/Entity.cpp
     entity/Player.cpp
     entity/PlayerManager.cpp
+    entity/ItemEntity.cpp
+    entity/inventory/Slot.cpp
+    entity/inventory/PlayerInventory.cpp
 
     # Item System
     item/Item.cpp
     item/ItemStack.cpp
     item/ItemRegistry.cpp
     item/Items.cpp
+
+    # World - Drop Tables
+    world/drop/DropTables.cpp
 
     # World - Block System
     world/block/Material.cpp
