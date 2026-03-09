@@ -1,7 +1,6 @@
 #pragma once
 
 #include "WorldCarver.hpp"
-#include <random>
 
 namespace mr {
 
@@ -59,7 +58,7 @@ public:
      * @brief 检查是否应该在这个区块生成洞穴
      */
     [[nodiscard]] bool shouldCarve(
-        std::mt19937_64& rng,
+        math::IRandom& rng,
         ChunkCoord chunkX,
         ChunkCoord chunkZ,
         const ProbabilityConfig& config) const override;
@@ -82,14 +81,14 @@ protected:
      * @param rng 随机数生成器
      * @return Y坐标
      */
-    [[nodiscard]] virtual i32 getCaveStartY(std::mt19937_64& rng) const;
+    [[nodiscard]] virtual i32 getCaveStartY(math::IRandom& rng) const;
 
     /**
      * @brief 获取洞穴半径
      * @param rng 随机数生成器
      * @return 半径
      */
-    [[nodiscard]] virtual f32 getCaveRadius(std::mt19937_64& rng) const;
+    [[nodiscard]] virtual f32 getCaveRadius(math::IRandom& rng) const;
 
     /**
      * @brief 获取垂直缩放因子

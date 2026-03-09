@@ -1,6 +1,8 @@
 #include "ItemEntity.hpp"
 #include "Player.hpp"
+#include "../math/random/Random.hpp"
 #include <cmath>
+#include <chrono>
 
 namespace mr {
 
@@ -16,13 +18,11 @@ ItemEntity::ItemEntity(EntityId id, const ItemStack& stack, f64 x, f64 y, f64 z)
     setRotation(0.0f, 0.0f);
 
     // 初始化速度（轻微随机）
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<f64> dis(-0.1, 0.1);
+    math::Random rng(static_cast<u64>(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
 
-    m_velocity.x = dis(gen);
+    m_velocity.x = rng.nextDouble(-0.1, 0.1);
     m_velocity.y = 0.2;  // 轻微向上
-    m_velocity.z = dis(gen);
+    m_velocity.z = rng.nextDouble(-0.1, 0.1);
 }
 
 ItemEntity::ItemEntity(EntityId id, const ItemStack& stack,

@@ -1,8 +1,9 @@
 #include "Player.hpp"
 #include "../physics/PhysicsEngine.hpp"
+#include "../math/random/Random.hpp"
 #include <algorithm>
-#include <random>
 #include <cmath>
+#include <chrono>
 
 namespace mr {
 
@@ -15,10 +16,8 @@ Player::Player(EntityId id, const String& username)
     , m_username(username)
 {
     // 生成随机XP seed
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-    static std::uniform_int_distribution<i32> dis;
-    m_xpSeed = dis(gen);
+    math::Random rng(static_cast<u64>(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
+    m_xpSeed = rng.nextInt();
 }
 
 void Player::setGameMode(GameMode mode) {

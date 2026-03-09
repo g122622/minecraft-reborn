@@ -1,8 +1,8 @@
 #pragma once
 
 #include "INoiseGenerator.hpp"
+#include "../../../math/random/Random.hpp"
 #include <array>
-#include <random>
 
 namespace mr {
 
@@ -29,10 +29,10 @@ public:
     explicit ImprovedNoiseGenerator(u64 seed);
 
     /**
-     * @brief 使用随机引擎构造
-     * @param rng 随机数引擎
+     * @brief 使用随机生成器构造
+     * @param rng 随机数生成器接口
      */
-    explicit ImprovedNoiseGenerator(std::mt19937_64& rng);
+    explicit ImprovedNoiseGenerator(math::IRandom& rng);
 
     ~ImprovedNoiseGenerator() override = default;
 
@@ -84,7 +84,7 @@ private:
     /**
      * @brief 初始化排列数组
      */
-    void initPermutation(std::mt19937_64& rng);
+    void initPermutation(math::IRandom& rng);
 
     /**
      * @brief 获取排列值

@@ -2,7 +2,7 @@
 #include "../../item/Item.hpp"
 #include "../../item/ItemRegistry.hpp"
 #include "../../item/Items.hpp"
-#include <random>
+#include "../../math/random/Random.hpp"
 #include <algorithm>
 
 namespace mr {
@@ -38,9 +38,8 @@ bool DropEntry::checkCondition(const DropContext& context) const {
             return !context.silkTouch();
 
         case DropCondition::RandomChance: {
-            std::mt19937 gen(context.hasSeed() ? context.seed() : std::random_device{}());
-            std::uniform_real_distribution<f32> dis(0.0f, 1.0f);
-            return dis(gen) < m_chance;
+            math::Random rng(context.hasSeed() ? context.seed() : static_cast<u64>(std::random_device{}()));
+            return rng.nextFloat() < m_chance;
         }
 
         case DropCondition::Fortune:
@@ -52,23 +51,22 @@ bool DropEntry::checkCondition(const DropContext& context) const {
     }
 }
 
-ItemStack DropEntry::generate(const DropContext& context) const {
+ItemStack DropEntry::generate(const DropContext& context) const
+{
     if (m_empty || m_item == nullptr) {
         return ItemStack::EMPTY;
     }
 
     // 检查概率
-    std::mt19937 gen(context.hasSeed() ? context.seed() : std::random_device{}());
-    std::uniform_real_distribution<f32> chanceDis(0.0f, 1.0f);
-    if (chanceDis(gen) >= m_chance) {
+    math::Random rng(context.hasSeed() ? context.seed() : static_cast<u64>(std::random_device{}()));
+    if (rng.nextFloat() >= m_chance) {
         return ItemStack::EMPTY;
     }
 
     // 计算数量
     i32 count = m_minCount;
     if (m_maxCount > m_minCount) {
-        std::uniform_int_distribution<i32> countDis(m_minCount, m_maxCount);
-        count = countDis(gen);
+        count = rng.nextInt(m_minCount, m_maxCount);
     }
 
     // 应用时运加成
@@ -76,8 +74,7 @@ ItemStack DropEntry::generate(const DropContext& context) const {
         // 时运每级增加掉落数量的概率
         i32 bonus = 0;
         for (i32 i = 0; i < context.fortune(); ++i) {
-            std::uniform_int_distribution<i32> bonusDis(0, m_fortuneBonus);
-            bonus += bonusDis(gen);
+            bonus += rng.nextInt(m_fortuneBonus + 1);
         }
         count += bonus;
     }
@@ -111,7 +108,7 @@ std::vector<ItemStack> DropTable::generateDrops(const DropContext& context) cons
     std::vector<ItemStack> drops;
     drops.reserve(m_entries.size());
 
-    std::mt19937 gen(context.hasSeed() ? context.seed() : std::random_device{}());
+    math::Random rng(context.hasSeed() ? context.seed() : static_cast<u64>(std::random_device{}()));
 
     for (const auto& entry : m_entries) {
         if (entry.checkCondition(context)) {
@@ -147,7 +144,7 @@ std::vector<ItemStack> DropTable::generateSingleDrop(const DropContext& context)
         return {};
     }
 
-    std::mt19937 gen(context.hasSeed() ? context.seed() : std::random_device{}());
+    math::Random rng(context.hasSeed() ? context.seed() : static_cast<u64>(std::random_device{}()));
 
     // 过滤满足条件的条目
     std::vector<const DropEntry*> validEntries;
@@ -162,8 +159,7 @@ std::vector<ItemStack> DropTable::generateSingleDrop(const DropContext& context)
     }
 
     // 随机选择一个
-    std::uniform_int_distribution<size_t> dis(0, validEntries.size() - 1);
-    ItemStack stack = validEntries[dis(gen)]->generate(context);
+    ItemStack stack = validEntries[static_cast<size_t>(rng.nextInt(static_cast<i32>(validEntries.size())))]->generate(context);
 
     if (stack.isEmpty()) {
         return {};

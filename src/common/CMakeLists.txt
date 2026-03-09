@@ -13,8 +13,16 @@ add_library(mr_common STATIC
 
     # Math
     math/MathUtils.cpp
-    math/Noise.cpp
     math/ray/Raycast.cpp
+
+    # Math - Random
+    math/random/IRandom.cpp
+    math/random/Mt19937Random.cpp
+    math/random/Xoroshiro128ppRandom.cpp
+    math/random/Xoshiro256ppRandom.cpp
+    math/random/LcgRandom.cpp
+    math/random/UniformIntDistribution.cpp
+    math/random/UniformRealDistribution.cpp
 
     # Network
     network/Packet.cpp

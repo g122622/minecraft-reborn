@@ -1,7 +1,7 @@
 #include "BlockModelLoader.hpp"
 #include "../common/resource/IResourcePack.hpp"
+#include "../common/math/random/Random.hpp"
 #include <nlohmann/json.hpp>
-#include <random>
 
 namespace mr {
 
@@ -62,9 +62,8 @@ const BlockStateVariant& VariantList::select(u64 seed) const
     }
 
     // 使用种子随机选择
-    std::mt19937_64 rng(seed);
-    std::uniform_int_distribution<i32> dist(0, totalWeight - 1);
-    i32 value = dist(rng);
+    math::Random rng(seed);
+    i32 value = rng.nextInt(totalWeight);
 
     // 选择变体
     i32 cumulative = 0;

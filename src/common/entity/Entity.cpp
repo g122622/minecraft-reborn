@@ -1,8 +1,9 @@
 #include "Entity.hpp"
 #include "../physics/PhysicsEngine.hpp"
+#include "../math/random/Random.hpp"
 #include <algorithm>
 #include <sstream>
-#include <random>
+#include <chrono>
 
 namespace mr {
 
@@ -18,12 +19,12 @@ Entity::Entity(EntityType type, EntityId id)
     , m_velocity(0.0f, 0.0f, 0.0f)
 {
     // 生成随机UUID
-    static std::random_device rd;
-    static std::mt19937_64 gen(rd());
-    static std::uniform_int_distribution<u64> dis;
+    // 使用时间戳和随机数组合
+    u64 seed = static_cast<u64>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+    math::Random rng(seed);
 
     std::stringstream ss;
-    ss << std::hex << dis(gen) << dis(gen);
+    ss << std::hex << rng.nextU64() << rng.nextU64();
     m_uuid = ss.str();
 }
 

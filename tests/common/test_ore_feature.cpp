@@ -5,7 +5,7 @@
 #include "common/world/chunk/ChunkPrimer.hpp"
 #include "common/world/block/BlockRegistry.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
-#include "common/world/gen/surface/SurfaceBuilder.hpp" // for Random
+#include "common/math/random/Random.hpp"
 
 using namespace mr;
 
@@ -22,7 +22,7 @@ protected:
 
 TEST_F(RuleTestTest, StoneRuleTest) {
     auto rule = createOreTarget(OreTargetType::NaturalStone);
-    Random random(12345);
+    math::Random random(12345);
 
     // 石头应该匹配
     const BlockState* stone = BlockRegistry::instance().get(BlockId::Stone);
@@ -37,7 +37,7 @@ TEST_F(RuleTestTest, StoneRuleTest) {
 
 TEST_F(RuleTestTest, BlockIdRuleTest) {
     auto rule = createOreTarget(OreTargetType::Netherrack);
-    Random random(12345);
+    math::Random random(12345);
 
     // 下界岩应该匹配
     const BlockState* netherrack = BlockRegistry::instance().get(BlockId::Netherrack);
@@ -93,7 +93,7 @@ TEST_F(PlacementTest, CountPlacement) {
     CountPlacement placement;
     CountPlacementConfig config(5);  // 5次尝试
     ChunkPrimer chunk(0, 0);
-    Random random(12345);
+    math::Random random(12345);
 
     // 创建一个简单的 WorldGenRegion 需要太多依赖，暂时跳过位置测试
     // 这里只测试配置
@@ -103,7 +103,7 @@ TEST_F(PlacementTest, CountPlacement) {
 TEST_F(PlacementTest, HeightRangePlacementConfig) {
     HeightRangePlacementConfig config(0, 128, 256);
 
-    Random random(12345);
+    math::Random random(12345);
     for (int i = 0; i < 100; ++i) {
         i32 y = config.getRandomY(random);
         EXPECT_GE(y, 0);
@@ -114,7 +114,7 @@ TEST_F(PlacementTest, HeightRangePlacementConfig) {
 TEST_F(PlacementTest, HeightRangePlacementConfigUniform) {
     auto config = HeightRangePlacementConfig::uniform(10, 50);
 
-    Random random(12345);
+    math::Random random(12345);
     for (int i = 0; i < 100; ++i) {
         i32 y = config.getRandomY(random);
         EXPECT_GE(y, 10);
@@ -135,7 +135,7 @@ TEST_F(PlacementTest, BiomePlacementConfig) {
 TEST_F(PlacementTest, ChancePlacementConfig) {
     ChancePlacementConfig config(0.5f);  // 50% 概率
 
-    Random random(12345);
+    math::Random random(12345);
     int success = 0;
     for (int i = 0; i < 1000; ++i) {
         if (random.nextFloat() < config.chance) {
@@ -161,7 +161,7 @@ protected:
 
 TEST_F(BlockStateProviderTest, SimpleProvider) {
     SimpleBlockStateProvider provider(BlockId::Stone);
-    Random random(12345);
+    math::Random random(12345);
 
     const BlockState* state = provider.getState(random, 0, 0, 0);
     ASSERT_NE(state, nullptr);
@@ -171,7 +171,7 @@ TEST_F(BlockStateProviderTest, SimpleProvider) {
 TEST_F(BlockStateProviderTest, DifferentBlocks) {
     SimpleBlockStateProvider grassProvider(BlockId::Grass);
     SimpleBlockStateProvider dirtProvider(BlockId::Dirt);
-    Random random(12345);
+    math::Random random(12345);
 
     const BlockState* grass = grassProvider.getState(random, 0, 0, 0);
     const BlockState* dirt = dirtProvider.getState(random, 0, 0, 0);
@@ -191,7 +191,7 @@ protected:
     void SetUp() override {
         VanillaBlocks::initialize();
         chunk = std::make_unique<ChunkPrimer>(0, 0);
-        random = std::make_unique<Random>(12345);
+        random = std::make_unique<math::Random>(12345);
     }
 
     void fillWithStone() {
@@ -208,7 +208,7 @@ protected:
     }
 
     std::unique_ptr<ChunkPrimer> chunk;
-    std::unique_ptr<Random> random;
+    std::unique_ptr<math::Random> random;
 };
 
 TEST_F(OreFeatureTest, CreateOreFeature) {

@@ -2,7 +2,7 @@
 #include "../gen/feature/ConfiguredFeature.hpp"
 #include "../gen/chunk/IChunkGenerator.hpp"
 #include "../chunk/ChunkPrimer.hpp"
-#include "../../math/MathUtils.hpp"
+#include "../../math/random/Random.hpp"
 #include <algorithm>
 #include <spdlog/spdlog.h>
 

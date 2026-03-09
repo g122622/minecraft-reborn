@@ -11,6 +11,7 @@
 #include "common/world/gen/chunk/IChunkGenerator.hpp"
 #include "common/world/biome/BiomeRegistry.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
+#include "common/math/random/Random.hpp"
 
 using namespace mr;
 
@@ -156,7 +157,7 @@ TEST(ImprovedNoiseGenerator, Smoothness) {
 // ============================================================================
 
 TEST(OctavesNoiseGenerator, BasicNoise) {
-    std::mt19937_64 rng(12345);
+    math::Random rng(12345);
     OctavesNoiseGenerator noise(rng, -7, 0);  // 8 倍频
 
     // 噪声值应在合理范围内
@@ -169,8 +170,8 @@ TEST(OctavesNoiseGenerator, BasicNoise) {
 }
 
 TEST(OctavesNoiseGenerator, Consistency) {
-    std::mt19937_64 rng1(12345);
-    std::mt19937_64 rng2(12345);
+    math::Random rng1(12345);
+    math::Random rng2(12345);
 
     OctavesNoiseGenerator noise1(rng1, -7, 0);
     OctavesNoiseGenerator noise2(rng2, -7, 0);
@@ -182,7 +183,7 @@ TEST(OctavesNoiseGenerator, Consistency) {
 }
 
 TEST(OctavesNoiseGenerator, GetOctave) {
-    std::mt19937_64 rng(12345);
+    math::Random rng(12345);
     OctavesNoiseGenerator noise(rng, -7, 0);
 
     // 获取特定倍频

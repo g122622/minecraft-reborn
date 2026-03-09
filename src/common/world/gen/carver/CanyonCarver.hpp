@@ -1,7 +1,6 @@
 #pragma once
 
 #include "WorldCarver.hpp"
-#include <random>
 
 namespace mr {
 
@@ -60,7 +59,7 @@ public:
      * @brief 检查是否应该在这个区块生成峡谷
      */
     [[nodiscard]] bool shouldCarve(
-        std::mt19937_64& rng,
+        math::IRandom& rng,
         ChunkCoord chunkX,
         ChunkCoord chunkZ,
         const ProbabilityConfig& config) const override;

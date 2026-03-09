@@ -3,6 +3,7 @@
 #include "../../../core/Types.hpp"
 #include "../../block/Block.hpp"
 #include "../../chunk/ChunkPrimer.hpp"
+#include "../../../math/random/Random.hpp"
 #include <memory>
 #include <vector>
 #include <functional>
@@ -133,7 +134,7 @@ public:
      * @return 是否应该雕刻
      */
     [[nodiscard]] virtual bool shouldCarve(
-        std::mt19937_64& rng,
+        math::IRandom& rng,
         ChunkCoord chunkX,
         ChunkCoord chunkZ,
         const Config& config) const = 0;
@@ -276,7 +277,7 @@ public:
      * @brief 检查是否应该雕刻
      */
     [[nodiscard]] bool shouldCarve(
-        std::mt19937_64& rng,
+        math::IRandom& rng,
         ChunkCoord chunkX,
         ChunkCoord chunkZ) const {
         return m_carver->shouldCarve(rng, chunkX, chunkZ, m_config);

@@ -85,13 +85,13 @@ SimpleAreaContext::SimpleAreaContext(u64 seed)
     : m_baseSeed(seed)
     , m_currentSeed(seed)
 {
-    m_rng.seed(seed);
+    m_rng.setSeed(seed);
 }
 
 void SimpleAreaContext::initRandom(u64 seed)
 {
     m_currentSeed = seed;
-    m_rng.seed(seed);
+    m_rng.setSeed(seed);
 }
 
 i32 SimpleAreaContext::nextInt(i32 bound)
@@ -99,8 +99,7 @@ i32 SimpleAreaContext::nextInt(i32 bound)
     if (bound <= 0) {
         return 0;
     }
-    std::uniform_int_distribution<i32> dist(0, bound - 1);
-    return dist(m_rng);
+    return m_rng.nextInt(bound);
 }
 
 i32 SimpleAreaContext::nextIntWithMod(i32 bound)

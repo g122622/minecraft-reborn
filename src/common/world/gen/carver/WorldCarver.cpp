@@ -1,5 +1,6 @@
 #include "WorldCarver.hpp"
 #include "../../block/BlockRegistry.hpp"
+#include "../../../math/random/Random.hpp"
 #include <cmath>
 #include <algorithm>
 
@@ -131,7 +132,7 @@ bool WorldCarver<Config>::carveEllipsoid(
         return false;
     }
 
-    std::mt19937_64 rng(static_cast<u64>(seed) + static_cast<u64>(chunkX) + static_cast<u64>(chunkZ));
+    math::Random rng(static_cast<u64>(seed) + static_cast<u64>(chunkX) + static_cast<u64>(chunkZ));
     bool carved = false;
 
     const f64 hRadiusSq = horizontalRadius * horizontalRadius;

@@ -2,7 +2,6 @@
 #include <cmath>
 
 #include "common/world/chunk/ChunkData.hpp"
-#include "common/math/Noise.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
 
 using namespace mr;
@@ -235,68 +234,4 @@ TEST_F(ChunkTest, ChunkData_Serialization) {
     ASSERT_NE(block8, nullptr);
     EXPECT_EQ(block0->blockId(), VanillaBlocks::STONE->blockId());
     EXPECT_EQ(block8->blockId(), VanillaBlocks::DIRT->blockId());
-}
-
-// ============================================================================
-// PerlinNoise 测试
-// ============================================================================
-
-TEST(PerlinNoise, Basic2D) {
-    PerlinNoise noise(12345);
-
-    // 噪声值应在 [0, 1] 范围内
-    for (int i = 0; i < 10; ++i) {
-        f32 value = noise.noise2D(static_cast<f32>(i) * 0.1f, static_cast<f32>(i) * 0.2f);
-        EXPECT_GE(value, 0.0f);
-        EXPECT_LE(value, 1.0f);
-    }
-}
-
-TEST(PerlinNoise, Consistency) {
-    PerlinNoise noise1(12345);
-    PerlinNoise noise2(12345);
-
-    // 相同种子应产生相同结果
-    EXPECT_FLOAT_EQ(noise1.noise2D(10.0f, 20.0f), noise2.noise2D(10.0f, 20.0f));
-    EXPECT_FLOAT_EQ(noise1.noise3D(5.0f, 10.0f, 15.0f), noise2.noise3D(5.0f, 10.0f, 15.0f));
-}
-
-TEST(PerlinNoise, DifferentSeeds) {
-    PerlinNoise noise1(12345);
-    PerlinNoise noise2(54321);
-
-    // 收集两个噪声生成器在不同位置的值
-    std::vector<f32> values1;
-    std::vector<f32> values2;
-
-    for (int i = 0; i < 100; ++i) {
-        f32 x = static_cast<f32>(i) * 0.1f;
-        f32 z = static_cast<f32>(i) * 0.15f;
-        values1.push_back(noise1.noise2D(x, z));
-        values2.push_back(noise2.noise2D(x, z));
-    }
-
-    // 计算两个值序列的差异
-    int differences = 0;
-    for (size_t i = 0; i < values1.size(); ++i) {
-        if (std::abs(values1[i] - values2[i]) > 0.01f) {
-            differences++;
-        }
-    }
-
-    // 不同种子应该产生显著不同的噪声模式
-    // 100个点中至少要有一些不同
-    EXPECT_GT(differences, 10);
-}
-
-TEST(PerlinNoise, OctaveNoise) {
-    PerlinNoise noise(12345);
-
-    f32 single = noise.noise2D(10.0f, 20.0f);
-    f32 octave = noise.octave2D(10.0f, 20.0f, 4, 0.5f);
-
-    // 分形噪声应该产生不同的结果
-    // 值应该在合理范围内
-    EXPECT_GE(octave, 0.0f);
-    EXPECT_LE(octave, 1.0f);
 }

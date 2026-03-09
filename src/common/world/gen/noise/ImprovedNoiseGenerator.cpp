@@ -1,4 +1,5 @@
 #include "ImprovedNoiseGenerator.hpp"
+#include "../../../math/random/Random.hpp"
 #include <cmath>
 #include <algorithm>
 
@@ -10,11 +11,11 @@ namespace mr {
 
 ImprovedNoiseGenerator::ImprovedNoiseGenerator(u64 seed)
 {
-    std::mt19937_64 rng(seed);
+    math::Random rng(seed);
     initPermutation(rng);
 }
 
-ImprovedNoiseGenerator::ImprovedNoiseGenerator(std::mt19937_64& rng)
+ImprovedNoiseGenerator::ImprovedNoiseGenerator(math::IRandom& rng)
 {
     initPermutation(rng);
 }
@@ -23,7 +24,7 @@ ImprovedNoiseGenerator::ImprovedNoiseGenerator(std::mt19937_64& rng)
 // 初始化
 // ============================================================================
 
-void ImprovedNoiseGenerator::initPermutation(std::mt19937_64& rng)
+void ImprovedNoiseGenerator::initPermutation(math::IRandom& rng)
 {
     // 初始化排列数组
     for (i32 i = 0; i < 256; ++i) {
@@ -32,8 +33,7 @@ void ImprovedNoiseGenerator::initPermutation(std::mt19937_64& rng)
 
     // Fisher-Yates 洗牌
     for (i32 i = 0; i < 256; ++i) {
-        std::uniform_int_distribution<u32> dist(i, 255);
-        const u32 j = dist(rng);
+        const u32 j = static_cast<u32>(i) + static_cast<u32>(rng.nextInt(256 - i));
         std::swap(m_permutation[i], m_permutation[j]);
     }
 
@@ -44,10 +44,9 @@ void ImprovedNoiseGenerator::initPermutation(std::mt19937_64& rng)
     }
 
     // 设置随机偏移（参考 MC）
-    std::uniform_real_distribution<f64> dist(0.0, 256.0);
-    m_xOffset = dist(rng);
-    m_yOffset = dist(rng);
-    m_zOffset = dist(rng);
+    m_xOffset = rng.nextDouble(0.0, 256.0);
+    m_yOffset = rng.nextDouble(0.0, 256.0);
+    m_zOffset = rng.nextDouble(0.0, 256.0);
 }
 
 // ============================================================================

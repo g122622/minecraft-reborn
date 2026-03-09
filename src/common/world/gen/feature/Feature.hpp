@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../../../core/Types.hpp"
-#include "../../../math/MathUtils.hpp"
+#include "../../../math/random/Random.hpp"
 #include "../../block/Block.hpp"
 #include "../../chunk/ChunkPos.hpp"
 #include <memory>

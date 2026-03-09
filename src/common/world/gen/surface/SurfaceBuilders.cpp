@@ -84,7 +84,7 @@ i32 DefaultSurfaceBuilder::calculateDepth(f64 noise, math::Random& random) const
 // ============================================================================
 
 void MountainSurfaceBuilder::buildSurface(
-    Random& random,
+    math::Random& random,
     ChunkPrimer& chunk,
     const Biome& biome,
     i32 x, i32 z,
@@ -151,7 +151,7 @@ bool MountainSurfaceBuilder::shouldPlaceSnow(i32 y, const Biome& biome) const
 // ============================================================================
 
 void DesertSurfaceBuilder::buildSurface(
-    Random& random,
+    math::Random& random,
     ChunkPrimer& chunk,
     const Biome& biome,
     i32 x, i32 z,
@@ -207,7 +207,7 @@ void DesertSurfaceBuilder::buildSurface(
 // ============================================================================
 
 void SwampSurfaceBuilder::buildSurface(
-    Random& random,
+    math::Random& random,
     ChunkPrimer& chunk,
     const Biome& biome,
     i32 x, i32 z,
@@ -273,7 +273,7 @@ bool SwampSurfaceBuilder::shouldPlaceClay(f64 noise) const
 // ============================================================================
 
 void FrozenOceanSurfaceBuilder::buildSurface(
-    Random& random,
+    math::Random& random,
     ChunkPrimer& chunk,
     const Biome& biome,
     i32 x, i32 z,
@@ -329,7 +329,7 @@ void FrozenOceanSurfaceBuilder::buildSurface(
 // ============================================================================
 
 void BadlandsSurfaceBuilder::buildSurface(
-    Random& random,
+    math::Random& random,
     ChunkPrimer& chunk,
     const Biome& biome,
     i32 x, i32 z,
@@ -409,7 +409,7 @@ BlockId BadlandsSurfaceBuilder::getTerracottaLayer(i32 y) const
 // ============================================================================
 
 void BeachSurfaceBuilder::buildSurface(
-    Random& random,
+    math::Random& random,
     ChunkPrimer& chunk,
     const Biome& biome,
     i32 x, i32 z,

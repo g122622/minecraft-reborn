@@ -1,4 +1,5 @@
 #include "OctavesNoiseGenerator.hpp"
+#include "../../../math/random/Random.hpp"
 #include <cmath>
 #include <algorithm>
 
@@ -12,18 +13,18 @@ OctavesNoiseGenerator::OctavesNoiseGenerator(u64 seed, i32 minOctave, i32 maxOct
     : m_minOctave(minOctave)
     , m_maxOctave(maxOctave)
 {
-    std::mt19937_64 rng(seed);
+    math::Random rng(seed);
     initOctaves(rng);
 }
 
-OctavesNoiseGenerator::OctavesNoiseGenerator(std::mt19937_64& rng, i32 minOctave, i32 maxOctave)
+OctavesNoiseGenerator::OctavesNoiseGenerator(math::IRandom& rng, i32 minOctave, i32 maxOctave)
     : m_minOctave(minOctave)
     , m_maxOctave(maxOctave)
 {
     initOctaves(rng);
 }
 
-void OctavesNoiseGenerator::initOctaves(std::mt19937_64& rng)
+void OctavesNoiseGenerator::initOctaves(math::IRandom& rng)
 {
     const i32 octaveCount = m_maxOctave - m_minOctave + 1;
     m_octaves.resize(octaveCount);
@@ -35,7 +36,7 @@ void OctavesNoiseGenerator::initOctaves(std::mt19937_64& rng)
     // 为其他倍频创建噪声生成器
     for (i32 i = 1; i < octaveCount; ++i) {
         // 跳过一些随机数来确保不同的噪声
-        rng.discard(262);
+        rng.skip(262);
         m_octaves[i] = std::make_unique<ImprovedNoiseGenerator>(rng);
     }
 
@@ -114,7 +115,7 @@ const ImprovedNoiseGenerator* OctavesNoiseGenerator::getOctave(i32 octave) const
 PerlinNoiseGenerator::PerlinNoiseGenerator(u64 seed, i32 minOctave, i32 maxOctave)
     : m_minOctave(minOctave)
 {
-    std::mt19937_64 rng(seed);
+    math::Random rng(seed);
 
     const i32 count = maxOctave - minOctave + 1;
     m_noiseLevels.resize(count);
@@ -131,7 +132,7 @@ PerlinNoiseGenerator::PerlinNoiseGenerator(u64 seed, i32 minOctave, i32 maxOctav
     }
 }
 
-PerlinNoiseGenerator::PerlinNoiseGenerator(std::mt19937_64& rng, i32 minOctave, i32 maxOctave)
+PerlinNoiseGenerator::PerlinNoiseGenerator(math::IRandom& rng, i32 minOctave, i32 maxOctave)
     : m_minOctave(minOctave)
 {
     const i32 count = maxOctave - minOctave + 1;
@@ -196,16 +197,16 @@ constexpr f64 G3 = 1.0 / 6.0;
 
 SimplexNoiseGenerator::SimplexNoiseGenerator(u64 seed)
 {
-    std::mt19937_64 rng(seed);
+    math::Random rng(seed);
     initPermutation(rng);
 }
 
-SimplexNoiseGenerator::SimplexNoiseGenerator(std::mt19937_64& rng)
+SimplexNoiseGenerator::SimplexNoiseGenerator(math::IRandom& rng)
 {
     initPermutation(rng);
 }
 
-void SimplexNoiseGenerator::initPermutation(std::mt19937_64& rng)
+void SimplexNoiseGenerator::initPermutation(math::IRandom& rng)
 {
     // 初始化排列数组
     for (i32 i = 0; i < 256; ++i) {
@@ -214,8 +215,7 @@ void SimplexNoiseGenerator::initPermutation(std::mt19937_64& rng)
 
     // Fisher-Yates 洗牌
     for (i32 i = 0; i < 256; ++i) {
-        std::uniform_int_distribution<u32> dist(i, 255);
-        const u32 j = dist(rng);
+        const u32 j = static_cast<u32>(i) + static_cast<u32>(rng.nextInt(256 - i));
         std::swap(m_permutation[i], m_permutation[j]);
     }
 
@@ -226,10 +226,9 @@ void SimplexNoiseGenerator::initPermutation(std::mt19937_64& rng)
     }
 
     // 设置随机偏移
-    std::uniform_real_distribution<f64> dist(0.0, 256.0);
-    m_offset[0] = dist(rng);
-    m_offset[1] = dist(rng);
-    m_offset[2] = dist(rng);
+    m_offset[0] = rng.nextDouble(0.0, 256.0);
+    m_offset[1] = rng.nextDouble(0.0, 256.0);
+    m_offset[2] = rng.nextDouble(0.0, 256.0);
 }
 
 i32 SimplexNoiseGenerator::fastFloor(f64 x)

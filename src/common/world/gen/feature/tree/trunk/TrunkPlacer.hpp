@@ -2,7 +2,7 @@
 
 #include "../../FeatureSpread.hpp"
 #include "../../../../../core/Types.hpp"
-#include "../../../../../math/MathUtils.hpp"
+#include "../../../../../math/random/Random.hpp"
 #include "../../../../chunk/ChunkPos.hpp"
 #include <vector>
 #include <set>

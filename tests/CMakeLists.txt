@@ -11,7 +11,7 @@ add_executable(mr_tests
     common/test_world.cpp
     common/test_core.cpp
     # common/test_blockid.cpp  # 已移除 - 使用新的方块系统
-    common/test_noise.cpp
+    # common/test_noise.cpp     # 已移除 - Noise 类已删除
     common/test_entity.cpp
     common/test_chunksync.cpp
     common/test_localconnection.cpp

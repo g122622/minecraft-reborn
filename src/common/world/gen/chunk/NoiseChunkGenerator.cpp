@@ -5,9 +5,9 @@
 #include "../feature/ConfiguredFeature.hpp"
 #include "../feature/ore/OreFeature.hpp"
 #include "../../../math/MathUtils.hpp"
+#include "../../../math/random/Random.hpp"
 #include <algorithm>
 #include <cmath>
-#include <random>
 #include <spdlog/spdlog.h>
 
 namespace mr {
@@ -83,7 +83,7 @@ void NoiseChunkGenerator::initNoiseGenerators()
     m_noiseSizeZ = 16 / m_horizontalNoiseGranularity;
 
     // 创建噪声生成器（参考 MC）
-    std::mt19937_64 rng(m_seed);
+    math::Random rng(m_seed);
 
     // 主密度噪声：16 倍频（-15 到 0）
     m_mainDensityNoise = std::make_unique<OctavesNoiseGenerator>(rng, -15, 0);
@@ -102,7 +102,7 @@ void NoiseChunkGenerator::initNoiseGenerators()
     }
 
     // 跳过一些随机数（参考 MC）
-    rng.discard(2620);
+    rng.skip(2620);
 
     // 随机密度偏移噪声（用于放大化或末地）
     if (noise.randomDensityOffset) {
@@ -527,9 +527,7 @@ void NoiseChunkGenerator::buildSurface(WorldGenRegion& region, ChunkPrimer& chun
     const i32 startZ = chunkZ << 4;
 
     // 设置随机种子
-    std::mt19937_64 surfaceRng(static_cast<u64>(chunkX) * 341873128712ULL + static_cast<u64>(chunkZ) * 132897987541ULL);
-    std::uniform_int_distribution<u32> bedrockDist(0, 4);
-    std::uniform_real_distribution<f64> surfaceDepthDist(0.0, 0.25);
+    math::Random surfaceRng(static_cast<u64>(chunkX) * 341873128712ULL + static_cast<u64>(chunkZ) * 132897987541ULL);
 
     // 遍历每个 XZ 列
     for (i32 localX = 0; localX < 16; ++localX) {
@@ -551,7 +549,7 @@ void NoiseChunkGenerator::buildSurface(WorldGenRegion& region, ChunkPrimer& chun
             ) * 15.0;
 
             // 生成地表
-            buildSurfaceForColumn(chunk, localX, localZ, surfaceHeight, surfaceNoise + surfaceDepthDist(surfaceRng) * 15.0, biomeId);
+            buildSurfaceForColumn(chunk, localX, localZ, surfaceHeight, surfaceNoise + surfaceRng.nextDouble(0.0, 0.25) * 15.0, biomeId);
         }
     }
 
@@ -559,7 +557,7 @@ void NoiseChunkGenerator::buildSurface(WorldGenRegion& region, ChunkPrimer& chun
     for (i32 localX = 0; localX < 16; ++localX) {
         for (i32 localZ = 0; localZ < 16; ++localZ) {
             for (i32 y = 0; y < 5; ++y) {
-                if (y <= static_cast<i32>(bedrockDist(surfaceRng))) {
+                if (y <= surfaceRng.nextInt(5)) {
                     const BlockState* bedrock = BlockRegistry::instance().get(BlockId::Bedrock);
                     if (bedrock) {
                         chunk.setBlock(localX, y, localZ, bedrock);

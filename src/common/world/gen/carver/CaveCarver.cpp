@@ -1,6 +1,7 @@
 #include "CaveCarver.hpp"
 #include "../../block/BlockRegistry.hpp"
 #include "../../../math/MathUtils.hpp"
+#include "../../../math/random/Random.hpp"
 #include <cmath>
 #include <algorithm>
 
@@ -22,17 +23,12 @@ CaveCarver::CaveCarver(i32 maxHeight)
 }
 
 bool CaveCarver::shouldCarve(
-    std::mt19937_64& rng,
+    math::IRandom& rng,
     ChunkCoord chunkX,
     ChunkCoord chunkZ,
     const ProbabilityConfig& config) const
 {
-    // 使用区块坐标生成确定性随机
-    std::mt19937_64 localRng(static_cast<u64>(chunkX) * 341873128712ULL +
-                             static_cast<u64>(chunkZ) * 132897987541ULL +
-                             static_cast<u64>(m_maxHeight));
-    std::uniform_real_distribution<f32> dist(0.0f, 1.0f);
-    return dist(localRng) <= config.probability;
+    return rng.nextFloat() <= config.probability;
 }
 
 bool CaveCarver::carve(
@@ -45,9 +41,9 @@ bool CaveCarver::carve(
     const ProbabilityConfig& config)
 {
     // 参考 MC CaveWorldCarver.carveRegion
-    std::mt19937_64 rng(static_cast<u64>(chunkX) * 341873128712ULL +
-                        static_cast<u64>(chunkZ) * 132897987541ULL +
-                        static_cast<u64>(m_maxHeight));
+    math::Random rng(static_cast<u64>(chunkX) * 341873128712ULL +
+                     static_cast<u64>(chunkZ) * 132897987541ULL +
+                     static_cast<u64>(m_maxHeight));
 
     if (!shouldCarve(rng, chunkX, chunkZ, config)) {
         return false;
@@ -58,9 +54,7 @@ bool CaveCarver::carve(
 
     // 确定洞穴数量
     // 参考 MC: int j = rand.nextInt(rand.nextInt(rand.nextInt(this.func_230357_a_()) + 1) + 1);
-    std::uniform_int_distribution<i32> countDist1(0, getMaxCaveCount());
-    std::uniform_int_distribution<i32> countDist2(0, countDist1(rng) + 1);
-    const i32 numCaves = countDist2(rng);
+    const i32 numCaves = rng.nextInt(rng.nextInt(rng.nextInt(getMaxCaveCount()) + 1) + 1);
 
     bool carved = false;
     const i32 startX = chunkX << 4;
@@ -68,45 +62,36 @@ bool CaveCarver::carve(
 
     for (i32 i = 0; i < numCaves; ++i) {
         // 随机起始位置
-        std::uniform_real_distribution<f64> xPosDist(0.0, 16.0);
-        std::uniform_real_distribution<f64> zPosDist(0.0, 16.0);
-
-        const f64 startXPos = static_cast<f64>(startX) + xPosDist(rng);
-        const f64 startZPos = static_cast<f64>(startZ) + zPosDist(rng);
+        const f64 startXPos = static_cast<f64>(startX) + rng.nextDouble(0.0, 16.0);
+        const f64 startZPos = static_cast<f64>(startZ) + rng.nextDouble(0.0, 16.0);
         const f64 startYPos = static_cast<f64>(getCaveStartY(rng));
 
         // 有概率生成大型圆形房间
-        std::uniform_int_distribution<i32> roomChance(0, 3);
         i32 numTunnels = 1;
 
-        if (roomChance(rng) == 0) {
+        if (rng.nextInt(4) == 0) {
             // 生成房间
-            std::uniform_real_distribution<f32> roomRadiusDist(1.0f, 7.0f);
-            const f32 roomRadius = roomRadiusDist(rng);
+            const f32 roomRadius = rng.nextFloat(1.0f, 7.0f);
             carveRoom(chunk, biomeProvider, seaLevel, chunkX, chunkZ,
-                      static_cast<i64>(rng()),
+                      static_cast<i64>(rng.nextU64()),
                       startXPos, startYPos, startZPos,
                       roomRadius, 0.5,
                       carvingMask);
-            numTunnels += std::uniform_int_distribution<i32>(0, 4)(rng);
+            numTunnels += rng.nextInt(5);
         }
 
         // 生成隧道
         for (i32 tunnelIdx = 0; tunnelIdx < numTunnels; ++tunnelIdx) {
             // 随机方向
-            std::uniform_real_distribution<f32> angleDist(0.0f, 2.0f * PI);
-            std::uniform_real_distribution<f32> pitchDist(-0.25f, 0.25f);
-
-            const f32 yaw = angleDist(rng);
-            const f32 pitch = pitchDist(rng);
+            const f32 yaw = rng.nextFloat(0.0f, 2.0f * PI);
+            const f32 pitch = rng.nextFloat(-0.25f, 0.25f);
             const f32 radius = getCaveRadius(rng);
 
             // 隧道长度
-            std::uniform_int_distribution<i32> lengthDist(0, tunnelLength / 4);
-            const i32 length = tunnelLength - lengthDist(rng);
+            const i32 length = tunnelLength - rng.nextInt(tunnelLength / 4 + 1);
 
             carveTunnel(chunk, biomeProvider, seaLevel, chunkX, chunkZ,
-                        static_cast<i64>(rng()),
+                        static_cast<i64>(rng.nextU64()),
                         startXPos, startYPos, startZPos,
                         radius, yaw, pitch,
                         0, length, getVerticalScale(),
@@ -128,26 +113,21 @@ bool CaveCarver::shouldSkipEllipsoidPosition(f64 dx, f64 dy, f64 dz, i32 y) cons
     return dx * dx + dy * dy + dz * dz >= 1.0;
 }
 
-i32 CaveCarver::getCaveStartY(std::mt19937_64& rng) const
+i32 CaveCarver::getCaveStartY(math::IRandom& rng) const
 {
     // 参考 MC: return rand.nextInt(rand.nextInt(120) + 8);
-    std::uniform_int_distribution<i32> dist1(0, 120);
-    const i32 inner = dist1(rng);
-    std::uniform_int_distribution<i32> dist2(0, inner + 8);
-    return dist2(rng);
+    return rng.nextInt(rng.nextInt(121) + 8);
 }
 
-f32 CaveCarver::getCaveRadius(std::mt19937_64& rng) const
+f32 CaveCarver::getCaveRadius(math::IRandom& rng) const
 {
     // 参考 MC CaveWorldCarver.func_230359_a_
     // float f = rand.nextFloat() * 2.0F + rand.nextFloat();
     // if (rand.nextInt(10) == 0) { f *= rand.nextFloat() * rand.nextFloat() * 3.0F + 1.0F; }
-    std::uniform_real_distribution<f32> dist(0.0f, 1.0f);
-    f32 radius = dist(rng) * 2.0f + dist(rng);
+    f32 radius = rng.nextFloat() * 2.0f + rng.nextFloat();
 
-    std::uniform_int_distribution<i32> largeDist(0, 9);
-    if (largeDist(rng) == 0) {
-        radius *= dist(rng) * dist(rng) * 3.0f + 1.0f;
+    if (rng.nextInt(10) == 0) {
+        radius *= rng.nextFloat() * rng.nextFloat() * 3.0f + 1.0f;
     }
 
     return radius;
@@ -168,12 +148,11 @@ void CaveCarver::carveTunnel(
     CarvingMask& carvingMask)
 {
     // 参考 MC CaveWorldCarver.func_227206_a_
-    std::mt19937_64 rng(seed);
-    std::uniform_real_distribution<f32> randomDist(0.0f, 1.0f);
+    math::Random rng(static_cast<u64>(seed));
 
     // 分支点
-    const i32 branchPoint = endIndex / 4 + static_cast<i32>(rng() % (endIndex / 2));
-    const bool canBranch = (rng() % 6) == 0;
+    const i32 branchPoint = endIndex / 4 + static_cast<i32>(rng.nextInt(endIndex / 2 + 1));
+    const bool canBranch = rng.nextInt(6) == 0;
 
     f32 currentYaw = yaw;
     f32 currentPitch = pitch;
@@ -204,17 +183,16 @@ void CaveCarver::carveTunnel(
         // 衰减和随机扰动
         pitchModifier *= 0.9f;
         yawModifier *= 0.75f;
-        pitchModifier += (randomDist(rng) - randomDist(rng)) * randomDist(rng) * 2.0f;
-        yawModifier += (randomDist(rng) - randomDist(rng)) * randomDist(rng) * 4.0f;
+        pitchModifier += (rng.nextFloat() - rng.nextFloat()) * rng.nextFloat() * 2.0f;
+        yawModifier += (rng.nextFloat() - rng.nextFloat()) * rng.nextFloat() * 4.0f;
 
         // 在分支点生成分支
         if (i == branchPoint && radius > 1.0f) {
             // 生成两个分支隧道
-            std::uniform_real_distribution<f32> branchRadiusDist(0.5f, 1.0f);
-            const f32 branchRadius = radius * branchRadiusDist(rng);
+            const f32 branchRadius = radius * rng.nextFloat(0.5f, 1.0f);
 
             carveTunnel(chunk, biomeProvider, seaLevel, chunkX, chunkZ,
-                        static_cast<i64>(rng()),
+                        static_cast<i64>(rng.nextU64()),
                         currentX, currentY, currentZ,
                         branchRadius,
                         currentYaw - PI / 2.0f, currentPitch / 3.0f,
@@ -222,7 +200,7 @@ void CaveCarver::carveTunnel(
                         carvingMask);
 
             carveTunnel(chunk, biomeProvider, seaLevel, chunkX, chunkZ,
-                        static_cast<i64>(rng()),
+                        static_cast<i64>(rng.nextU64()),
                         currentX, currentY, currentZ,
                         branchRadius,
                         currentYaw + PI / 2.0f, currentPitch / 3.0f,
@@ -232,7 +210,7 @@ void CaveCarver::carveTunnel(
         }
 
         // 随机跳过一些点（增加不规则性）
-        if (rng() % 4 == 0) {
+        if (rng.nextInt(4) == 0) {
             continue;
         }
 
@@ -241,7 +219,7 @@ void CaveCarver::carveTunnel(
             carveEllipsoid(chunk, biomeProvider, seaLevel, chunkX, chunkZ,
                            currentX, currentY, currentZ,
                            horizontalRadius, vertRadius,
-                           carvingMask, static_cast<i64>(rng()));
+                           carvingMask, static_cast<i64>(rng.nextU64()));
         }
     }
 }

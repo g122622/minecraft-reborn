@@ -15,7 +15,7 @@ public:
     DefaultSurfaceBuilder() = default;
 
     void buildSurface(
-        Random& random,
+        math::Random& random,
         ChunkPrimer& chunk,
         const Biome& biome,
         i32 x, i32 z,
@@ -35,7 +35,7 @@ protected:
      * @param random 随机数生成器
      * @return 地表深度（方块数）
      */
-    [[nodiscard]] i32 calculateDepth(f64 noise, Random& random) const;
+    [[nodiscard]] i32 calculateDepth(f64 noise, math::Random& random) const;
 };
 
 /**

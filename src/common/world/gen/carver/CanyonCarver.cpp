@@ -1,5 +1,6 @@
 #include "CanyonCarver.hpp"
 #include "../../block/BlockRegistry.hpp"
+#include "../../../math/random/Random.hpp"
 #include <cmath>
 #include <algorithm>
 
@@ -26,13 +27,12 @@ void CanyonCarver::initializeHeightThresholds()
 {
     // 参考 MC CanyonWorldCarver 构造函数
     // 为每个高度预计算半径变化因子
-    std::mt19937_64 rng(0);  // 使用固定种子生成确定性阈值
+    math::Random rng(0);  // 使用固定种子生成确定性阈值
 
     for (size_t i = 0; i < m_heightThresholds.size(); ++i) {
-        if (i == 0 || rng() % 3 == 0) {
+        if (i == 0 || rng.nextInt(3) == 0) {
             // 生成新的随机因子
-            std::uniform_real_distribution<f32> dist(0.0f, 1.0f);
-            f32 factor = 1.0f + dist(rng) * dist(rng);
+            f32 factor = 1.0f + rng.nextFloat() * rng.nextFloat();
             m_heightThresholds[i] = factor * factor;
         } else {
             // 使用上一个值
@@ -44,17 +44,12 @@ void CanyonCarver::initializeHeightThresholds()
 }
 
 bool CanyonCarver::shouldCarve(
-    std::mt19937_64& rng,
+    math::IRandom& rng,
     ChunkCoord chunkX,
     ChunkCoord chunkZ,
     const ProbabilityConfig& config) const
 {
-    // 峡谷比洞穴更稀少
-    std::mt19937_64 localRng(static_cast<u64>(chunkX) * 341873128712ULL +
-                             static_cast<u64>(chunkZ) * 132897987541ULL +
-                             static_cast<u64>(m_maxHeight) + 1);
-    std::uniform_real_distribution<f32> dist(0.0f, 1.0f);
-    return dist(localRng) <= config.probability;
+    return rng.nextFloat() <= config.probability;
 }
 
 bool CanyonCarver::carve(
@@ -67,9 +62,9 @@ bool CanyonCarver::carve(
     const ProbabilityConfig& config)
 {
     // 参考 MC CanyonWorldCarver.carveRegion
-    std::mt19937_64 rng(static_cast<u64>(chunkX) * 341873128712ULL +
-                        static_cast<u64>(chunkZ) * 132897987541ULL +
-                        static_cast<u64>(m_maxHeight) + 1);
+    math::Random rng(static_cast<u64>(chunkX) * 341873128712ULL +
+                     static_cast<u64>(chunkZ) * 132897987541ULL +
+                     static_cast<u64>(m_maxHeight) + 1);
 
     if (!shouldCarve(rng, chunkX, chunkZ, config)) {
         return false;
@@ -80,30 +75,21 @@ bool CanyonCarver::carve(
     const i32 startZ = chunkZ << 4;
 
     // 峡谷起点
-    std::uniform_real_distribution<f64> xPosDist(0.0, 16.0);
-    std::uniform_real_distribution<f64> zPosDist(0.0, 16.0);
-    std::uniform_int_distribution<i32> yDist(20, 67);
-
-    const f64 canyonX = static_cast<f64>(startX) + xPosDist(rng);
-    const f64 canyonY = static_cast<f64>(yDist(rng));
-    const f64 canyonZ = static_cast<f64>(startZ) + zPosDist(rng);
+    const f64 canyonX = static_cast<f64>(startX) + rng.nextDouble(0.0, 16.0);
+    const f64 canyonY = static_cast<f64>(rng.nextInt(20, 67));
+    const f64 canyonZ = static_cast<f64>(startZ) + rng.nextDouble(0.0, 16.0);
 
     // 峡谷方向和尺寸
-    std::uniform_real_distribution<f32> angleDist(0.0f, 2.0f * PI);
-    std::uniform_real_distribution<f32> pitchDist(-0.125f, 0.125f);  // MC使用 2.0F / 8.0F
-    std::uniform_real_distribution<f32> radiusDist(1.0f, 2.0f);
-
-    const f32 yaw = angleDist(rng);
-    const f32 pitch = pitchDist(rng);
-    const f32 radius = (radiusDist(rng) * 2.0f + radiusDist(rng));  // MC: nextFloat() * 2.0F + nextFloat()) * 2.0F
+    const f32 yaw = rng.nextFloat(0.0f, 2.0f * PI);
+    const f32 pitch = rng.nextFloat(-0.125f, 0.125f);  // MC使用 2.0F / 8.0F
+    const f32 radius = (rng.nextFloat(1.0f, 2.0f) * 2.0f + rng.nextFloat());  // MC: nextFloat() * 2.0F + nextFloat()) * 2.0F
 
     // 峡谷长度
-    std::uniform_int_distribution<i32> lengthDist(0, tunnelLength / 4);
-    const i32 length = tunnelLength - lengthDist(rng);
+    const i32 length = tunnelLength - rng.nextInt(tunnelLength / 4 + 1);
 
     // 生成蜿蜒峡谷
     generateCanyon(chunk, biomeProvider, seaLevel, chunkX, chunkZ,
-                   static_cast<i64>(rng()),
+                   static_cast<i64>(rng.nextU64()),
                    canyonX, canyonY, canyonZ,
                    radius, yaw, pitch,
                    0, length, 3.0,
@@ -140,8 +126,7 @@ void CanyonCarver::generateCanyon(
     CarvingMask& carvingMask)
 {
     // 参考 MC CanyonWorldCarver.func_227204_a_
-    std::mt19937_64 rng(seed);
-    std::uniform_real_distribution<f32> randomDist(0.0f, 1.0f);
+    math::Random rng(static_cast<u64>(seed));
 
     f64 currentX = startX;
     f64 currentY = startY;
@@ -160,8 +145,8 @@ void CanyonCarver::generateCanyon(
         horizontalRadius = static_cast<f32>(static_cast<f64>(horizontalRadius) * horizontalScale);
 
         // 添加随机变化（参考MC）
-        horizontalRadius *= randomDist(rng) * 0.25f + 0.75f;
-        verticalRadius *= randomDist(rng) * 0.25f + 0.75f;
+        horizontalRadius *= rng.nextFloat() * 0.25f + 0.75f;
+        verticalRadius *= rng.nextFloat() * 0.25f + 0.75f;
 
         // 更新位置（参考MC的方向计算）
         const f32 cosPitch = std::cos(pitch);
@@ -179,11 +164,11 @@ void CanyonCarver::generateCanyon(
         // 衰减和随机扰动
         pitchModifier *= 0.8f;
         yawModifier *= 0.5f;
-        pitchModifier += (randomDist(rng) - randomDist(rng)) * randomDist(rng) * 2.0f;
-        yawModifier += (randomDist(rng) - randomDist(rng)) * randomDist(rng) * 4.0f;
+        pitchModifier += (rng.nextFloat() - rng.nextFloat()) * rng.nextFloat() * 2.0f;
+        yawModifier += (rng.nextFloat() - rng.nextFloat()) * rng.nextFloat() * 4.0f;
 
         // 随机跳过一些点（每4步跳过3次，增加不规则性）
-        if (rng() % 4 == 0) {
+        if (rng.nextInt(4) == 0) {
             continue;
         }
 
@@ -193,7 +178,7 @@ void CanyonCarver::generateCanyon(
                            currentX, currentY, currentZ,
                            static_cast<f64>(horizontalRadius),
                            static_cast<f64>(verticalRadius),
-                           carvingMask, static_cast<i64>(rng()));
+                           carvingMask, static_cast<i64>(rng.nextU64()));
         }
     }
 }

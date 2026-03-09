@@ -1,15 +1,10 @@
 #pragma once
 
 #include "../../../core/Types.hpp"
-#include "../../../math/MathUtils.hpp"
+#include "../../../math/random/Random.hpp"
 #include "../../block/Block.hpp"
-#include <functional>
-#include <random>
 
 namespace mr {
-
-// 导入 math::Random 到 mr 命名空间
-using math::Random;
 
 // 前向声明
 class BlockState;
@@ -99,7 +94,7 @@ public:
      * @param config 地表配置
      */
     virtual void buildSurface(
-        Random& random,
+        math::Random& random,
         ChunkPrimer& chunk,
         const Biome& biome,
         i32 x, i32 z,

@@ -6,6 +6,7 @@
 #include "world/block/BlockRegistry.hpp"
 #include "world/block/VanillaBlocks.hpp"
 #include "world/biome/BiomeProvider.hpp"
+#include "math/random/Random.hpp"
 
 using namespace mr;
 
@@ -121,7 +122,7 @@ protected:
 };
 
 TEST_F(CaveCarverTest, ShouldCarveWithProbability) {
-    std::mt19937_64 rng(12345);
+    math::Random rng(12345);
 
     // 高概率配置
     ProbabilityConfig highProb(1.0f);
@@ -145,7 +146,7 @@ TEST_F(CaveCarverTest, CarveCreatesHoles) {
 
     // 执行雕刻
     ProbabilityConfig config(1.0f);  // 100% 概率
-    std::mt19937_64 rng(11111);
+    math::Random rng(11111);
 
     // 使用固定种子确保雕刻
     bool carved = false;
@@ -222,7 +223,7 @@ protected:
 };
 
 TEST_F(CanyonCarverTest, ShouldCarveWithProbability) {
-    std::mt19937_64 rng(12345);
+    math::Random rng(12345);
 
     // 高概率配置
     ProbabilityConfig highProb(1.0f);
@@ -246,7 +247,7 @@ TEST_F(CanyonCarverTest, CarveCreatesCanyon) {
 
     // 执行雕刻
     ProbabilityConfig config(1.0f);  // 100% 概率
-    std::mt19937_64 rng(22222);
+    math::Random rng(22222);
 
     bool carved = false;
     for (int cx = -1; cx <= 1; ++cx) {
@@ -333,7 +334,7 @@ TEST(ConfiguredCarverTest, ShouldCarve) {
     ConfiguredCarver<CaveCarver, ProbabilityConfig> configured(
         std::move(carver), config);
 
-    std::mt19937_64 rng(12345);
+    math::Random rng(12345);
     EXPECT_TRUE(configured.shouldCarve(rng, 0, 0));
 }
 

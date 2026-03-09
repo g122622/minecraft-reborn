@@ -6,6 +6,7 @@
 #include "common/world/biome/BiomeRegistry.hpp"
 #include "common/world/block/BlockRegistry.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
+#include "common/math/random/Random.hpp"
 
 using namespace mr;
 
@@ -76,10 +77,10 @@ TEST_F(SurfaceBuilderConfigTest, RedSandPreset) {
 class RandomTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        random = std::make_unique<Random>(12345);
+        random = std::make_unique<math::Random>(12345);
     }
 
-    std::unique_ptr<Random> random;
+    std::unique_ptr<math::Random> random;
 };
 
 TEST_F(RandomTest, NextIntRange) {
@@ -129,12 +130,12 @@ protected:
         BiomeRegistry::instance().initialize();
         builder = std::make_unique<DefaultSurfaceBuilder>();
         chunk = std::make_unique<ChunkPrimer>(0, 0);
-        random = std::make_unique<Random>(12345);
+        random = std::make_unique<math::Random>(12345);
     }
 
     std::unique_ptr<DefaultSurfaceBuilder> builder;
     std::unique_ptr<ChunkPrimer> chunk;
-    std::unique_ptr<Random> random;
+    std::unique_ptr<math::Random> random;
 };
 
 TEST_F(DefaultSurfaceBuilderTest, Name) {
@@ -206,12 +207,12 @@ protected:
         BiomeRegistry::instance().initialize();
         builder = std::make_unique<MountainSurfaceBuilder>();
         chunk = std::make_unique<ChunkPrimer>(0, 0);
-        random = std::make_unique<Random>(12345);
+        random = std::make_unique<math::Random>(12345);
     }
 
     std::unique_ptr<MountainSurfaceBuilder> builder;
     std::unique_ptr<ChunkPrimer> chunk;
-    std::unique_ptr<Random> random;
+    std::unique_ptr<math::Random> random;
 };
 
 TEST_F(MountainSurfaceBuilderTest, Name) {
@@ -232,12 +233,12 @@ protected:
         BiomeRegistry::instance().initialize();
         builder = std::make_unique<DesertSurfaceBuilder>();
         chunk = std::make_unique<ChunkPrimer>(0, 0);
-        random = std::make_unique<Random>(12345);
+        random = std::make_unique<math::Random>(12345);
     }
 
     std::unique_ptr<DesertSurfaceBuilder> builder;
     std::unique_ptr<ChunkPrimer> chunk;
-    std::unique_ptr<Random> random;
+    std::unique_ptr<math::Random> random;
 };
 
 TEST_F(DesertSurfaceBuilderTest, Name) {
@@ -290,11 +291,11 @@ protected:
         VanillaBlocks::initialize();
         BiomeRegistry::instance().initialize();
         builder = std::make_unique<SwampSurfaceBuilder>();
-        random = std::make_unique<Random>(12345);
+        random = std::make_unique<math::Random>(12345);
     }
 
     std::unique_ptr<SwampSurfaceBuilder> builder;
-    std::unique_ptr<Random> random;
+    std::unique_ptr<math::Random> random;
 };
 
 TEST_F(SwampSurfaceBuilderTest, Name) {
@@ -311,11 +312,11 @@ protected:
         VanillaBlocks::initialize();
         BiomeRegistry::instance().initialize();
         builder = std::make_unique<FrozenOceanSurfaceBuilder>();
-        random = std::make_unique<Random>(12345);
+        random = std::make_unique<math::Random>(12345);
     }
 
     std::unique_ptr<FrozenOceanSurfaceBuilder> builder;
-    std::unique_ptr<Random> random;
+    std::unique_ptr<math::Random> random;
 };
 
 TEST_F(FrozenOceanSurfaceBuilderTest, Name) {
@@ -332,11 +333,11 @@ protected:
         VanillaBlocks::initialize();
         BiomeRegistry::instance().initialize();
         builder = std::make_unique<BadlandsSurfaceBuilder>();
-        random = std::make_unique<Random>(12345);
+        random = std::make_unique<math::Random>(12345);
     }
 
     std::unique_ptr<BadlandsSurfaceBuilder> builder;
-    std::unique_ptr<Random> random;
+    std::unique_ptr<math::Random> random;
 };
 
 TEST_F(BadlandsSurfaceBuilderTest, Name) {
@@ -367,11 +368,11 @@ protected:
         VanillaBlocks::initialize();
         BiomeRegistry::instance().initialize();
         builder = std::make_unique<BeachSurfaceBuilder>();
-        random = std::make_unique<Random>(12345);
+        random = std::make_unique<math::Random>(12345);
     }
 
     std::unique_ptr<BeachSurfaceBuilder> builder;
-    std::unique_ptr<Random> random;
+    std::unique_ptr<math::Random> random;
 };
 
 TEST_F(BeachSurfaceBuilderTest, Name) {
@@ -408,7 +409,7 @@ TEST_F(SurfaceBuilderPolymorphismTest, AllBuildersAreValid) {
 
 TEST_F(SurfaceBuilderPolymorphismTest, BuildSurfaceWithDifferentBuilders) {
     ChunkPrimer chunk(0, 0);
-    Random random(12345);
+    math::Random random(12345);
     const Biome& biome = BiomeRegistry::instance().get(Biomes::Plains);
     const BlockState* stone = BlockRegistry::instance().get(BlockId::Stone);
     auto config = SurfaceBuilderConfig::grass();

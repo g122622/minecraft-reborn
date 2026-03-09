@@ -12,8 +12,8 @@
 #include "../../biome/BiomeGenerationSettings.hpp"
 #include "../../chunk/ChunkPrimer.hpp"
 #include "../../../core/Types.hpp"
+#include "../../../math/random/Random.hpp"
 #include <memory>
-#include <random>
 
 namespace mr {
 
@@ -100,7 +100,7 @@ private:
     i32 m_horizontalNoiseGranularity;
 
     // === 随机数生成 ===
-    mutable std::mt19937_64 m_random;
+    mutable math::Random m_random;
 
     // === 5x5 权重查找表（参考 MC field_236081_j_）===
     std::array<f32, 25> m_biomeWeights;

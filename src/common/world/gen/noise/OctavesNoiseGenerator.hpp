@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ImprovedNoiseGenerator.hpp"
+#include "../../../math/random/Random.hpp"
 #include <vector>
 #include <memory>
 
@@ -32,12 +33,12 @@ public:
     OctavesNoiseGenerator(u64 seed, i32 minOctave, i32 maxOctave);
 
     /**
-     * @brief 使用随机引擎构造
-     * @param rng 随机数引擎
+     * @brief 使用随机生成器构造
+     * @param rng 随机数生成器
      * @param minOctave 最小倍频索引
      * @param maxOctave 最大倍频索引
      */
-    OctavesNoiseGenerator(std::mt19937_64& rng, i32 minOctave, i32 maxOctave);
+    OctavesNoiseGenerator(math::IRandom& rng, i32 minOctave, i32 maxOctave);
 
     ~OctavesNoiseGenerator() override = default;
 
@@ -127,7 +128,7 @@ private:
     f64 m_amplitudeLow;  // 低频振幅
     f64 m_amplitudeHigh; // 高频振幅
 
-    void initOctaves(std::mt19937_64& rng);
+    void initOctaves(math::IRandom& rng);
 };
 
 /**
@@ -143,9 +144,9 @@ public:
     PerlinNoiseGenerator(u64 seed, i32 minOctave, i32 maxOctave);
 
     /**
-     * @brief 使用随机引擎构造
+     * @brief 使用随机生成器构造
      */
-    PerlinNoiseGenerator(std::mt19937_64& rng, i32 minOctave, i32 maxOctave);
+    PerlinNoiseGenerator(math::IRandom& rng, i32 minOctave, i32 maxOctave);
 
     ~PerlinNoiseGenerator() override = default;
 
@@ -171,7 +172,7 @@ private:
 class SimplexNoiseGenerator : public INoiseGenerator {
 public:
     explicit SimplexNoiseGenerator(u64 seed);
-    explicit SimplexNoiseGenerator(std::mt19937_64& rng);
+    explicit SimplexNoiseGenerator(math::IRandom& rng);
 
     ~SimplexNoiseGenerator() override = default;
 
@@ -192,7 +193,7 @@ private:
     std::array<u8, 512> m_p;
     std::array<f64, 3> m_offset;
 
-    void initPermutation(std::mt19937_64& rng);
+    void initPermutation(math::IRandom& rng);
     [[nodiscard]] static i32 fastFloor(f64 x);
     [[nodiscard]] f64 grad(i32 hash, f64 x, f64 y, f64 z) const;
 };

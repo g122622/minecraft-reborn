@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Layer.hpp"
+#include "../../../math/random/Random.hpp"
 #include <vector>
 #include <mutex>
-#include <random>
 
 namespace mr {
 
@@ -85,7 +85,7 @@ public:
     [[nodiscard]] i32 nextIntWithMod(i32 bound) override;
 
 private:
-    std::mt19937_64 m_rng;
+    math::Random m_rng;
     u64 m_baseSeed;
     u64 m_currentSeed;
 };

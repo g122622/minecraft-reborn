@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../ConfiguredFeature.hpp"
-#include "../../../../math/MathUtils.hpp"
+#include "../../../../math/random/Random.hpp"
 #include "../../../chunk/ChunkPos.hpp"
 #include "../../placement/Placement.hpp"
 #include <memory>

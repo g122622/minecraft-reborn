@@ -2,8 +2,8 @@
 #include "../ShaderPath.hpp"
 #include "../VulkanBuffer.hpp"
 #include "../../../common/core/Constants.hpp"
+#include "../../../common/math/random/Random.hpp"
 #include <spdlog/spdlog.h>
-#include <random>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -455,7 +455,7 @@ Result<void> SkyRenderer::createSkyDomeVBO() {
 
 Result<void> SkyRenderer::createStarVBO() {
     // 使用固定种子生成星星位置 (MC 使用 10842L)
-    std::mt19937_64 rng(CelestialCalculations::getStarSeed());
+    math::Random rng(CelestialCalculations::getStarSeed());
 
     std::vector<SkyVertex> vertices;
     vertices.reserve(CelestialCalculations::getStarCount());
@@ -463,8 +463,8 @@ Result<void> SkyRenderer::createStarVBO() {
     // 在单位球面上均匀分布星星
     for (i32 i = 0; i < CelestialCalculations::getStarCount(); ++i) {
         // 使用球面均匀分布算法
-        f64 theta = 2.0 * mr::math::PI_DOUBLE * static_cast<f64>(rng() % 10000) / 10000.0;
-        f64 phi = std::acos(2.0 * static_cast<f64>(rng() % 10000) / 10000.0 - 1.0);
+        f64 theta = 2.0 * mr::math::PI_DOUBLE * rng.nextDouble();
+        f64 phi = std::acos(2.0 * rng.nextDouble() - 1.0);
         f64 radius = 100.0; // 星星距离
 
         f32 x = static_cast<f32>(radius * std::sin(phi) * std::cos(theta));
