@@ -1,0 +1,159 @@
+#pragma once
+
+#include "common/core/Types.hpp"
+#include "common/core/Result.hpp"
+#include <string>
+#include <stdexcept>
+
+namespace mr::command {
+
+/**
+ * @brief 命令语法异常类型
+ *
+ * 定义命令解析过程中可能遇到的各种语法错误类型
+ */
+enum class CommandErrorType {
+    // 分发器错误
+    DispatcherUnknownCommand,       // 未知命令
+    DispatcherUnknownArgument,      // 未知参数
+    DispatcherExpectedArgumentSeparator,  // 期望参数分隔符
+    DispatcherExpectedLiteral,      // 期望字面量
+
+    // 参数错误
+    IntegerExpected,                // 期望整数
+    IntegerTooLow,                  // 整数太小
+    IntegerTooHigh,                 // 整数太大
+    FloatExpected,                  // 期望浮点数
+    FloatTooLow,                    // 浮点数太小
+    FloatTooHigh,                   // 浮点数太大
+    BoolExpected,                   // 期望布尔值
+    StringExpected,                 // 期望字符串
+    StringQuotedExpected,           // 期望引号字符串
+
+    // 实体选择器错误
+    EntityNotFound,                 // 实体未找到
+    PlayerNotFound,                 // 玩家未找到
+    EntityTooMany,                  // 实体太多
+    PlayerTooMany,                  // 玩家太多
+    EntitySelectorNotAllowed,       // 选择器不允许
+    EntitySelectorInvalid,          // 无效的选择器
+
+    // 位置参数错误
+    BlockPosUnloaded,               // 方块位置未加载
+    BlockPosOutOfWorld,             // 方块位置超出世界
+
+    // 权限错误
+    PermissionDenied,               // 权限不足
+
+    // 通用错误
+    Unknown,                        // 未知错误
+};
+
+/**
+ * @brief 命令语法异常
+ *
+ * 用于命令解析和执行过程中的错误报告
+ * 参考 MC 的 CommandSyntaxException 设计
+ */
+class CommandException : public std::runtime_error {
+public:
+    explicit CommandException(CommandErrorType type, const String& message)
+        : std::runtime_error(message)
+        , m_type(type)
+        , m_message(message)
+        , m_cursor(-1) {}
+
+    CommandException(CommandErrorType type, const String& message, i32 cursor)
+        : std::runtime_error(message)
+        , m_type(type)
+        , m_message(message)
+        , m_cursor(cursor) {}
+
+    [[nodiscard]] CommandErrorType type() const noexcept { return m_type; }
+    [[nodiscard]] const String& message() const noexcept { return m_message; }
+    [[nodiscard]] i32 cursor() const noexcept { return m_cursor; }
+
+    /**
+     * @brief 创建带有上下文的异常
+     * @param input 原始输入字符串
+     */
+    [[nodiscard]] CommandException withInput(StringView input) const {
+        CommandException result(m_type, m_message, m_cursor);
+        result.m_input = String(input);
+        return result;
+    }
+
+    [[nodiscard]] const String& input() const noexcept { return m_input; }
+
+    /**
+     * @brief 设置输入字符串（内部使用）
+     */
+    void setInput(const String& input) { m_input = input; }
+
+private:
+    CommandErrorType m_type;
+    String m_message;
+    i32 m_cursor;
+    String m_input;
+};
+
+/**
+ * @brief 简单命令异常类型
+ *
+ * 用于创建无参数的异常消息
+ */
+class SimpleCommandException {
+public:
+    explicit SimpleCommandException(CommandErrorType type, const String& message)
+        : m_type(type), m_message(message) {}
+
+    [[nodiscard]] CommandException create() const {
+        return CommandException(m_type, m_message);
+    }
+
+    [[nodiscard]] CommandException createWithContext(i32 cursor, StringView input) const {
+        CommandException result(m_type, m_message, cursor);
+        result.setInput(String(input));
+        return result;
+    }
+
+private:
+    CommandErrorType m_type;
+    String m_message;
+};
+
+/**
+ * @brief 动态命令异常类型
+ *
+ * 用于创建带参数的异常消息
+ */
+template<typename... Args>
+class DynamicCommandException {
+public:
+    explicit DynamicCommandException(CommandErrorType type, const String& format)
+        : m_type(type), m_format(format) {}
+
+    [[nodiscard]] CommandException create(Args... args) const {
+        return CommandException(m_type, formatMessage(args...));
+    }
+
+private:
+    String formatMessage(Args... args) const {
+        String result = m_format;
+        // 简单实现：支持 {} 占位符
+        ((replaceFirst(result, "{}", std::to_string(args))), ...);
+        return result;
+    }
+
+    static void replaceFirst(String& str, const String& from, const String& to) {
+        size_t pos = str.find(from);
+        if (pos != String::npos) {
+            str.replace(pos, from.length(), to);
+        }
+    }
+
+    CommandErrorType m_type;
+    String m_format;
+};
+
+} // namespace mr::command

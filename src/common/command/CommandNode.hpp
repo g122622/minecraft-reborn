@@ -1,0 +1,253 @@
+#pragma once
+
+#include "common/core/Types.hpp"
+#include "common/command/exceptions/CommandExceptions.hpp"
+#include "common/command/CommandResult.hpp"
+#include <string>
+#include <memory>
+#include <vector>
+#include <functional>
+#include <unordered_map>
+#include <set>
+
+namespace mr::command {
+
+// 前向声明
+template<typename S>
+class CommandContext;
+
+template<typename S>
+class CommandNode;
+
+template<typename S>
+class CommandDispatcher;
+
+// ========== 类型别名 ==========
+
+/// 命令执行回调
+template<typename S>
+using CommandCallback = std::function<i32(CommandContext<S>&)>;
+
+/// 权限检查谓词
+template<typename S>
+using RequirementPredicate = std::function<bool(const S&)>;
+
+// ========== 命令节点类型 ==========
+
+/**
+ * @brief 命令节点类型
+ */
+enum class NodeType {
+    Root = 0,       // 根节点
+    Literal = 1,    // 字面量节点（如 "gamemode"）
+    Argument = 2,   // 参数节点（如 <mode>）
+};
+
+/**
+ * @brief 命令节点重定向模式
+ */
+enum class RedirectModifier {
+    None,           // 无重定向
+    Single,         // 单一重定向
+    Fork            // 分叉重定向（执行多个）
+};
+
+/**
+ * @brief 命令节点基类
+ *
+ * 构建命令树的基本单元，支持：
+ * - 子节点添加
+ * - 权限检查
+ * - 命令执行
+ * - 重定向
+ *
+ * 参考 MC 的 CommandNode 设计
+ */
+template<typename S>
+class CommandNode {
+public:
+    virtual ~CommandNode() = default;
+
+    // ========== 节点属性 ==========
+
+    [[nodiscard]] virtual NodeType getType() const noexcept = 0;
+    [[nodiscard]] virtual String getName() const noexcept = 0;
+
+    [[nodiscard]] const String& getUsageText() const { return m_usageText; }
+    void setUsageText(const String& text) { m_usageText = text; }
+
+    // ========== 命令 ==========
+
+    [[nodiscard]] bool hasCommand() const noexcept { return m_command != nullptr; }
+    [[nodiscard]] const CommandCallback<S>& getCommand() const noexcept { return m_command; }
+    void setCommand(CommandCallback<S> command) { m_command = std::move(command); }
+
+    // ========== 权限 ==========
+
+    [[nodiscard]] const RequirementPredicate<S>& getRequirement() const noexcept {
+        return m_requirement;
+    }
+    void setRequirement(RequirementPredicate<S> requirement) {
+        m_requirement = std::move(requirement);
+    }
+
+    [[nodiscard]] bool canUse(const S& source) const {
+        return m_requirement(source);
+    }
+
+    // ========== 子节点 ==========
+
+    void addChild(std::shared_ptr<CommandNode<S>> node) {
+        m_children[node->getName()] = node;
+        if (node->getType() == NodeType::Literal) {
+            m_literals.insert(node->getName());
+        } else {
+            m_arguments.insert(node->getName());
+        }
+    }
+
+    [[nodiscard]] const std::unordered_map<String, std::shared_ptr<CommandNode<S>>>&
+    getChildren() const noexcept { return m_children; }
+
+    [[nodiscard]] std::shared_ptr<CommandNode<S>> getChild(const String& name) const {
+        auto it = m_children.find(name);
+        return it != m_children.end() ? it->second : nullptr;
+    }
+
+    [[nodiscard]] const std::set<String>& getLiterals() const noexcept { return m_literals; }
+    [[nodiscard]] const std::set<String>& getArguments() const noexcept { return m_arguments; }
+
+    // ========== 重定向 ==========
+
+    [[nodiscard]] std::shared_ptr<CommandNode<S>> getRedirect() const noexcept { return m_redirect; }
+    [[nodiscard]] RedirectModifier getRedirectModifier() const noexcept { return m_redirectModifier; }
+
+    void setRedirect(std::shared_ptr<CommandNode<S>> target,
+                     RedirectModifier modifier = RedirectModifier::Single) {
+        m_redirect = std::move(target);
+        m_redirectModifier = modifier;
+    }
+
+    [[nodiscard]] bool isFork() const noexcept {
+        return m_redirectModifier == RedirectModifier::Fork;
+    }
+
+    // ========== 比较 ==========
+
+    virtual bool equals(const CommandNode<S>& other) const {
+        // 简化比较：只比较重定向和类型
+        return m_redirect == other.m_redirect &&
+               m_redirectModifier == other.m_redirectModifier &&
+               this->getType() == other.getType();
+    }
+
+    [[nodiscard]] virtual size_t hashCode() const {
+        size_t hash = 0;
+        // 简单的哈希组合
+        return hash;
+    }
+
+protected:
+    CommandNode() = default;
+
+    CommandCallback<S> m_command;
+    RequirementPredicate<S> m_requirement = [](const S&) { return true; };
+    std::unordered_map<String, std::shared_ptr<CommandNode<S>>> m_children;
+    std::set<String> m_literals;
+    std::set<String> m_arguments;
+    std::shared_ptr<CommandNode<S>> m_redirect;
+    RedirectModifier m_redirectModifier = RedirectModifier::None;
+    String m_usageText;
+};
+
+/**
+ * @brief 根命令节点
+ */
+template<typename S>
+class RootCommandNode : public CommandNode<S> {
+public:
+    RootCommandNode() = default;
+
+    [[nodiscard]] NodeType getType() const noexcept override { return NodeType::Root; }
+    [[nodiscard]] String getName() const noexcept override { return ""; }
+};
+
+/**
+ * @brief 字面量命令节点
+ *
+ * 表示固定的命令字，如 "gamemode"、"tp"
+ */
+template<typename S>
+class LiteralCommandNode : public CommandNode<S> {
+public:
+    explicit LiteralCommandNode(const String& literal)
+        : m_literal(literal) {}
+
+    [[nodiscard]] NodeType getType() const noexcept override { return NodeType::Literal; }
+    [[nodiscard]] String getName() const noexcept override { return m_literal; }
+    [[nodiscard]] const String& getLiteral() const noexcept { return m_literal; }
+
+    bool equals(const CommandNode<S>& other) const override {
+        if (!CommandNode<S>::equals(other)) return false;
+        if (other.getType() != NodeType::Literal) return false;
+        return m_literal == static_cast<const LiteralCommandNode<S>&>(other).m_literal;
+    }
+
+private:
+    String m_literal;
+};
+
+/**
+ * @brief 参数命令节点
+ *
+ * 表示可变的命令参数，如 <player>、<pos>
+ */
+template<typename S, typename T>
+class ArgumentCommandNode : public CommandNode<S> {
+public:
+    using Parser = std::function<T(StringView, i32&, CommandException&)>;
+
+    ArgumentCommandNode(const String& name, Parser parser)
+        : m_name(name)
+        , m_parser(std::move(parser)) {}
+
+    [[nodiscard]] NodeType getType() const noexcept override { return NodeType::Argument; }
+    [[nodiscard]] String getName() const noexcept override { return m_name; }
+
+    /**
+     * @brief 解析参数值
+     * @param input 输入字符串
+     * @param cursor 当前位置（会被更新）
+     * @return 解析结果，失败时抛出异常
+     */
+    [[nodiscard]] T parse(StringView input, i32& cursor) const {
+        CommandException error(CommandErrorType::Unknown, "Parse error");
+        T result = m_parser(input, cursor, error);
+        if (cursor < 0) {
+            throw error;
+        }
+        return result;
+    }
+
+    /**
+     * @brief 获取参数类型名称（用于帮助信息）
+     */
+    [[nodiscard]] virtual String getTypeName() const { return "argument"; }
+
+    /**
+     * @brief 获取示例值列表
+     */
+    [[nodiscard]] virtual std::vector<String> getExamples() const { return {}; }
+
+    bool equals(const CommandNode<S>& other) const override {
+        if (!CommandNode<S>::equals(other)) return false;
+        if (other.getType() != NodeType::Argument) return false;
+        return m_name == static_cast<const ArgumentCommandNode<S, T>&>(other).m_name;
+    }
+
+private:
+    String m_name;
+    Parser m_parser;
+};
+
+} // namespace mr::command

@@ -32,6 +32,7 @@ add_executable(mr_tests
     common/test_inventory.cpp
     common/test_item_entity.cpp
     common/test_container.cpp
+    common/command/test_command_dispatcher.cpp
     common/SettingsTest.cpp
     server/ServerWorldTest.cpp
     server/test_integrated_server.cpp

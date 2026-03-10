@@ -48,6 +48,35 @@ using Size = std::size_t;
 using PtrDiff = std::ptrdiff_t;
 
 // ============================================================================
+// 向量类型（前向声明）
+// ============================================================================
+
+// 简单向量类型，用于命令系统等
+struct Vector3i {
+    i32 x, y, z;
+    Vector3i() : x(0), y(0), z(0) {}
+    Vector3i(i32 x, i32 y, i32 z) : x(x), y(y), z(z) {}
+    bool operator==(const Vector3i& other) const { return x == other.x && y == other.y && z == other.z; }
+    bool operator!=(const Vector3i& other) const { return !(*this == other); }
+};
+
+struct Vector3d {
+    f64 x, y, z;
+    Vector3d() : x(0), y(0), z(0) {}
+    Vector3d(f64 x, f64 y, f64 z) : x(x), y(y), z(z) {}
+    bool operator==(const Vector3d& other) const { return x == other.x && y == other.y && z == other.z; }
+    bool operator!=(const Vector3d& other) const { return !(*this == other); }
+};
+
+struct Vector2f {
+    f32 x, y;
+    Vector2f() : x(0), y(0) {}
+    Vector2f(f32 x, f32 y) : x(x), y(y) {}
+    bool operator==(const Vector2f& other) const { return x == other.x && y == other.y; }
+    bool operator!=(const Vector2f& other) const { return !(*this == other); }
+};
+
+// ============================================================================
 // 游戏特定类型
 // ============================================================================
 
@@ -129,7 +158,8 @@ enum class GameMode : u8 {
     Survival = 0,
     Creative = 1,
     Adventure = 2,
-    Spectator = 3
+    Spectator = 3,
+    NotSet = 255    // 未设置（用于命令等场景）
 };
 
 /**

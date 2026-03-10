@@ -11,6 +11,18 @@ add_executable(minecraft-server
     world/ServerWorld.cpp
     world/ChunkWorkerPool.cpp
     world/ServerChunkManager.cpp
+    # 命令系统
+    command/ServerCommandSource.cpp
+    command/CommandRegistry.cpp
+    command/commands/GameModeCommand.cpp
+    command/commands/TimeCommand.cpp
+    command/commands/KillCommand.cpp
+    command/commands/ListCommand.cpp
+    command/commands/HelpCommand.cpp
+    command/commands/SeedCommand.cpp
+    command/commands/TeleportCommand.cpp
+    command/commands/GiveCommand.cpp
+    command/commands/ClearCommand.cpp
 )
 
 target_link_libraries(minecraft-server

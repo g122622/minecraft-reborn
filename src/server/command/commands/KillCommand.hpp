@@ -1,0 +1,31 @@
+#pragma once
+
+#include "common/command/CommandDispatcher.hpp"
+#include "server/command/ServerCommandSource.hpp"
+#include <memory>
+
+namespace mr {
+namespace command {
+
+/**
+ * @brief /kill 命令
+ *
+ * 用法：
+ * - /kill - 杀死自己
+ * - /kill <target> - 杀死指定实体
+ *
+ * 权限等级：2
+ *
+ * 参考 MC 的 KillCommand
+ */
+class KillCommand {
+public:
+    static void registerTo(CommandDispatcher<ServerCommandSource>& dispatcher);
+
+private:
+    static i32 killSelf(CommandContext<ServerCommandSource>& context);
+    static i32 killTarget(CommandContext<ServerCommandSource>& context);
+};
+
+} // namespace command
+} // namespace mr
