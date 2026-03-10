@@ -36,6 +36,7 @@ add_executable(mr_tests
     common/item/crafting/RecipeManagerTest.cpp
     common/item/crafting/ShapedRecipeTest.cpp
     common/item/crafting/ShapelessRecipeTest.cpp
+    common/item/crafting/RecipeLoaderTest.cpp
     common/entity/inventory/CraftingInventoryTest.cpp
     common/world/blockentity/BlockEntityTest.cpp
     common/command/test_command_dispatcher.cpp
@@ -139,6 +140,7 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/item/crafting/ShapedRecipe.cpp
         ${CMAKE_SOURCE_DIR}/src/common/item/crafting/ShapelessRecipe.cpp
         ${CMAKE_SOURCE_DIR}/src/common/item/crafting/RecipeSerializers.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/crafting/RecipeLoader.cpp
         # 方块实体系统
         ${CMAKE_SOURCE_DIR}/src/common/world/blockentity/BlockEntityType.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/blockentity/BlockEntity.cpp
