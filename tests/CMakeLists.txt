@@ -48,10 +48,22 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/ChunkWorkerPool.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/ServerChunkManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/player/ServerPlayer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpServer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpSession.cpp
         ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/settings/ServerSettings.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/command/ServerCommandSource.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/command/CommandRegistry.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/command/commands/GameModeCommand.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/command/commands/TimeCommand.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/command/commands/KillCommand.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/command/commands/ListCommand.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/command/commands/HelpCommand.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/command/commands/SeedCommand.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/command/commands/TeleportCommand.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/command/commands/GiveCommand.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/command/commands/ClearCommand.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/LocalConnection.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/ChunkSync.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/PacketSerializer.cpp

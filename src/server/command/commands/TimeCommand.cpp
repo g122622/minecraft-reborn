@@ -1,6 +1,7 @@
 #include "TimeCommand.hpp"
 #include "common/command/CommandContext.hpp"
 #include "common/command/arguments/ArgumentType.hpp"
+#include "server/world/ServerWorld.hpp"
 #include <sstream>
 
 namespace mr {
@@ -56,13 +57,14 @@ void TimeCommand::registerTo(CommandDispatcher<ServerCommandSource>& dispatcher)
 
 i32 TimeCommand::setTime(CommandContext<ServerCommandSource>& context) {
     auto& source = context.getSource();
-    i32 value = context.getArgument<i32>("value");
+    auto* world = source.world();
+    if (!world) {
+        source.sendMessage("World not available");
+        return 0;
+    }
 
-    // TODO: 获取世界并设置时间
-    // auto* world = source.world();
-    // if (world) {
-    //     world->setDayTime(value);
-    // }
+    i32 value = context.getArgument<i32>("value");
+    world->setDayTime(value);
 
     std::ostringstream ss;
     ss << "Set the time to " << value;
@@ -73,13 +75,14 @@ i32 TimeCommand::setTime(CommandContext<ServerCommandSource>& context) {
 
 i32 TimeCommand::addTime(CommandContext<ServerCommandSource>& context) {
     auto& source = context.getSource();
-    i32 value = context.getArgument<i32>("value");
+    auto* world = source.world();
+    if (!world) {
+        source.sendMessage("World not available");
+        return 0;
+    }
 
-    // TODO: 获取世界并增加时间
-    // auto* world = source.world();
-    // if (world) {
-    //     world->setDayTime(world->getDayTime() + value);
-    // }
+    i32 value = context.getArgument<i32>("value");
+    world->addDayTime(value);
 
     std::ostringstream ss;
     ss << "Added " << value << " to the time";
@@ -90,27 +93,28 @@ i32 TimeCommand::addTime(CommandContext<ServerCommandSource>& context) {
 
 i32 TimeCommand::queryTime(CommandContext<ServerCommandSource>& context) {
     auto& source = context.getSource();
+    auto* world = source.world();
+    if (!world) {
+        source.sendMessage("World not available");
+        return 0;
+    }
+
     String type = context.getArgument<String>("type");
 
-    // TODO: 从世界获取实际时间
     i64 time = 0;
-    String typeName;
 
     if (type == "day") {
-        // time = source.world()->getDay();
-        typeName = "day";
+        time = world->gameTime().dayCount();
         std::ostringstream ss;
         ss << "The day is " << time;
         source.sendMessage(ss.str());
     } else if (type == "daytime") {
-        // time = source.world()->getDayTime() % 24000;
-        typeName = "daytime";
+        time = world->gameTime().dayTime();
         std::ostringstream ss;
         ss << "The daytime is " << time;
         source.sendMessage(ss.str());
     } else if (type == "gametime") {
-        // time = source.world()->getGameTime();
-        typeName = "gametime";
+        time = world->gameTime().gameTime();
         std::ostringstream ss;
         ss << "The game time is " << time;
         source.sendMessage(ss.str());

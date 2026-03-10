@@ -275,8 +275,7 @@ private:
 
             if (!reader.canRead()) break;
 
-            // 读取参数名
-            String paramName = reader.readUnquotedString();
+            String paramName = readSelectorArgumentToken(reader);
 
             reader.skipWhitespace();
 
@@ -292,7 +291,9 @@ private:
             reader.skipWhitespace();
 
             // 读取参数值
-            String paramValue = reader.readString();
+            String paramValue = reader.canRead() && reader.peek() == StringReader::SYNTAX_QUOTE
+                ? reader.readString()
+                : readSelectorArgumentToken(reader);
 
             // 应用参数
             applySelectorArgument(selector, paramName, paramValue);
@@ -305,10 +306,15 @@ private:
             }
         }
 
-        // 跳过 ]
-        if (reader.canRead() && reader.peek() == ']') {
-            reader.skip();
+        if (!reader.canRead() || reader.peek() != ']') {
+            throw CommandException(
+                CommandErrorType::EntitySelectorInvalid,
+                "Expected ']' to close selector arguments",
+                reader.getCursor()
+            );
         }
+
+        reader.skip();
     }
 
     /**
@@ -352,6 +358,27 @@ private:
                 );
             }
         }
+    }
+
+    [[nodiscard]] static String readSelectorArgumentToken(StringReader& reader) {
+        i32 start = reader.getCursor();
+        while (reader.canRead()) {
+            char c = reader.peek();
+            if (StringReader::isWhitespace(c) || c == '=' || c == ',' || c == ']') {
+                break;
+            }
+            reader.skip();
+        }
+
+        if (reader.getCursor() == start) {
+            throw CommandException(
+                CommandErrorType::EntitySelectorInvalid,
+                "Expected selector argument token",
+                start
+            );
+        }
+
+        return String(reader.getString().substr(start, reader.getCursor() - start));
     }
 };
 

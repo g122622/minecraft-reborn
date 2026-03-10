@@ -50,6 +50,18 @@ add_executable(minecraft-client
     ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ChunkWorkerPool.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ServerChunkManager.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/player/ServerPlayer.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/command/ServerCommandSource.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/command/CommandRegistry.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/command/commands/GameModeCommand.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/command/commands/TimeCommand.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/command/commands/KillCommand.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/command/commands/ListCommand.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/command/commands/HelpCommand.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/command/commands/SeedCommand.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/command/commands/TeleportCommand.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/command/commands/GiveCommand.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/command/commands/ClearCommand.cpp
 )
 
 target_link_libraries(minecraft-client

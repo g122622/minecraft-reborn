@@ -8,8 +8,10 @@
 
 namespace mr {
 
-class ServerWorld;
 class ServerPlayer;
+namespace server {
+class ServerWorld;
+}
 
 namespace command {
 class CommandRegistry;
@@ -32,7 +34,7 @@ public:
     /**
      * @brief 获取服务器世界
      */
-    [[nodiscard]] virtual ServerWorld* getWorld() = 0;
+    [[nodiscard]] virtual server::ServerWorld* getWorld() = 0;
 
     /**
      * @brief 获取服务器种子

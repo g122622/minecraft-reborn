@@ -11,7 +11,7 @@ namespace command {
 ServerCommandSource::ServerCommandSource(
     MinecraftServer* server,
     ServerPlayer* player,
-    ServerWorld* world,
+    server::ServerWorld* world,
     const Vector3d& position,
     const Vector2f& rotation,
     i32 permissionLevel
@@ -89,7 +89,7 @@ ServerCommandSource ServerCommandSource::withRotation(const Vector2f& rot) const
     return source;
 }
 
-ServerCommandSource ServerCommandSource::withWorld(ServerWorld* world) const {
+ServerCommandSource ServerCommandSource::withWorld(server::ServerWorld* world) const {
     ServerCommandSource source(*this);
     source.m_world = world;
     return source;

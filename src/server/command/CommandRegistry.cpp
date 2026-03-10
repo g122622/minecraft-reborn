@@ -22,7 +22,7 @@ Result<i32> CommandRegistry::execute(const String& input, ServerCommandSource& s
     if (result.success()) {
         return result.value().result();
     }
-    return Error(ErrorCode::Unknown, "Command execution failed");
+    return result.error();
 }
 
 void CommandRegistry::registerDefaults() {

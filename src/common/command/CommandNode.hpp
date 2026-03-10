@@ -74,6 +74,7 @@ public:
 
     [[nodiscard]] virtual NodeType getType() const noexcept = 0;
     [[nodiscard]] virtual String getName() const noexcept = 0;
+    virtual void parse(StringReader& reader, CommandContext<S>& context) const = 0;
 
     [[nodiscard]] const String& getUsageText() const { return m_usageText; }
     void setUsageText(const String& text) { m_usageText = text; }
@@ -172,6 +173,7 @@ public:
 
     [[nodiscard]] NodeType getType() const noexcept override { return NodeType::Root; }
     [[nodiscard]] String getName() const noexcept override { return ""; }
+    void parse(StringReader& /*reader*/, CommandContext<S>& /*context*/) const override {}
 };
 
 /**
@@ -188,6 +190,19 @@ public:
     [[nodiscard]] NodeType getType() const noexcept override { return NodeType::Literal; }
     [[nodiscard]] String getName() const noexcept override { return m_literal; }
     [[nodiscard]] const String& getLiteral() const noexcept { return m_literal; }
+
+    void parse(StringReader& reader, CommandContext<S>& /*context*/) const override {
+        const i32 start = reader.getCursor();
+        const String literal = reader.readUnquotedString();
+        if (literal != m_literal) {
+            reader.setCursor(start);
+            throw CommandException(
+                CommandErrorType::DispatcherExpectedLiteral,
+                "Expected literal '" + m_literal + "'",
+                start
+            );
+        }
+    }
 
     bool equals(const CommandNode<S>& other) const override {
         if (!CommandNode<S>::equals(other)) return false;
@@ -241,6 +256,14 @@ public:
 
     [[nodiscard]] NodeType getType() const noexcept override { return NodeType::Argument; }
     [[nodiscard]] String getName() const noexcept override { return m_name; }
+
+    void parse(StringReader& reader, CommandContext<S>& context) const override {
+        const i32 start = reader.getCursor();
+        i32 cursor = start;
+        T result = parse(reader.getString(), cursor);
+        reader.setCursor(cursor);
+        context.setArgument(m_name, result, start);
+    }
 
     /**
      * @brief 解析参数值

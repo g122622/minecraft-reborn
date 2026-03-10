@@ -11,8 +11,10 @@ namespace mr {
 
 // 前向声明
 class MinecraftServer;
-class ServerWorld;
 class ServerPlayer;
+namespace server {
+class ServerWorld;
+}
 
 namespace command {
 
@@ -40,7 +42,7 @@ public:
     ServerCommandSource(
         MinecraftServer* server,
         ServerPlayer* player = nullptr,
-        ServerWorld* world = nullptr,
+        server::ServerWorld* world = nullptr,
         const Vector3d& position = Vector3d(0, 0, 0),
         const Vector2f& rotation = Vector2f(0, 0),
         i32 permissionLevel = 0
@@ -71,7 +73,7 @@ public:
     /**
      * @brief 获取世界实例
      */
-    [[nodiscard]] ServerWorld* world() const noexcept { return m_world; }
+    [[nodiscard]] server::ServerWorld* world() const noexcept { return m_world; }
 
     // ========== 位置和朝向 ==========
 
@@ -131,7 +133,7 @@ public:
     /**
      * @brief 创建指定世界的新命令源
      */
-    [[nodiscard]] ServerCommandSource withWorld(ServerWorld* world) const;
+    [[nodiscard]] ServerCommandSource withWorld(server::ServerWorld* world) const;
 
     /**
      * @brief 创建禁用反馈的新命令源
@@ -158,7 +160,7 @@ public:
 private:
     MinecraftServer* m_server;
     ServerPlayer* m_player;
-    ServerWorld* m_world;
+    server::ServerWorld* m_world;
     Vector3d m_position;
     Vector2f m_rotation;
     i32 m_permissionLevel;

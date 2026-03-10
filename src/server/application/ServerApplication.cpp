@@ -1,12 +1,52 @@
 #include "ServerApplication.hpp"
 #include "minecraft-reborn/version.h"
 #include "common/network/ProtocolPackets.hpp"
+#include "server/application/MinecraftServer.hpp"
+#include "server/command/CommandRegistry.hpp"
+#include "server/command/ServerCommandSource.hpp"
 
 #include <spdlog/spdlog.h>
 #include <chrono>
 #include <thread>
 
 namespace mr::server {
+
+namespace {
+
+class ServerApplicationCommandBridge final : public MinecraftServer {
+public:
+    ServerApplicationCommandBridge(mr::server::ServerWorld* world, command::CommandRegistry& registry)
+        : m_world(world)
+        , m_registry(registry)
+    {
+    }
+
+    [[nodiscard]] mr::server::ServerWorld* getWorld() override { return m_world; }
+    [[nodiscard]] i64 getSeed() const override { return m_world ? static_cast<i64>(m_world->config().seed) : 0; }
+    [[nodiscard]] i64 getTicks() const override { return 0; }
+    [[nodiscard]] std::vector<ServerPlayer*> getPlayers() override { return {}; }
+    [[nodiscard]] ServerPlayer* getPlayer(const String& /*name*/) override { return nullptr; }
+    void broadcast(const String& message) override { spdlog::info("[Broadcast] {}", message); }
+    [[nodiscard]] command::CommandRegistry& getCommandRegistry() override { return m_registry; }
+    bool isCommandAllowed(const command::ICommandSource& /*source*/, const String& /*command*/) override { return true; }
+
+private:
+    mr::server::ServerWorld* m_world;
+    command::CommandRegistry& m_registry;
+};
+
+command::CommandRegistry& getCommandRegistryInstance()
+{
+    static command::CommandRegistry registry;
+    static const bool initialized = [] {
+        registry.registerDefaults();
+        return true;
+    }();
+    (void)initialized;
+    return registry;
+}
+
+}
 
 ServerApplication::ServerApplication() = default;
 
@@ -459,6 +499,8 @@ void ServerApplication::handleChatMessage(TcpSession* session, const u8* data, s
 {
     PlayerId playerId;
     String username;
+    Vector3d position(0.0, 64.0, 0.0);
+    Vector2f rotation(0.0f, 0.0f);
     {
         std::lock_guard<std::mutex> lock(m_playerMapMutex);
         auto it = m_sessionToPlayer.find(session->id());
@@ -471,6 +513,8 @@ void ServerApplication::handleChatMessage(TcpSession* session, const u8* data, s
             auto* player = m_world->getPlayer(playerId);
             if (player) {
                 username = player->username;
+                position = Vector3d(player->x, player->y, player->z);
+                rotation = Vector2f(player->yaw, player->pitch);
             }
         }
     }
@@ -484,6 +528,22 @@ void ServerApplication::handleChatMessage(TcpSession* session, const u8* data, s
 
     auto& packet = result.value();
     String message = packet.message();
+
+    if (!message.empty() && message[0] == '/') {
+        auto& registry = getCommandRegistryInstance();
+        ServerApplicationCommandBridge bridge(m_world.get(), registry);
+        command::ServerCommandSource source(&bridge, nullptr, m_world.get(), position, rotation, 4);
+        auto commandResult = registry.execute(message, source);
+
+        if (commandResult.failed()) {
+            spdlog::warn("Command '{}' failed for {}: {}",
+                         message, username, commandResult.error().toString());
+        } else {
+            spdlog::info("Executed command '{}' for {} with result {}",
+                         message, username, commandResult.value());
+        }
+        return;
+    }
 
     spdlog::info("[Chat] {}: {}", username, message);
 

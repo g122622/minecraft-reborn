@@ -15,8 +15,10 @@ namespace mr {
 class Entity;
 class Player;
 class ServerPlayer;
-class ServerWorld;
 class MinecraftServer;
+namespace server {
+class ServerWorld;
+}
 
 namespace command {
 
@@ -60,7 +62,7 @@ public:
         std::shared_ptr<ICommandSource> source,
         const Vector3d& position,
         const Vector2f& rotation,
-        ServerWorld* world,
+        server::ServerWorld* world,
         i32 permissionLevel,
         const String& name,
         class MinecraftServer* server,
@@ -78,7 +80,7 @@ public:
 
     [[nodiscard]] const Vector3d& position() const noexcept { return m_position; }
     [[nodiscard]] const Vector2f& rotation() const noexcept { return m_rotation; }
-    [[nodiscard]] ServerWorld* world() const noexcept { return m_world; }
+    [[nodiscard]] server::ServerWorld* world() const noexcept { return m_world; }
 
     // ========== 实体信息 ==========
 
@@ -152,7 +154,7 @@ public:
     /**
      * @brief 创建指定世界的新命令源
      */
-    [[nodiscard]] CommandSource withWorld(ServerWorld* world) const;
+    [[nodiscard]] CommandSource withWorld(server::ServerWorld* world) const;
 
     /**
      * @brief 创建禁用反馈的新命令源
@@ -178,7 +180,7 @@ private:
     std::shared_ptr<ICommandSource> m_source;
     Vector3d m_position;
     Vector2f m_rotation;    // (yaw, pitch)
-    ServerWorld* m_world;
+    server::ServerWorld* m_world;
     i32 m_permissionLevel;
     String m_name;
     MinecraftServer* m_server;

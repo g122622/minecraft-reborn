@@ -12,6 +12,9 @@
 #include "common/world/WorldConstants.hpp"
 #include "common/world/chunk/ChunkLoadTicket.hpp"
 #include "common/util/Direction.hpp"
+#include "server/application/MinecraftServer.hpp"
+#include "server/command/CommandRegistry.hpp"
+#include "server/command/ServerCommandSource.hpp"
 
 #include <spdlog/spdlog.h>
 #include <chrono>
@@ -56,6 +59,41 @@ public:
 private:
     ServerChunkManager& m_chunkManager;
 };
+
+class IntegratedServerCommandBridge final : public MinecraftServer {
+public:
+    IntegratedServerCommandBridge(i64 seed, i64 ticks, command::CommandRegistry& registry)
+        : m_seed(seed)
+        , m_ticks(ticks)
+        , m_registry(registry)
+    {
+    }
+
+    [[nodiscard]] mr::server::ServerWorld* getWorld() override { return nullptr; }
+    [[nodiscard]] i64 getSeed() const override { return m_seed; }
+    [[nodiscard]] i64 getTicks() const override { return m_ticks; }
+    [[nodiscard]] std::vector<ServerPlayer*> getPlayers() override { return {}; }
+    [[nodiscard]] ServerPlayer* getPlayer(const String& /*name*/) override { return nullptr; }
+    void broadcast(const String& message) override { spdlog::info("[Broadcast] {}", message); }
+    [[nodiscard]] command::CommandRegistry& getCommandRegistry() override { return m_registry; }
+    bool isCommandAllowed(const command::ICommandSource& /*source*/, const String& /*command*/) override { return true; }
+
+private:
+    i64 m_seed;
+    i64 m_ticks;
+    command::CommandRegistry& m_registry;
+};
+
+command::CommandRegistry& getIntegratedCommandRegistry()
+{
+    static command::CommandRegistry registry;
+    static const bool initialized = [] {
+        registry.registerDefaults();
+        return true;
+    }();
+    (void)initialized;
+    return registry;
+}
 
 }
 
@@ -815,6 +853,30 @@ void IntegratedServer::handleChatMessage(const u8* data, size_t size) {
     }
 
     auto& packet = result.value();
+
+    if (!packet.message().empty() && packet.message()[0] == '/') {
+        auto& registry = getIntegratedCommandRegistry();
+        IntegratedServerCommandBridge bridge(m_config.seed, static_cast<i64>(m_tickCount), registry);
+        command::ServerCommandSource source(
+            &bridge,
+            nullptr,
+            nullptr,
+            Vector3d(m_client.x, m_client.y, m_client.z),
+            Vector2f(m_client.yaw, m_client.pitch),
+            4
+        );
+
+        auto commandResult = registry.execute(packet.message(), source);
+        if (commandResult.failed()) {
+            spdlog::warn("Integrated command '{}' failed: {}",
+                         packet.message(), commandResult.error().toString());
+        } else {
+            spdlog::info("Integrated command '{}' executed with result {}",
+                         packet.message(), commandResult.value());
+        }
+        return;
+    }
+
     spdlog::info("[Chat] {}: {}", m_client.username, packet.message());
 }
 

@@ -13,8 +13,10 @@ namespace mr {
 class Entity;
 class Player;
 class ServerPlayer;
-class ServerWorld;
 class MinecraftServer;
+namespace server {
+class ServerWorld;
+}
 
 // Uuid 类型定义
 using Uuid = std::array<u8, 16>;

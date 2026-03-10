@@ -395,8 +395,46 @@ TEST_F(CommandDispatcherTest, ParseCommand) {
     int source = 0;
     auto result = dispatcher.parse("test", source);
 
-    // 解析应该成功（虽然当前简化实现可能不完整）
-    // EXPECT_TRUE(result.isSuccess());
+    EXPECT_TRUE(result.isSuccess());
+    ASSERT_NE(result.getContext(), nullptr);
+    ASSERT_NE(result.getContext()->getCurrentNode(), nullptr);
+    EXPECT_EQ(result.getContext()->getCurrentNode()->getName(), "test");
+    EXPECT_TRUE(result.getRemaining().empty());
+}
+
+TEST_F(CommandDispatcherTest, ExecuteArgumentCommandStoresParsedValue) {
+    CommandDispatcher<int> dispatcher;
+
+    auto root = std::make_shared<LiteralCommandNode<int>>("add");
+    auto valueArg = std::make_shared<ArgumentCommandNode<int, i32>>(
+        "value",
+        IntegerArgumentType::integer()
+    );
+    valueArg->setCommand([](CommandContext<int>& ctx) {
+        return ctx.getArgument<i32>("value") + ctx.getSource();
+    });
+    root->addChild(valueArg);
+    dispatcher.registerCommand(root);
+
+    int source = 5;
+    auto result = dispatcher.execute("add 7", source);
+
+    ASSERT_TRUE(result.success());
+    EXPECT_TRUE(result.value().isSuccess());
+    EXPECT_EQ(result.value().result(), 12);
+}
+
+TEST_F(CommandDispatcherTest, ExecuteFailsOnUnknownExtraArgument) {
+    CommandDispatcher<int> dispatcher;
+
+    auto node = std::make_shared<LiteralCommandNode<int>>("list");
+    node->setCommand([](CommandContext<int>&) { return 1; });
+    dispatcher.registerCommand(node);
+
+    int source = 0;
+    auto result = dispatcher.execute("list extra", source);
+
+    EXPECT_TRUE(result.failed());
 }
 
 // ========== ICommandSource Tests ==========

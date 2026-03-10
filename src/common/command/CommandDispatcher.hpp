@@ -9,6 +9,7 @@
 #include <functional>
 #include <vector>
 #include <unordered_set>
+#include <utility>
 
 namespace mr::command {
 
@@ -345,82 +346,87 @@ ParseResults<S> CommandDispatcher<S>::parseNodes(
     NodePtr node,
     std::unique_ptr<CommandContext<S>> context
 ) const {
-    // 跳过空白
     reader.skipWhitespace();
+    context->setCurrentNode(node);
 
-    // 如果没有更多输入，返回当前上下文
     if (!reader.canRead()) {
         return ParseResults<S>(std::move(context), reader.getRemaining());
     }
 
-    // 尝试匹配子节点
-    std::vector<NodePtr> matchedChildren;
-    std::vector<ParseResults<S>> potentialResults;
+    ParseResults<S> bestSuccess;
+    bool hasBestSuccess = false;
+    ParseResults<S> bestFailure;
+    bool hasBestFailure = false;
 
-    for (const auto& [name, child] : node->getChildren()) {
-        if (!child->canUse(context->getSource())) {
-            continue;
-        }
-
-        StringReader childReader = reader;  // 复制读取器
-        i32 startCursor = childReader.getCursor();
-
-        // 尝试解析
-        bool matched = false;
-        try {
-            if (child->getType() == NodeType::Literal) {
-                // 字面量匹配
-                String literal = childReader.readUnquotedString();
-                if (literal == name) {
-                    matched = true;
-                } else {
-                    childReader.setCursor(startCursor);
-                }
-            } else if (child->getType() == NodeType::Argument) {
-                // 参数节点 - 总是匹配（解析在后面进行）
-                matched = true;
+    auto considerResult = [&](ParseResults<S>&& candidate) {
+        if (candidate.isSuccess()) {
+            if (!hasBestSuccess ||
+                candidate.getRemaining().size() < bestSuccess.getRemaining().size()) {
+                bestSuccess = std::move(candidate);
+                hasBestSuccess = true;
             }
-        } catch (...) {
-            childReader.setCursor(startCursor);
+            return;
         }
 
-        if (matched) {
-            // 创建新上下文
+        if (!hasBestFailure || candidate.getErrorCursor() > bestFailure.getErrorCursor()) {
+            bestFailure = std::move(candidate);
+            hasBestFailure = true;
+        }
+    };
+
+    auto tryChildren = [&](NodeType expectedType) {
+        for (const auto& [name, child] : node->getChildren()) {
+            (void)name;
+            if (child->getType() != expectedType || !child->canUse(context->getSource())) {
+                continue;
+            }
+
+            StringReader childReader = reader;
             auto childContext = std::make_unique<CommandContext<S>>(
-                context->getSource(),
-                context->getInput(),
-                context->getRootNode()
+                context->copyFor(context->getRootNode())
             );
 
-            childContext->setCurrentNode(child);
-
-            matchedChildren.push_back(child);
-            potentialResults.push_back(parseNodes(childReader, child, std::move(childContext)));
+            try {
+                child->parse(childReader, *childContext);
+                childContext->setCurrentNode(child);
+                considerResult(parseNodes(childReader, child, std::move(childContext)));
+            } catch (const CommandException& e) {
+                considerResult(ParseResults<S>(e.withInput(context->getInput()), e.cursor()));
+            }
         }
+    };
+
+    tryChildren(NodeType::Literal);
+    tryChildren(NodeType::Argument);
+
+    if (hasBestSuccess) {
+        return std::move(bestSuccess);
     }
 
-    // 处理匹配结果
-    if (potentialResults.empty()) {
-        // 没有匹配的节点
-        return ParseResults<S>(
-            CommandException(CommandErrorType::DispatcherUnknownCommand,
-                "Unknown command", reader.getCursor()),
+    if (node->hasCommand()) {
+        return ParseResults<S>(std::move(context), reader.getRemaining());
+    }
+
+    if (hasBestFailure) {
+        return std::move(bestFailure);
+    }
+
+    return ParseResults<S>(
+        CommandException(
+            node->getType() == NodeType::Root
+                ? CommandErrorType::DispatcherUnknownCommand
+                : CommandErrorType::DispatcherUnknownArgument,
+            node->getType() == NodeType::Root ? "Unknown command" : "Unknown argument",
             reader.getCursor()
-        );
-    }
-
-    if (potentialResults.size() == 1) {
-        return std::move(potentialResults[0]);
-    }
-
-    // 多个匹配 - 选择最长的匹配
-    return std::move(potentialResults[0]);
+        ).withInput(context->getInput()),
+        reader.getCursor()
+    );
 }
 
 template<typename S>
 Result<CommandResult> CommandDispatcher<S>::execute(ParseResults<S>& parse) {
-    if (parse.isFailure()) {
-        return Error(ErrorCode::Unknown, parse.getError()->message());
+    if (const auto exception = parse.getException(); exception.has_value()) {
+        return Error(ErrorCode::InvalidArgument, exception->message());
     }
 
     auto* context = parse.getContext();

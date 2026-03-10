@@ -75,8 +75,11 @@ public:
             case StringType::QuotablePhrase:
                 return reader.readString();
             case StringType::GreedyPhrase:
-                // TODO: 实现 greedy 字符串读取
-                return String(reader.getRemaining());
+                {
+                    String remaining = reader.getRemaining();
+                    reader.setCursor(reader.getTotalLength());
+                    return remaining;
+                }
         }
         return "";
     }
