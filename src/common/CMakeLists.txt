@@ -55,6 +55,9 @@ add_library(mr_common STATIC
     item/crafting/Ingredient.cpp
     item/crafting/RecipeType.cpp
     item/crafting/RecipeManager.cpp
+    item/crafting/ShapedRecipe.cpp
+    item/crafting/ShapelessRecipe.cpp
+    item/crafting/RecipeSerializers.cpp
 
     # World - Drop Tables
     world/drop/DropTables.cpp
