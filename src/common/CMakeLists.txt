@@ -38,6 +38,11 @@ add_library(mr_common STATIC
     entity/Player.cpp
     entity/PlayerManager.cpp
     entity/ItemEntity.cpp
+    entity/living/LivingEntity.cpp
+    entity/mob/MobEntity.cpp
+    entity/ai/controller/LookController.cpp
+    entity/ai/controller/MovementController.cpp
+    entity/ai/controller/JumpController.cpp
     entity/inventory/Slot.cpp
     entity/inventory/PlayerInventory.cpp
     entity/inventory/Container.cpp

@@ -402,7 +402,28 @@ All random implementations provide MC-style methods:
 
 ## 务必要有清晰、优雅、能让人赏心悦目的目录结构，不要把很多文件全部堆在一个目录下，要划分好细分的子目录！
 
-## 编译过程中遇到的warning你也要一并解决  
+## 编译过程中遇到的warning你也要一并解决
+
+## 需要使用命名空间隔离各个子系统的标识符。下面是最佳实践：
+
+```cpp
+
+namespace mr {
+namespace entity {
+namespace attribute {
+
+/**
+ * @brief 属性修改器操作类型
+ *
+ * 定义属性修改器如何影响基础值
+ *
+ * 参考 MC 1.16.5 Operation
+ */
+enum class Operation : u8 {
+    // ...
+}}}}
+
+```
 
 ## Current Status
 

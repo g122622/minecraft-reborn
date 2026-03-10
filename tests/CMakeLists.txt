@@ -41,6 +41,9 @@ add_executable(mr_tests
     common/world/blockentity/BlockEntityTest.cpp
     common/command/test_command_dispatcher.cpp
     entity/EntityCoreTests.cpp
+    entity/AttributeTests.cpp
+    entity/LivingEntityTests.cpp
+    entity/GoalTests.cpp
     common/SettingsTest.cpp
     server/ServerWorldTest.cpp
     server/test_integrated_server.cpp
