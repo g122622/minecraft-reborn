@@ -62,25 +62,60 @@ private:
 
 class IntegratedServerCommandBridge final : public MinecraftServer {
 public:
-    IntegratedServerCommandBridge(i64 seed, i64 ticks, command::CommandRegistry& registry)
+    IntegratedServerCommandBridge(
+        i64 seed,
+        const std::function<i64()>& ticksProvider,
+        const std::function<i64()>& dayProvider,
+        const std::function<i64()>& dayTimeProvider,
+        const std::function<i64()>& gameTimeProvider,
+        const std::function<bool(i64)>& setDayTimeFn,
+        const std::function<bool(i64)>& addDayTimeFn,
+        const std::function<bool(PlayerId, f64, f64, f64, f32, f32)>& teleportFn,
+        const std::function<bool(PlayerId, GameMode)>& setGameModeFn,
+        command::CommandRegistry& registry)
         : m_seed(seed)
-        , m_ticks(ticks)
+        , m_ticksProvider(ticksProvider)
+        , m_dayProvider(dayProvider)
+        , m_dayTimeProvider(dayTimeProvider)
+        , m_gameTimeProvider(gameTimeProvider)
+        , m_setDayTimeFn(setDayTimeFn)
+        , m_addDayTimeFn(addDayTimeFn)
+        , m_teleportFn(teleportFn)
+        , m_setGameModeFn(setGameModeFn)
         , m_registry(registry)
     {
     }
 
     [[nodiscard]] mr::server::ServerWorld* getWorld() override { return nullptr; }
     [[nodiscard]] i64 getSeed() const override { return m_seed; }
-    [[nodiscard]] i64 getTicks() const override { return m_ticks; }
+    [[nodiscard]] i64 getTicks() const override { return m_ticksProvider ? m_ticksProvider() : 0; }
+    [[nodiscard]] i64 getDay() const override { return m_dayProvider ? m_dayProvider() : 0; }
+    [[nodiscard]] i64 getDayTime() const override { return m_dayTimeProvider ? m_dayTimeProvider() : 0; }
+    [[nodiscard]] i64 getGameTime() const override { return m_gameTimeProvider ? m_gameTimeProvider() : 0; }
     [[nodiscard]] std::vector<ServerPlayer*> getPlayers() override { return {}; }
     [[nodiscard]] ServerPlayer* getPlayer(const String& /*name*/) override { return nullptr; }
     void broadcast(const String& message) override { spdlog::info("[Broadcast] {}", message); }
+    bool setDayTime(i64 time) override { return m_setDayTimeFn ? m_setDayTimeFn(time) : false; }
+    bool addDayTime(i64 ticks) override { return m_addDayTimeFn ? m_addDayTimeFn(ticks) : false; }
+    bool teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch) override {
+        return m_teleportFn ? m_teleportFn(playerId, x, y, z, yaw, pitch) : false;
+    }
+    bool setPlayerGameMode(PlayerId playerId, GameMode mode) override {
+        return m_setGameModeFn ? m_setGameModeFn(playerId, mode) : false;
+    }
     [[nodiscard]] command::CommandRegistry& getCommandRegistry() override { return m_registry; }
     bool isCommandAllowed(const command::ICommandSource& /*source*/, const String& /*command*/) override { return true; }
 
 private:
     i64 m_seed;
-    i64 m_ticks;
+    std::function<i64()> m_ticksProvider;
+    std::function<i64()> m_dayProvider;
+    std::function<i64()> m_dayTimeProvider;
+    std::function<i64()> m_gameTimeProvider;
+    std::function<bool(i64)> m_setDayTimeFn;
+    std::function<bool(i64)> m_addDayTimeFn;
+    std::function<bool(PlayerId, f64, f64, f64, f32, f32)> m_teleportFn;
+    std::function<bool(PlayerId, GameMode)> m_setGameModeFn;
     command::CommandRegistry& m_registry;
 };
 
@@ -260,6 +295,9 @@ void IntegratedServer::tick() {
 
     // 心跳（每 15 秒）
     m_tickCount++;
+    if (m_daylightCycleEnabled) {
+        ++m_dayTime;
+    }
     if (m_tickCount % (static_cast<u64>(m_config.tickRate) * 15) == 0) {
         auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now().time_since_epoch()
@@ -856,14 +894,58 @@ void IntegratedServer::handleChatMessage(const u8* data, size_t size) {
 
     if (!packet.message().empty() && packet.message()[0] == '/') {
         auto& registry = getIntegratedCommandRegistry();
-        IntegratedServerCommandBridge bridge(m_config.seed, static_cast<i64>(m_tickCount), registry);
+        IntegratedServerCommandBridge bridge(
+            m_config.seed,
+            [this]() { return static_cast<i64>(m_tickCount); },
+            [this]() { return m_dayTime / 24000; },
+            [this]() { return m_dayTime; },
+            [this]() { return static_cast<i64>(m_tickCount); },
+            [this](i64 time) {
+                m_dayTime = time;
+                return true;
+            },
+            [this](i64 delta) {
+                m_dayTime += delta;
+                return true;
+            },
+            [this](PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch) {
+                if (!m_client.loggedIn || m_client.playerId != playerId) {
+                    return false;
+                }
+
+                m_client.x = x;
+                m_client.y = y;
+                m_client.z = z;
+                m_client.yaw = yaw;
+                m_client.pitch = pitch;
+
+                const u32 teleportId = static_cast<u32>(m_tickCount + 1);
+                m_client.pendingTeleportId = teleportId;
+                m_client.waitingTeleportConfirm = true;
+                sendTeleport(x, y, z, yaw, pitch, teleportId);
+
+                const ChunkCoord chunkX = static_cast<ChunkCoord>(std::floor(x / 16.0));
+                const ChunkCoord chunkZ = static_cast<ChunkCoord>(std::floor(z / 16.0));
+                handlePlayerChunkMove(chunkX, chunkZ);
+                return true;
+            },
+            [this](PlayerId playerId, GameMode mode) {
+                if (!m_client.loggedIn || m_client.playerId != playerId) {
+                    return false;
+                }
+                m_client.gameMode = mode;
+                return true;
+            },
+            registry);
         command::ServerCommandSource source(
             &bridge,
             nullptr,
             nullptr,
             Vector3d(m_client.x, m_client.y, m_client.z),
             Vector2f(m_client.yaw, m_client.pitch),
-            4
+            4,
+            m_client.playerId,
+            m_client.username
         );
 
         auto commandResult = registry.execute(packet.message(), source);

@@ -2,6 +2,7 @@
 
 #include "common/core/Types.hpp"
 #include "common/command/CommandSource.hpp"
+#include "common/network/ProtocolPackets.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -47,6 +48,21 @@ public:
     [[nodiscard]] virtual i64 getTicks() const = 0;
 
     /**
+     * @brief 获取当前天数
+     */
+    [[nodiscard]] virtual i64 getDay() const = 0;
+
+    /**
+     * @brief 获取当前一天内时间
+     */
+    [[nodiscard]] virtual i64 getDayTime() const = 0;
+
+    /**
+     * @brief 获取游戏总时间
+     */
+    [[nodiscard]] virtual i64 getGameTime() const = 0;
+
+    /**
      * @brief 获取所有在线玩家
      */
     [[nodiscard]] virtual std::vector<ServerPlayer*> getPlayers() = 0;
@@ -60,6 +76,26 @@ public:
      * @brief 发送消息给所有玩家
      */
     virtual void broadcast(const String& message) = 0;
+
+    /**
+     * @brief 设置一天内时间
+     */
+    virtual bool setDayTime(i64 time) = 0;
+
+    /**
+     * @brief 增加一天内时间
+     */
+    virtual bool addDayTime(i64 ticks) = 0;
+
+    /**
+     * @brief 传送玩家
+     */
+    virtual bool teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch) = 0;
+
+    /**
+     * @brief 设置玩家游戏模式
+     */
+    virtual bool setPlayerGameMode(PlayerId playerId, GameMode mode) = 0;
 
     /**
      * @brief 获取命令注册表

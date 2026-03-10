@@ -1,5 +1,6 @@
 #include "GameModeCommand.hpp"
 #include "common/command/CommandContext.hpp"
+#include "server/application/MinecraftServer.hpp"
 #include "server/player/ServerPlayer.hpp"
 #include <sstream>
 
@@ -44,13 +45,22 @@ void GameModeCommand::registerTo(CommandDispatcher<ServerCommandSource>& dispatc
 i32 GameModeCommand::setGameModeSelf(CommandContext<ServerCommandSource>& context) {
     auto& source = context.getSource();
 
-    // 必须是玩家
-    ServerPlayer& player = source.assertPlayer();
+    if (!source.isPlayer()) {
+        source.sendMessage("You must be an entity to use this command");
+        return 0;
+    }
 
-    // 获取游戏模式
     GameMode mode = context.getArgument<GameMode>("mode");
+    auto* server = source.server();
+    if (!server || source.playerId() == 0 || !server->setPlayerGameMode(source.playerId(), mode)) {
+        source.sendMessage("Failed to change game mode");
+        return 0;
+    }
 
-    return setGameMode(source, player, mode);
+    std::ostringstream ss;
+    ss << "Set " << source.name() << "'s game mode to " << getGameModeName(mode) << " mode";
+    source.sendMessage(ss.str());
+    return 1;
 }
 
 i32 GameModeCommand::setGameModeOthers(CommandContext<ServerCommandSource>& context) {

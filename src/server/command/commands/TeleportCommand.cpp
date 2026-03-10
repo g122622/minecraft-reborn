@@ -2,7 +2,7 @@
 #include "common/command/CommandContext.hpp"
 #include "common/command/arguments/EntityArgument.hpp"
 #include "common/command/arguments/GameModeArgument.hpp"
-#include "server/player/ServerPlayer.hpp"
+#include "server/application/MinecraftServer.hpp"
 #include <sstream>
 
 namespace mr {
@@ -59,8 +59,6 @@ i32 TeleportCommand::teleportToEntity(CommandContext<ServerCommandSource>& conte
         return 0;
     }
 
-    ServerPlayer& player = source.assertPlayer();
-
     // 获取目标
     EntitySelector selector = context.getArgument<EntitySelector>("target");
 
@@ -68,7 +66,7 @@ i32 TeleportCommand::teleportToEntity(CommandContext<ServerCommandSource>& conte
     // Entity* target = resolveSelector(selector, source);
 
     std::ostringstream ss;
-    ss << "Teleported " << player.username() << " to target";
+    ss << "Teleported " << source.name() << " to target";
     source.sendMessage(ss.str());
 
     return 1;
@@ -83,18 +81,20 @@ i32 TeleportCommand::teleportToPosition(CommandContext<ServerCommandSource>& con
         return 0;
     }
 
-    ServerPlayer& player = source.assertPlayer();
-
     // 获取坐标
     f32 x = context.getArgument<f32>("x");
     f32 y = context.getArgument<f32>("y");
     f32 z = context.getArgument<f32>("z");
 
-    // TODO: 实际传送逻辑
-    // player.teleport(x, y, z);
+    const PlayerId playerId = source.playerId();
+    auto* server = source.server();
+    if (playerId == 0 || !server || !server->teleportPlayer(playerId, x, y, z, source.rotation().x, source.rotation().y)) {
+        source.sendMessage("Failed to teleport player");
+        return 0;
+    }
 
     std::ostringstream ss;
-    ss << "Teleported " << player.username() << " to "
+    ss << "Teleported " << source.name() << " to "
        << x << ", " << y << ", " << z;
     source.sendMessage(ss.str());
 

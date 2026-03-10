@@ -13,6 +13,9 @@
 #include "common/command/arguments/ArgumentType.hpp"
 #include "common/command/suggestions/Suggestions.hpp"
 #include "common/command/exceptions/CommandExceptions.hpp"
+#include "server/application/MinecraftServer.hpp"
+#include "server/command/CommandRegistry.hpp"
+#include "server/command/ServerCommandSource.hpp"
 
 using namespace mr;
 using namespace mr::command;
@@ -450,4 +453,106 @@ TEST_F(CommandSourceTest, SilentCommandSource) {
     EXPECT_FALSE(silent.shouldReceiveFeedback());
     EXPECT_FALSE(silent.shouldReceiveErrors());
     EXPECT_FALSE(silent.allowLogging());
+}
+
+namespace {
+
+class TestMinecraftServer final : public MinecraftServer {
+public:
+    TestMinecraftServer() {
+        m_registry.registerDefaults();
+    }
+
+    [[nodiscard]] server::ServerWorld* getWorld() override { return nullptr; }
+    [[nodiscard]] i64 getSeed() const override { return 123; }
+    [[nodiscard]] i64 getTicks() const override { return m_gameTime; }
+    [[nodiscard]] i64 getDay() const override { return m_dayTime / 24000; }
+    [[nodiscard]] i64 getDayTime() const override { return m_dayTime; }
+    [[nodiscard]] i64 getGameTime() const override { return m_gameTime; }
+    [[nodiscard]] std::vector<ServerPlayer*> getPlayers() override { return {}; }
+    [[nodiscard]] ServerPlayer* getPlayer(const String&) override { return nullptr; }
+    void broadcast(const String&) override {}
+    bool setDayTime(i64 time) override {
+        m_dayTime = time;
+        return true;
+    }
+    bool addDayTime(i64 ticks) override {
+        m_dayTime += ticks;
+        return true;
+    }
+    bool teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch) override {
+        lastTeleportPlayerId = playerId;
+        lastTeleportX = x;
+        lastTeleportY = y;
+        lastTeleportZ = z;
+        lastTeleportYaw = yaw;
+        lastTeleportPitch = pitch;
+        return true;
+    }
+    bool setPlayerGameMode(PlayerId playerId, GameMode mode) override {
+        lastGameModePlayerId = playerId;
+        lastGameMode = mode;
+        return true;
+    }
+    [[nodiscard]] command::CommandRegistry& getCommandRegistry() override { return m_registry; }
+    bool isCommandAllowed(const command::ICommandSource&, const String&) override { return true; }
+
+    i64 m_dayTime = 0;
+    i64 m_gameTime = 42;
+    PlayerId lastTeleportPlayerId = 0;
+    f64 lastTeleportX = 0.0;
+    f64 lastTeleportY = 0.0;
+    f64 lastTeleportZ = 0.0;
+    f32 lastTeleportYaw = 0.0f;
+    f32 lastTeleportPitch = 0.0f;
+    PlayerId lastGameModePlayerId = 0;
+    GameMode lastGameMode = GameMode::NotSet;
+
+private:
+    command::CommandRegistry m_registry;
+};
+
+} // namespace
+
+TEST_F(CommandSourceTest, LogicalPlayerSourceExecutesTimeCommand) {
+    TestMinecraftServer server;
+    command::ServerCommandSource source(
+        &server,
+        nullptr,
+        nullptr,
+        Vector3d(0.0, 64.0, 0.0),
+        Vector2f(90.0f, 10.0f),
+        4,
+        99,
+        "Tester");
+
+    auto result = server.getCommandRegistry().execute("/time set 123", source);
+
+    ASSERT_TRUE(result.success());
+    EXPECT_EQ(result.value(), 1);
+    EXPECT_EQ(server.m_dayTime, 123);
+}
+
+TEST_F(CommandSourceTest, LogicalPlayerSourceExecutesTeleportCommand) {
+    TestMinecraftServer server;
+    command::ServerCommandSource source(
+        &server,
+        nullptr,
+        nullptr,
+        Vector3d(1.0, 64.0, 2.0),
+        Vector2f(180.0f, 15.0f),
+        4,
+        88,
+        "Tester");
+
+    auto result = server.getCommandRegistry().execute("/tp 0 1111 0", source);
+
+    ASSERT_TRUE(result.success());
+    EXPECT_EQ(result.value(), 1);
+    EXPECT_EQ(server.lastTeleportPlayerId, 88);
+    EXPECT_DOUBLE_EQ(server.lastTeleportX, 0.0);
+    EXPECT_DOUBLE_EQ(server.lastTeleportY, 1111.0);
+    EXPECT_DOUBLE_EQ(server.lastTeleportZ, 0.0);
+    EXPECT_FLOAT_EQ(server.lastTeleportYaw, 180.0f);
+    EXPECT_FLOAT_EQ(server.lastTeleportPitch, 15.0f);
 }

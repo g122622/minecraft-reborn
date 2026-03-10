@@ -24,9 +24,36 @@ public:
     [[nodiscard]] mr::server::ServerWorld* getWorld() override { return m_world; }
     [[nodiscard]] i64 getSeed() const override { return m_world ? static_cast<i64>(m_world->config().seed) : 0; }
     [[nodiscard]] i64 getTicks() const override { return 0; }
+    [[nodiscard]] i64 getDay() const override { return m_world ? m_world->gameTime().dayCount() : 0; }
+    [[nodiscard]] i64 getDayTime() const override { return m_world ? m_world->gameTime().dayTime() : 0; }
+    [[nodiscard]] i64 getGameTime() const override { return m_world ? m_world->gameTime().gameTime() : 0; }
     [[nodiscard]] std::vector<ServerPlayer*> getPlayers() override { return {}; }
     [[nodiscard]] ServerPlayer* getPlayer(const String& /*name*/) override { return nullptr; }
     void broadcast(const String& message) override { spdlog::info("[Broadcast] {}", message); }
+    bool setDayTime(i64 time) override {
+        if (!m_world) {
+            return false;
+        }
+        m_world->setDayTime(time);
+        return true;
+    }
+    bool addDayTime(i64 ticks) override {
+        if (!m_world) {
+            return false;
+        }
+        m_world->addDayTime(ticks);
+        return true;
+    }
+    bool teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch) override {
+        if (!m_world) {
+            return false;
+        }
+        m_world->teleportPlayer(playerId, x, y, z, yaw, pitch);
+        return true;
+    }
+    bool setPlayerGameMode(PlayerId playerId, GameMode mode) override {
+        return m_world ? m_world->setPlayerGameMode(playerId, mode) : false;
+    }
     [[nodiscard]] command::CommandRegistry& getCommandRegistry() override { return m_registry; }
     bool isCommandAllowed(const command::ICommandSource& /*source*/, const String& /*command*/) override { return true; }
 
@@ -532,7 +559,7 @@ void ServerApplication::handleChatMessage(TcpSession* session, const u8* data, s
     if (!message.empty() && message[0] == '/') {
         auto& registry = getCommandRegistryInstance();
         ServerApplicationCommandBridge bridge(m_world.get(), registry);
-        command::ServerCommandSource source(&bridge, nullptr, m_world.get(), position, rotation, 4);
+        command::ServerCommandSource source(&bridge, nullptr, m_world.get(), position, rotation, 4, playerId, username);
         auto commandResult = registry.execute(message, source);
 
         if (commandResult.failed()) {

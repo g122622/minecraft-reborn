@@ -45,7 +45,9 @@ public:
         server::ServerWorld* world = nullptr,
         const Vector3d& position = Vector3d(0, 0, 0),
         const Vector2f& rotation = Vector2f(0, 0),
-        i32 permissionLevel = 0
+        i32 permissionLevel = 0,
+        PlayerId playerId = 0,
+        String playerName = ""
     );
 
     // ========== ICommandSource 接口实现 ==========
@@ -69,6 +71,11 @@ public:
      * @return 玩家指针，如果不是玩家则返回 nullptr
      */
     [[nodiscard]] ServerPlayer* player() const noexcept { return m_player; }
+
+    /**
+     * @brief 获取逻辑玩家ID
+     */
+    [[nodiscard]] PlayerId playerId() const noexcept { return m_playerId; }
 
     /**
      * @brief 获取世界实例
@@ -105,7 +112,7 @@ public:
     /**
      * @brief 是否是玩家
      */
-    [[nodiscard]] bool isPlayer() const noexcept { return m_player != nullptr; }
+    [[nodiscard]] bool isPlayer() const noexcept { return m_player != nullptr || m_playerId != 0; }
 
     /**
      * @brief 断言是玩家
@@ -160,6 +167,7 @@ public:
 private:
     MinecraftServer* m_server;
     ServerPlayer* m_player;
+    PlayerId m_playerId;
     server::ServerWorld* m_world;
     Vector3d m_position;
     Vector2f m_rotation;

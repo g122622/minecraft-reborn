@@ -35,6 +35,7 @@ struct ServerPlayerData {
     f32 yaw = 0.0f;
     f32 pitch = 0.0f;
     bool onGround = true;
+    GameMode gameMode = GameMode::Survival;
 
     // 传送确认
     u32 pendingTeleportId = 0;
@@ -115,6 +116,9 @@ public:
 
     // 传送玩家（网络协议使用 f64）
     void teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw = 0.0f, f32 pitch = 0.0f);
+
+    // 玩家模式
+    [[nodiscard]] bool setPlayerGameMode(PlayerId playerId, GameMode mode);
 
     // 区块同步
     void sendInitialChunks(PlayerId playerId);

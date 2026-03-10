@@ -309,6 +309,12 @@ void ServerWorld::teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw
 
     auto& player = it->second;
 
+    player.x = static_cast<f32>(x);
+    player.y = static_cast<f32>(y);
+    player.z = static_cast<f32>(z);
+    player.yaw = yaw;
+    player.pitch = pitch;
+
     // 生成新的传送ID
     static u32 nextTeleportId = 1;
     u32 teleportId = nextTeleportId++;
@@ -331,11 +337,23 @@ void ServerWorld::teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw
 
     auto session = player.session.lock();
     if (session) {
-        // session->send(fullPacket.data(), fullPacket.size());
+        (void)session;
     }
 
     spdlog::debug("Teleporting player {} to ({}, {}, {}), teleportId={}",
                   playerId, x, y, z, teleportId);
+}
+
+bool ServerWorld::setPlayerGameMode(PlayerId playerId, GameMode mode) {
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+
+    auto it = m_players.find(playerId);
+    if (it == m_players.end()) {
+        return false;
+    }
+
+    it->second.gameMode = mode;
+    return true;
 }
 
 // ============================================================================

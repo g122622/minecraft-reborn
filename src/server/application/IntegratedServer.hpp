@@ -92,6 +92,8 @@ public:
      * @brief 获取当前 tick 数
      */
     [[nodiscard]] u64 tickCount() const noexcept { return m_tickCount; }
+    [[nodiscard]] i64 dayTime() const noexcept { return m_dayTime; }
+    [[nodiscard]] i64 gameTime() const noexcept { return static_cast<i64>(m_tickCount); }
 
 private:
     void mainLoop();
@@ -184,6 +186,8 @@ private:
     // 统计
     u64 m_tickCount = 0;
     u64 m_lastKeepAliveTime = 0;
+    i64 m_dayTime = 0;
+    bool m_daylightCycleEnabled = true;
 };
 
 } // namespace mr::server

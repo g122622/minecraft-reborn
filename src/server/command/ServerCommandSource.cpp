@@ -14,10 +14,13 @@ ServerCommandSource::ServerCommandSource(
     server::ServerWorld* world,
     const Vector3d& position,
     const Vector2f& rotation,
-    i32 permissionLevel
+    i32 permissionLevel,
+    PlayerId playerId,
+    String playerName
 )
     : m_server(server)
     , m_player(player)
+    , m_playerId(player ? player->playerId() : playerId)
     , m_world(world)
     , m_position(position)
     , m_rotation(rotation)
@@ -27,6 +30,8 @@ ServerCommandSource::ServerCommandSource(
     // 设置显示名称
     if (player) {
         m_name = player->username();
+    } else if (!playerName.empty()) {
+        m_name = std::move(playerName);
     } else {
         m_name = "Console";
     }
@@ -40,6 +45,8 @@ void ServerCommandSource::sendMessage(
     if (m_player) {
         // 发送给玩家
         m_player->sendSystemMessage(message);
+    } else if (m_playerId != 0) {
+        spdlog::info("[System -> {}] {}", m_name, message);
     } else {
         // 发送给控制台
         spdlog::info("{}", message);
@@ -72,6 +79,7 @@ ServerCommandSource ServerCommandSource::withPlayer(ServerPlayer* player) const 
     ServerCommandSource source(*this);
     source.m_player = player;
     if (player) {
+        source.m_playerId = player->playerId();
         source.m_name = player->username();
     }
     return source;
@@ -114,7 +122,9 @@ ServerCommandSource ServerCommandSource::forConsole(MinecraftServer* server) {
         nullptr,  // 无世界
         Vector3d(0, 0, 0),
         Vector2f(0, 0),
-        4  // 控制台拥有最高权限
+        4,
+        0,
+        "Console"
     );
 }
 
