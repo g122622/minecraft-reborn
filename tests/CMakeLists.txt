@@ -59,6 +59,7 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpServer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpSession.cpp
         ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/menu/CraftingMenu.cpp
         ${CMAKE_SOURCE_DIR}/src/server/settings/ServerSettings.cpp
         ${CMAKE_SOURCE_DIR}/src/server/command/ServerCommandSource.cpp
         ${CMAKE_SOURCE_DIR}/src/server/command/CommandRegistry.cpp

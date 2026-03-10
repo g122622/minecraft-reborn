@@ -112,14 +112,11 @@ public:
         ItemStack result = m_currentRecipe->assemble(m_craftingGrid);
 
         // 消耗原料
-        const auto& ingredients = m_currentRecipe->getIngredients();
         for (i32 slot = 0; slot < m_craftingGrid.getContainerSize(); ++slot) {
-            ItemStack& stack = const_cast<ItemStack&>(m_craftingGrid.getItem(slot));
+            ItemStack stack = m_craftingGrid.getItem(slot);
             if (!stack.isEmpty()) {
                 stack.shrink(1);
-                if (stack.isEmpty()) {
-                    m_craftingGrid.setItem(slot, ItemStack());
-                }
+                m_craftingGrid.setItem(slot, stack.isEmpty() ? ItemStack() : stack);
             }
         }
 

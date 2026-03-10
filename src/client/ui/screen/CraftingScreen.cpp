@@ -1,12 +1,15 @@
 #include "client/ui/screen/CraftingScreen.hpp"
+#include "entity/Player.hpp"
 #include "entity/inventory/Slot.hpp"
 
 namespace mr::client {
 
 // ========== CraftingScreen 实现 ==========
 
-CraftingScreen::CraftingScreen(std::unique_ptr<mr::CraftingMenu> menu)
-    : AbstractContainerScreen<mr::CraftingMenu>(std::move(menu)) {
+CraftingScreen::CraftingScreen(std::unique_ptr<mr::CraftingMenu> menu,
+                               ContainerClickSender clickSender,
+                               ContainerCloseSender closeSender)
+    : AbstractContainerScreen<mr::CraftingMenu>(std::move(menu), std::move(clickSender), std::move(closeSender)) {
     setImageSize(GUI_WIDTH, GUI_HEIGHT);
 }
 
@@ -127,8 +130,10 @@ bool CraftingScreen::onSlotClick(mr::Slot& slot, i32 slotIndex, i32 button) {
 
 // ========== InventoryCraftingScreen 实现 ==========
 
-InventoryCraftingScreen::InventoryCraftingScreen(std::unique_ptr<mr::InventoryCraftingMenu> menu)
-    : AbstractContainerScreen<mr::InventoryCraftingMenu>(std::move(menu)) {
+InventoryCraftingScreen::InventoryCraftingScreen(std::unique_ptr<mr::InventoryCraftingMenu> menu,
+                                                 ContainerClickSender clickSender,
+                                                 ContainerCloseSender closeSender)
+    : AbstractContainerScreen<mr::InventoryCraftingMenu>(std::move(menu), std::move(clickSender), std::move(closeSender)) {
     setImageSize(GUI_WIDTH, GUI_HEIGHT);
 }
 
@@ -231,6 +236,12 @@ bool InventoryCraftingScreen::onSlotClick(mr::Slot& slot, i32 slotIndex, i32 but
     // 特殊处理结果槽位
     if (isResultSlot(slotIndex)) {
         // 结果槽位点击逻辑（同工作台）
+    }
+
+    if (m_menu != nullptr) {
+        Player fakePlayer(0, "InventoryClient");
+        const ClickType clickType = (button == 0) ? ClickType::Pick : ClickType::PlaceSome;
+        m_menu->clicked(slotIndex, button, clickType, fakePlayer);
     }
 
     // 普通槽位处理

@@ -5,8 +5,11 @@
 #include "common/world/drop/DropTables.hpp"
 #include "common/math/ray/Raycast.hpp"
 #include "common/resource/VanillaResources.hpp"
+#include "common/entity/inventory/Slot.hpp"
 #include "client/renderer/ChunkMesher.hpp"
 #include "client/ui/hud/HudRenderer.hpp"
+#include "client/ui/screen/ScreenManager.hpp"
+#include "client/ui/screen/CraftingScreen.hpp"
 #include "minecraft-reborn/version.h"
 
 #include <spdlog/spdlog.h>
@@ -18,6 +21,47 @@
 namespace mr::client {
 
 namespace {
+
+template <typename Menu>
+void applyContainerContents(Menu* menu, const std::vector<ItemStack>& items) {
+    if (menu == nullptr) {
+        return;
+    }
+
+    const i32 slotCount = std::min(menu->getSlotCount(), static_cast<i32>(items.size()));
+    for (i32 slotIndex = 0; slotIndex < slotCount; ++slotIndex) {
+        Slot* slot = menu->getSlot(slotIndex);
+        if (slot != nullptr) {
+            slot->set(items[slotIndex]);
+        }
+    }
+}
+
+template <typename Menu>
+void applyContainerSlot(Menu* menu, i32 slotIndex, const ItemStack& item) {
+    if (menu == nullptr) {
+        return;
+    }
+
+    Slot* slot = menu->getSlot(slotIndex);
+    if (slot != nullptr) {
+        slot->set(item);
+    }
+}
+
+void releaseMouseForScreen(InputManager& input, bool& mouseCaptured) {
+    if (mouseCaptured) {
+        input.setMouseLocked(false);
+        mouseCaptured = false;
+    }
+}
+
+void captureMouseAfterScreens(InputManager& input, bool& mouseCaptured) {
+    if (!mouseCaptured) {
+        input.setMouseLocked(true);
+        mouseCaptured = true;
+    }
+}
 
 [[nodiscard]] f32 calculateBlockBreakingDelta(const Player& player, const BlockState& state)
 {
@@ -357,13 +401,24 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
 
         // 设置字符输入回调
         m_input.setCharCallback([this](u32 codepoint) {
-            m_chatScreen.onCharInput(codepoint);
+            if (m_chatScreen.isOpen()) {
+                m_chatScreen.onCharInput(codepoint);
+                return;
+            }
+
+            ScreenManager::instance().onChar(codepoint);
         });
 
         // 设置键盘事件回调（用于聊天框输入）
         m_input.setKeyEventCallback([this](i32 key, i32 action, i32 mods) {
             if (m_chatScreen.isOpen()) {
                 m_chatScreen.onKeyInput(key, action, mods);
+                return;
+            }
+
+            ScreenManager::instance().onKey(key, 0, action, mods);
+            if (action == GLFW_PRESS && !ScreenManager::instance().hasScreen()) {
+                captureMouseAfterScreens(m_input, m_mouseCaptured);
             }
         });
 
@@ -384,6 +439,9 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
             m_chatScreen.render(m_renderer->guiRenderer(),
                                 static_cast<f32>(m_window.width()),
                                 static_cast<f32>(m_window.height()));
+            ScreenManager::instance().render(static_cast<i32>(m_input.mouseX()),
+                                             static_cast<i32>(m_input.mouseY()),
+                                             0.0f);
             // 再渲染调试屏幕
             if (m_debugScreenVisible) {
                 m_debugScreen.render();
@@ -488,6 +546,34 @@ void ClientApplication::handleEvents()
         return;
     }
 
+    if (ScreenManager::instance().hasScreen()) {
+        if (m_input.isMouseButtonJustPressed(GLFW_MOUSE_BUTTON_LEFT)) {
+            ScreenManager::instance().onClick(static_cast<i32>(m_input.mouseX()),
+                                              static_cast<i32>(m_input.mouseY()),
+                                              GLFW_MOUSE_BUTTON_LEFT);
+        }
+        if (m_input.isMouseButtonJustPressed(GLFW_MOUSE_BUTTON_RIGHT)) {
+            ScreenManager::instance().onClick(static_cast<i32>(m_input.mouseX()),
+                                              static_cast<i32>(m_input.mouseY()),
+                                              GLFW_MOUSE_BUTTON_RIGHT);
+        }
+        if (m_input.isMouseButtonJustReleased(GLFW_MOUSE_BUTTON_LEFT)) {
+            ScreenManager::instance().onRelease(static_cast<i32>(m_input.mouseX()),
+                                                static_cast<i32>(m_input.mouseY()),
+                                                GLFW_MOUSE_BUTTON_LEFT);
+        }
+        if (m_input.isMouseButtonJustReleased(GLFW_MOUSE_BUTTON_RIGHT)) {
+            ScreenManager::instance().onRelease(static_cast<i32>(m_input.mouseX()),
+                                                static_cast<i32>(m_input.mouseY()),
+                                                GLFW_MOUSE_BUTTON_RIGHT);
+        }
+
+        if (!ScreenManager::instance().hasScreen()) {
+            captureMouseAfterScreens(m_input, m_mouseCaptured);
+        }
+        return;
+    }
+
     // 检查ALT键切换鼠标捕获
     if (m_input.isKeyJustPressed(GLFW_KEY_LEFT_ALT) ||
         m_input.isKeyJustPressed(GLFW_KEY_RIGHT_ALT)) {
@@ -511,6 +597,14 @@ void ClientApplication::handleEvents()
             m_input.setMouseLocked(false);
             m_mouseCaptured = false;
         }
+        return;
+    }
+
+    if (m_input.isKeyJustPressed(GLFW_KEY_E) && m_player) {
+        releaseMouseForScreen(m_input, m_mouseCaptured);
+        ScreenManager::instance().openScreen(
+            std::make_unique<InventoryCraftingScreen>(
+                std::make_unique<InventoryCraftingMenu>(inventory::PLAYER_CONTAINER_ID, &m_player->inventory())));
         return;
     }
 
@@ -800,6 +894,16 @@ void ClientApplication::setupInputBindings()
     m_input.bindKeyAction(GLFW_KEY_F3, "toggle_debug");
 
     m_input.bindActionCallback("exit", [this]() {
+        if (m_chatScreen.isOpen()) {
+            return;
+        }
+
+        if (ScreenManager::instance().hasScreen()) {
+            ScreenManager::instance().closeScreen();
+            captureMouseAfterScreens(m_input, m_mouseCaptured);
+            return;
+        }
+
         spdlog::info("Exit key pressed");
         stop();
     });
@@ -895,6 +999,68 @@ void ClientApplication::setupNetworkCallbacks()
             m_player->inventory().setItem(slot, items[slot]);
         }
         m_player->inventory().setSelectedSlot(selectedSlot);
+    };
+
+    callbacks.onOpenContainer = [this](const OpenContainerPacket& packet) {
+        if (!m_player) {
+            return;
+        }
+
+        if (static_cast<ContainerType>(packet.type()) != ContainerType::CraftingTable) {
+            spdlog::debug("Unhandled open container type {}", packet.type());
+            return;
+        }
+
+        auto clickSender = [this](ContainerId containerId, i32 slotIndex, i32 button, ClickAction action,
+                                  const ItemStack& cursorItem) {
+            if (m_networkClient) {
+                m_networkClient->sendContainerClick(
+                    ContainerClickPacket(containerId, slotIndex, button, action, cursorItem));
+            }
+        };
+
+        auto closeSender = [this](ContainerId containerId) {
+            if (m_networkClient) {
+                m_networkClient->sendCloseContainer(containerId);
+            }
+        };
+
+        releaseMouseForScreen(m_input, m_mouseCaptured);
+        ScreenManager::instance().openScreen(
+            std::make_unique<CraftingScreen>(
+                std::make_unique<CraftingMenu>(packet.containerId(), &m_player->inventory(), nullptr),
+                clickSender,
+                closeSender));
+    };
+
+    callbacks.onContainerContent = [this](const ContainerContentPacket& packet) {
+        IScreen* screen = ScreenManager::instance().getCurrentScreen();
+        if (auto* craftingScreen = dynamic_cast<CraftingScreen*>(screen)) {
+            if (craftingScreen->getMenu() != nullptr && craftingScreen->getMenu()->getId() == packet.containerId()) {
+                applyContainerContents(craftingScreen->getMenu(), packet.items());
+            }
+        }
+    };
+
+    callbacks.onContainerSlot = [this](const ContainerSlotPacket& packet) {
+        IScreen* screen = ScreenManager::instance().getCurrentScreen();
+        if (auto* craftingScreen = dynamic_cast<CraftingScreen*>(screen)) {
+            if (craftingScreen->getMenu() != nullptr && craftingScreen->getMenu()->getId() == packet.containerId()) {
+                applyContainerSlot(craftingScreen->getMenu(), packet.slotIndex(), packet.item());
+            }
+        }
+    };
+
+    callbacks.onCloseContainer = [this](ContainerId containerId) {
+        IScreen* screen = ScreenManager::instance().getCurrentScreen();
+        if (auto* craftingScreen = dynamic_cast<CraftingScreen*>(screen)) {
+            if (craftingScreen->getMenu() != nullptr && craftingScreen->getMenu()->getId() == containerId) {
+                ScreenManager::instance().closeScreen();
+                if (!ScreenManager::instance().hasScreen()) {
+                    captureMouseAfterScreens(m_input, m_mouseCaptured);
+                }
+            }
+        }
     };
 
     m_networkClient->setCallbacks(callbacks);
@@ -1020,22 +1186,6 @@ void ClientApplication::handleBlockPlacementInput(f32 deltaTime)
 
     // 检查射线是否击中方块
     if (m_raycastResult.isMiss()) {
-        return;
-    }
-
-    // 获取手持物品
-    ItemStack heldItem = m_player->inventory().getSelectedStack();
-    if (heldItem.isEmpty()) {
-        return;
-    }
-
-    // 检查是否为方块物品
-    const Item* item = heldItem.getItem();
-    if (!item) {
-        return;
-    }
-    const BlockItem* blockItem = BlockItemRegistry::instance().getBlockItemByItemId(item->itemId());
-    if (!blockItem) {
         return;
     }
 

@@ -6,7 +6,45 @@
 #include "item/crafting/RecipeManager.hpp"
 #include "entity/Player.hpp"
 
+#include <algorithm>
+
 namespace mr {
+
+namespace {
+
+bool canStackResultWithCarried(const ItemStack& carried, const ItemStack& result) {
+    if (result.isEmpty()) {
+        return false;
+    }
+
+    if (carried.isEmpty()) {
+        return true;
+    }
+
+    if (!carried.isSameItem(result)) {
+        return false;
+    }
+
+    return carried.getCount() + result.getCount() <= carried.getMaxStackSize();
+}
+
+void shrinkCraftingGrid(CraftingInventory& grid, const crafting::CraftingRecipe* recipe) {
+    if (recipe == nullptr) {
+        return;
+    }
+
+    for (i32 slot = 0; slot < grid.getContainerSize(); ++slot) {
+        ItemStack stack = grid.getItem(slot);
+        if (stack.isEmpty()) {
+            continue;
+        }
+
+        stack.shrink(std::max(1, recipe->getIngredientCount(slot)));
+        grid.setItem(slot, stack.isEmpty() ? ItemStack() : stack);
+    }
+}
+
+} // namespace
 
 // ========== CraftingMenu 实现 ==========
 
@@ -27,6 +65,12 @@ CraftingMenu::CraftingMenu(ContainerId id, PlayerInventory* playerInventory, Cra
 
     // 添加玩家快捷栏 (槽位 37-45)
     addPlayerHotbarSlots(8, 142);
+
+    m_craftingGrid.setContentChangedCallback([this]() {
+        slotsChanged(&m_craftingGrid);
+    });
+
+    updateResult();
 }
 
 CraftingMenu::CraftingMenu(ContainerId id, PlayerInventory* playerInventory, i32 width, i32 height)
@@ -35,8 +79,16 @@ CraftingMenu::CraftingMenu(ContainerId id, PlayerInventory* playerInventory, i32
     , m_blockEntity(nullptr)
     , m_screenType(ScreenType::Inventory) {
 
-    // 注意：玩家背包合成不创建单独的槽位
-    // 槽位由 PlayerInventory 管理
+    addCraftingGridSlots(98, 18);
+    addResultSlot(154, 28);
+    addPlayerInventorySlots(8, 84);
+    addPlayerHotbarSlots(8, 142);
+
+    m_craftingGrid.setContentChangedCallback([this]() {
+        slotsChanged(&m_craftingGrid);
+    });
+
+    updateResult();
 }
 
 void CraftingMenu::addCraftingGridSlots(i32 startX, i32 startY) {
@@ -62,6 +114,17 @@ void CraftingMenu::slotsChanged(IInventory* inventory) {
     AbstractContainerMenu::slotsChanged(inventory);
 }
 
+ItemStack CraftingMenu::clicked(i32 slotIndex, i32 button, ClickType clickType, Player& player) {
+    if (slotIndex == RESULT_SLOT && clickType != ClickType::QuickMove) {
+        if (handleResultSlotClick()) {
+            broadcastChanges();
+        }
+        return getCarriedItem();
+    }
+
+    return AbstractContainerMenu::clicked(slotIndex, button, clickType, player);
+}
+
 bool CraftingMenu::stillValid(const Player& player) const {
     // TODO: 检查玩家是否仍在工作台附近
     // 需要检查玩家与方块的距离是否在范围内（通常是3格）
@@ -71,6 +134,8 @@ bool CraftingMenu::stillValid(const Player& player) const {
 }
 
 ItemStack CraftingMenu::quickMoveStack(i32 slotIndex, Player& player) {
+    (void)player;
+
     Slot* slot = getSlot(slotIndex);
     if (slot == nullptr || slot->isEmpty()) {
         return ItemStack();
@@ -81,10 +146,21 @@ ItemStack CraftingMenu::quickMoveStack(i32 slotIndex, Player& player) {
 
     // 结果槽位（槽位9）：Shift+点击移动到玩家背包
     if (slotIndex == RESULT_SLOT) {
-        // 尝试移动到玩家背包
-        if (!moveItemToRange(resultStack, PLAYER_INV_START, getSlotCount() - 1)) {
+        const crafting::CraftingRecipe* recipe =
+            crafting::RecipeManager::instance().findMatchingRecipe(m_craftingGrid);
+        if (recipe == nullptr) {
             return ItemStack();
         }
+
+        ItemStack crafted = recipe->assemble(m_craftingGrid);
+        ItemStack remaining = crafted.copy();
+        if (!moveItemToRange(remaining, PLAYER_INV_START, getSlotCount() - 1, true) || !remaining.isEmpty()) {
+            return ItemStack();
+        }
+
+        consumeIngredients();
+        updateResult();
+        return crafted;
     }
     // 合成网格槽位（槽位0-8）：Shift+点击移动到玩家背包
     else if (isGridSlot(slotIndex)) {
@@ -111,9 +187,11 @@ ItemStack CraftingMenu::quickMoveStack(i32 slotIndex, Player& player) {
 }
 
 void CraftingMenu::removed(Player& player) {
+    (void)player;
+
     // 将持有物品返回玩家背包
     if (!m_carried.isEmpty()) {
-        player.inventory().add(m_carried);
+        m_playerInventory->add(m_carried);
         m_carried = ItemStack();
     }
 
@@ -121,7 +199,7 @@ void CraftingMenu::removed(Player& player) {
     for (i32 i = 0; i < m_craftingGrid.getContainerSize(); ++i) {
         ItemStack stack = m_craftingGrid.removeItemNoUpdate(i);
         if (!stack.isEmpty()) {
-            player.inventory().add(stack);
+            m_playerInventory->add(stack);
         }
     }
 
@@ -141,14 +219,56 @@ void CraftingMenu::updateResult() {
     broadcastChanges();
 }
 
+bool CraftingMenu::handleResultSlotClick() {
+    const crafting::CraftingRecipe* recipe =
+        crafting::RecipeManager::instance().findMatchingRecipe(m_craftingGrid);
+    if (recipe == nullptr) {
+        return false;
+    }
+
+    ItemStack result = recipe->assemble(m_craftingGrid);
+    if (!canStackResultWithCarried(m_carried, result)) {
+        return false;
+    }
+
+    if (m_carried.isEmpty()) {
+        m_carried = result;
+    } else {
+        m_carried.grow(result.getCount());
+    }
+
+    consumeIngredients();
+    updateResult();
+    return true;
+}
+
+void CraftingMenu::consumeIngredients() {
+    const crafting::CraftingRecipe* recipe =
+        crafting::RecipeManager::instance().findMatchingRecipe(m_craftingGrid);
+    shrinkCraftingGrid(m_craftingGrid, recipe);
+}
+
 // ========== InventoryCraftingMenu 实现 ==========
 
 InventoryCraftingMenu::InventoryCraftingMenu(ContainerId id, PlayerInventory* playerInventory)
     : AbstractContainerMenu(id, playerInventory)
     , m_craftingGrid(2, 2) {
+    for (i32 y = 0; y < 2; ++y) {
+        for (i32 x = 0; x < 2; ++x) {
+            const i32 index = y * 2 + x;
+            addSlot(std::make_unique<Slot>(&m_craftingGrid, index, 97 + x * 18, 18 + y * 18));
+        }
+    }
 
-    // 注意：玩家背包合成槽位由 PlayerInventory 直接管理
-    // 这里只是创建独立的网格对象用于配方匹配
+    addSlot(std::make_unique<ResultSlot>(&m_result, 0, 143, 28, &m_craftingGrid));
+    addPlayerInventorySlots(8, 84);
+    addPlayerHotbarSlots(8, 142);
+
+    m_craftingGrid.setContentChangedCallback([this]() {
+        slotsChanged(&m_craftingGrid);
+    });
+
+    updateResult();
 }
 
 void InventoryCraftingMenu::slotsChanged(IInventory* inventory) {
@@ -158,11 +278,62 @@ void InventoryCraftingMenu::slotsChanged(IInventory* inventory) {
     AbstractContainerMenu::slotsChanged(inventory);
 }
 
+ItemStack InventoryCraftingMenu::clicked(i32 slotIndex, i32 button, ClickType clickType, Player& player) {
+    if (slotIndex == RESULT_SLOT && clickType != ClickType::QuickMove) {
+        if (handleResultSlotClick()) {
+            broadcastChanges();
+        }
+        return getCarriedItem();
+    }
+
+    return AbstractContainerMenu::clicked(slotIndex, button, clickType, player);
+}
+
 ItemStack InventoryCraftingMenu::quickMoveStack(i32 slotIndex, Player& player) {
-    // TODO: 实现Shift+点击快速移动
-    (void)slotIndex;
     (void)player;
-    return ItemStack();
+
+    Slot* slot = getSlot(slotIndex);
+    if (slot == nullptr || slot->isEmpty()) {
+        return ItemStack();
+    }
+
+    ItemStack originalStack = slot->getItem();
+    ItemStack movingStack = originalStack.copy();
+
+    if (slotIndex == RESULT_SLOT) {
+        const crafting::CraftingRecipe* recipe =
+            crafting::RecipeManager::instance().findMatchingRecipe(m_craftingGrid);
+        if (recipe == nullptr) {
+            return ItemStack();
+        }
+
+        ItemStack crafted = recipe->assemble(m_craftingGrid);
+        ItemStack remaining = crafted.copy();
+        if (!moveItemToRange(remaining, PLAYER_INV_START, getSlotCount() - 1, true) || !remaining.isEmpty()) {
+            return ItemStack();
+        }
+
+        consumeIngredients();
+        updateResult();
+        return crafted;
+    }
+
+    if (slotIndex >= GRID_SLOT_START && slotIndex < GRID_SLOT_START + GRID_SLOT_COUNT) {
+        if (!moveItemToRange(movingStack, PLAYER_INV_START, getSlotCount() - 1, true)) {
+            return ItemStack();
+        }
+    } else if (!moveItemToRange(movingStack, GRID_SLOT_START, GRID_SLOT_START + GRID_SLOT_COUNT - 1)) {
+        return ItemStack();
+    }
+
+    if (movingStack.isEmpty()) {
+        slot->set(ItemStack());
+    } else {
+        slot->set(movingStack);
+    }
+
+    updateResult();
+    return originalStack;
 }
 
 void InventoryCraftingMenu::updateResult() {
@@ -176,6 +347,35 @@ void InventoryCraftingMenu::updateResult() {
     }
 
     broadcastChanges();
+}
+
+bool InventoryCraftingMenu::handleResultSlotClick() {
+    const crafting::CraftingRecipe* recipe =
+        crafting::RecipeManager::instance().findMatchingRecipe(m_craftingGrid);
+    if (recipe == nullptr) {
+        return false;
+    }
+
+    ItemStack result = recipe->assemble(m_craftingGrid);
+    if (!canStackResultWithCarried(m_carried, result)) {
+        return false;
+    }
+
+    if (m_carried.isEmpty()) {
+        m_carried = result;
+    } else {
+        m_carried.grow(result.getCount());
+    }
+
+    consumeIngredients();
+    updateResult();
+    return true;
+}
+
+void InventoryCraftingMenu::consumeIngredients() {
+    const crafting::CraftingRecipe* recipe =
+        crafting::RecipeManager::instance().findMatchingRecipe(m_craftingGrid);
+    shrinkCraftingGrid(m_craftingGrid, recipe);
 }
 
 } // namespace mr

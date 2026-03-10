@@ -294,6 +294,38 @@ void NetworkClient::sendChatMessage(const String& message) {
     sendRawData(fullPacket.data(), fullPacket.size());
 }
 
+void NetworkClient::sendContainerClick(const ContainerClickPacket& packet) {
+    network::PacketSerializer ser;
+    packet.serialize(ser);
+
+    network::PacketSerializer fullPacket;
+    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
+    fullPacket.writeU16(static_cast<u16>(network::PacketType::ContainerClick));
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeBytes(ser.buffer());
+
+    sendRawData(fullPacket.data(), fullPacket.size());
+}
+
+void NetworkClient::sendCloseContainer(ContainerId containerId) {
+    CloseContainerPacket packet(containerId);
+
+    network::PacketSerializer ser;
+    packet.serialize(ser);
+
+    network::PacketSerializer fullPacket;
+    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
+    fullPacket.writeU16(static_cast<u16>(network::PacketType::CloseContainer));
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeBytes(ser.buffer());
+
+    sendRawData(fullPacket.data(), fullPacket.size());
+}
+
 void NetworkClient::sendKeepAliveIfNeeded() {
     auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now().time_since_epoch()
@@ -486,6 +518,26 @@ void NetworkClient::processPacket(const u8* data, size_t size) {
 
         case network::PacketType::PlayerInventory: {
             handlePlayerInventory(bodyDeser);
+            break;
+        }
+
+        case network::PacketType::OpenContainer: {
+            handleOpenContainer(bodyDeser);
+            break;
+        }
+
+        case network::PacketType::ContainerContent: {
+            handleContainerContent(bodyDeser);
+            break;
+        }
+
+        case network::PacketType::ContainerSlot: {
+            handleContainerSlot(bodyDeser);
+            break;
+        }
+
+        case network::PacketType::CloseContainer: {
+            handleCloseContainer(bodyDeser);
             break;
         }
 
@@ -709,6 +761,54 @@ void NetworkClient::handlePlayerInventory(network::PacketDeserializer& deser) {
     const auto& packet = result.value();
     if (m_callbacks.onPlayerInventory) {
         m_callbacks.onPlayerInventory(packet.selectedSlot(), packet.items());
+    }
+}
+
+void NetworkClient::handleOpenContainer(network::PacketDeserializer& deser) {
+    auto result = OpenContainerPacket::deserialize(deser);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize open container packet: {}", result.error().message());
+        return;
+    }
+
+    if (m_callbacks.onOpenContainer) {
+        m_callbacks.onOpenContainer(result.value());
+    }
+}
+
+void NetworkClient::handleContainerContent(network::PacketDeserializer& deser) {
+    auto result = ContainerContentPacket::deserialize(deser);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize container content packet: {}", result.error().message());
+        return;
+    }
+
+    if (m_callbacks.onContainerContent) {
+        m_callbacks.onContainerContent(result.value());
+    }
+}
+
+void NetworkClient::handleContainerSlot(network::PacketDeserializer& deser) {
+    auto result = ContainerSlotPacket::deserialize(deser);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize container slot packet: {}", result.error().message());
+        return;
+    }
+
+    if (m_callbacks.onContainerSlot) {
+        m_callbacks.onContainerSlot(result.value());
+    }
+}
+
+void NetworkClient::handleCloseContainer(network::PacketDeserializer& deser) {
+    auto result = CloseContainerPacket::deserialize(deser);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize close container packet: {}", result.error().message());
+        return;
+    }
+
+    if (m_callbacks.onCloseContainer) {
+        m_callbacks.onCloseContainer(result.value().containerId());
     }
 }
 

@@ -25,7 +25,7 @@ bool ContainerPacketHandler::handleContainerClick(Player& player, const Containe
 
     switch (packet.action()) {
         case ClickAction::Pick:
-            clickType = (button == 0) ? mr::ClickType::Pick : mr::ClickType::PickAll;
+            clickType = mr::ClickType::Pick;
             break;
         case ClickAction::PickAll:
             clickType = mr::ClickType::PickAll;
@@ -143,7 +143,8 @@ CraftResultPreviewPacket ContainerPacketHandler::createCraftResultPreview(Contai
     // 对于 InventoryCraftingMenu，结果槽位也是 RESULT_SLOT
 
     // 尝试获取结果槽位
-    const Slot* resultSlot = menu.getSlot(9); // 假设结果槽位是9
+    const i32 resultSlotIndex = menu.getResultSlotIndex();
+    const Slot* resultSlot = (resultSlotIndex >= 0) ? menu.getSlot(resultSlotIndex) : nullptr;
     ItemStack resultItem = (resultSlot != nullptr) ? resultSlot->getItem() : ItemStack::EMPTY;
 
     // 尝试获取匹配的配方ID

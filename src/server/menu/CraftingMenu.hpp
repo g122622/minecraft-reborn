@@ -69,6 +69,8 @@ public:
      */
     void slotsChanged(IInventory* inventory) override;
 
+    ItemStack clicked(i32 slotIndex, i32 button, ClickType clickType, Player& player) override;
+
     /**
      * @brief 检查玩家是否可以访问容器
      * @param player 玩家
@@ -103,6 +105,8 @@ public:
      */
     [[nodiscard]] ScreenType getScreenType() const { return m_screenType; }
 
+    [[nodiscard]] i32 getResultSlotIndex() const override { return RESULT_SLOT; }
+
     /**
      * @brief 槽位索引常量
      */
@@ -134,6 +138,9 @@ protected:
     void addResultSlot(i32 x, i32 y);
 
 private:
+    bool handleResultSlotClick();
+    void consumeIngredients();
+
     CraftingInventory m_craftingGrid;
     CraftResultInventory m_result;
     CraftingTableEntity* m_blockEntity;
@@ -179,6 +186,8 @@ public:
      */
     void slotsChanged(IInventory* inventory) override;
 
+    ItemStack clicked(i32 slotIndex, i32 button, ClickType clickType, Player& player) override;
+
     /**
      * @brief 检查玩家是否可以访问容器
      * @param player 玩家
@@ -199,6 +208,8 @@ public:
      */
     void updateResult();
 
+    [[nodiscard]] i32 getResultSlotIndex() const override { return RESULT_SLOT; }
+
     /**
      * @brief 槽位索引常量
      */
@@ -208,6 +219,9 @@ public:
     static constexpr i32 PLAYER_INV_START = 5;
 
 private:
+    bool handleResultSlotClick();
+    void consumeIngredients();
+
     CraftingInventory m_craftingGrid;
     CraftResultInventory m_result;
 };

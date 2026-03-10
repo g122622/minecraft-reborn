@@ -54,6 +54,7 @@ add_executable(minecraft-client
     ${CMAKE_SOURCE_DIR}/src/server/world/ChunkWorkerPool.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ServerChunkManager.cpp
     ${CMAKE_SOURCE_DIR}/src/server/player/ServerPlayer.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/menu/CraftingMenu.cpp
     ${CMAKE_SOURCE_DIR}/src/server/command/ServerCommandSource.cpp
     ${CMAKE_SOURCE_DIR}/src/server/command/CommandRegistry.cpp
     ${CMAKE_SOURCE_DIR}/src/server/command/commands/GameModeCommand.cpp

@@ -69,6 +69,10 @@ struct NetworkClientCallbacks {
     std::function<void(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch)> onPlayerMove;
     std::function<void(i64 gameTime, i64 dayTime, bool daylightCycleEnabled)> onTimeUpdate;
     std::function<void(i32 selectedSlot, const std::vector<ItemStack>& items)> onPlayerInventory;
+    std::function<void(const OpenContainerPacket& packet)> onOpenContainer;
+    std::function<void(const ContainerContentPacket& packet)> onContainerContent;
+    std::function<void(const ContainerSlotPacket& packet)> onContainerSlot;
+    std::function<void(ContainerId containerId)> onCloseContainer;
 };
 
 // ============================================================================
@@ -108,6 +112,8 @@ public:
     void sendTeleportConfirm(u32 teleportId);
     void sendKeepAlive(u64 id);
     void sendChatMessage(const String& message);
+    void sendContainerClick(const ContainerClickPacket& packet);
+    void sendCloseContainer(ContainerId containerId);
 
     // 心跳
     void sendKeepAliveIfNeeded();
@@ -146,6 +152,10 @@ private:
     void handleChatMessage(network::PacketDeserializer& deser);
     void handleTimeUpdate(network::PacketDeserializer& deser);
     void handlePlayerInventory(network::PacketDeserializer& deser);
+    void handleOpenContainer(network::PacketDeserializer& deser);
+    void handleContainerContent(network::PacketDeserializer& deser);
+    void handleContainerSlot(network::PacketDeserializer& deser);
+    void handleCloseContainer(network::PacketDeserializer& deser);
     void handleDisconnect(network::PacketDeserializer& deser);
 
     // ASIO 网络

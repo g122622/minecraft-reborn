@@ -27,7 +27,9 @@ public:
      * @brief 构造函数
      * @param menu 工作台菜单
      */
-    explicit CraftingScreen(std::unique_ptr<mr::CraftingMenu> menu);
+    explicit CraftingScreen(std::unique_ptr<mr::CraftingMenu> menu,
+                            ContainerClickSender clickSender = {},
+                            ContainerCloseSender closeSender = {});
 
     /**
      * @brief 获取屏幕标题
@@ -130,7 +132,9 @@ public:
      * @brief 构造函数
      * @param menu 玩家背包合成菜单
      */
-    explicit InventoryCraftingScreen(std::unique_ptr<mr::InventoryCraftingMenu> menu);
+    explicit InventoryCraftingScreen(std::unique_ptr<mr::InventoryCraftingMenu> menu,
+                                     ContainerClickSender clickSender = {},
+                                     ContainerCloseSender closeSender = {});
 
     /**
      * @brief 获取屏幕标题

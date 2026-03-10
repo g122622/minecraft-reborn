@@ -2,7 +2,10 @@
 #include "common/item/BlockItem.hpp"
 #include "common/item/Items.hpp"
 #include "common/item/BlockItemRegistry.hpp"
+#include "common/item/crafting/RecipeLoader.hpp"
 #include "common/item/BlockItemUseContext.hpp"
+#include "common/entity/inventory/AbstractContainerMenu.hpp"
+#include "common/network/ContainerPacketHandler.hpp"
 #include "common/world/gen/chunk/NoiseChunkGenerator.hpp"
 #include "common/world/gen/settings/DimensionSettings.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
@@ -12,6 +15,7 @@
 #include "common/world/WorldConstants.hpp"
 #include "common/world/chunk/ChunkLoadTicket.hpp"
 #include "common/util/Direction.hpp"
+#include "server/menu/CraftingMenu.hpp"
 #include "server/application/MinecraftServer.hpp"
 #include "server/command/CommandRegistry.hpp"
 #include "server/command/ServerCommandSource.hpp"
@@ -23,6 +27,35 @@
 namespace mr::server {
 
 namespace {
+
+Player& getMenuPlayer() {
+    static Player player(0, "IntegratedServerMenu");
+    return player;
+}
+
+template <typename PacketT>
+void sendGamePacket(network::LocalEndpoint* endpoint, network::PacketType packetType, const PacketT& packet) {
+    if (endpoint == nullptr || !endpoint->isConnected()) {
+        return;
+    }
+
+    network::PacketSerializer payload;
+    packet.serialize(payload);
+
+    network::PacketSerializer fullPacket;
+    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + payload.size()));
+    fullPacket.writeU16(static_cast<u16>(packetType));
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeBytes(payload.buffer());
+
+    endpoint->send(fullPacket.data(), fullPacket.size());
+}
+
+bool isCraftingTableState(const BlockState* state) {
+    return state != nullptr && state->blockLocation() == ResourceLocation("minecraft:crafting_table");
+}
 
 class ServerChunkReader final : public IBlockReader {
 public:
@@ -157,6 +190,16 @@ Result<void> IntegratedServer::initialize(const IntegratedServerConfig& config) 
     // 初始化方块物品注册表
     BlockItemRegistry::instance().initializeVanillaBlockItems();
     spdlog::info("Block items initialized");
+
+    RecipeLoader recipeLoader;
+    auto recipeLoadResult = recipeLoader.loadFromDirectory("data/minecraft/recipes");
+    if (recipeLoadResult.failed()) {
+        spdlog::warn("Failed to load crafting recipes: {}", recipeLoadResult.error().toString());
+    } else {
+        spdlog::info("Loaded {} crafting recipes ({} failed)",
+                     recipeLoadResult.value().successCount,
+                     recipeLoadResult.value().failedCount);
+    }
 
     spdlog::info("Initializing integrated server...");
     spdlog::info("World: {}, Seed: {}, View distance: {}",
@@ -450,6 +493,14 @@ void IntegratedServer::onPacketReceived(const u8* data, size_t size) {
             handleHotbarSelect(data + network::PACKET_HEADER_SIZE, size - network::PACKET_HEADER_SIZE);
             break;
 
+        case network::PacketType::ContainerClick:
+            handleContainerClick(data + network::PACKET_HEADER_SIZE, size - network::PACKET_HEADER_SIZE);
+            break;
+
+        case network::PacketType::CloseContainer:
+            handleCloseContainer(data + network::PACKET_HEADER_SIZE, size - network::PACKET_HEADER_SIZE);
+            break;
+
         case network::PacketType::TeleportConfirm:
             handleTeleportConfirm(data + network::PACKET_HEADER_SIZE, size - network::PACKET_HEADER_SIZE);
             break;
@@ -717,6 +768,15 @@ void IntegratedServer::handleBlockPlacement(const u8* data, size_t size)
         return;
     }
 
+    const i32 clickedLocalX = packet.x() - chunkX * 16;
+    const i32 clickedLocalZ = packet.z() - chunkZ * 16;
+    const BlockState* clickedState = chunk->getBlock(clickedLocalX, packet.y(), clickedLocalZ);
+    if (isCraftingTableState(clickedState)) {
+        spdlog::info("[Use] Opening crafting table at ({}, {}, {})", packet.x(), packet.y(), packet.z());
+        openCraftingTableMenu();
+        return;
+    }
+
     ItemStack heldStack = m_client.inventory.getSelectedStack();
     if (heldStack.isEmpty()) {
         spdlog::debug("[Place] Selected stack is empty");
@@ -801,6 +861,60 @@ void IntegratedServer::handleHotbarSelect(const u8* data, size_t size)
     }
 
     m_client.inventory.setSelectedSlot(result.value().slot());
+}
+
+void IntegratedServer::handleContainerClick(const u8* data, size_t size)
+{
+    if (!m_client.loggedIn || !m_client.openMenu) {
+        return;
+    }
+
+    network::PacketDeserializer deser(data, size);
+    auto result = ContainerClickPacket::deserialize(deser);
+    if (result.failed()) {
+        spdlog::debug("Failed to parse container click packet: {}", result.error().message());
+        return;
+    }
+
+    const auto& packet = result.value();
+    if (packet.containerId() != m_client.openMenu->getId()) {
+        return;
+    }
+
+    ClickType clickType = (packet.button() == 0) ? ClickType::Pick : ClickType::PickSome;
+    if (packet.action() == ClickAction::QuickMove) {
+        clickType = ClickType::QuickMove;
+    }
+
+    Player& menuPlayer = getMenuPlayer();
+    m_client.openMenu->clicked(packet.slotIndex(), packet.button(), clickType, menuPlayer);
+
+    sendContainerContent(*m_client.openMenu);
+    sendPlayerInventory();
+}
+
+void IntegratedServer::handleCloseContainer(const u8* data, size_t size)
+{
+    if (!m_client.loggedIn || !m_client.openMenu) {
+        return;
+    }
+
+    network::PacketDeserializer deser(data, size);
+    auto result = CloseContainerPacket::deserialize(deser);
+    if (result.failed()) {
+        spdlog::debug("Failed to parse close container packet: {}", result.error().message());
+        return;
+    }
+
+    if (result.value().containerId() != m_client.openMenu->getId()) {
+        return;
+    }
+
+    Player& menuPlayer = getMenuPlayer();
+    m_client.openMenu->removed(menuPlayer);
+    m_client.openMenu.reset();
+    m_client.openContainerType = ContainerType::Player;
+    sendPlayerInventory();
 }
 
 void IntegratedServer::handlePlayerChunkMove(ChunkCoord newChunkX, ChunkCoord newChunkZ) {
@@ -1038,6 +1152,27 @@ void IntegratedServer::sendPlayerInventory() {
     sendToClient(fullPacket.data(), fullPacket.size());
 }
 
+void IntegratedServer::sendContainerContent(const AbstractContainerMenu& menu) {
+    sendGamePacket(m_serverEndpoint,
+                   network::PacketType::ContainerContent,
+                   ContainerPacketHandler::createContentPacket(menu));
+}
+
+void IntegratedServer::sendOpenContainer(ContainerId containerId, ContainerType type, const String& title, i32 slotCount) {
+    sendGamePacket(m_serverEndpoint,
+                   network::PacketType::OpenContainer,
+                   ContainerPacketHandler::createOpenContainerPacket(containerId,
+                                                                     ContainerTypes::toNetworkType(type),
+                                                                     title,
+                                                                     slotCount));
+}
+
+void IntegratedServer::sendCloseContainer(ContainerId containerId) {
+    sendGamePacket(m_serverEndpoint,
+                   network::PacketType::CloseContainer,
+                   CloseContainerPacket(containerId));
+}
+
 void IntegratedServer::sendChunkData(ChunkCoord x, ChunkCoord z, const std::vector<u8>& data) {
     network::ChunkDataPacket packet(x, z, data);
     network::PacketSerializer ser;
@@ -1074,6 +1209,29 @@ void IntegratedServer::sendToClient(const u8* data, size_t size) {
     if (m_serverEndpoint && m_serverEndpoint->isConnected()) {
         m_serverEndpoint->send(data, size);
     }
+}
+
+void IntegratedServer::openCraftingTableMenu() {
+    if (m_client.openMenu) {
+        Player& menuPlayer = getMenuPlayer();
+        const ContainerId previousId = m_client.openMenu->getId();
+        m_client.openMenu->removed(menuPlayer);
+        m_client.openMenu.reset();
+        sendCloseContainer(previousId);
+    }
+
+    const ContainerId containerId = m_client.nextContainerId++;
+    auto menu = std::make_unique<CraftingMenu>(containerId, &m_client.inventory, nullptr);
+    menu->updateResult();
+
+    sendOpenContainer(containerId,
+                      ContainerType::CraftingTable,
+                      String(ContainerTypes::getDefaultTitle(ContainerType::CraftingTable)),
+                      menu->getSlotCount());
+    sendContainerContent(*menu);
+
+    m_client.openContainerType = ContainerType::CraftingTable;
+    m_client.openMenu = std::move(menu);
 }
 
 } // namespace mr::server

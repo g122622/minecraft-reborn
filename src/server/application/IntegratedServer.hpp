@@ -20,6 +20,10 @@
 #include <mutex>
 #include <vector>
 
+namespace mr {
+class AbstractContainerMenu;
+}
+
 namespace mr::server {
 
 /**
@@ -118,6 +122,8 @@ private:
     void handleBlockInteraction(const u8* data, size_t size);
     void handleBlockPlacement(const u8* data, size_t size);
     void handleHotbarSelect(const u8* data, size_t size);
+    void handleContainerClick(const u8* data, size_t size);
+    void handleCloseContainer(const u8* data, size_t size);
     void handleTeleportConfirm(const u8* data, size_t size);
     void handleKeepAlive(const u8* data, size_t size);
     void handleChatMessage(const u8* data, size_t size);
@@ -130,7 +136,11 @@ private:
     void sendPlayerInventory();
     void sendChunkData(ChunkCoord x, ChunkCoord z, const std::vector<u8>& data);
     void sendUnloadChunk(ChunkCoord x, ChunkCoord z);
+    void sendContainerContent(const mr::AbstractContainerMenu& menu);
+    void sendOpenContainer(ContainerId containerId, ContainerType type, const String& title, i32 slotCount);
+    void sendCloseContainer(ContainerId containerId);
     void sendToClient(const u8* data, size_t size);
+    void openCraftingTableMenu();
 
     IntegratedServerConfig m_config;
     std::atomic<bool> m_running{false};
@@ -164,6 +174,9 @@ private:
         bool waitingTeleportConfirm = false;
         GameMode gameMode = GameMode::Survival;
         PlayerInventory inventory;
+        std::unique_ptr<mr::AbstractContainerMenu> openMenu;
+        ContainerType openContainerType = ContainerType::Player;
+        ContainerId nextContainerId = 1;
 
         // 已加载的区块
         std::unordered_set<ChunkId> loadedChunks;

@@ -2,8 +2,11 @@
 
 #include "screen/IScreen.hpp"
 #include "entity/inventory/AbstractContainerMenu.hpp"
+#include "entity/inventory/ContainerTypes.hpp"
+#include "network/InventoryPackets.hpp"
 #include "core/Types.hpp"
 #include <memory>
+#include <functional>
 
 namespace mr::client {
 
@@ -33,12 +36,19 @@ namespace mr::client {
 template<typename Menu>
 class AbstractContainerScreen : public IScreen {
 public:
+    using ContainerClickSender = std::function<void(ContainerId, i32, i32, ClickAction, const mr::ItemStack&)>;
+    using ContainerCloseSender = std::function<void(ContainerId)>;
+
     /**
      * @brief 构造函数
      * @param menu 菜单实例
      */
-    explicit AbstractContainerScreen(std::unique_ptr<Menu> menu)
+    explicit AbstractContainerScreen(std::unique_ptr<Menu> menu,
+                                     ContainerClickSender clickSender = {},
+                                     ContainerCloseSender closeSender = {})
         : m_menu(std::move(menu))
+        , m_clickSender(std::move(clickSender))
+        , m_closeSender(std::move(closeSender))
         , m_leftPos(0)
         , m_topPos(0)
         , m_imageWidth(176)
@@ -134,7 +144,9 @@ public:
      * @brief 屏幕关闭
      */
     void onClose() override {
-        // 子类可重写以保存状态
+        if (m_closeSender && m_menu != nullptr && m_menu->getId() != mr::inventory::PLAYER_CONTAINER_ID) {
+            m_closeSender(m_menu->getId());
+        }
     }
 
     /**
@@ -298,15 +310,12 @@ protected:
             return false;
         }
 
-        // 转换为点击类型
-        mr::ClickType clickType = (button == 0) ? mr::ClickType::Pick : mr::ClickType::PlaceSome;
+        if (m_clickSender && m_menu->getId() != mr::inventory::PLAYER_CONTAINER_ID) {
+            const ClickAction action = (button == 0) ? ClickAction::Pick : ClickAction::Pickup;
+            m_clickSender(m_menu->getId(), slotIndex, button, action, m_menu->getCarriedItem());
+        }
 
-        // 调用菜单处理
-        // TODO: 需要玩家引用
-        // m_menu->clicked(slotIndex, button, clickType, player);
         (void)slot;
-        (void)slotIndex;
-        (void)button;
         return true;
     }
 
@@ -322,6 +331,8 @@ protected:
 
     // 成员变量
     std::unique_ptr<Menu> m_menu;
+    ContainerClickSender m_clickSender;
+    ContainerCloseSender m_closeSender;
     i32 m_leftPos;          ///< GUI左边界（居中后的位置）
     i32 m_topPos;           ///< GUI上边界
     i32 m_imageWidth;       ///< GUI纹理宽度

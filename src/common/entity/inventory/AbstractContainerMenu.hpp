@@ -105,6 +105,12 @@ public:
     [[nodiscard]] virtual bool stillValid(const Player& player) const = 0;
 
     /**
+     * @brief 获取结果槽位索引
+     * @return 结果槽位索引，不存在则返回-1
+     */
+    [[nodiscard]] virtual i32 getResultSlotIndex() const { return -1; }
+
+    /**
      * @brief 关闭容器
      * @param player 玩家
      *
