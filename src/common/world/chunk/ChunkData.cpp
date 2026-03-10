@@ -49,6 +49,10 @@ void ChunkSection::setBlockStateId(i32 x, i32 y, i32 z, u32 stateId) {
 }
 
 const BlockState* ChunkSection::getBlock(i32 x, i32 y, i32 z) const {
+    if (x < 0 || x >= SIZE || y < 0 || y >= SIZE || z < 0 || z >= SIZE) {
+        return nullptr;
+    }
+
     u32 stateId = getBlockStateId(x, y, z);
     return Block::getBlockState(stateId);
 }

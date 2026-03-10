@@ -322,6 +322,9 @@ private:
     std::unordered_map<u64, std::shared_ptr<ChunkData>> m_chunks;
     mutable std::mutex m_chunksMutex;
 
+    // 同步生成保护，避免多线程同时对同一 Holder 执行同步生成
+    mutable std::mutex m_syncGenerationMutex;
+
     // 票据管理器
     world::ChunkLoadTicketManager m_ticketManager;
 

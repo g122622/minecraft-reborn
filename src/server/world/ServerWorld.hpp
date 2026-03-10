@@ -188,6 +188,7 @@ private:
 private:
     ServerWorldConfig m_config;
     std::unique_ptr<ServerChunkManager> m_chunkManager;
+    bool m_initialized = false;
 
     // 玩家存储
     mutable std::mutex m_playerMutex;

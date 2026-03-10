@@ -63,6 +63,18 @@ void ChunkWorkerPool::shutdown()
     }
 
     m_workers.clear();
+
+    {
+        std::lock_guard<std::mutex> queueLock(m_queueMutex);
+        while (!m_taskQueue.empty()) {
+            m_taskQueue.pop();
+        }
+    }
+
+    {
+        std::lock_guard<std::mutex> completedLock(m_completedMutex);
+        m_completedChunks.clear();
+    }
 }
 
 // ============================================================================
@@ -143,7 +155,7 @@ size_t ChunkWorkerPool::pendingTaskCount() const
 
 void ChunkWorkerPool::workerThread(i32 workerId)
 {
-    while (!m_stop.load(std::memory_order_acquire)) {
+    while (true) {
         InternalTask taskCopy;
         bool hasTask = false;
 
@@ -155,7 +167,7 @@ void ChunkWorkerPool::workerThread(i32 workerId)
                 return !m_taskQueue.empty() || m_stop.load(std::memory_order_acquire);
             });
 
-            if (m_stop.load(std::memory_order_acquire)) {
+            if (m_taskQueue.empty() && m_stop.load(std::memory_order_acquire)) {
                 return;
             }
 
@@ -193,7 +205,15 @@ void ChunkWorkerPool::executeTask(InternalTask& task)
 
     // 调用回调
     if (task.callback) {
-        task.callback(success, success ? primer.get() : nullptr);
+        ChunkPrimer* callbackChunk = nullptr;
+
+        if (success) {
+            std::lock_guard<std::mutex> lock(m_completedMutex);
+            m_completedChunks.push_back(std::move(primer));
+            callbackChunk = m_completedChunks.back().get();
+        }
+
+        task.callback(success, callbackChunk);
     }
 }
 

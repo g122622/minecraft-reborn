@@ -1,5 +1,25 @@
 #include "Items.hpp"
 
+#include "BlockItem.hpp"
+#include "../world/block/VanillaBlocks.hpp"
+
+namespace {
+
+mr::Item& registerBlockBackedItem(mr::ItemRegistry& registry,
+                                  mr::Block* block,
+                                  const char* path,
+                                  mr::ItemProperties properties)
+{
+    const mr::ResourceLocation id("minecraft", path);
+    if (block != nullptr) {
+        return registry.registerItem<mr::BlockItem>(id, *block, std::move(properties));
+    }
+
+    return registry.registerItem(id, std::move(properties));
+}
+
+} // namespace
+
 namespace mr {
 
 bool Items::s_initialized = false;
@@ -305,6 +325,49 @@ void Items::registerMaterials() {
 
     GLOWSTONE_DUST = &registry.registerItem(
         ResourceLocation("minecraft:glowstone_dust"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    COAL_ORE = &registerBlockBackedItem(
+        registry,
+        VanillaBlocks::COAL_ORE,
+        "coal_ore",
+        ItemProperties().maxStackSize(64)
+    );
+    IRON_ORE = &registerBlockBackedItem(
+        registry,
+        VanillaBlocks::IRON_ORE,
+        "iron_ore",
+        ItemProperties().maxStackSize(64)
+    );
+    GOLD_ORE = &registerBlockBackedItem(
+        registry,
+        VanillaBlocks::GOLD_ORE,
+        "gold_ore",
+        ItemProperties().maxStackSize(64)
+    );
+    DIAMOND_ORE = &registerBlockBackedItem(
+        registry,
+        VanillaBlocks::DIAMOND_ORE,
+        "diamond_ore",
+        ItemProperties().maxStackSize(64)
+    );
+    EMERALD_ORE = &registerBlockBackedItem(
+        registry,
+        VanillaBlocks::EMERALD_ORE,
+        "emerald_ore",
+        ItemProperties().maxStackSize(64)
+    );
+    LAPIS_ORE = &registerBlockBackedItem(
+        registry,
+        VanillaBlocks::LAPIS_ORE,
+        "lapis_ore",
+        ItemProperties().maxStackSize(64)
+    );
+    REDSTONE_ORE = &registerBlockBackedItem(
+        registry,
+        VanillaBlocks::REDSTONE_ORE,
+        "redstone_ore",
         ItemProperties().maxStackSize(64)
     );
 }
@@ -631,69 +694,24 @@ void Items::registerMisc() {
     auto& registry = ItemRegistry::instance();
 
     // 木头和木板
-    OAK_LOG = &registry.registerItem(
-        ResourceLocation("minecraft:oak_log"),
-        ItemProperties().maxStackSize(64)
-    );
-    SPRUCE_LOG = &registry.registerItem(
-        ResourceLocation("minecraft:spruce_log"),
-        ItemProperties().maxStackSize(64)
-    );
-    BIRCH_LOG = &registry.registerItem(
-        ResourceLocation("minecraft:birch_log"),
-        ItemProperties().maxStackSize(64)
-    );
-    JUNGLE_LOG = &registry.registerItem(
-        ResourceLocation("minecraft:jungle_log"),
-        ItemProperties().maxStackSize(64)
-    );
-    ACACIA_LOG = &registry.registerItem(
-        ResourceLocation("minecraft:acacia_log"),
-        ItemProperties().maxStackSize(64)
-    );
-    DARK_OAK_LOG = &registry.registerItem(
-        ResourceLocation("minecraft:dark_oak_log"),
-        ItemProperties().maxStackSize(64)
-    );
+    OAK_LOG = &registerBlockBackedItem(registry, VanillaBlocks::OAK_LOG, "oak_log", ItemProperties().maxStackSize(64));
+    SPRUCE_LOG = &registerBlockBackedItem(registry, VanillaBlocks::SPRUCE_LOG, "spruce_log", ItemProperties().maxStackSize(64));
+    BIRCH_LOG = &registerBlockBackedItem(registry, VanillaBlocks::BIRCH_LOG, "birch_log", ItemProperties().maxStackSize(64));
+    JUNGLE_LOG = &registerBlockBackedItem(registry, VanillaBlocks::JUNGLE_LOG, "jungle_log", ItemProperties().maxStackSize(64));
+    ACACIA_LOG = &registerBlockBackedItem(registry, VanillaBlocks::ACACIA_LOG, "acacia_log", ItemProperties().maxStackSize(64));
+    DARK_OAK_LOG = &registerBlockBackedItem(registry, VanillaBlocks::DARK_OAK_LOG, "dark_oak_log", ItemProperties().maxStackSize(64));
 
-    OAK_PLANKS = &registry.registerItem(
-        ResourceLocation("minecraft:oak_planks"),
-        ItemProperties().maxStackSize(64)
-    );
-    SPRUCE_PLANKS = &registry.registerItem(
-        ResourceLocation("minecraft:spruce_planks"),
-        ItemProperties().maxStackSize(64)
-    );
-    BIRCH_PLANKS = &registry.registerItem(
-        ResourceLocation("minecraft:birch_planks"),
-        ItemProperties().maxStackSize(64)
-    );
-    JUNGLE_PLANKS = &registry.registerItem(
-        ResourceLocation("minecraft:jungle_planks"),
-        ItemProperties().maxStackSize(64)
-    );
-    ACACIA_PLANKS = &registry.registerItem(
-        ResourceLocation("minecraft:acacia_planks"),
-        ItemProperties().maxStackSize(64)
-    );
-    DARK_OAK_PLANKS = &registry.registerItem(
-        ResourceLocation("minecraft:dark_oak_planks"),
-        ItemProperties().maxStackSize(64)
-    );
+    OAK_PLANKS = &registerBlockBackedItem(registry, VanillaBlocks::OAK_PLANKS, "oak_planks", ItemProperties().maxStackSize(64));
+    SPRUCE_PLANKS = &registerBlockBackedItem(registry, VanillaBlocks::SPRUCE_PLANKS, "spruce_planks", ItemProperties().maxStackSize(64));
+    BIRCH_PLANKS = &registerBlockBackedItem(registry, VanillaBlocks::BIRCH_PLANKS, "birch_planks", ItemProperties().maxStackSize(64));
+    JUNGLE_PLANKS = &registerBlockBackedItem(registry, VanillaBlocks::JUNGLE_PLANKS, "jungle_planks", ItemProperties().maxStackSize(64));
+    ACACIA_PLANKS = &registerBlockBackedItem(registry, VanillaBlocks::ACACIA_PLANKS, "acacia_planks", ItemProperties().maxStackSize(64));
+    DARK_OAK_PLANKS = &registerBlockBackedItem(registry, VanillaBlocks::DARK_OAK_PLANKS, "dark_oak_planks", ItemProperties().maxStackSize(64));
 
     // 石头
-    STONE = &registry.registerItem(
-        ResourceLocation("minecraft:stone"),
-        ItemProperties().maxStackSize(64)
-    );
-    COBBLESTONE = &registry.registerItem(
-        ResourceLocation("minecraft:cobblestone"),
-        ItemProperties().maxStackSize(64)
-    );
-    MOSSY_COBBLESTONE = &registry.registerItem(
-        ResourceLocation("minecraft:mossy_cobblestone"),
-        ItemProperties().maxStackSize(64)
-    );
+    STONE = &registerBlockBackedItem(registry, VanillaBlocks::STONE, "stone", ItemProperties().maxStackSize(64));
+    COBBLESTONE = &registerBlockBackedItem(registry, VanillaBlocks::COBBLESTONE, "cobblestone", ItemProperties().maxStackSize(64));
+    MOSSY_COBBLESTONE = &registerBlockBackedItem(registry, VanillaBlocks::MOSSY_COBBLESTONE, "mossy_cobblestone", ItemProperties().maxStackSize(64));
 
     // 木棍和骨头
     STICK = &registry.registerItem(

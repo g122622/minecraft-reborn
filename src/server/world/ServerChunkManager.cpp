@@ -270,6 +270,13 @@ ChunkData* ServerChunkManager::getChunkSync(ChunkCoord x, ChunkCoord z)
         return cached;
     }
 
+    std::lock_guard<std::mutex> generationLock(m_syncGenerationMutex);
+
+    // 进入同步生成临界区后再次检查缓存，避免重复生成
+    if (ChunkData* cached = getChunk(x, z)) {
+        return cached;
+    }
+
     // 获取持有者
     ChunkHolder* holder = getOrCreateHolder(x, z);
     if (!holder) {

@@ -43,6 +43,10 @@ ServerWorld::~ServerWorld() {
 Result<void> ServerWorld::initialize() {
     spdlog::info("Initializing server world with seed {}...", m_config.seed);
 
+    if (m_initialized) {
+        return Result<void>::ok();
+    }
+
     // 若尚未创建区块管理器，按当前配置创建
     if (!m_chunkManager) {
         auto generator = std::make_unique<NoiseChunkGenerator>(
@@ -58,6 +62,7 @@ Result<void> ServerWorld::initialize() {
     }
 
     m_chunkSyncManager.setDefaultViewDistance(m_config.viewDistance);
+    m_initialized = true;
 
     spdlog::info("Server world initialized");
     return Result<void>::ok();
@@ -65,6 +70,8 @@ Result<void> ServerWorld::initialize() {
 
 void ServerWorld::shutdown() {
     spdlog::info("Shutting down server world...");
+
+    m_initialized = false;
 
     if (m_chunkManager) {
         m_chunkManager->shutdown();
@@ -267,7 +274,7 @@ void ServerWorld::updatePlayerPosition(PlayerId playerId, f64 x, f64 y, f64 z, f
     }
 
     // 在锁外发送区块（避免死锁）
-    if (needsChunkUpdate) {
+    if (needsChunkUpdate && m_initialized) {
         // 发送新区块
         for (const auto& pos : chunksToLoad) {
             sendChunkToPlayer(playerId, pos.x, pos.z);

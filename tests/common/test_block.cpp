@@ -472,8 +472,7 @@ TEST(VanillaBlocksTest, Initialization) {
 
     // 检查空气方块
     EXPECT_TRUE(VanillaBlocks::AIR->isAir(VanillaBlocks::AIR->defaultState()));
-    // AIR 的 blockId 取决于注册顺序，不硬编码期望值
-    EXPECT_GT(VanillaBlocks::AIR->blockId(), 0u);
+    EXPECT_EQ(VanillaBlocks::AIR->blockId(), static_cast<u32>(BlockId::Air));
 
     // 检查原木有轴属性
     const auto& logState = VanillaBlocks::OAK_LOG->defaultState();

@@ -173,8 +173,10 @@ private:
 
     // 任务队列
     std::priority_queue<InternalTask, std::vector<InternalTask>, TaskComparator> m_taskQueue;
+    std::vector<std::unique_ptr<ChunkPrimer>> m_completedChunks;
 
     mutable std::mutex m_queueMutex;
+    mutable std::mutex m_completedMutex;
     std::condition_variable m_condition;
 
     // 状态
