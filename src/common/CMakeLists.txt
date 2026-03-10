@@ -62,6 +62,10 @@ add_library(mr_common STATIC
     # World - Drop Tables
     world/drop/DropTables.cpp
 
+    # World - Block Entity
+    world/blockentity/BlockEntityType.cpp
+    world/blockentity/BlockEntity.cpp
+
     # World - Block System
     world/block/Material.cpp
     world/block/Block.cpp

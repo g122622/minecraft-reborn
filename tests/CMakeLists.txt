@@ -37,6 +37,7 @@ add_executable(mr_tests
     common/item/crafting/ShapedRecipeTest.cpp
     common/item/crafting/ShapelessRecipeTest.cpp
     common/entity/inventory/CraftingInventoryTest.cpp
+    common/world/blockentity/BlockEntityTest.cpp
     common/command/test_command_dispatcher.cpp
     common/SettingsTest.cpp
     server/ServerWorldTest.cpp
@@ -138,6 +139,9 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/item/crafting/ShapedRecipe.cpp
         ${CMAKE_SOURCE_DIR}/src/common/item/crafting/ShapelessRecipe.cpp
         ${CMAKE_SOURCE_DIR}/src/common/item/crafting/RecipeSerializers.cpp
+        # 方块实体系统
+        ${CMAKE_SOURCE_DIR}/src/common/world/blockentity/BlockEntityType.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/blockentity/BlockEntity.cpp
         # 物品实体和掉落表
         ${CMAKE_SOURCE_DIR}/src/common/entity/ItemEntity.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/drop/DropTables.cpp

@@ -1,0 +1,170 @@
+#include <gtest/gtest.h>
+#include "world/blockentity/BlockEntity.hpp"
+#include "world/blockentity/BlockEntityType.hpp"
+#include "world/blockentity/ContainerBlockEntity.hpp"
+
+using namespace mr;
+
+// 测试用的简单方块实体
+class TestBlockEntity : public BlockEntity {
+public:
+    TestBlockEntity(BlockEntityType type, const BlockPos& pos)
+        : BlockEntity(type, pos) {}
+
+    std::unique_ptr<BlockEntity> clone() const override {
+        return std::make_unique<TestBlockEntity>(m_type, m_pos);
+    }
+};
+
+// 测试用的容器方块实体
+class TestContainerBlockEntity : public ContainerBlockEntity {
+public:
+    TestContainerBlockEntity(BlockEntityType type, const BlockPos& pos)
+        : ContainerBlockEntity(type, pos) {}
+
+    std::unique_ptr<BlockEntity> clone() const override {
+        return std::make_unique<TestContainerBlockEntity>(m_type, m_pos);
+    }
+};
+
+class BlockEntityTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+    }
+};
+
+// ========== BlockEntityType 测试 ==========
+
+TEST_F(BlockEntityTest, BlockEntityType_ToId_KnownTypes) {
+    EXPECT_EQ(blockEntityTypeToId(BlockEntityType::Chest).toString(), "minecraft:chest");
+    EXPECT_EQ(blockEntityTypeToId(BlockEntityType::CraftingTable).toString(), "minecraft:crafting_table");
+    EXPECT_EQ(blockEntityTypeToId(BlockEntityType::Furnace).toString(), "minecraft:furnace");
+    EXPECT_EQ(blockEntityTypeToId(BlockEntityType::Hopper).toString(), "minecraft:hopper");
+}
+
+TEST_F(BlockEntityTest, BlockEntityType_ToId_UnknownReturnsUnknown) {
+    ResourceLocation id = blockEntityTypeToId(BlockEntityType::Unknown);
+    EXPECT_EQ(id.toString(), "minecraft:unknown");
+}
+
+TEST_F(BlockEntityTest, BlockEntityType_FromId_KnownIds) {
+    EXPECT_EQ(blockEntityTypeFromId(ResourceLocation("minecraft", "chest")), BlockEntityType::Chest);
+    EXPECT_EQ(blockEntityTypeFromId(ResourceLocation("minecraft", "crafting_table")), BlockEntityType::CraftingTable);
+    EXPECT_EQ(blockEntityTypeFromId(ResourceLocation("minecraft", "furnace")), BlockEntityType::Furnace);
+}
+
+TEST_F(BlockEntityTest, BlockEntityType_FromId_ShortForm) {
+    // 简写形式也应该被识别
+    EXPECT_EQ(blockEntityTypeFromId(ResourceLocation("chest")), BlockEntityType::Chest);
+    EXPECT_EQ(blockEntityTypeFromId(ResourceLocation("furnace")), BlockEntityType::Furnace);
+}
+
+TEST_F(BlockEntityTest, BlockEntityType_FromId_UnknownReturnsUnknown) {
+    EXPECT_EQ(blockEntityTypeFromId(ResourceLocation("minecraft", "nonexistent")), BlockEntityType::Unknown);
+}
+
+// ========== BlockEntity 基础测试 ==========
+
+TEST_F(BlockEntityTest, Create_GetTypeAndPos) {
+    BlockPos pos(10, 20, 30);
+    TestBlockEntity entity(BlockEntityType::Chest, pos);
+
+    EXPECT_EQ(entity.getType(), BlockEntityType::Chest);
+    EXPECT_EQ(entity.getPos(), pos);
+}
+
+TEST_F(BlockEntityTest, ChangedFlag_InitiallyFalse) {
+    TestBlockEntity entity(BlockEntityType::Chest, BlockPos(0, 0, 0));
+    EXPECT_FALSE(entity.isChanged());
+}
+
+TEST_F(BlockEntityTest, SetChanged_SetsFlag) {
+    TestBlockEntity entity(BlockEntityType::Chest, BlockPos(0, 0, 0));
+    entity.setChanged();
+    EXPECT_TRUE(entity.isChanged());
+}
+
+TEST_F(BlockEntityTest, ClearChanged_ClearsFlag) {
+    TestBlockEntity entity(BlockEntityType::Chest, BlockPos(0, 0, 0));
+    entity.setChanged();
+    entity.clearChanged();
+    EXPECT_FALSE(entity.isChanged());
+}
+
+TEST_F(BlockEntityTest, NeedsTick_DefaultFalse) {
+    TestBlockEntity entity(BlockEntityType::Chest, BlockPos(0, 0, 0));
+    EXPECT_FALSE(entity.needsTick());
+}
+
+TEST_F(BlockEntityTest, GetCustomName_DefaultEmpty) {
+    TestBlockEntity entity(BlockEntityType::Chest, BlockPos(0, 0, 0));
+    EXPECT_TRUE(entity.getCustomName().empty());
+}
+
+TEST_F(BlockEntityTest, Save_ContainsBasicInfo) {
+    TestBlockEntity entity(BlockEntityType::Chest, BlockPos(10, 20, 30));
+
+    nlohmann::json data;
+    entity.save(data);
+
+    EXPECT_TRUE(data.contains("id"));
+    EXPECT_TRUE(data.contains("x"));
+    EXPECT_TRUE(data.contains("y"));
+    EXPECT_TRUE(data.contains("z"));
+    EXPECT_EQ(data["id"], "minecraft:chest");
+    EXPECT_EQ(data["x"].get<i32>(), 10);
+    EXPECT_EQ(data["y"].get<i32>(), 20);
+    EXPECT_EQ(data["z"].get<i32>(), 30);
+}
+
+TEST_F(BlockEntityTest, Clone_CreatesCopy) {
+    TestBlockEntity original(BlockEntityType::Chest, BlockPos(5, 10, 15));
+    std::unique_ptr<BlockEntity> copy = original.clone();
+
+    ASSERT_NE(copy, nullptr);
+    EXPECT_EQ(copy->getType(), original.getType());
+    EXPECT_EQ(copy->getPos(), original.getPos());
+}
+
+// ========== ContainerBlockEntity 测试 ==========
+
+TEST_F(BlockEntityTest, Container_OpenCount_InitiallyZero) {
+    TestContainerBlockEntity container(BlockEntityType::Chest, BlockPos(0, 0, 0));
+    EXPECT_EQ(container.getOpenCount(), 0);
+}
+
+TEST_F(BlockEntityTest, Container_OpenContainer_IncrementsCount) {
+    TestContainerBlockEntity container(BlockEntityType::Chest, BlockPos(0, 0, 0));
+    container.openContainer();
+    EXPECT_EQ(container.getOpenCount(), 1);
+
+    container.openContainer();
+    EXPECT_EQ(container.getOpenCount(), 2);
+}
+
+TEST_F(BlockEntityTest, Container_CloseContainer_DecrementsCount) {
+    TestContainerBlockEntity container(BlockEntityType::Chest, BlockPos(0, 0, 0));
+    container.openContainer();
+    container.openContainer();
+    EXPECT_EQ(container.getOpenCount(), 2);
+
+    container.closeContainer();
+    EXPECT_EQ(container.getOpenCount(), 1);
+}
+
+TEST_F(BlockEntityTest, Container_CloseContainer_NotBelowZero) {
+    TestContainerBlockEntity container(BlockEntityType::Chest, BlockPos(0, 0, 0));
+    container.closeContainer(); // 没有打开时关闭
+    EXPECT_EQ(container.getOpenCount(), 0);
+}
+
+TEST_F(BlockEntityTest, Container_GetInventory_ReturnsNullByDefault) {
+    TestContainerBlockEntity container(BlockEntityType::Chest, BlockPos(0, 0, 0));
+    EXPECT_EQ(container.getInventory(), nullptr);
+    EXPECT_EQ(container.getContainerSize(), 0);
+}
+
+TEST_F(BlockEntityTest, Container_IsEmpty_ReturnsTrueByDefault) {
+    TestContainerBlockEntity container(BlockEntityType::Chest, BlockPos(0, 0, 0));
+    EXPECT_TRUE(container.isEmpty());
+}
