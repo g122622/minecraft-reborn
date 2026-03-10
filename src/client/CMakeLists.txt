@@ -43,6 +43,8 @@ add_executable(minecraft-client
     ui/hud/HudRenderer.cpp
     ui/inventory/InventoryScreen.cpp
     ui/inventory/SlotRenderer.cpp
+    ui/chat/ChatHistory.cpp
+    ui/chat/ChatScreen.cpp
     # 内置服务端支持
     ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp

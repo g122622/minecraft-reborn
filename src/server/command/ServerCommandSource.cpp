@@ -1,8 +1,9 @@
 #include "ServerCommandSource.hpp"
 #include "server/application/MinecraftServer.hpp"
+#include "server/player/ServerPlayer.hpp"
 #include "server/world/ServerWorld.hpp"
-#include "common/entity/Player.hpp"
 #include "common/command/exceptions/CommandExceptions.hpp"
+#include <spdlog/spdlog.h>
 
 namespace mr {
 namespace command {
@@ -25,7 +26,7 @@ ServerCommandSource::ServerCommandSource(
 {
     // 设置显示名称
     if (player) {
-        m_name = player->getName();
+        m_name = player->username();
     } else {
         m_name = "Console";
     }
@@ -38,12 +39,10 @@ void ServerCommandSource::sendMessage(
     // 发送消息给命令源
     if (m_player) {
         // 发送给玩家
-        // TODO: 实现发送消息给玩家
-        // m_player->sendMessage(message);
+        m_player->sendSystemMessage(message);
     } else {
         // 发送给控制台
-        // TODO: 实现日志输出
-        // spdlog::info("{}", message);
+        spdlog::info("{}", message);
     }
 }
 
@@ -73,7 +72,7 @@ ServerCommandSource ServerCommandSource::withPlayer(ServerPlayer* player) const 
     ServerCommandSource source(*this);
     source.m_player = player;
     if (player) {
-        source.m_name = player->getName();
+        source.m_name = player->username();
     }
     return source;
 }

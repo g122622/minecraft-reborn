@@ -3,7 +3,7 @@
 #include "common/command/arguments/EntityArgument.hpp"
 #include "common/command/arguments/ItemArgument.hpp"
 #include "common/command/arguments/ArgumentType.hpp"
-#include "common/entity/Player.hpp"
+#include "server/player/ServerPlayer.hpp"
 #include <sstream>
 
 namespace mr {
@@ -71,7 +71,7 @@ i32 ClearCommand::clearSelf(CommandContext<ServerCommandSource>& context) {
     // i32 clearedCount = player.getInventory().clear();
 
     std::ostringstream ss;
-    ss << "Cleared the inventory of " << player.getName() << ", removing 0 items";
+    ss << "Cleared the inventory of " << player.username() << ", removing 0 items";
     source.sendMessage(ss.str());
 
     return 1;

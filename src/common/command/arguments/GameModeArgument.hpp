@@ -3,18 +3,13 @@
 #include "common/core/Types.hpp"
 #include "common/command/StringReader.hpp"
 #include "common/command/CommandContext.hpp"
+#include "common/resource/ResourceLocation.hpp"
 #include "ArgumentType.hpp"
 #include <memory>
 #include <functional>
 #include <algorithm>
 
 namespace mr {
-
-// 前向声明
-class Entity;
-class Player;
-class ServerPlayer;
-class ServerWorld;
 
 namespace command {
 
@@ -108,7 +103,6 @@ private:
 class ResourceLocationArgumentType : public ArgumentType<ResourceLocation> {
 public:
     [[nodiscard]] ResourceLocation parse(StringReader& reader) override {
-        i32 start = reader.getCursor();
         String str = reader.readString();
 
         // 解析命名空间
@@ -189,7 +183,7 @@ private:
     /**
      * @brief 解析单个坐标分量
      */
-    i32 parseCoordinate(StringReader& reader, char axis) {
+    i32 parseCoordinate(StringReader& reader, [[maybe_unused]] char axis) {
         bool relative = false;
         bool local = false;
 

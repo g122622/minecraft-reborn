@@ -201,7 +201,7 @@ public:
             "commands.requires.entity");
     }
 
-    static CommandException permissionDenied(i32 required) {
+    static CommandException permissionDenied([[maybe_unused]] i32 required) {
         return CommandException(CommandErrorType::PermissionDenied,
             "commands.permission.denied");
     }

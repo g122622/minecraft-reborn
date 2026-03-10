@@ -1,7 +1,7 @@
 #include "KillCommand.hpp"
 #include "common/command/CommandContext.hpp"
 #include "common/command/arguments/EntityArgument.hpp"
-#include "common/entity/Player.hpp"
+#include "server/player/ServerPlayer.hpp"
 #include <sstream>
 
 namespace mr {
@@ -47,7 +47,7 @@ i32 KillCommand::killSelf(CommandContext<ServerCommandSource>& context) {
     // player.kill();
 
     std::ostringstream ss;
-    ss << "Killed " << player.getName();
+    ss << "Killed " << player.username();
     source.sendMessage(ss.str());
 
     return 1;

@@ -16,6 +16,7 @@
 #include "../ui/DebugScreen.hpp"
 #include "../ui/crosshair/CrosshairRenderer.hpp"
 #include "../ui/hud/HudRenderer.hpp"
+#include "../ui/chat/ChatScreen.hpp"
 #include "../resource/ResourceManager.hpp"
 #include "../resource/BlockModelCache.hpp"
 #include "server/application/IntegratedServer.hpp"
@@ -143,6 +144,9 @@ private:
     // 玩家位置同步
     void sendPlayerPosition();
 
+    // 聊天命令处理
+    void handleChatCommand(const String& input);
+
     // 加载设置
     [[nodiscard]] Result<void> loadSettings(const String& path);
 
@@ -188,6 +192,9 @@ private:
 
     // HUD渲染器
     HudRenderer m_hudRenderer;
+
+    // 聊天屏幕
+    ChatScreen m_chatScreen;
 
     // 射线检测结果
     BlockRaycastResult m_raycastResult;

@@ -2,7 +2,7 @@
 #include "common/command/CommandContext.hpp"
 #include "common/command/arguments/EntityArgument.hpp"
 #include "common/command/arguments/ArgumentType.hpp"
-#include "common/entity/Player.hpp"
+#include "server/player/ServerPlayer.hpp"
 #include "common/item/ItemStack.hpp"
 #include <sstream>
 

@@ -110,6 +110,11 @@ public:
     [[nodiscard]] u32 getFontHeight() const;
 
     /**
+     * @brief 获取字体对象
+     */
+    [[nodiscard]] Font* font() const { return m_font; }
+
+    /**
      * @brief 设置字体缩放因子
      * @param scale 缩放因子（默认1.0）
      */

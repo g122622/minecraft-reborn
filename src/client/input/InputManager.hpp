@@ -98,6 +98,45 @@ public:
      */
     [[nodiscard]] bool isMouseLocked() const noexcept { return m_mouseLocked; }
 
+    // ========== 字符输入 ==========
+
+    /**
+     * @brief 字符输入回调
+     */
+    using CharCallback = std::function<void(u32 codepoint)>;
+
+    /**
+     * @brief 设置字符输入回调
+     * @param callback 回调函数
+     */
+    void setCharCallback(CharCallback callback) { m_charCallback = std::move(callback); }
+
+    /**
+     * @brief 清除字符输入回调
+     */
+    void clearCharCallback() { m_charCallback = nullptr; }
+
+    // ========== 键盘事件回调 ==========
+
+    /**
+     * @brief 键盘事件回调（用于UI输入处理）
+     * @param key GLFW键码
+     * @param action GLFW动作 (GLFW_PRESS, GLFW_RELEASE, GLFW_REPEAT)
+     * @param mods 修饰键
+     */
+    using KeyEventCallback = std::function<void(i32 key, i32 action, i32 mods)>;
+
+    /**
+     * @brief 设置键盘事件回调
+     * @param callback 回调函数
+     */
+    void setKeyEventCallback(KeyEventCallback callback) { m_keyEventCallback = std::move(callback); }
+
+    /**
+     * @brief 清除键盘事件回调
+     */
+    void clearKeyEventCallback() { m_keyEventCallback = nullptr; }
+
     // 按键绑定
     using ActionCallback = std::function<void()>;
 
@@ -109,11 +148,13 @@ private:
     static void mouseCallback(GLFWwindow* window, double xpos, double ypos);
     static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
     static void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+    static void charCallback(GLFWwindow* window, unsigned int codepoint);
 
     void handleKey(i32 key, i32 action);
     void handleMouseButton(i32 button, i32 action);
     void handleMouseMove(f64 x, f64 y);
     void handleScroll(f64 x, f64 y);
+    void handleCharInput(u32 codepoint);
 
     GLFWwindow* m_window = nullptr;
 
@@ -147,6 +188,12 @@ private:
     // 按键绑定
     std::unordered_map<i32, String> m_keyBindings;
     std::unordered_map<String, ActionCallback> m_actionCallbacks;
+
+    // 字符输入回调
+    CharCallback m_charCallback;
+
+    // 键盘事件回调
+    KeyEventCallback m_keyEventCallback;
 };
 
 } // namespace mr::client

@@ -15,6 +15,7 @@ void InputManager::initialize(GLFWwindow* window)
     glfwSetCursorPosCallback(window, mouseCallback);
     glfwSetMouseButtonCallback(window, mouseButtonCallback);
     glfwSetScrollCallback(window, scrollCallback);
+    glfwSetCharCallback(window, charCallback);
 
     // 初始化鼠标位置
     glfwGetCursorPos(window, &m_mouseX, &m_mouseY);
@@ -162,6 +163,11 @@ void InputManager::scrollCallback(GLFWwindow* window, double xoffset, double yof
 
 void InputManager::handleKey(i32 key, i32 action)
 {
+    // 先触发键盘事件回调（用于UI输入处理）
+    if (m_keyEventCallback) {
+        m_keyEventCallback(key, action, 0);
+    }
+
     if (action == GLFW_PRESS) {
         m_keysPressed.insert(key);
         m_keysJustPressed.insert(key);
@@ -205,6 +211,21 @@ void InputManager::handleScroll(f64 x, f64 y)
 {
     m_scrollDeltaX = x;
     m_scrollDeltaY = y;
+}
+
+void InputManager::charCallback(GLFWwindow* window, unsigned int codepoint)
+{
+    auto* input = static_cast<InputManager*>(glfwGetWindowUserPointer(window));
+    if (input) {
+        input->handleCharInput(codepoint);
+    }
+}
+
+void InputManager::handleCharInput(u32 codepoint)
+{
+    if (m_charCallback) {
+        m_charCallback(codepoint);
+    }
 }
 
 } // namespace mr::client

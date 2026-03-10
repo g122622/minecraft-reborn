@@ -3,6 +3,8 @@
 #include "common/core/Types.hpp"
 #include "common/command/exceptions/CommandExceptions.hpp"
 #include "common/command/CommandResult.hpp"
+#include "common/command/StringReader.hpp"
+#include "common/command/arguments/ArgumentType.hpp"
 #include <string>
 #include <memory>
 #include <vector>
@@ -207,9 +209,35 @@ class ArgumentCommandNode : public CommandNode<S> {
 public:
     using Parser = std::function<T(StringView, i32&, CommandException&)>;
 
+    /**
+     * @brief 使用解析函数构造
+     */
     ArgumentCommandNode(const String& name, Parser parser)
         : m_name(name)
         , m_parser(std::move(parser)) {}
+
+    /**
+     * @brief 使用 ArgumentType 构造
+     *
+     * 更方便的构造方式，从 ArgumentType 派生类创建。
+     * 例如：ArgumentCommandNode<ServerCommandSource, i32>("value", IntegerArgumentType::integer())
+     */
+    ArgumentCommandNode(const String& name, std::shared_ptr<ArgumentType<T>> argumentType)
+        : m_name(name)
+        , m_argumentType(std::move(argumentType))
+        , m_parser([this](StringView input, i32& cursor, CommandException& error) -> T {
+            StringReader reader(input);
+            reader.setCursor(cursor);
+            try {
+                T result = m_argumentType->parse(reader);
+                cursor = reader.getCursor();
+                return result;
+            } catch (const CommandException& e) {
+                error = e;
+                cursor = -1;
+                return T{};
+            }
+        }) {}
 
     [[nodiscard]] NodeType getType() const noexcept override { return NodeType::Argument; }
     [[nodiscard]] String getName() const noexcept override { return m_name; }
@@ -248,6 +276,7 @@ public:
 private:
     String m_name;
     Parser m_parser;
+    std::shared_ptr<ArgumentType<T>> m_argumentType;
 };
 
 } // namespace mr::command

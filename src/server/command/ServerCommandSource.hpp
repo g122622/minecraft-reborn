@@ -11,9 +11,8 @@ namespace mr {
 
 // 前向声明
 class MinecraftServer;
-class ServerPlayer;
 class ServerWorld;
-class Entity;
+class ServerPlayer;
 
 namespace command {
 

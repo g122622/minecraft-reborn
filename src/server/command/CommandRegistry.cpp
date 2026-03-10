@@ -20,9 +20,9 @@ CommandRegistry::CommandRegistry()
 Result<i32> CommandRegistry::execute(const String& input, ServerCommandSource& source) {
     auto result = m_dispatcher.execute(input, source);
     if (result.success()) {
-        return Result<i32>::success(result.value().result());
+        return result.value().result();
     }
-    return Result<i32>::failure(result.error());
+    return Error(ErrorCode::Unknown, "Command execution failed");
 }
 
 void CommandRegistry::registerDefaults() {

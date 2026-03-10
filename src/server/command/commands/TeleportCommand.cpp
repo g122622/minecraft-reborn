@@ -2,7 +2,7 @@
 #include "common/command/CommandContext.hpp"
 #include "common/command/arguments/EntityArgument.hpp"
 #include "common/command/arguments/GameModeArgument.hpp"
-#include "common/entity/Player.hpp"
+#include "server/player/ServerPlayer.hpp"
 #include <sstream>
 
 namespace mr {
@@ -25,16 +25,16 @@ void TeleportCommand::registerTo(CommandDispatcher<ServerCommandSource>& dispatc
         return teleportToEntity(ctx);
     });
 
-    // /tp <x> <y> <z> - 传送到坐标
-    auto xPosArg = std::make_shared<ArgumentCommandNode<ServerCommandSource, f64>>(
+    // /tp <x> <y> <z> - 传送到坐标 (使用 Vec3ArgumentType 更合适，这里用坐标)
+    auto xPosArg = std::make_shared<ArgumentCommandNode<ServerCommandSource, f32>>(
         "x",
         FloatArgumentType::floatArg()
     );
-    auto yPosArg = std::make_shared<ArgumentCommandNode<ServerCommandSource, f64>>(
+    auto yPosArg = std::make_shared<ArgumentCommandNode<ServerCommandSource, f32>>(
         "y",
         FloatArgumentType::floatArg()
     );
-    auto zPosArg = std::make_shared<ArgumentCommandNode<ServerCommandSource, f64>>(
+    auto zPosArg = std::make_shared<ArgumentCommandNode<ServerCommandSource, f32>>(
         "z",
         FloatArgumentType::floatArg()
     );
@@ -68,7 +68,7 @@ i32 TeleportCommand::teleportToEntity(CommandContext<ServerCommandSource>& conte
     // Entity* target = resolveSelector(selector, source);
 
     std::ostringstream ss;
-    ss << "Teleported " << player.getName() << " to target";
+    ss << "Teleported " << player.username() << " to target";
     source.sendMessage(ss.str());
 
     return 1;
@@ -86,15 +86,15 @@ i32 TeleportCommand::teleportToPosition(CommandContext<ServerCommandSource>& con
     ServerPlayer& player = source.assertPlayer();
 
     // 获取坐标
-    f64 x = context.getArgument<f64>("x");
-    f64 y = context.getArgument<f64>("y");
-    f64 z = context.getArgument<f64>("z");
+    f32 x = context.getArgument<f32>("x");
+    f32 y = context.getArgument<f32>("y");
+    f32 z = context.getArgument<f32>("z");
 
     // TODO: 实际传送逻辑
     // player.teleport(x, y, z);
 
     std::ostringstream ss;
-    ss << "Teleported " << player.getName() << " to "
+    ss << "Teleported " << player.username() << " to "
        << x << ", " << y << ", " << z;
     source.sendMessage(ss.str());
 

@@ -1,6 +1,6 @@
 #include "GameModeCommand.hpp"
 #include "common/command/CommandContext.hpp"
-#include "common/entity/Player.hpp"
+#include "server/player/ServerPlayer.hpp"
 #include <sstream>
 
 namespace mr {
@@ -80,7 +80,7 @@ i32 GameModeCommand::setGameMode(
     // player.setGameMode(mode);
 
     // 发送反馈
-    String playerName = player.getName();
+    String playerName = player.username();
     String modeName = getGameModeName(mode);
 
     std::ostringstream ss;

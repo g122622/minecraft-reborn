@@ -6,8 +6,13 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <unordered_map>
 
 namespace mr::command {
+
+// 前向声明
+template<typename S>
+class CommandContext;
 
 /**
  * @brief 参数类型基类

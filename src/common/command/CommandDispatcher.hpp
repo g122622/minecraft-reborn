@@ -117,8 +117,8 @@ public:
      * @return 执行结果
      */
     Result<CommandResult> execute(StringView input, S& source) {
-        auto parse = parse(input, source);
-        return execute(parse);
+        ParseResults<S> parseResult = parse(input, source);
+        return execute(parseResult);
     }
 
     /**
@@ -420,26 +420,26 @@ ParseResults<S> CommandDispatcher<S>::parseNodes(
 template<typename S>
 Result<CommandResult> CommandDispatcher<S>::execute(ParseResults<S>& parse) {
     if (parse.isFailure()) {
-        return Result<CommandResult>::failure(parse.getError()->message());
+        return Error(ErrorCode::Unknown, parse.getError()->message());
     }
 
     auto* context = parse.getContext();
     if (!context) {
-        return Result<CommandResult>::failure("No command context");
+        return Error(ErrorCode::Unknown, "No command context");
     }
 
     auto node = context->getCurrentNode();
     if (!node || !node->hasCommand()) {
-        return Result<CommandResult>::failure("No command to execute");
+        return Error(ErrorCode::Unknown, "No command to execute");
     }
 
     try {
         i32 result = node->getCommand()(*context);
-        return Result<CommandResult>::success(CommandResult::success(result));
+        return CommandResult::success(result);
     } catch (const CommandException& e) {
-        return Result<CommandResult>::failure(e.message());
+        return Error(ErrorCode::Unknown, e.message());
     } catch (const std::exception& e) {
-        return Result<CommandResult>::failure(e.what());
+        return Error(ErrorCode::Unknown, e.what());
     }
 }
 

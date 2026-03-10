@@ -36,7 +36,7 @@ public:
      */
     [[nodiscard]] const Item* getItem() const {
         if (!isValid()) return nullptr;
-        return ItemRegistry::instance().getById(m_itemId);
+        return ItemRegistry::instance().getItem(m_itemId);
     }
 
     /**
@@ -83,7 +83,7 @@ public:
 
         // 查找物品
         ResourceLocation location(namespace_, path);
-        const Item* item = ItemRegistry::instance().get(location);
+        const Item* item = ItemRegistry::instance().getItem(location);
 
         if (item == nullptr) {
             reader.setCursor(start);
@@ -94,7 +94,7 @@ public:
             );
         }
 
-        return ItemInput(item->getId());
+        return ItemInput(item->itemId());
     }
 
     [[nodiscard]] String getTypeName() const override {

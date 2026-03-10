@@ -348,6 +348,25 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
             spdlog::warn("Failed to initialize HUD renderer");
         }
 
+        // 初始化聊天屏幕
+        m_chatScreen.initialize(m_renderer->guiRenderer().font());
+        m_chatScreen.setCommandCallback([this](const String& input) {
+            handleChatCommand(input);
+        });
+        spdlog::info("Chat screen initialized");
+
+        // 设置字符输入回调
+        m_input.setCharCallback([this](u32 codepoint) {
+            m_chatScreen.onCharInput(codepoint);
+        });
+
+        // 设置键盘事件回调（用于聊天框输入）
+        m_input.setKeyEventCallback([this](i32 key, i32 action, i32 mods) {
+            if (m_chatScreen.isOpen()) {
+                m_chatScreen.onKeyInput(key, action, mods);
+            }
+        });
+
         // 设置GUI渲染回调
         m_renderer->setGuiRenderCallback([this]() {
             // 先渲染准星
@@ -361,6 +380,10 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
                                          static_cast<f32>(m_window.height()));
                 }
             }
+            // 渲染聊天屏幕（消息列表和输入框）
+            m_chatScreen.render(m_renderer->guiRenderer(),
+                                static_cast<f32>(m_window.width()),
+                                static_cast<f32>(m_window.height()));
             // 再渲染调试屏幕
             if (m_debugScreenVisible) {
                 m_debugScreen.render();
@@ -453,10 +476,42 @@ void ClientApplication::handleEvents()
     m_window.pollEvents();
     m_input.update();
 
+    // 处理聊天框键盘输入（优先于游戏输入）
+    if (m_chatScreen.isOpen()) {
+        // 聊天框打开时，只处理聊天相关按键
+        // ESC 关闭聊天框
+        if (m_input.isKeyJustPressed(GLFW_KEY_ESCAPE)) {
+            m_chatScreen.close();
+            m_input.setMouseLocked(true);
+            m_mouseCaptured = true;
+        }
+        return;
+    }
+
     // 检查ALT键切换鼠标捕获
     if (m_input.isKeyJustPressed(GLFW_KEY_LEFT_ALT) ||
         m_input.isKeyJustPressed(GLFW_KEY_RIGHT_ALT)) {
         toggleMouseCapture();
+    }
+
+    // T 键打开聊天框
+    if (m_input.isKeyJustPressed(GLFW_KEY_T)) {
+        m_chatScreen.open(false);
+        if (m_mouseCaptured) {
+            m_input.setMouseLocked(false);
+            m_mouseCaptured = false;
+        }
+        return;
+    }
+
+    // / 键打开命令框
+    if (m_input.isKeyJustPressed(GLFW_KEY_SLASH)) {
+        m_chatScreen.open(true);
+        if (m_mouseCaptured) {
+            m_input.setMouseLocked(false);
+            m_mouseCaptured = false;
+        }
+        return;
     }
 
     // 飞行模式切换（F键）
@@ -1224,6 +1279,41 @@ void ClientApplication::reloadResources()
             chunk.needsMeshUpdate = true;
         });
         spdlog::info("Marked loaded chunks dirty after resource reload");
+    }
+}
+
+void ClientApplication::handleChatCommand(const String& input)
+{
+    if (input.empty()) {
+        return;
+    }
+
+    // 添加到聊天历史
+    m_chatScreen.addMessage(input, 0xFFFFFFFF);
+
+    // 检查是否为命令（以 / 开头）
+    if (input[0] == '/') {
+        String command = input.substr(1);
+
+        // TODO: 连接到 CommandDispatcher 执行命令
+        // 目前只显示命令被接收
+        spdlog::info("Chat command received: {}", command);
+
+        // 发送到服务端
+        if (m_networkClient && m_networkClient->isLoggedIn()) {
+            m_networkClient->sendChatMessage(input);
+        } else {
+            // 本地回显
+            m_chatScreen.addSystemMessage("Command executed locally (not connected to server)");
+        }
+    } else {
+        // 普通聊天消息，发送到服务端
+        if (m_networkClient && m_networkClient->isLoggedIn()) {
+            m_networkClient->sendChatMessage(input);
+        } else {
+            // 本地回显
+            m_chatScreen.addSystemMessage("Message sent locally (not connected to server)");
+        }
     }
 }
 
