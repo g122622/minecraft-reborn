@@ -173,11 +173,40 @@ public:
     static Item* SALMON;
 
     // ========================================================================
+    // 木头和木板（合成基础材料）
+    // ========================================================================
+    static Item* OAK_LOG;
+    static Item* SPRUCE_LOG;
+    static Item* BIRCH_LOG;
+    static Item* JUNGLE_LOG;
+    static Item* ACACIA_LOG;
+    static Item* DARK_OAK_LOG;
+
+    static Item* OAK_PLANKS;
+    static Item* SPRUCE_PLANKS;
+    static Item* BIRCH_PLANKS;
+    static Item* JUNGLE_PLANKS;
+    static Item* ACACIA_PLANKS;
+    static Item* DARK_OAK_PLANKS;
+
+    // ========================================================================
+    // 合成产物
+    // ========================================================================
+    static Item* CRAFTING_TABLE;
+
+    // ========================================================================
     // 木棍和骨头
     // ========================================================================
     static Item* STICK;
     static Item* BONE;
     static Item* BONE_MEAL;
+
+    // ========================================================================
+    // 石头相关
+    // ========================================================================
+    static Item* STONE;
+    static Item* COBBLESTONE;
+    static Item* MOSSY_COBBLESTONE;
 
     // ========================================================================
     // 杂项

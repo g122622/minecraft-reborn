@@ -67,6 +67,7 @@ add_library(mr_common STATIC
     # World - Block Entity
     world/blockentity/BlockEntityType.cpp
     world/blockentity/BlockEntity.cpp
+    world/blockentity/CraftingTableEntity.cpp
 
     # Screen
     screen/ScreenType.cpp

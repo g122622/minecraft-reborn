@@ -10,6 +10,29 @@ bool Items::s_initialized = false;
 
 Item* Items::AIR = nullptr;
 
+// 木头和木板
+Item* Items::OAK_LOG = nullptr;
+Item* Items::SPRUCE_LOG = nullptr;
+Item* Items::BIRCH_LOG = nullptr;
+Item* Items::JUNGLE_LOG = nullptr;
+Item* Items::ACACIA_LOG = nullptr;
+Item* Items::DARK_OAK_LOG = nullptr;
+
+Item* Items::OAK_PLANKS = nullptr;
+Item* Items::SPRUCE_PLANKS = nullptr;
+Item* Items::BIRCH_PLANKS = nullptr;
+Item* Items::JUNGLE_PLANKS = nullptr;
+Item* Items::ACACIA_PLANKS = nullptr;
+Item* Items::DARK_OAK_PLANKS = nullptr;
+
+// 合成产物
+Item* Items::CRAFTING_TABLE = nullptr;
+
+// 石头
+Item* Items::STONE = nullptr;
+Item* Items::COBBLESTONE = nullptr;
+Item* Items::MOSSY_COBBLESTONE = nullptr;
+
 // 矿物和材料
 Item* Items::DIAMOND = nullptr;
 Item* Items::EMERALD = nullptr;
@@ -610,6 +633,78 @@ void Items::registerFood() {
 void Items::registerMisc() {
     auto& registry = ItemRegistry::instance();
 
+    // 木头和木板
+    OAK_LOG = &registry.registerItem(
+        ResourceLocation("minecraft:oak_log"),
+        ItemProperties().maxStackSize(64)
+    );
+    SPRUCE_LOG = &registry.registerItem(
+        ResourceLocation("minecraft:spruce_log"),
+        ItemProperties().maxStackSize(64)
+    );
+    BIRCH_LOG = &registry.registerItem(
+        ResourceLocation("minecraft:birch_log"),
+        ItemProperties().maxStackSize(64)
+    );
+    JUNGLE_LOG = &registry.registerItem(
+        ResourceLocation("minecraft:jungle_log"),
+        ItemProperties().maxStackSize(64)
+    );
+    ACACIA_LOG = &registry.registerItem(
+        ResourceLocation("minecraft:acacia_log"),
+        ItemProperties().maxStackSize(64)
+    );
+    DARK_OAK_LOG = &registry.registerItem(
+        ResourceLocation("minecraft:dark_oak_log"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    OAK_PLANKS = &registry.registerItem(
+        ResourceLocation("minecraft:oak_planks"),
+        ItemProperties().maxStackSize(64)
+    );
+    SPRUCE_PLANKS = &registry.registerItem(
+        ResourceLocation("minecraft:spruce_planks"),
+        ItemProperties().maxStackSize(64)
+    );
+    BIRCH_PLANKS = &registry.registerItem(
+        ResourceLocation("minecraft:birch_planks"),
+        ItemProperties().maxStackSize(64)
+    );
+    JUNGLE_PLANKS = &registry.registerItem(
+        ResourceLocation("minecraft:jungle_planks"),
+        ItemProperties().maxStackSize(64)
+    );
+    ACACIA_PLANKS = &registry.registerItem(
+        ResourceLocation("minecraft:acacia_planks"),
+        ItemProperties().maxStackSize(64)
+    );
+    DARK_OAK_PLANKS = &registry.registerItem(
+        ResourceLocation("minecraft:dark_oak_planks"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    // 合成产物
+    CRAFTING_TABLE = &registry.registerItem(
+        ResourceLocation("minecraft:crafting_table"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    // 石头
+    STONE = &registry.registerItem(
+        ResourceLocation("minecraft:stone"),
+        ItemProperties().maxStackSize(64)
+    );
+    COBBLESTONE = &registry.registerItem(
+        ResourceLocation("minecraft:cobblestone"),
+        ItemProperties().maxStackSize(64)
+    );
+    MOSSY_COBBLESTONE = &registry.registerItem(
+        ResourceLocation("minecraft:mossy_cobblestone"),
+        ItemProperties().maxStackSize(64)
+    );
+
+    // 木棍和骨头
     STICK = &registry.registerItem(
         ResourceLocation("minecraft:stick"),
         ItemProperties().maxStackSize(64)
