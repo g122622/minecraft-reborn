@@ -39,6 +39,7 @@ add_library(mr_common STATIC
     entity/inventory/Slot.cpp
     entity/inventory/PlayerInventory.cpp
     entity/inventory/Container.cpp
+    entity/inventory/CraftingInventory.cpp
 
     # Item System
     item/Item.cpp
@@ -49,6 +50,11 @@ add_library(mr_common STATIC
     item/BlockItemRegistry.cpp
     item/ItemUseContext.cpp
     item/BlockItemUseContext.cpp
+
+    # Item - Crafting
+    item/crafting/Ingredient.cpp
+    item/crafting/RecipeType.cpp
+    item/crafting/RecipeManager.cpp
 
     # World - Drop Tables
     world/drop/DropTables.cpp

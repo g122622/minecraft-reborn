@@ -32,6 +32,9 @@ add_executable(mr_tests
     common/test_inventory.cpp
     common/test_item_entity.cpp
     common/test_container.cpp
+    common/item/crafting/IngredientTest.cpp
+    common/item/crafting/RecipeManagerTest.cpp
+    common/entity/inventory/CraftingInventoryTest.cpp
     common/command/test_command_dispatcher.cpp
     common/SettingsTest.cpp
     server/ServerWorldTest.cpp
@@ -125,6 +128,11 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/entity/inventory/Slot.cpp
         ${CMAKE_SOURCE_DIR}/src/common/entity/inventory/PlayerInventory.cpp
         ${CMAKE_SOURCE_DIR}/src/common/entity/inventory/Container.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/entity/inventory/CraftingInventory.cpp
+        # 合成系统
+        ${CMAKE_SOURCE_DIR}/src/common/item/crafting/Ingredient.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/crafting/RecipeType.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/crafting/RecipeManager.cpp
         # 物品实体和掉落表
         ${CMAKE_SOURCE_DIR}/src/common/entity/ItemEntity.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/drop/DropTables.cpp
