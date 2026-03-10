@@ -73,4 +73,15 @@ bool ArmorSlot::mayPlace(const ItemStack& stack) const {
     return Slot::mayPlace(stack);
 }
 
+// ============================================================================
+// ResultSlot
+// ============================================================================
+
+ResultSlot::ResultSlot(IInventory* inventory, i32 slotIndex, i32 x, i32 y,
+                       CraftingInventory* craftingGrid)
+    : Slot(inventory, slotIndex, x, y)
+    , m_craftingGrid(craftingGrid)
+{
+}
+
 } // namespace mr

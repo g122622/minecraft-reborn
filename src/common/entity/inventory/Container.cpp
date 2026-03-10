@@ -256,7 +256,7 @@ void Container::setAllSlots(const std::vector<ItemStack>& items) {
 void Container::serialize(network::PacketSerializer& ser) const {
     // 写入容器类型和ID
     ser.writeU8(static_cast<u8>(m_type));
-    ser.writeU8(m_id);
+    ser.writeU8(static_cast<ContainerIdU8>(m_id));
 
     // 写入槽位数量
     ser.writeVarUInt(static_cast<u32>(m_slots.size()));

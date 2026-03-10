@@ -111,6 +111,13 @@ public:
     static constexpr i32 RESULT_SLOT = 9;
     static constexpr i32 PLAYER_INV_START = 10;
 
+    /**
+     * @brief 检查是否是合成网格槽位
+     */
+    [[nodiscard]] bool isGridSlot(i32 slotIndex) const {
+        return slotIndex >= GRID_SLOT_START && slotIndex < GRID_SLOT_START + GRID_SLOT_COUNT;
+    }
+
 protected:
     /**
      * @brief 添加合成网格槽位

@@ -184,4 +184,50 @@ private:
     ArmorType m_armorType;
 };
 
+// Forward declaration
+class CraftingInventory;
+
+/**
+ * @brief 合成结果槽位
+ *
+ * 特殊槽位，用于显示合成结果。
+ * 不能直接放入物品，只能取出。
+ *
+ * 参考: net.minecraft.inventory.container.CraftingResultSlot
+ */
+class ResultSlot : public Slot {
+public:
+    /**
+     * @brief 构造结果槽位
+     * @param inventory 所属背包（通常是 CraftResultInventory）
+     * @param slotIndex 槽位索引（通常为0）
+     * @param x 显示位置X
+     * @param y 显示位置Y
+     * @param craftingGrid 关联的合成网格
+     */
+    ResultSlot(IInventory* inventory, i32 slotIndex, i32 x, i32 y,
+               CraftingInventory* craftingGrid);
+
+    /**
+     * @brief 结果槽位不能放置物品
+     */
+    [[nodiscard]] bool mayPlace(const ItemStack& stack) const override {
+        (void)stack;
+        return false;
+    }
+
+    /**
+     * @brief 检查槽位是否有效
+     */
+    [[nodiscard]] bool isValid() const override { return true; }
+
+    /**
+     * @brief 获取关联的合成网格
+     */
+    [[nodiscard]] CraftingInventory* getCraftingGrid() const { return m_craftingGrid; }
+
+private:
+    CraftingInventory* m_craftingGrid;
+};
+
 } // namespace mr

@@ -45,6 +45,7 @@ add_executable(minecraft-client
     ui/inventory/SlotRenderer.cpp
     ui/screen/ScreenManager.cpp
     ui/screen/CraftingScreen.cpp
+    ui/texture/GuiTextureAtlas.cpp
     ui/chat/ChatHistory.cpp
     ui/chat/ChatScreen.cpp
     # 内置服务端支持

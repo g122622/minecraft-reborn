@@ -2,6 +2,7 @@
 
 #include "core/Types.hpp"
 #include "item/ItemStack.hpp"
+#include "entity/inventory/ContainerTypes.hpp"
 #include "resource/ResourceLocation.hpp"
 #include <functional>
 #include <memory>
@@ -17,50 +18,6 @@ class ItemStack;
 class Slot;
 class Container;
 class BlockEntity;
-
-/**
- * @brief 容器ID类型
- *
- * 用于标识打开的容器窗口，同步客户端和服务端状态。
- */
-using ContainerId = i32;
-
-/**
- * @brief 无效容器ID
- */
-constexpr ContainerId INVALID_CONTAINER_ID = -1;
-
-/**
- * @brief 容器动作类型
- *
- * 定义玩家与容器交互的操作类型
- */
-enum class ContainerAction : u8 {
-    Click,           ///< 点击槽位
-    ShiftClick,      ///< Shift+点击（快速移动）
-    HotbarSwap,      ///< 数字键交换
-    CreativePick,    ///< 创造模式选取
-    DoubleClick,     ///< 双击（合并相同物品）
-    Drag,            ///< 拖动分发
-    Throw,           ///< 丢弃物品
-};
-
-/**
- * @brief 点击类型
- */
-enum class ClickType : u8 {
-    Pick,            ///< 拾取（左键）
-    PickAll,         ///< 全部拾取（双击）
-    PickSome,        ///< 部分拾取（右键）
-    Place,           ///< 放置（左键）
-    PlaceSome,       ///< 部分放置（右键）
-    PlaceAll,        ///< 全部放置
-    Throw,           ///< 丢弃
-    ThrowAll,        ///< 全部丢弃
-    QuickMove,       ///< 快速移动（Shift+点击）
-    QuickCraft,      ///< 快速合成（拖动）
-    Clone,           ///< 克隆（创造模式中键）
-};
 
 /**
  * @brief 容器菜单基类
@@ -121,6 +78,16 @@ public:
      * @return 移动后的物品堆
      */
     virtual ItemStack quickMoveStack(i32 slotIndex, Player& player);
+
+    /**
+     * @brief 在指定范围内移动物品
+     * @param stack 要移动的物品（会被修改）
+     * @param startIndex 起始槽位索引
+     * @param endIndex 结束槽位索引（包含）
+     * @param reverse 是否反向搜索（从后向前）
+     * @return 如果移动成功返回true
+     */
+    bool moveItemToRange(ItemStack& stack, i32 startIndex, i32 endIndex, bool reverse = false);
 
     /**
      * @brief 容器内容变化时调用

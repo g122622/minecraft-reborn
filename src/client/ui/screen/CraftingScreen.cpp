@@ -18,7 +18,8 @@ void CraftingScreen::onInit() {
 }
 
 void CraftingScreen::renderContainerBackground() {
-    // TODO: 渲染工作台GUI纹理
+    // 渲染工作台GUI背景
+    // TODO: 使用 GuiTextureAtlas 加载纹理
     // 纹理路径: minecraft:textures/gui/container/crafting_table.png
 
     // 合成网格区域: (30, 17) - 3x3 格子
@@ -42,11 +43,11 @@ void CraftingScreen::renderContainerForeground(i32 mouseX, i32 mouseY) {
 
 void CraftingScreen::renderCraftingGrid() {
     // 渲染3x3合成网格
-    // TODO: 渲染槽位背景和物品
     if (m_menu == nullptr) {
         return;
     }
 
+    // TODO: 使用 SlotRenderer 渲染槽位
     // 遍历合成网格槽位 (0-8)
     for (i32 i = 0; i < mr::CraftingMenu::GRID_SLOT_COUNT; ++i) {
         mr::Slot* slot = m_menu->getSlot(i);
@@ -57,9 +58,10 @@ void CraftingScreen::renderCraftingGrid() {
             i32 screenX = m_leftPos + GRID_X + gridX * 18;
             i32 screenY = m_topPos + GRID_Y + gridY * 18;
 
-            // TODO: 渲染槽位
+            // TODO: 调用 SlotRenderer::renderSlot(guiRenderer, screenX, screenY, slot->getItem())
             (void)screenX;
             (void)screenY;
+            (void)slot;
         }
     }
 }
@@ -78,6 +80,7 @@ void CraftingScreen::renderResultSlot() {
         // TODO: 渲染结果槽位（可能有特殊效果）
         (void)screenX;
         (void)screenY;
+        (void)resultSlot;
     }
 }
 
@@ -102,6 +105,7 @@ void CraftingScreen::renderPlayerInventory() {
             // TODO: 渲染槽位
             (void)screenX;
             (void)screenY;
+            (void)slot;
         }
     }
 }

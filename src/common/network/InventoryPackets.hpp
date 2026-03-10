@@ -24,11 +24,11 @@ namespace inventory {
     // 最大物品堆叠数
     constexpr i32 MAX_STACK_SIZE = 64;
 
-    // 容器ID
-    constexpr ContainerId PLAYER_CONTAINER_ID = 0;
-
     // 玩家背包槽位数
     constexpr i32 PLAYER_INVENTORY_SIZE = 41;
+
+    // 玩家容器ID
+    constexpr ContainerId PLAYER_CONTAINER_ID = 0;
 }
 
 // ============================================================================
@@ -66,7 +66,7 @@ public:
 
     // 序列化
     void serialize(network::PacketSerializer& ser) const {
-        ser.writeU8(m_containerId);
+        ser.writeU8(static_cast<ContainerIdU8>(m_containerId));
         ser.writeVarUInt(static_cast<u32>(m_items.size()));
 
         for (const auto& item : m_items) {
@@ -143,7 +143,7 @@ public:
 
     // 序列化
     void serialize(network::PacketSerializer& ser) const {
-        ser.writeU8(m_containerId);
+        ser.writeU8(static_cast<ContainerIdU8>(m_containerId));
         ser.writeVarInt(m_slotIndex);
         m_item.serialize(ser);
     }
@@ -259,7 +259,7 @@ public:
 
     // 序列化
     void serialize(network::PacketSerializer& ser) const {
-        ser.writeU8(m_containerId);
+        ser.writeU8(static_cast<ContainerIdU8>(m_containerId));
         ser.writeVarInt(m_slotIndex);
         ser.writeU8(static_cast<u8>(m_button));
         ser.writeU8(static_cast<u8>(m_action));
@@ -331,7 +331,7 @@ public:
 
     // 序列化
     void serialize(network::PacketSerializer& ser) const {
-        ser.writeU8(m_containerId);
+        ser.writeU8(static_cast<ContainerIdU8>(m_containerId));
     }
 
     // 反序列化
@@ -390,7 +390,7 @@ public:
 
     // 序列化
     void serialize(network::PacketSerializer& ser) const {
-        ser.writeU8(m_containerId);
+        ser.writeU8(static_cast<ContainerIdU8>(m_containerId));
         ser.writeU8(m_type);
         ser.writeString(m_title);
         ser.writeVarInt(m_slotCount);
