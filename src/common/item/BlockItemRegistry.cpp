@@ -222,6 +222,9 @@ void BlockItemRegistry::initializeVanillaBlockItems()
     registerSimpleBlock(VanillaBlocks::NETHERRACK, "netherrack");
     registerSimpleBlock(VanillaBlocks::END_STONE, "end_stone");
 
+    // 功能方块
+    registerSimpleBlock(VanillaBlocks::CRAFTING_TABLE, "crafting_table");
+
     m_initialized = true;
     spdlog::info("Registered {} block items", m_itemToBlock.size());
 }

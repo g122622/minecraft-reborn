@@ -63,6 +63,9 @@ Block* VanillaBlocks::TNT = nullptr;
 Block* VanillaBlocks::SPONGE = nullptr;
 Block* VanillaBlocks::WET_SPONGE = nullptr;
 
+// 功能方块
+Block* VanillaBlocks::CRAFTING_TABLE = nullptr;
+
 // 羊毛
 Block* VanillaBlocks::WHITE_WOOL = nullptr;
 Block* VanillaBlocks::ORANGE_WOOL = nullptr;
@@ -160,6 +163,7 @@ void VanillaBlocks::initialize() {
     registerSandstones();
     registerMineralBlocks();
     registerBuildingBlocks();
+    registerFunctionalBlocks();
     registerWoolBlocks();
     registerPlanksVariants();
     registerNetherBlocks();
@@ -550,6 +554,20 @@ void VanillaBlocks::registerBuildingBlocks() {
     WET_SPONGE = &registry.registerBlock<SimpleBlock>(
         ResourceLocation("minecraft:wet_sponge"),
         BlockProperties(Material::SPONGE).hardness(0.6f)
+    );
+}
+
+// ============================================================================
+// 功能方块注册
+// ============================================================================
+void VanillaBlocks::registerFunctionalBlocks() {
+    auto& registry = BlockRegistry::instance();
+
+    // 工作台
+    // 参考: new CraftingTableBlock(Properties.create(Material.WOOD).hardnessAndResistance(2.5F))
+    CRAFTING_TABLE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:crafting_table"),
+        BlockProperties(Material::WOOD).hardness(2.5f).resistance(2.5f).flammable()
     );
 }
 

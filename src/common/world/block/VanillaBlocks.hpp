@@ -96,6 +96,11 @@ public:
     static Block* WET_SPONGE;
 
     // ========================================================================
+    // 功能方块
+    // ========================================================================
+    static Block* CRAFTING_TABLE;
+
+    // ========================================================================
     // 羊毛 (16色)
     // ========================================================================
     static Block* WHITE_WOOL;
@@ -201,6 +206,7 @@ private:
     static void registerSandstones();
     static void registerMineralBlocks();
     static void registerBuildingBlocks();
+    static void registerFunctionalBlocks();
     static void registerWoolBlocks();
     static void registerPlanksVariants();
     static void registerNetherBlocks();

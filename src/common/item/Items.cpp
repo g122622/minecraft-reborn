@@ -25,9 +25,6 @@ Item* Items::JUNGLE_PLANKS = nullptr;
 Item* Items::ACACIA_PLANKS = nullptr;
 Item* Items::DARK_OAK_PLANKS = nullptr;
 
-// 合成产物
-Item* Items::CRAFTING_TABLE = nullptr;
-
 // 石头
 Item* Items::STONE = nullptr;
 Item* Items::COBBLESTONE = nullptr;
@@ -681,12 +678,6 @@ void Items::registerMisc() {
     );
     DARK_OAK_PLANKS = &registry.registerItem(
         ResourceLocation("minecraft:dark_oak_planks"),
-        ItemProperties().maxStackSize(64)
-    );
-
-    // 合成产物
-    CRAFTING_TABLE = &registry.registerItem(
-        ResourceLocation("minecraft:crafting_table"),
         ItemProperties().maxStackSize(64)
     );
 

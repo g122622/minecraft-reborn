@@ -2,6 +2,8 @@
 #include "../physics/PhysicsEngine.hpp"
 #include "../math/random/Random.hpp"
 #include "../item/BlockItemRegistry.hpp"
+#include "../item/ItemRegistry.hpp"
+#include "../resource/ResourceLocation.hpp"
 #include <algorithm>
 #include <cmath>
 #include <chrono>
@@ -452,9 +454,23 @@ void Player::setCreativeModeInventory() {
     // 清空当前背包
     m_inventory.clear();
 
-    // 遍历所有注册的方块物品，添加到背包
     i32 slot = 0;
+
+    // 首先放置工作台在第一格（slot 0）
+    Item* craftingTableItem = ItemRegistry::instance().getItem(
+        ResourceLocation("minecraft:crafting_table"));
+    BlockItem* craftingTableBlockItem = dynamic_cast<BlockItem*>(craftingTableItem);
+    if (craftingTableBlockItem != nullptr && slot < PlayerInventory::TOTAL_SIZE) {
+        m_inventory.setItem(slot, ItemStack(*craftingTableBlockItem, 64));
+        slot++;
+    }
+
+    // 然后遍历所有其他注册的方块物品，添加到背包
     BlockItemRegistry::instance().forEachBlockItem([&](const BlockItem& item) {
+        // 跳过工作台（已经放在第一格了）
+        if (craftingTableBlockItem != nullptr && &item == craftingTableBlockItem) {
+            return;
+        }
         if (slot < PlayerInventory::TOTAL_SIZE) {
             // 创造模式下每个物品堆叠数量为64
             m_inventory.setItem(slot, ItemStack(item, 64));
