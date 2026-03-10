@@ -24,6 +24,8 @@ add_executable(minecraft-server
     command/commands/TeleportCommand.cpp
     command/commands/GiveCommand.cpp
     command/commands/ClearCommand.cpp
+    # 菜单系统
+    menu/CraftingMenu.cpp
 )
 
 target_link_libraries(minecraft-server

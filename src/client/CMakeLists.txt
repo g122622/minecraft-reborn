@@ -43,6 +43,8 @@ add_executable(minecraft-client
     ui/hud/HudRenderer.cpp
     ui/inventory/InventoryScreen.cpp
     ui/inventory/SlotRenderer.cpp
+    ui/screen/ScreenManager.cpp
+    ui/screen/CraftingScreen.cpp
     ui/chat/ChatHistory.cpp
     ui/chat/ChatScreen.cpp
     # 内置服务端支持

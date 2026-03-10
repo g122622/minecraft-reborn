@@ -1,8 +1,7 @@
 #pragma once
 
 #include "world/blockentity/ContainerBlockEntity.hpp"
-#include "entity/inventory/CraftingInventory.hpp"
-#include "entity/inventory/CraftResultInventory.hpp"
+#include "entity/inventory/CraftingInventory.hpp"  // 包含 CraftingInventory 和 CraftResultInventory
 #include "item/crafting/RecipeManager.hpp"
 
 namespace mr {

@@ -40,6 +40,7 @@ add_library(mr_common STATIC
     entity/inventory/PlayerInventory.cpp
     entity/inventory/Container.cpp
     entity/inventory/CraftingInventory.cpp
+    entity/inventory/AbstractContainerMenu.cpp
 
     # Item System
     item/Item.cpp
@@ -65,6 +66,9 @@ add_library(mr_common STATIC
     # World - Block Entity
     world/blockentity/BlockEntityType.cpp
     world/blockentity/BlockEntity.cpp
+
+    # Screen
+    screen/ScreenType.cpp
 
     # World - Block System
     world/block/Material.cpp
