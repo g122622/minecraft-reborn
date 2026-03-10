@@ -68,6 +68,14 @@ struct Vector3d {
     bool operator!=(const Vector3d& other) const { return !(*this == other); }
 };
 
+struct Vector3f {
+    f32 x, y, z;
+    Vector3f() : x(0), y(0), z(0) {}
+    Vector3f(f32 x, f32 y, f32 z) : x(x), y(y), z(z) {}
+    bool operator==(const Vector3f& other) const { return x == other.x && y == other.y && z == other.z; }
+    bool operator!=(const Vector3f& other) const { return !(*this == other); }
+};
+
 struct Vector2f {
     f32 x, y;
     Vector2f() : x(0), y(0) {}

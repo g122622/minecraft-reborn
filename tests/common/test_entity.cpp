@@ -12,16 +12,16 @@ using namespace mr;
 // ============================================================================
 
 TEST(Entity, Construction) {
-    Entity entity(EntityType::Player, 1);
+    Entity entity(LegacyEntityType::Player, 1);
 
     EXPECT_EQ(entity.id(), 1u);
-    EXPECT_EQ(entity.type(), EntityType::Player);
+    EXPECT_EQ(entity.legacyType(), LegacyEntityType::Player);
     EXPECT_FALSE(entity.uuid().empty());
     EXPECT_FALSE(entity.isRemoved());
 }
 
 TEST(Entity, Position) {
-    Entity entity(EntityType::Player, 1);
+    Entity entity(LegacyEntityType::Player, 1);
 
     entity.setPosition(100.5, 64.0, -200.25);
     EXPECT_FLOAT_EQ(entity.x(), 100.5f);
@@ -35,7 +35,7 @@ TEST(Entity, Position) {
 }
 
 TEST(Entity, Rotation) {
-    Entity entity(EntityType::Player, 1);
+    Entity entity(LegacyEntityType::Player, 1);
 
     entity.setRotation(90.0f, 45.0f);
     EXPECT_FLOAT_EQ(entity.yaw(), 90.0f);
@@ -43,7 +43,7 @@ TEST(Entity, Rotation) {
 }
 
 TEST(Entity, Velocity) {
-    Entity entity(EntityType::Player, 1);
+    Entity entity(LegacyEntityType::Player, 1);
 
     entity.setVelocity(1.0, 2.0, 3.0);
     auto vel = entity.velocity();
@@ -53,7 +53,7 @@ TEST(Entity, Velocity) {
 }
 
 TEST(Entity, Move) {
-    Entity entity(EntityType::Player, 1);
+    Entity entity(LegacyEntityType::Player, 1);
     entity.setPosition(0.0, 0.0, 0.0);
 
     entity.move(10.0, 5.0, -3.0);
@@ -63,7 +63,7 @@ TEST(Entity, Move) {
 }
 
 TEST(Entity, Rotate) {
-    Entity entity(EntityType::Player, 1);
+    Entity entity(LegacyEntityType::Player, 1);
     entity.setRotation(0.0f, 0.0f);
 
     entity.rotate(90.0f, 45.0f);
@@ -79,7 +79,7 @@ TEST(Entity, Rotate) {
 }
 
 TEST(Entity, BoundingBox) {
-    Entity entity(EntityType::Player, 1);
+    Entity entity(LegacyEntityType::Player, 1);
     entity.setPosition(0.0, 0.0, 0.0);
 
     auto box = entity.boundingBox();
@@ -88,7 +88,7 @@ TEST(Entity, BoundingBox) {
 }
 
 TEST(Entity, Flags) {
-    Entity entity(EntityType::Player, 1);
+    Entity entity(LegacyEntityType::Player, 1);
 
     entity.addFlag(EntityFlags::OnFire);
     EXPECT_TRUE(entity.hasFlag(EntityFlags::OnFire));
@@ -103,7 +103,7 @@ TEST(Entity, Flags) {
 }
 
 TEST(Entity, Tick) {
-    Entity entity(EntityType::Player, 1);
+    Entity entity(LegacyEntityType::Player, 1);
 
     EXPECT_EQ(entity.ticksExisted(), 0u);
 

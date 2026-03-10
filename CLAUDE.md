@@ -402,6 +402,8 @@ All random implementations provide MC-style methods:
 
 ## 务必要有清晰、优雅、能让人赏心悦目的目录结构，不要把很多文件全部堆在一个目录下，要划分好细分的子目录！
 
+## 编译过程中遇到的warning你也要一并解决  
+
 ## Current Status
 
 - **Core**: Complete (types, math, error handling)

@@ -11,7 +11,7 @@ namespace mr {
 // ============================================================================
 
 ItemEntity::ItemEntity(EntityId id, const ItemStack& stack, f32 x, f32 y, f32 z)
-    : Entity(EntityType::Item, id)
+    : Entity(LegacyEntityType::Item, id)
     , m_itemStack(stack)
 {
     setPosition(x, y, z);
@@ -28,7 +28,7 @@ ItemEntity::ItemEntity(EntityId id, const ItemStack& stack, f32 x, f32 y, f32 z)
 ItemEntity::ItemEntity(EntityId id, const ItemStack& stack,
                        f32 x, f32 y, f32 z,
                        f32 vx, f32 vy, f32 vz)
-    : Entity(EntityType::Item, id)
+    : Entity(LegacyEntityType::Item, id)
     , m_itemStack(stack)
 {
     setPosition(x, y, z);
@@ -264,7 +264,7 @@ void ItemEntity::applyLavaPhysics() {
 
 void ItemEntity::serialize(network::PacketSerializer& ser) const {
     // 实体类型和ID
-    ser.writeU32(static_cast<u32>(m_type));
+    ser.writeU32(static_cast<u32>(m_legacyType));
     ser.writeU32(static_cast<u32>(m_id));
 
     // 位置（网络协议使用 f64）

@@ -15,7 +15,7 @@ namespace mr {
 // ============================================================================
 
 Player::Player(EntityId id, const String& username)
-    : Entity(EntityType::Player, id)
+    : Entity(LegacyEntityType::Player, id)
     , m_username(username)
 {
     // 生成随机XP seed

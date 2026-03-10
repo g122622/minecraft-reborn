@@ -40,6 +40,7 @@ add_executable(mr_tests
     common/entity/inventory/CraftingInventoryTest.cpp
     common/world/blockentity/BlockEntityTest.cpp
     common/command/test_command_dispatcher.cpp
+    entity/EntityCoreTests.cpp
     common/SettingsTest.cpp
     server/ServerWorldTest.cpp
     server/test_integrated_server.cpp

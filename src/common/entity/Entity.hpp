@@ -4,6 +4,7 @@
 #include "../core/Result.hpp"
 #include "../math/Vector3.hpp"
 #include "../util/AxisAlignedBB.hpp"
+#include "EntityPose.hpp"
 #include <string>
 #include <memory>
 #include <array>
@@ -14,29 +15,20 @@ namespace mr {
 class PhysicsEngine;
 
 // ============================================================================
-// 实体类型枚举
+// 旧实体类型枚举（兼容）
+//
+// 注意：新代码应使用 mr::entity::EntityType 类
+// 此枚举保留用于向后兼容
 // ============================================================================
-
-enum class EntityType : u32 {
+enum class LegacyEntityType : u32 {
     Unknown = 0,
     Player = 1,
     Item = 2,           // 物品实体
     // 后续添加: Mob, Projectile 等
 };
 
-// ============================================================================
-// 实体姿态
-// ============================================================================
-
-enum class EntityPose : u8 {
-    Standing = 0,
-    FallFlying = 1,     // 使用鞘翅飞行
-    Sleeping = 2,
-    Swimming = 3,
-    SpinAttack = 4,     // 三叉戟激流攻击
-    Crouching = 5,      // 潜行
-    Dying = 6
-};
+// 引入 mr::entity::EntityPose 到 mr 命名空间以保持兼容
+using EntityPose = entity::EntityPose;
 
 // ============================================================================
 // 实体标志位
@@ -82,7 +74,7 @@ inline bool hasFlag(EntityFlags flags, EntityFlags flag) {
  */
 class Entity {
 public:
-    Entity(EntityType type, EntityId id);
+    Entity(LegacyEntityType type, EntityId id);
     virtual ~Entity() = default;
 
     // 禁止拷贝
@@ -96,7 +88,7 @@ public:
     // ========== 基本属性 ==========
 
     [[nodiscard]] EntityId id() const { return m_id; }
-    [[nodiscard]] EntityType type() const { return m_type; }
+    [[nodiscard]] LegacyEntityType legacyType() const { return m_legacyType; }
     [[nodiscard]] const String& uuid() const { return m_uuid; }
     void setUuid(const String& uuid) { m_uuid = uuid; }
 
@@ -265,7 +257,7 @@ public:
 
 protected:
     EntityId m_id;
-    EntityType m_type;
+    LegacyEntityType m_legacyType;
     String m_uuid;              // UUID 字符串
     Vector3 m_position;         // 当前位置
     Vector3 m_prevPosition;     // 上一帧位置

@@ -34,6 +34,7 @@ add_library(mr_common STATIC
 
     # Entity
     entity/Entity.cpp
+    entity/EntityType.cpp
     entity/Player.cpp
     entity/PlayerManager.cpp
     entity/ItemEntity.cpp

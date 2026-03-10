@@ -11,9 +11,9 @@ namespace mr {
 // Entity 实现
 // ============================================================================
 
-Entity::Entity(EntityType type, EntityId id)
+Entity::Entity(LegacyEntityType type, EntityId id)
     : m_id(id)
-    , m_type(type)
+    , m_legacyType(type)
     , m_position(0.0f, 0.0f, 0.0f)
     , m_prevPosition(0.0f, 0.0f, 0.0f)
     , m_velocity(0.0f, 0.0f, 0.0f)
