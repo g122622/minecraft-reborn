@@ -40,9 +40,25 @@ add_library(mr_common STATIC
     entity/ItemEntity.cpp
     entity/living/LivingEntity.cpp
     entity/mob/MobEntity.cpp
+    entity/mob/CreatureEntity.cpp
+    entity/mob/AgeableEntity.cpp
+    entity/animal/AnimalEntity.cpp
+    entity/animal/PigEntity.cpp
+    entity/animal/CowEntity.cpp
+    entity/animal/SheepEntity.cpp
+    entity/animal/ChickenEntity.cpp
+    entity/combat/AttackContext.cpp
+    entity/combat/PlayerAttackHelper.cpp
     entity/ai/controller/LookController.cpp
     entity/ai/controller/MovementController.cpp
     entity/ai/controller/JumpController.cpp
+    entity/ai/goal/goals/SwimGoal.cpp
+    entity/ai/goal/goals/RandomWalkingGoal.cpp
+    entity/ai/goal/goals/LookAtGoal.cpp
+    entity/ai/pathfinding/PathPoint.cpp
+    entity/ai/pathfinding/WalkNodeProcessor.cpp
+    entity/ai/pathfinding/PathFinder.cpp
+    entity/ai/pathfinding/PathNavigator.cpp
     entity/inventory/Slot.cpp
     entity/inventory/PlayerInventory.cpp
     entity/inventory/Container.cpp
@@ -70,6 +86,9 @@ add_library(mr_common STATIC
 
     # World - Drop Tables
     world/drop/DropTables.cpp
+
+    # World - Spawn
+    world/spawn/MobSpawnInfo.cpp
 
     # World - Block Entity
     world/blockentity/BlockEntityType.cpp

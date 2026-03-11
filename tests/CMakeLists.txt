@@ -44,6 +44,7 @@ add_executable(mr_tests
     entity/AttributeTests.cpp
     entity/LivingEntityTests.cpp
     entity/GoalTests.cpp
+    entity/PathfindingTests.cpp
     common/SettingsTest.cpp
     server/ServerWorldTest.cpp
     server/test_integrated_server.cpp

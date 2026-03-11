@@ -1,0 +1,117 @@
+#pragma once
+
+#include "../../core/Types.hpp"
+#include <memory>
+
+namespace mr {
+
+// 前向声明
+class Entity;
+class LivingEntity;
+class PlayerEntity;
+class ItemStack;
+class DamageSource;
+
+namespace entity::combat {
+
+/**
+ * @brief 攻击类型
+ *
+ * 参考 MC 1.16.5 攻击类型
+ */
+enum class AttackType : u8 {
+    Melee,      // 近战攻击
+    Ranged,     // 远程攻击
+    Magic,      // 魔法攻击
+    Explosion,  // 爆炸攻击
+    Thorns      // 荆棘反伤
+};
+
+/**
+ * @brief 攻击上下文
+ *
+ * 包含攻击相关的所有信息，用于计算伤害和效果。
+ *
+ * 参考 MC 1.16.5 攻击相关逻辑
+ */
+class AttackContext {
+public:
+    /**
+     * @brief 构造函数
+     * @param attacker 攻击者（可能为空，如环境伤害）
+     * @param target 目标实体
+     */
+    AttackContext(Entity* attacker, LivingEntity* target);
+    ~AttackContext() = default;
+
+    // ========== 攻击者信息 ==========
+
+    [[nodiscard]] Entity* getAttacker() const { return m_attacker; }
+    [[nodiscard]] PlayerEntity* getAttackerAsPlayer() const { return m_attackerPlayer; }
+    [[nodiscard]] LivingEntity* getAttackerAsLiving() const { return m_attackerLiving; }
+    [[nodiscard]] const ItemStack* getWeapon() const { return m_weapon; }
+
+    // ========== 目标信息 ==========
+
+    [[nodiscard]] LivingEntity* getTarget() const { return m_target; }
+
+    // ========== 攻击属性 ==========
+
+    [[nodiscard]] f32 getBaseDamage() const { return m_baseDamage; }
+    void setBaseDamage(f32 damage) { m_baseDamage = damage; }
+
+    [[nodiscard]] AttackType getAttackType() const { return m_attackType; }
+    void setAttackType(AttackType type) { m_attackType = type; }
+
+    // ========== 攻击修饰 ==========
+
+    [[nodiscard]] bool isCritical() const { return m_critical; }
+    void setCritical(bool critical) { m_critical = critical; }
+
+    [[nodiscard]] f32 getCriticalMultiplier() const { return m_criticalMultiplier; }
+    void setCriticalMultiplier(f32 multiplier) { m_criticalMultiplier = multiplier; }
+
+    [[nodiscard]] bool causesKnockback() const { return m_knockback; }
+    void setKnockback(bool knockback) { m_knockback = knockback; }
+
+    [[nodiscard]] f32 getKnockbackStrength() const { return m_knockbackStrength; }
+    void setKnockbackStrength(f32 strength) { m_knockbackStrength = strength; }
+
+    [[nodiscard]] bool causesFireDamage() const { return m_fireDamage; }
+    void setFireDamage(bool fire) { m_fireDamage = fire; }
+
+    [[nodiscard]] i32 getFireDuration() const { return m_fireDuration; }
+    void setFireDuration(i32 duration) { m_fireDuration = duration; }
+
+    // ========== 伤害计算 ==========
+
+    [[nodiscard]] f32 calculateFinalDamage() const;
+    [[nodiscard]] std::unique_ptr<DamageSource> createDamageSource() const;
+
+    // ========== 攻击冷却 ==========
+
+    [[nodiscard]] f32 getCooldownProgress() const { return m_cooldownProgress; }
+    void setCooldownProgress(f32 progress) { m_cooldownProgress = progress; }
+
+private:
+    Entity* m_attacker = nullptr;
+    PlayerEntity* m_attackerPlayer = nullptr;
+    LivingEntity* m_attackerLiving = nullptr;
+    LivingEntity* m_target = nullptr;
+    const ItemStack* m_weapon = nullptr;
+
+    f32 m_baseDamage = 1.0f;
+    AttackType m_attackType = AttackType::Melee;
+
+    bool m_critical = false;
+    f32 m_criticalMultiplier = 1.5f;
+    bool m_knockback = true;
+    f32 m_knockbackStrength = 1.0f;
+    bool m_fireDamage = false;
+    i32 m_fireDuration = 0;
+
+    f32 m_cooldownProgress = 1.0f;
+};
+
+} // namespace entity::combat
+} // namespace mr

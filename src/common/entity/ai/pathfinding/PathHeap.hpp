@@ -1,0 +1,196 @@
+#pragma once
+
+#include "../../../core/Types.hpp"
+#include "PathPoint.hpp"
+#include <vector>
+#include <functional>
+
+namespace mr::entity::ai::pathfinding {
+
+/**
+ * @brief 路径点最小堆
+ *
+ * 用于 A* 算法的开放列表，按总代价排序。
+ *
+ * 参考 MC 1.16.5 PathHeap
+ */
+class PathHeap {
+public:
+    PathHeap() = default;
+
+    /**
+     * @brief 构造函数，预分配容量
+     * @param capacity 初始容量
+     */
+    explicit PathHeap(size_t capacity) {
+        m_heap.reserve(capacity);
+    }
+
+    // ========== 堆操作 ==========
+
+    /**
+     * @brief 将路径点插入堆中
+     * @param point 要插入的路径点
+     */
+    void insert(PathPoint* point) {
+        m_heap.push_back(point);
+        point->setHeapIndex(static_cast<i32>(m_heap.size() - 1));
+        siftUp(static_cast<i32>(m_heap.size() - 1));
+    }
+
+    /**
+     * @brief 弹出堆顶元素（最小代价）
+     * @return 堆顶的路径点，如果堆为空返回nullptr
+     */
+    PathPoint* pop() {
+        if (m_heap.empty()) {
+            return nullptr;
+        }
+
+        PathPoint* result = m_heap[0];
+        result->setHeapIndex(-1);
+
+        if (m_heap.size() == 1) {
+            m_heap.pop_back();
+            return result;
+        }
+
+        // 将最后一个元素移到堆顶
+        m_heap[0] = m_heap.back();
+        m_heap[0]->setHeapIndex(0);
+        m_heap.pop_back();
+
+        // 下沉调整
+        siftDown(0);
+
+        return result;
+    }
+
+    /**
+     * @brief 更新路径点的位置（代价改变后）
+     * @param point 要更新的路径点
+     */
+    void update(PathPoint* point) {
+        i32 index = point->heapIndex();
+        if (index < 0 || index >= static_cast<i32>(m_heap.size())) {
+            return;
+        }
+
+        // 尝试上浮（如果代价减小）
+        siftUp(index);
+        // 注意：如果代价增大，需要下沉，但通常不会发生
+    }
+
+    /**
+     * @brief 检查堆是否为空
+     */
+    [[nodiscard]] bool empty() const {
+        return m_heap.empty();
+    }
+
+    /**
+     * @brief 获取堆中元素数量
+     */
+    [[nodiscard]] size_t size() const {
+        return m_heap.size();
+    }
+
+    /**
+     * @brief 清空堆
+     */
+    void clear() {
+        m_heap.clear();
+    }
+
+    /**
+     * @brief 获取堆顶元素（不弹出）
+     */
+    [[nodiscard]] PathPoint* peek() const {
+        return m_heap.empty() ? nullptr : m_heap[0];
+    }
+
+    // ========== 调试方法 ==========
+
+    /**
+     * @brief 检查堆属性是否有效
+     */
+    [[nodiscard]] bool isValidHeap() const {
+        for (size_t i = 0; i < m_heap.size(); ++i) {
+            size_t left = 2 * i + 1;
+            size_t right = 2 * i + 2;
+
+            if (left < m_heap.size() && !compare(m_heap[i], m_heap[left])) {
+                return false;
+            }
+            if (right < m_heap.size() && !compare(m_heap[i], m_heap[right])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+private:
+    std::vector<PathPoint*> m_heap;
+
+    /**
+     * @brief 比较两个路径点的代价
+     * @return true 如果 a 的代价小于 b
+     */
+    [[nodiscard]] static bool compare(const PathPoint* a, const PathPoint* b) {
+        return a->totalCost() < b->totalCost();
+    }
+
+    /**
+     * @brief 上浮调整
+     */
+    void siftUp(i32 index) {
+        while (index > 0) {
+            i32 parent = (index - 1) / 2;
+            if (compare(m_heap[index], m_heap[parent])) {
+                swap(index, parent);
+                index = parent;
+            } else {
+                break;
+            }
+        }
+    }
+
+    /**
+     * @brief 下沉调整
+     */
+    void siftDown(i32 index) {
+        while (true) {
+            i32 left = 2 * index + 1;
+            i32 right = 2 * index + 2;
+            i32 smallest = index;
+
+            if (left < static_cast<i32>(m_heap.size()) && compare(m_heap[left], m_heap[smallest])) {
+                smallest = left;
+            }
+            if (right < static_cast<i32>(m_heap.size()) && compare(m_heap[right], m_heap[smallest])) {
+                smallest = right;
+            }
+
+            if (smallest != index) {
+                swap(index, smallest);
+                index = smallest;
+            } else {
+                break;
+            }
+        }
+    }
+
+    /**
+     * @brief 交换两个元素
+     */
+    void swap(i32 i, i32 j) {
+        PathPoint* temp = m_heap[i];
+        m_heap[i] = m_heap[j];
+        m_heap[j] = temp;
+
+        m_heap[i]->setHeapIndex(i);
+        m_heap[j]->setHeapIndex(j);
+    }
+};
+
+} // namespace mr::entity::ai::pathfinding
