@@ -3,11 +3,13 @@
 #include "../../../mob/MobEntity.hpp"
 #include "../../../mob/AgeableEntity.hpp"
 #include "../../../Entity.hpp"
-#include "../../../ai/controller/LookController.hpp"
-#include "../../../ai/pathfinding/PathNavigator.hpp"
+#include "../../../EntityUtils.hpp"
+#include "../GoalConstants.hpp"
 #include "../../../../world/IWorld.hpp"
 
 namespace mr::entity::ai::goal {
+
+using namespace constants;
 
 FollowParentGoal::FollowParentGoal(AnimalEntity* animal, f64 speed)
     : m_childAnimal(animal)
@@ -43,16 +45,13 @@ bool FollowParentGoal::shouldContinueExecuting() {
     }
 
     // 检查距离
-    f32 dx = m_parentAnimal->x() - m_childAnimal->x();
-    f32 dy = m_parentAnimal->y() - m_childAnimal->y();
-    f32 dz = m_parentAnimal->z() - m_childAnimal->z();
-    f32 distSq = dx * dx + dy * dy + dz * dz;
+    f32 distSq = m_childAnimal->distanceSqTo(*m_parentAnimal);
 
     // 太近或太远都停止
-    if (distSq < MIN_DISTANCE * MIN_DISTANCE) {
+    if (distSq < FOLLOW_PARENT_MIN_DISTANCE_SQ) {
         return false;
     }
-    if (distSq > MAX_DISTANCE * MAX_DISTANCE) {
+    if (distSq > FOLLOW_PARENT_MAX_DISTANCE_SQ) {
         return false;
     }
 
@@ -65,12 +64,8 @@ void FollowParentGoal::startExecuting() {
 
 void FollowParentGoal::resetTask() {
     m_parentAnimal = nullptr;
-
     if (m_childAnimal) {
-        auto* nav = m_childAnimal->navigator();
-        if (nav) {
-            nav->clearPath();
-        }
+        m_childAnimal->clearNavigation();
     }
 }
 
@@ -78,17 +73,11 @@ void FollowParentGoal::tick() {
     if (!m_childAnimal || !m_parentAnimal) return;
 
     // 看向父/母
-    if (auto* lookCtrl = m_childAnimal->lookController()) {
-        lookCtrl->setLookPosition(
-            m_parentAnimal->x(),
-            m_parentAnimal->y() + m_parentAnimal->eyeHeight(),
-            m_parentAnimal->z()
-        );
-    }
+    m_childAnimal->lookAt(*m_parentAnimal);
 
     // 定期更新路径
     if (--m_delayCounter <= 0) {
-        m_delayCounter = DELAY_INTERVAL;
+        m_delayCounter = FOLLOW_DELAY_INTERVAL;
 
         // 移动到父/母
         m_childAnimal->tryMoveTo(
@@ -103,39 +92,16 @@ void FollowParentGoal::tick() {
 AnimalEntity* FollowParentGoal::findParent() {
     if (!m_childAnimal || !m_childAnimal->world()) return nullptr;
 
-    IWorld* world = m_childAnimal->world();
-
-    // 搜索附近的动物
-    auto entities = world->getEntitiesInRange(
-        Vector3(m_childAnimal->x(), m_childAnimal->y(), m_childAnimal->z()),
+    return EntityUtils::findClosestEntity<AnimalEntity>(
+        m_childAnimal->world(),
+        m_childAnimal->position(),
         SEARCH_RANGE,
-        m_childAnimal
-    );
-
-    AnimalEntity* closestParent = nullptr;
-    f32 closestDist = SEARCH_RANGE * SEARCH_RANGE;
-
-    for (Entity* entity : entities) {
-        // 检查是否是同类型动物
-        AnimalEntity* animal = dynamic_cast<AnimalEntity*>(entity);
-        if (!animal) continue;
-
-        // 检查是否是成年
-        if (animal->getGrowingAge() < 0) continue; // 幼体不能当父母
-
-        // 计算距离
-        f32 dx = animal->x() - m_childAnimal->x();
-        f32 dy = animal->y() - m_childAnimal->y();
-        f32 dz = animal->z() - m_childAnimal->z();
-        f32 distSq = dx * dx + dy * dy + dz * dz;
-
-        if (distSq < closestDist) {
-            closestDist = distSq;
-            closestParent = animal;
+        m_childAnimal,
+        [](AnimalEntity* animal) {
+            // 必须是成年动物
+            return animal->getGrowingAge() >= 0;
         }
-    }
-
-    return closestParent;
+    );
 }
 
 } // namespace mr::entity::ai::goal

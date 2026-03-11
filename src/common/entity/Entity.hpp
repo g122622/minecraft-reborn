@@ -155,6 +155,47 @@ public:
     [[nodiscard]] f32 prevY() const { return m_prevPosition.y; }
     [[nodiscard]] f32 prevZ() const { return m_prevPosition.z; }
 
+    /**
+     * @brief 计算到另一个实体的距离
+     * @param other 另一个实体
+     * @return 距离（非平方）
+     */
+    [[nodiscard]] f32 distanceTo(const Entity& other) const {
+        return m_position.distance(other.m_position);
+    }
+
+    /**
+     * @brief 计算到另一个实体的距离平方
+     * @param other 另一个实体
+     * @return 距离的平方（避免开方运算，适合比较）
+     */
+    [[nodiscard]] f32 distanceSqTo(const Entity& other) const {
+        return m_position.distanceSquared(other.m_position);
+    }
+
+    /**
+     * @brief 计算到指定位置的距离平方
+     * @param px 目标X坐标
+     * @param py 目标Y坐标
+     * @param pz 目标Z坐标
+     * @return 距离的平方
+     */
+    [[nodiscard]] f32 distanceSqTo(f32 px, f32 py, f32 pz) const {
+        f32 dx = px - m_position.x;
+        f32 dy = py - m_position.y;
+        f32 dz = pz - m_position.z;
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    /**
+     * @brief 计算到指定位置的水平距离平方（忽略Y轴）
+     */
+    [[nodiscard]] f32 distanceHorizontalSqTo(f32 px, f32 pz) const {
+        f32 dx = px - m_position.x;
+        f32 dz = pz - m_position.z;
+        return dx * dx + dz * dz;
+    }
+
     // ========== 旋转 ==========
 
     [[nodiscard]] f32 yaw() const { return m_yaw; }

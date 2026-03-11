@@ -3,6 +3,7 @@
 #include "../../../mob/MobEntity.hpp"
 #include "../../../living/LivingEntity.hpp"
 #include "../../../Entity.hpp"
+#include "../GoalConstants.hpp"
 #include "../../../ai/pathfinding/PathNavigator.hpp"
 #include "../../../../world/IWorld.hpp"
 #include "../../../../math/random/Random.hpp"
@@ -10,6 +11,8 @@
 #include <cmath>
 
 namespace mr::entity::ai::goal {
+
+using namespace constants;
 
 PanicGoal::PanicGoal(CreatureEntity* creature, f64 speed)
     : m_creature(creature)
@@ -31,7 +34,10 @@ bool PanicGoal::shouldExecute() {
 
     // 如果着火，尝试找水
     if (isBurning) {
-        Vector3 waterPos = getRandomWaterPosition(5, 4);
+        Vector3 waterPos = getRandomWaterPosition(
+            static_cast<i32>(PANIC_WATER_SEARCH_RANGE),
+            static_cast<i32>(PANIC_WATER_SEARCH_VERTICAL)
+        );
         if (waterPos.x != 0.0f || waterPos.y != 0.0f || waterPos.z != 0.0f) {
             m_targetX = waterPos.x;
             m_targetY = waterPos.y;
@@ -66,10 +72,7 @@ void PanicGoal::startExecuting() {
 void PanicGoal::resetTask() {
     m_running = false;
     if (m_creature) {
-        auto* nav = m_creature->navigator();
-        if (nav) {
-            nav->clearPath();
-        }
+        m_creature->clearNavigation();
     }
 }
 
@@ -77,12 +80,9 @@ void PanicGoal::tick() {
     // 持续移动到目标位置
     if (m_creature) {
         // 如果距离目标较远，重新设置路径
-        f32 dx = m_targetX - m_creature->x();
-        f32 dy = m_targetY - m_creature->y();
-        f32 dz = m_targetZ - m_creature->z();
-        f32 distSq = dx * dx + dy * dy + dz * dz;
+        f32 distSq = m_creature->distanceSqTo(m_targetX, m_targetY, m_targetZ);
 
-        if (distSq > 4.0f) {
+        if (distSq > PANIC_STOP_DISTANCE_SQ) {
             m_creature->tryMoveTo(m_targetX, m_targetY, m_targetZ, m_speed);
         }
     }
@@ -96,7 +96,7 @@ bool PanicGoal::findRandomPosition() {
 
     // 生成远离当前位置的随机方向
     f32 angle = rng.nextFloat() * math::TWO_PI;
-    f32 distance = 5.0f + rng.nextFloat() * 5.0f; // 5-10 格距离
+    f32 distance = PANIC_ESCAPE_MIN_DISTANCE + rng.nextFloat() * (PANIC_ESCAPE_MAX_DISTANCE - PANIC_ESCAPE_MIN_DISTANCE);
 
     m_targetX = m_creature->x() + std::cos(angle) * distance;
     m_targetZ = m_creature->z() + std::sin(angle) * distance;

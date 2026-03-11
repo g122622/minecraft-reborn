@@ -62,6 +62,22 @@ bool MobEntity::isBeingRidden() const {
     return false;
 }
 
+void MobEntity::clearNavigation() {
+    if (m_navigator) {
+        m_navigator->clearPath();
+    }
+}
+
+void MobEntity::lookAt(const Entity& target, f32 deltaYaw, f32 deltaPitch) {
+    lookAt(target.x(), target.y() + target.eyeHeight(), target.z(), deltaYaw, deltaPitch);
+}
+
+void MobEntity::lookAt(f64 x, f64 y, f64 z, f32 deltaYaw, f32 deltaPitch) {
+    if (m_lookController) {
+        m_lookController->setLookPosition(x, y, z, deltaYaw, deltaPitch);
+    }
+}
+
 void MobEntity::tick() {
     // 更新父类
     LivingEntity::tick();

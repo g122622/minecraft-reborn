@@ -3,13 +3,17 @@
 #include "../../../mob/MobEntity.hpp"
 #include "../../../living/LivingEntity.hpp"
 #include "../../../Entity.hpp"
+#include "../../../EntityUtils.hpp"
 #include "../../../ai/controller/LookController.hpp"
 #include "../../../ai/pathfinding/PathNavigator.hpp"
+#include "../GoalConstants.hpp"
 #include "../../../../world/IWorld.hpp"
 #include "../../../../math/random/Random.hpp"
 #include <cmath>
 
 namespace mr::entity::ai::goal {
+
+using namespace constants;
 
 BreedGoal::BreedGoal(AnimalEntity* animal, f64 speed)
     : m_animal(animal)
@@ -49,19 +53,16 @@ void BreedGoal::startExecuting() {
 void BreedGoal::resetTask() {
     m_targetMate = nullptr;
     m_spawnBabyDelay = 0;
+    if (m_animal) {
+        m_animal->clearNavigation();
+    }
 }
 
 void BreedGoal::tick() {
     if (!m_animal || !m_targetMate) return;
 
     // 看向配偶
-    if (auto* lookCtrl = m_animal->lookController()) {
-        lookCtrl->setLookPosition(
-            m_targetMate->x(),
-            m_targetMate->y() + m_targetMate->eyeHeight(),
-            m_targetMate->z()
-        );
-    }
+    m_animal->lookAt(*m_targetMate);
 
     // 移动向配偶
     m_animal->tryMoveTo(m_targetMate->x(), m_targetMate->y(), m_targetMate->z(), m_speed);
@@ -69,12 +70,8 @@ void BreedGoal::tick() {
     m_spawnBabyDelay++;
 
     // 检查是否足够接近以繁殖
-    f32 dx = m_targetMate->x() - m_animal->x();
-    f32 dy = m_targetMate->y() - m_animal->y();
-    f32 dz = m_targetMate->z() - m_animal->z();
-    f32 distSq = dx * dx + dy * dy + dz * dz;
-
-    if (m_spawnBabyDelay >= SPAWN_BABY_DELAY && distSq < 9.0f) {
+    f32 distSq = m_animal->distanceSqTo(*m_targetMate);
+    if (m_spawnBabyDelay >= SPAWN_BABY_DELAY && distSq < BREED_DISTANCE_SQ) {
         spawnBaby();
     }
 }
@@ -82,39 +79,15 @@ void BreedGoal::tick() {
 AnimalEntity* BreedGoal::findNearbyMate() {
     if (!m_animal || !m_animal->world()) return nullptr;
 
-    IWorld* world = m_animal->world();
-
-    // 搜索附近的动物
-    auto entities = world->getEntitiesInRange(
-        Vector3(m_animal->x(), m_animal->y(), m_animal->z()),
+    return EntityUtils::findClosestEntity<AnimalEntity>(
+        m_animal->world(),
+        m_animal->position(),
         MATE_SEARCH_RANGE,
-        m_animal
-    );
-
-    AnimalEntity* closestMate = nullptr;
-    f32 closestDist = MATE_SEARCH_RANGE * MATE_SEARCH_RANGE;
-
-    for (Entity* entity : entities) {
-        // 检查是否是动物
-        AnimalEntity* animal = dynamic_cast<AnimalEntity*>(entity);
-        if (!animal) continue;
-
-        // 检查是否可以交配
-        if (!m_animal->canMateWith(*animal)) continue;
-
-        // 计算距离
-        f32 dx = animal->x() - m_animal->x();
-        f32 dy = animal->y() - m_animal->y();
-        f32 dz = animal->z() - m_animal->z();
-        f32 distSq = dx * dx + dy * dy + dz * dz;
-
-        if (distSq < closestDist) {
-            closestDist = distSq;
-            closestMate = animal;
+        m_animal,
+        [this](AnimalEntity* animal) {
+            return m_animal->canMateWith(*animal);
         }
-    }
-
-    return closestMate;
+    );
 }
 
 void BreedGoal::spawnBaby() {

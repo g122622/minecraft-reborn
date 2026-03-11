@@ -1,11 +1,14 @@
 #include "RandomWalkingGoal.hpp"
 #include "../../../mob/MobEntity.hpp"
 #include "../../../mob/CreatureEntity.hpp"
+#include "../GoalConstants.hpp"
 #include "../../../ai/pathfinding/PathNavigator.hpp"
 #include "../../../../math/random/Random.hpp"
 #include <cmath>
 
 namespace mr::entity::ai::goal {
+
+using namespace constants;
 
 RandomWalkingGoal::RandomWalkingGoal(CreatureEntity* creature, f64 speed)
     : RandomWalkingGoal(creature, speed, 120)
@@ -65,17 +68,13 @@ bool RandomWalkingGoal::shouldContinueExecuting() {
 void RandomWalkingGoal::startExecuting() {
     if (m_creature) {
         m_creature->tryMoveTo(m_targetX, m_targetY, m_targetZ, m_speed);
-        m_timeoutCounter = 600; // 最大执行时间（30秒）
+        m_timeoutCounter = MAX_WALK_TIME;
     }
 }
 
 void RandomWalkingGoal::resetTask() {
-    // 清除导航路径
     if (m_creature) {
-        auto* nav = m_creature->navigator();
-        if (nav) {
-            nav->clearPath();
-        }
+        m_creature->clearNavigation();
     }
     m_timeoutCounter = 0;
 }
@@ -92,9 +91,8 @@ bool RandomWalkingGoal::getRandomPosition(Vector3& outPos) {
     // 使用实体的随机数生成器
     math::Random rng = m_creature->getRandom();
 
-    f32 range = 10.0f; // 漫步范围
-    f32 x = m_creature->x() + (rng.nextFloat() * 2.0f - 1.0f) * range;
-    f32 z = m_creature->z() + (rng.nextFloat() * 2.0f - 1.0f) * range;
+    f32 x = m_creature->x() + (rng.nextFloat() * 2.0f - 1.0f) * RANDOM_WALK_RANGE;
+    f32 z = m_creature->z() + (rng.nextFloat() * 2.0f - 1.0f) * RANDOM_WALK_RANGE;
 
     // Y坐标需要找到地面
     // 简化实现：使用当前位置

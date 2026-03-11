@@ -2,6 +2,8 @@
 #include "../../../mob/MobEntity.hpp"
 #include "../../../living/LivingEntity.hpp"
 #include "../../../Entity.hpp"
+#include "../../../EntityUtils.hpp"
+#include "../GoalConstants.hpp"
 #include "../../../../math/random/Random.hpp"
 #include "../../../../math/MathUtils.hpp"
 #include "../../../../world/IWorld.hpp"
@@ -10,10 +12,12 @@
 
 namespace mr::entity::ai::goal {
 
+using namespace constants;
+
 // ==================== LookAtGoal ====================
 
 LookAtGoal::LookAtGoal(MobEntity* mob, f32 maxDistance)
-    : LookAtGoal(mob, maxDistance, 0.02f)
+    : LookAtGoal(mob, maxDistance, DEFAULT_LOOK_CHANCE)
 {
 }
 
@@ -45,10 +49,8 @@ bool LookAtGoal::shouldContinueExecuting() {
     // 检查目标是否存活
     if (!m_lookTarget->isAlive()) return false;
 
-    // 检查距离
-    f32 dx = m_lookTarget->x() - m_mob->x();
-    f32 dz = m_lookTarget->z() - m_mob->z();
-    f32 distSq = dx * dx + dz * dz;
+    // 检查距离（水平距离）
+    f32 distSq = m_mob->distanceHorizontalSqTo(m_lookTarget->x(), m_lookTarget->z());
     f32 maxDistSq = m_maxDistance * m_maxDistance;
 
     if (distSq > maxDistSq) {
@@ -60,9 +62,9 @@ bool LookAtGoal::shouldContinueExecuting() {
 }
 
 void LookAtGoal::startExecuting() {
-    // 设置看向时间（40-80 ticks，约2-4秒）
+    // 设置看向时间
     math::Random rng = m_mob->getRandom();
-    m_lookTime = 40 + rng.nextInt(40);
+    m_lookTime = LOOK_AT_MIN_TIME + rng.nextInt(LOOK_AT_MAX_TIME - LOOK_AT_MIN_TIME);
 }
 
 void LookAtGoal::resetTask() {
@@ -73,13 +75,7 @@ void LookAtGoal::tick() {
     if (!m_mob || !m_lookTarget) return;
 
     // 使用视线控制器看向目标
-    if (auto* lookCtrl = m_mob->lookController()) {
-        lookCtrl->setLookPosition(
-            m_lookTarget->x(),
-            m_lookTarget->y() + m_lookTarget->eyeHeight(),
-            m_lookTarget->z()
-        );
-    }
+    m_mob->lookAt(*m_lookTarget);
 
     m_lookTime--;
 }
@@ -87,40 +83,12 @@ void LookAtGoal::tick() {
 LivingEntity* LookAtGoal::findTarget() {
     if (!m_mob) return nullptr;
 
-    // 获取世界中的实体
-    IWorld* world = m_mob->world();
-    if (!world) return nullptr;
-
-    // 搜索范围内的实体
-    f32 range = m_maxDistance;
-    Vector3 pos(m_mob->x(), m_mob->y(), m_mob->z());
-
-    auto entities = world->getEntitiesInRange(pos, range, m_mob);
-
-    LivingEntity* closest = nullptr;
-    f32 closestDist = range * range;
-
-    for (Entity* entity : entities) {
-        // 检查是否是 LivingEntity
-        LivingEntity* living = dynamic_cast<LivingEntity*>(entity);
-        if (!living) continue;
-
-        // 检查是否存活
-        if (!living->isAlive()) continue;
-
-        // 计算距离
-        f32 dx = living->x() - m_mob->x();
-        f32 dy = living->y() - m_mob->y();
-        f32 dz = living->z() - m_mob->z();
-        f32 distSq = dx * dx + dy * dy + dz * dz;
-
-        if (distSq < closestDist) {
-            closestDist = distSq;
-            closest = living;
-        }
-    }
-
-    return closest;
+    return EntityUtils::findClosestEntity<LivingEntity>(
+        m_mob->world(),
+        m_mob->position(),
+        m_maxDistance,
+        m_mob
+    );
 }
 
 // ==================== LookRandomlyGoal ====================
@@ -134,9 +102,9 @@ LookRandomlyGoal::LookRandomlyGoal(MobEntity* mob)
 bool LookRandomlyGoal::shouldExecute() {
     if (!m_mob) return false;
 
-    // 2% 的概率执行
+    // 默认概率执行
     math::Random rng = m_mob->getRandom();
-    return rng.nextFloat() < 0.02f;
+    return rng.nextFloat() < RANDOM_LOOK_CHANCE;
 }
 
 bool LookRandomlyGoal::shouldContinueExecuting() {
@@ -155,8 +123,8 @@ void LookRandomlyGoal::startExecuting() {
     // 随机俯仰角（-30 到 30）
     m_targetPitch = rng.nextFloat() * 60.0f - 30.0f;
 
-    // 看往时间（20-40 ticks）
-    m_lookTime = 20 + rng.nextInt(20);
+    // 看往时间
+    m_lookTime = RANDOM_LOOK_MIN_TIME + rng.nextInt(RANDOM_LOOK_MAX_TIME - RANDOM_LOOK_MIN_TIME);
 }
 
 void LookRandomlyGoal::resetTask() {

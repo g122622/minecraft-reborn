@@ -3,6 +3,8 @@
 #include "../../../mob/MobEntity.hpp"
 #include "../../../living/LivingEntity.hpp"
 #include "../../../Entity.hpp"
+#include "../../../EntityUtils.hpp"
+#include "../GoalConstants.hpp"
 #include "../../../ai/controller/LookController.hpp"
 #include "../../../ai/pathfinding/PathNavigator.hpp"
 #include "../../../../world/IWorld.hpp"
@@ -10,6 +12,8 @@
 #include <cmath>
 
 namespace mr::entity::ai::goal {
+
+using namespace constants;
 
 TemptGoal::TemptGoal(CreatureEntity* creature, f64 speed, ItemPredicate itemPredicate, bool scaredByMovement)
     : m_creature(creature)
@@ -42,12 +46,9 @@ bool TemptGoal::shouldContinueExecuting() {
 
     // 检查是否被玩家移动吓跑
     if (m_scaredByMovement) {
-        f32 dx = m_temptingPlayer->x() - m_creature->x();
-        f32 dy = m_temptingPlayer->y() - m_creature->y();
-        f32 dz = m_temptingPlayer->z() - m_creature->z();
-        f32 distSq = dx * dx + dy * dy + dz * dz;
+        f32 distSq = m_creature->distanceSqTo(*m_temptingPlayer);
 
-        if (distSq < 36.0f) { // 6格内
+        if (distSq < TEMPT_SCARE_DISTANCE_SQ) {
             // 检查玩家是否移动
             f32 playerDx = m_temptingPlayer->x() - m_targetX;
             f32 playerDy = m_temptingPlayer->y() - m_targetY;
@@ -62,7 +63,7 @@ bool TemptGoal::shouldContinueExecuting() {
             f32 pitchDiff = std::abs(m_temptingPlayer->pitch() - m_prevPitch);
             f32 yawDiff = std::abs(m_temptingPlayer->yaw() - m_prevYaw);
 
-            if (pitchDiff > 5.0f || yawDiff > 5.0f) {
+            if (pitchDiff > VIEW_CHANGE_THRESHOLD || yawDiff > VIEW_CHANGE_THRESHOLD) {
                 return false; // 玩家视角变化，停止
             }
         } else {
@@ -93,10 +94,7 @@ void TemptGoal::resetTask() {
     m_isRunning = false;
 
     if (m_creature) {
-        auto* nav = m_creature->navigator();
-        if (nav) {
-            nav->clearPath();
-        }
+        m_creature->clearNavigation();
     }
 
     m_delayTemptCounter = TEMPT_COOLDOWN;
@@ -106,26 +104,14 @@ void TemptGoal::tick() {
     if (!m_creature || !m_temptingPlayer) return;
 
     // 看向玩家
-    if (auto* lookCtrl = m_creature->lookController()) {
-        lookCtrl->setLookPosition(
-            m_temptingPlayer->x(),
-            m_temptingPlayer->y() + m_temptingPlayer->eyeHeight(),
-            m_temptingPlayer->z()
-        );
-    }
+    m_creature->lookAt(*m_temptingPlayer);
 
     // 计算与玩家的距离
-    f32 dx = m_temptingPlayer->x() - m_creature->x();
-    f32 dy = m_temptingPlayer->y() - m_creature->y();
-    f32 dz = m_temptingPlayer->z() - m_creature->z();
-    f32 distSq = dx * dx + dy * dy + dz * dz;
+    f32 distSq = m_creature->distanceSqTo(*m_temptingPlayer);
 
     // 如果距离太近，停止移动
-    if (distSq < 6.25f) { // 2.5格内
-        auto* nav = m_creature->navigator();
-        if (nav) {
-            nav->clearPath();
-        }
+    if (distSq < TEMPT_CLOSE_DISTANCE_SQ) {
+        m_creature->clearNavigation();
     } else {
         // 跟随玩家
         m_creature->tryMoveTo(m_temptingPlayer->x(), m_temptingPlayer->y(), m_temptingPlayer->z(), m_speed);
@@ -143,43 +129,19 @@ bool TemptGoal::isScaredByPlayerMovement() const {
 LivingEntity* TemptGoal::findTemptingPlayer() {
     if (!m_creature || !m_creature->world()) return nullptr;
 
-    IWorld* world = m_creature->world();
-
-    // 搜索附近的实体
-    auto entities = world->getEntitiesInRange(
-        Vector3(m_creature->x(), m_creature->y(), m_creature->z()),
+    return EntityUtils::findClosestEntity<LivingEntity>(
+        m_creature->world(),
+        m_creature->position(),
         TEMPT_RANGE,
         m_creature
     );
 
-    LivingEntity* closestEntity = nullptr;
-    f32 closestDist = TEMPT_RANGE * TEMPT_RANGE;
-
-    for (Entity* entity : entities) {
-        // 检查是否是生物实体（简化处理，实际应该检查玩家）
-        LivingEntity* living = dynamic_cast<LivingEntity*>(entity);
-        if (!living) continue;
-
-        // TODO: 检查玩家手持物品
-        // const ItemStack& mainHand = player->getMainHandItem();
-        // const ItemStack& offHand = player->getOffHandItem();
-        // if (isTempting(mainHand) || isTempting(offHand)) {
-        //     ... 找到玩家
-        // }
-
-        // 暂时返回找到的第一个生物实体
-        f32 dx = living->x() - m_creature->x();
-        f32 dy = living->y() - m_creature->y();
-        f32 dz = living->z() - m_creature->z();
-        f32 distSq = dx * dx + dy * dy + dz * dz;
-
-        if (distSq < closestDist) {
-            closestDist = distSq;
-            closestEntity = living;
-        }
-    }
-
-    return closestEntity;
+    // TODO: 检查玩家手持物品
+    // const ItemStack& mainHand = player->getMainHandItem();
+    // const ItemStack& offHand = player->getOffHandItem();
+    // if (isTempting(mainHand) || isTempting(offHand)) {
+    //     ... 找到玩家
+    // }
 }
 
 } // namespace mr::entity::ai::goal

@@ -131,6 +131,37 @@ public:
     [[nodiscard]] entity::ai::pathfinding::PathNavigator* navigator();
     [[nodiscard]] const entity::ai::pathfinding::PathNavigator* navigator() const;
 
+    // ========== AI 便捷方法 ==========
+
+    /**
+     * @brief 清除导航路径
+     *
+     * 安全地清除导航器的路径，内部处理空指针检查。
+     */
+    void clearNavigation();
+
+    /**
+     * @brief 看向指定实体
+     *
+     * 使用视线控制器看向目标实体的眼睛位置。
+     * @param target 目标实体
+     * @param deltaYaw 最大偏航角变化速度（默认10）
+     * @param deltaPitch 最大俯仰角变化速度（默认10）
+     */
+    void lookAt(const Entity& target, f32 deltaYaw = 10.0f, f32 deltaPitch = 10.0f);
+
+    /**
+     * @brief 看向指定位置
+     *
+     * 使用视线控制器看向指定位置。
+     * @param x X坐标
+     * @param y Y坐标
+     * @param z Z坐标
+     * @param deltaYaw 最大偏航角变化速度（默认10）
+     * @param deltaPitch 最大俯仰角变化速度（默认10）
+     */
+    void lookAt(f64 x, f64 y, f64 z, f32 deltaYaw = 10.0f, f32 deltaPitch = 10.0f);
+
 protected:
     // AI 目标选择器
     entity::ai::GoalSelector m_goalSelector;

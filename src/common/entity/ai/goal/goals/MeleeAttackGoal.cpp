@@ -3,12 +3,15 @@
 #include "../../../mob/MobEntity.hpp"
 #include "../../../living/LivingEntity.hpp"
 #include "../../../Entity.hpp"
+#include "../GoalConstants.hpp"
 #include "../../../ai/controller/LookController.hpp"
 #include "../../../ai/pathfinding/PathNavigator.hpp"
 #include "../../../../math/random/Random.hpp"
 #include <cmath>
 
 namespace mr::entity::ai::goal {
+
+using namespace constants;
 
 MeleeAttackGoal::MeleeAttackGoal(CreatureEntity* creature, f64 speed, bool useLongMemory)
     : m_creature(creature)
@@ -40,12 +43,9 @@ bool MeleeAttackGoal::shouldContinueExecuting() {
     }
 
     // 检查距离
-    f32 dx = m_attackTarget->x() - m_creature->x();
-    f32 dy = m_attackTarget->y() - m_creature->y();
-    f32 dz = m_attackTarget->z() - m_creature->z();
-    f32 distSq = dx * dx + dy * dy + dz * dz;
+    f32 distSq = m_creature->distanceSqTo(*m_attackTarget);
 
-    if (distSq > STOP_ATTACK_DISTANCE * STOP_ATTACK_DISTANCE) {
+    if (distSq > MELEE_ATTACK_STOP_DISTANCE_SQ) {
         return false; // 目标太远，停止追踪
     }
 
@@ -64,12 +64,8 @@ void MeleeAttackGoal::startExecuting() {
 
 void MeleeAttackGoal::resetTask() {
     m_attackTarget = nullptr;
-
     if (m_creature) {
-        auto* nav = m_creature->navigator();
-        if (nav) {
-            nav->clearPath();
-        }
+        m_creature->clearNavigation();
     }
 }
 
@@ -77,13 +73,7 @@ void MeleeAttackGoal::tick() {
     if (!m_creature || !m_attackTarget) return;
 
     // 看向目标
-    if (auto* lookCtrl = m_creature->lookController()) {
-        lookCtrl->setLookPosition(
-            m_attackTarget->x(),
-            m_attackTarget->y() + m_attackTarget->eyeHeight(),
-            m_attackTarget->z()
-        );
-    }
+    m_creature->lookAt(*m_attackTarget);
 
     // 减少攻击冷却
     if (m_attackCooldown > 0) {
@@ -96,7 +86,7 @@ void MeleeAttackGoal::tick() {
     // 检查是否可以攻击
     if (canAttack(m_attackTarget) && m_attackCooldown <= 0) {
         attackTarget(m_attackTarget);
-        m_attackCooldown = ATTACK_COOLDOWN_TICKS;
+        m_attackCooldown = MELEE_ATTACK_COOLDOWN;
     }
 }
 
@@ -104,14 +94,10 @@ bool MeleeAttackGoal::canAttack(LivingEntity* target) const {
     if (!m_creature || !target) return false;
 
     // 检查距离
-    f32 dx = target->x() - m_creature->x();
-    f32 dy = target->y() - m_creature->y();
-    f32 dz = target->z() - m_creature->z();
-    f32 distSq = dx * dx + dy * dy + dz * dz;
+    f32 distSq = m_creature->distanceSqTo(*target);
 
     // 检查是否在攻击范围内
-    f32 reachSq = m_reachDistance * m_reachDistance;
-    return distSq <= reachSq;
+    return distSq <= MELEE_ATTACK_REACH_SQ;
 }
 
 void MeleeAttackGoal::attackTarget(LivingEntity* target) {

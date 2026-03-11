@@ -3,6 +3,8 @@
 #include "../../../mob/MobEntity.hpp"
 #include "../../../living/LivingEntity.hpp"
 #include "../../../Entity.hpp"
+#include "../../../EntityUtils.hpp"
+#include "../GoalConstants.hpp"
 #include "../../../ai/pathfinding/PathNavigator.hpp"
 #include "../../../../world/IWorld.hpp"
 #include "../../../../math/random/Random.hpp"
@@ -10,6 +12,8 @@
 #include <cmath>
 
 namespace mr::entity::ai::goal {
+
+using namespace constants;
 
 AvoidEntityGoal::AvoidEntityGoal(CreatureEntity* creature, f32 avoidDistance, f64 farSpeed, f64 nearSpeed)
     : m_creature(creature)
@@ -64,12 +68,8 @@ void AvoidEntityGoal::startExecuting() {
 
 void AvoidEntityGoal::resetTask() {
     m_avoidTarget = nullptr;
-
     if (m_creature) {
-        auto* nav = m_creature->navigator();
-        if (nav) {
-            nav->clearPath();
-        }
+        m_creature->clearNavigation();
     }
 }
 
@@ -77,13 +77,10 @@ void AvoidEntityGoal::tick() {
     if (!m_creature || !m_avoidTarget) return;
 
     // 根据距离调整速度
-    f32 dx = m_avoidTarget->x() - m_creature->x();
-    f32 dy = m_avoidTarget->y() - m_creature->y();
-    f32 dz = m_avoidTarget->z() - m_creature->z();
-    f32 distSq = dx * dx + dy * dy + dz * dz;
+    f32 distSq = m_creature->distanceSqTo(*m_avoidTarget);
 
     f64 speed;
-    if (distSq < 49.0f) { // 7格内
+    if (distSq < AVOID_NEAR_DISTANCE_SQ) {
         speed = m_nearSpeed;
     } else {
         speed = m_farSpeed;
@@ -96,41 +93,13 @@ void AvoidEntityGoal::tick() {
 LivingEntity* AvoidEntityGoal::findEntityToAvoid() {
     if (!m_creature || !m_creature->world()) return nullptr;
 
-    IWorld* world = m_creature->world();
-
-    // 搜索附近的实体
-    auto entities = world->getEntitiesInRange(
-        Vector3(m_creature->x(), m_creature->y(), m_creature->z()),
+    return EntityUtils::findClosestEntity<LivingEntity>(
+        m_creature->world(),
+        m_creature->position(),
         m_avoidDistance,
-        m_creature
+        m_creature,
+        m_predicate
     );
-
-    LivingEntity* closestAvoid = nullptr;
-    f32 closestDist = m_avoidDistance * m_avoidDistance;
-
-    for (Entity* entity : entities) {
-        // 检查是否是 LivingEntity
-        LivingEntity* living = dynamic_cast<LivingEntity*>(entity);
-        if (!living) continue;
-
-        // 检查过滤条件
-        if (m_predicate && !m_predicate(living)) {
-            continue;
-        }
-
-        // 计算距离
-        f32 dx = living->x() - m_creature->x();
-        f32 dy = living->y() - m_creature->y();
-        f32 dz = living->z() - m_creature->z();
-        f32 distSq = dx * dx + dy * dy + dz * dz;
-
-        if (distSq < closestDist) {
-            closestDist = distSq;
-            closestAvoid = living;
-        }
-    }
-
-    return closestAvoid;
 }
 
 bool AvoidEntityGoal::findEscapePosition() {
