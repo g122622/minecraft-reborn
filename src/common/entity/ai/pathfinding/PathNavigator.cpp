@@ -1,5 +1,7 @@
 #include "PathNavigator.hpp"
 #include "../../living/LivingEntity.hpp"
+#include "../../mob/MobEntity.hpp"
+#include "../controller/MovementController.hpp"
 #include <cmath>
 
 namespace mr::entity::ai::pathfinding {
@@ -7,6 +9,13 @@ namespace mr::entity::ai::pathfinding {
 PathNavigator::PathNavigator(std::unique_ptr<PathFinder> finder)
     : m_pathFinder(std::move(finder))
 {
+}
+
+PathNavigator::PathNavigator(MobEntity* mob)
+    : m_pathFinder(nullptr)
+    , m_entity(mob)
+{
+    // PathFinder 需要后续设置或使用默认
 }
 
 bool PathNavigator::moveTo(f64 x, f64 y, f64 z, f64 speed) {
@@ -124,25 +133,17 @@ void PathNavigator::followPath() {
     }
 
     // 移动向目标路径点
-    // TODO: 实际的移动逻辑需要 MovementController
-    // 这里只是标记需要移动的方向
-    f64 dx = waypoint->x() + 0.5 - m_entity->x();
-    f64 dz = waypoint->z() + 0.5 - m_entity->z();
-
-    // 计算移动方向
-    f64 distance = std::sqrt(dx * dx + dz * dz);
-    if (distance > 0.01) {
-        // 归一化方向
-        // TODO: 使用 MovementController 移动
-        // f64 dirX = dx / distance;
-        // f64 dirZ = dz / distance;
-        // m_entity->moveController()->setMoveTo(
-        //     waypoint->x() + 0.5,
-        //     waypoint->y(),
-        //     waypoint->z() + 0.5,
-        //     m_speed
-        // );
-        (void)distance; // 抑制未使用警告
+    // 通过 MovementController 控制移动
+    // 需要将 LivingEntity 转换为 MobEntity 来访问 moveController
+    if (auto* mob = dynamic_cast<MobEntity*>(m_entity)) {
+        if (auto* moveCtrl = mob->moveController()) {
+            moveCtrl->setMoveTo(
+                waypoint->x() + 0.5,
+                waypoint->y(),
+                waypoint->z() + 0.5,
+                m_speed
+            );
+        }
     }
 }
 

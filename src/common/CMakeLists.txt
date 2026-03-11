@@ -63,6 +63,12 @@ add_library(mr_common STATIC
     entity/ai/goal/goals/SwimGoal.cpp
     entity/ai/goal/goals/RandomWalkingGoal.cpp
     entity/ai/goal/goals/LookAtGoal.cpp
+    entity/ai/goal/goals/PanicGoal.cpp
+    entity/ai/goal/goals/BreedGoal.cpp
+    entity/ai/goal/goals/TemptGoal.cpp
+    entity/ai/goal/goals/FollowParentGoal.cpp
+    entity/ai/goal/goals/MeleeAttackGoal.cpp
+    entity/ai/goal/goals/AvoidEntityGoal.cpp
     entity/ai/pathfinding/PathPoint.cpp
     entity/ai/pathfinding/WalkNodeProcessor.cpp
     entity/ai/pathfinding/PathFinder.cpp

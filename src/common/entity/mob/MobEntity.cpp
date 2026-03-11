@@ -2,6 +2,8 @@
 #include "../ai/controller/LookController.hpp"
 #include "../ai/controller/MovementController.hpp"
 #include "../ai/controller/JumpController.hpp"
+#include "../ai/pathfinding/PathNavigator.hpp"
+#include "../../math/random/Random.hpp"
 
 namespace mr {
 
@@ -10,6 +12,7 @@ MobEntity::MobEntity(LegacyEntityType type, EntityId id)
     , m_lookController(std::make_unique<entity::ai::controller::LookController>(this))
     , m_moveController(std::make_unique<entity::ai::controller::MovementController>(this))
     , m_jumpController(std::make_unique<entity::ai::controller::JumpController>(this))
+    , m_navigator(std::make_unique<entity::ai::pathfinding::PathNavigator>(this))
 {
     // 子类可在此初始化寻路器
 }
@@ -40,9 +43,36 @@ const entity::ai::controller::JumpController* MobEntity::jumpController() const 
     return m_jumpController.get();
 }
 
+entity::ai::pathfinding::PathNavigator* MobEntity::navigator() {
+    return m_navigator.get();
+}
+
+const entity::ai::pathfinding::PathNavigator* MobEntity::navigator() const {
+    return m_navigator.get();
+}
+
+math::Random MobEntity::getRandom() const {
+    // 基于实体ID和tick生成随机数种子
+    return math::Random(static_cast<u64>(m_id) | (static_cast<u64>(m_ticksExisted) << 32));
+}
+
+bool MobEntity::isBeingRidden() const {
+    // 目前没有乘客系统，返回 false
+    // TODO: 实现乘客系统后检查 getPassengers().empty()
+    return false;
+}
+
 void MobEntity::tick() {
     // 更新父类
     LivingEntity::tick();
+
+    // 更新空闲时间
+    // 如果实体在移动，重置空闲时间；否则增加
+    if (m_velocity.x != 0.0f || m_velocity.z != 0.0f) {
+        m_idleTime = 0;
+    } else {
+        m_idleTime++;
+    }
 
     // 更新 AI 目标
     if (m_aiEnabled) {

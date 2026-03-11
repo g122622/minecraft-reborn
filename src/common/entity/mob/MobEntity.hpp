@@ -2,6 +2,7 @@
 
 #include "../living/LivingEntity.hpp"
 #include "../ai/goal/GoalSelector.hpp"
+#include "../../math/random/Random.hpp"
 #include <memory>
 
 namespace mr {
@@ -11,6 +12,10 @@ namespace entity::ai::controller {
     class LookController;
     class MovementController;
     class JumpController;
+}
+
+namespace entity::ai::pathfinding {
+    class PathNavigator;
 }
 
 /**
@@ -98,6 +103,34 @@ public:
 
     void tick() override;
 
+    // ========== AI 辅助方法 ==========
+
+    /**
+     * @brief 获取空闲时间
+     */
+    [[nodiscard]] i32 idleTime() const { return m_idleTime; }
+
+    /**
+     * @brief 设置空闲时间
+     */
+    void setIdleTime(i32 time) { m_idleTime = time; }
+
+    /**
+     * @brief 获取随机数生成器（基于实体ID和tick）
+     */
+    [[nodiscard]] math::Random getRandom() const;
+
+    /**
+     * @brief 检查是否被骑乘
+     */
+    [[nodiscard]] bool isBeingRidden() const;
+
+    /**
+     * @brief 获取导航器
+     */
+    [[nodiscard]] entity::ai::pathfinding::PathNavigator* navigator();
+    [[nodiscard]] const entity::ai::pathfinding::PathNavigator* navigator() const;
+
 protected:
     // AI 目标选择器
     entity::ai::GoalSelector m_goalSelector;
@@ -107,6 +140,9 @@ protected:
     std::unique_ptr<entity::ai::controller::LookController> m_lookController;
     std::unique_ptr<entity::ai::controller::MovementController> m_moveController;
     std::unique_ptr<entity::ai::controller::JumpController> m_jumpController;
+
+    // 寻路器
+    std::unique_ptr<entity::ai::pathfinding::PathNavigator> m_navigator;
 
     // 攻击目标
     LivingEntity* m_attackTarget = nullptr;

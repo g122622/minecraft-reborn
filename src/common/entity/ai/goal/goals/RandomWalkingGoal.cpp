@@ -1,5 +1,7 @@
 #include "RandomWalkingGoal.hpp"
+#include "../../../mob/MobEntity.hpp"
 #include "../../../mob/CreatureEntity.hpp"
+#include "../../../ai/pathfinding/PathNavigator.hpp"
 #include "../../../../math/random/Random.hpp"
 #include <cmath>
 
@@ -21,16 +23,17 @@ RandomWalkingGoal::RandomWalkingGoal(CreatureEntity* creature, f64 speed, i32 ch
 bool RandomWalkingGoal::shouldExecute() {
     if (!m_creature) return false;
 
-    // TODO: 检查是否被骑乘
-    // if (m_creature->isBeingRidden()) return false;
+    // 检查是否被骑乘
+    if (m_creature->isBeingRidden()) return false;
 
     // 如果不需要强制更新，检查概率
     if (!m_forceUpdate) {
-        // TODO: 检查空闲时间
-        // if (m_creature->getIdleTime() >= 100) return false;
+        // 检查空闲时间
+        if (m_creature->idleTime() >= 100) return false;
 
         // 检查执行概率
-        // if (m_creature->getRandom().nextInt(m_executionChance) != 0) return false;
+        math::Random rng = m_creature->getRandom();
+        if (rng.nextInt(m_executionChance) != 0) return false;
     }
 
     // 获取随机位置
@@ -49,11 +52,12 @@ bool RandomWalkingGoal::shouldExecute() {
 bool RandomWalkingGoal::shouldContinueExecuting() {
     if (!m_creature) return false;
 
-    // TODO: 检查路径是否完成
-    // if (m_creature->getNavigator()->noPath()) return false;
+    // 检查路径是否完成
+    auto* nav = m_creature->navigator();
+    if (nav && nav->noPath()) return false;
 
-    // TODO: 检查是否被骑乘
-    // if (m_creature->isBeingRidden()) return false;
+    // 检查是否被骑乘
+    if (m_creature->isBeingRidden()) return false;
 
     return m_timeoutCounter > 0;
 }
@@ -66,10 +70,13 @@ void RandomWalkingGoal::startExecuting() {
 }
 
 void RandomWalkingGoal::resetTask() {
-    // TODO: 清除导航路径
-    // if (m_creature && m_creature->getNavigator()) {
-    //     m_creature->getNavigator()->clearPath();
-    // }
+    // 清除导航路径
+    if (m_creature) {
+        auto* nav = m_creature->navigator();
+        if (nav) {
+            nav->clearPath();
+        }
+    }
     m_timeoutCounter = 0;
 }
 
@@ -82,9 +89,8 @@ void RandomWalkingGoal::tick() {
 bool RandomWalkingGoal::getRandomPosition(Vector3& outPos) {
     if (!m_creature) return false;
 
-    // 简单的随机位置生成
-    // TODO: 实现完整的随机位置生成器（类似 MC 的 RandomPositionGenerator）
-    math::Random rng(m_creature->ticksExisted());
+    // 使用实体的随机数生成器
+    math::Random rng = m_creature->getRandom();
 
     f32 range = 10.0f; // 漫步范围
     f32 x = m_creature->x() + (rng.nextFloat() * 2.0f - 1.0f) * range;

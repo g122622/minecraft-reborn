@@ -1,5 +1,8 @@
 #include "SwimGoal.hpp"
 #include "../../../mob/MobEntity.hpp"
+#include "../../../Entity.hpp"
+#include "../../../ai/controller/JumpController.hpp"
+#include "../../../../math/random/Random.hpp"
 
 namespace mr::entity::ai::goal {
 
@@ -12,19 +15,28 @@ SwimGoal::SwimGoal(MobEntity* mob)
 bool SwimGoal::shouldExecute() {
     if (!m_mob) return false;
 
-    // TODO: 检查实体是否在水中或岩浆中
-    // 目前简单返回 false，需要在 Entity 中添加 isInWater() 和 isInLava() 方法
-    return false;
+    // 检查实体是否在水中或岩浆中
+    return m_mob->isInWater() || m_mob->isInLava();
+}
+
+bool SwimGoal::shouldContinueExecuting() {
+    if (!m_mob) return false;
+
+    // 继续执行直到不在水中
+    return m_mob->isInWater() || m_mob->isInLava();
 }
 
 void SwimGoal::tick() {
     if (!m_mob) return;
 
-    // 随机跳跃以游泳
-    // TODO: 添加随机数生成器
-    // if (m_mob->getRandom().nextFloat() < 0.8f) {
-    //     m_mob->getJumpController()->setJumping();
-    // }
+    // 在水中或岩浆中时随机跳跃以游泳
+    math::Random rng = m_mob->getRandom();
+    if (rng.nextFloat() < 0.8f) {
+        // 触发跳跃
+        if (auto* jumpCtrl = m_mob->jumpController()) {
+            jumpCtrl->setJumping();
+        }
+    }
 }
 
 } // namespace mr::entity::ai::goal

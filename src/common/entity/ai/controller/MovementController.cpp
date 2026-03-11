@@ -1,5 +1,8 @@
 #include "MovementController.hpp"
+#include "JumpController.hpp"
 #include "../../mob/MobEntity.hpp"
+#include "../../living/LivingEntity.hpp"
+#include "../../attribute/Attributes.hpp"
 #include <cmath>
 
 namespace mr::entity::ai::controller {
@@ -29,18 +32,10 @@ void MovementController::strafe(f32 forward, f32 strafe) {
 void MovementController::tick() {
     if (!m_mob) return;
 
-    // TODO: 完整实现需要：
-    // - m_mob->getMovementSpeed() - 获取移动速度属性
-    // - m_mob->setAIMoveSpeed() - 设置AI移动速度
-    // - m_mob->setMoveForward() - 设置前进方向
-    // - m_mob->setMoveStrafing() - 设置横向方向
-    // - m_mob->getNavigator() - 获取寻路器
-    // - m_mob->isOnGround() - 是否在地面
-    // - m_mob->stepHeight() - 步进高度
-
     if (m_action == MoveAction::Strafe) {
         // 横向移动模式
-        // TODO: 实现横向移动
+        m_mob->setMoveForward(m_moveForward);
+        m_mob->setMoveStrafing(m_moveStrafe);
         m_action = MoveAction::Wait;
     }
     else if (m_action == MoveAction::MoveTo) {
@@ -54,7 +49,8 @@ void MovementController::tick() {
 
         // 如果距离太小，停止移动
         if (distSq < 2.5000003e-7) {
-            // m_mob->setMoveForward(0.0f);
+            m_mob->setMoveForward(0.0f);
+            m_mob->setMoveStrafing(0.0f);
             return;
         }
 
@@ -67,28 +63,32 @@ void MovementController::tick() {
 
         m_mob->setRotation(newYaw, m_mob->pitch());
 
-        // TODO: 设置移动速度
-        // f32 speed = static_cast<f32>(m_speed * m_mob->getAttributeValue(Attributes::MOVEMENT_SPEED));
-        // m_mob->setAIMoveSpeed(speed);
+        // 设置移动速度
+        f32 speed = static_cast<f32>(m_speed * m_mob->getAttributeValue(entity::attribute::Attributes::MOVEMENT_SPEED, 0.2));
+        m_mob->setMoveForward(speed);
 
-        // TODO: 检查是否需要跳跃
-        // if (dy > m_mob->stepHeight() && dx*dx + dz*dz < 1.0) {
-        //     m_mob->getJumpController()->setJumping();
-        //     m_action = MoveAction::Jumping;
-        // }
+        // 检查是否需要跳跃（目标位置比当前位置高，且水平距离较近）
+        if (dy > m_mob->stepHeight() && dx * dx + dz * dz < 1.0) {
+            if (auto* jumpCtrl = m_mob->jumpController()) {
+                jumpCtrl->setJumping();
+            }
+            m_action = MoveAction::Jumping;
+        }
     }
     else if (m_action == MoveAction::Jumping) {
-        // TODO: 设置移动速度
-        // m_mob->setAIMoveSpeed(static_cast<f32>(m_speed * m_mob->getAttributeValue(Attributes::MOVEMENT_SPEED)));
+        // 跳跃中继续移动
+        f32 speed = static_cast<f32>(m_speed * m_mob->getAttributeValue(entity::attribute::Attributes::MOVEMENT_SPEED, 0.2));
+        m_mob->setMoveForward(speed);
 
-        // TODO: 检查是否着陆
-        // if (m_mob->isOnGround()) {
-        //     m_action = MoveAction::Wait;
-        // }
+        // 检查是否着陆
+        if (m_mob->onGround()) {
+            m_action = MoveAction::Wait;
+        }
     }
     else {
         // Wait 状态
-        // m_mob->setMoveForward(0.0f);
+        m_mob->setMoveForward(0.0f);
+        m_mob->setMoveStrafing(0.0f);
     }
 }
 

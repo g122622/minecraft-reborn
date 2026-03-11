@@ -23,7 +23,7 @@ f32 CreatureEntity::getPathWeight(f32 /*x*/, f32 /*y*/, f32 /*z*/) const {
     return 0.0f;
 }
 
-bool CreatureEntity::canSpawnAt(f32 x, f32 y, f32 z) const {
+bool CreatureEntity::canSpawnAt(f32 /*x*/, f32 y, f32 /*z*/) const {
     // 默认实现：检查是否在有效位置
     // 子类应该重写此方法
     return y >= 0.0f;

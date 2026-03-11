@@ -12,8 +12,10 @@ void JumpController::setJumping() {
 }
 
 void JumpController::tick() {
-    // TODO: 调用 m_mob->setJumping(m_isJumping)
-    // 需要在 MobEntity 中添加跳跃状态
+    // 将跳跃状态应用到实体
+    if (m_mob && m_isJumping) {
+        m_mob->setJumping(true);
+    }
     m_isJumping = false;
 }
 

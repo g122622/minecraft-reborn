@@ -10,6 +10,7 @@ namespace mr {
 // 前向声明
 class Entity;
 class LivingEntity;
+class MobEntity;
 
 namespace entity::ai::pathfinding {
 
@@ -28,6 +29,13 @@ public:
      * @param finder 寻路器
      */
     explicit PathNavigator(std::unique_ptr<PathFinder> finder);
+
+    /**
+     * @brief 构造函数（从 MobEntity）
+     * @param mob 拥有此导航器的生物
+     */
+    explicit PathNavigator(MobEntity* mob);
+
     virtual ~PathNavigator() = default;
 
     // ========== 路径计算 ==========
@@ -67,6 +75,11 @@ public:
      * @brief 检查是否有路径
      */
     [[nodiscard]] bool hasPath() const { return m_path && !m_path->empty(); }
+
+    /**
+     * @brief 检查是否没有路径（用于AI目标判断）
+     */
+    [[nodiscard]] bool noPath() const { return !hasPath(); }
 
     /**
      * @brief 获取当前路径
