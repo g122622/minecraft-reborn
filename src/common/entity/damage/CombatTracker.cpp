@@ -26,8 +26,11 @@ void CombatTracker::recordDamage(std::unique_ptr<DamageSource> source, f32 damag
     m_entries.emplace_back(std::move(source), damage, timestamp);
     m_totalDamage += damage;
 
-    // 更新最佳伤害记录
-    updateBestEntry();
+    // 增量更新最佳伤害记录 - 只需与新条目比较
+    // 仅当清理后需要重新扫描时才调用完整的updateBestEntry()
+    if (m_entries.size() == 1 || damage > m_entries[m_bestEntryIndex].damage()) {
+        m_bestEntryIndex = m_entries.size() - 1;
+    }
 }
 
 void CombatTracker::reset() {
@@ -77,22 +80,21 @@ String CombatTracker::getDeathMessage() const {
     const CombatEntry* bestEntry = getBestEntry();
     if (!bestEntry) {
         // 没有战斗记录，自然死亡
-        return m_owner->customName().empty() ? "entity died" : m_owner->customName() + " died";
+        return m_owner->getDisplayName() + " died";
     }
 
     const DamageSource* source = bestEntry->source();
     if (!source) {
-        return m_owner->customName().empty() ? "entity died" : m_owner->customName() + " died";
+        return m_owner->getDisplayName() + " died";
     }
 
     // 根据伤害来源类型生成死亡消息
     // TODO: 实现完整的死亡消息系统，支持多种死亡原因
     Entity* attacker = source->getEntity();
-    String ownerName = m_owner->customName().empty() ? "entity" : m_owner->customName();
+    String ownerName = m_owner->getDisplayName();
 
     if (attacker) {
-        String attackerName = attacker->customName().empty() ? "entity" : attacker->customName();
-        return ownerName + " was slain by " + attackerName;
+        return ownerName + " was slain by " + attacker->getDisplayName();
     }
 
     // 环境伤害

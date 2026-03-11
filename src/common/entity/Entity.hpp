@@ -439,6 +439,15 @@ public:
     [[nodiscard]] const String& customName() const { return m_customName; }
 
     /**
+     * @brief 获取显示名称
+     *
+     * 返回自定义名称，如果没有则返回默认名称"entity"
+     */
+    [[nodiscard]] String getDisplayName() const {
+        return m_customName.empty() ? "entity" : m_customName;
+    }
+
+    /**
      * @brief 设置自定义名称
      */
     void setCustomName(const String& name) { m_customName = name; }
