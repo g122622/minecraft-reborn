@@ -31,6 +31,7 @@ add_library(mr_common STATIC
     network/LocalConnection.cpp
     network/InventoryPackets.cpp
     network/ContainerPacketHandler.cpp
+    network/EntityPackets.cpp
 
     # Entity
     entity/Entity.cpp

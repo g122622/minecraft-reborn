@@ -52,6 +52,7 @@ add_executable(mr_tests
     server/test_server_chunk_manager.cpp
     client/test_mesh_worker_pool.cpp
     client/renderer/test_renderer.cpp
+    network/EntityPacketsTest.cpp
 )
 
 # 添加服务端源文件
@@ -81,6 +82,7 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/network/ChunkSync.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/PacketSerializer.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/Packet.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/network/EntityPackets.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkData.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkDistanceGraph.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkLoadTicketManager.cpp

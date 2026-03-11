@@ -48,6 +48,12 @@ add_executable(minecraft-client
     ui/texture/GuiTextureAtlas.cpp
     ui/chat/ChatHistory.cpp
     ui/chat/ChatScreen.cpp
+    # 实体渲染
+    renderer/entity/EntityRenderer.cpp
+    renderer/entity/EntityRendererManager.cpp
+    renderer/entity/model/ModelRenderer.cpp
+    renderer/entity/model/EntityModel.cpp
+    renderer/entity/model/AnimalModels.cpp
     # 内置服务端支持
     ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp

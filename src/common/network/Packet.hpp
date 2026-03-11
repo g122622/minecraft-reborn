@@ -37,6 +37,19 @@ enum class PacketType : u16 {
     ChatBroadcast = 207,
     TimeUpdate = 208,   // 时间同步
 
+    // 实体同步包 (S->C)
+    SpawnEntity = 210,          // 实体生成（物品、经验球等）
+    SpawnMob = 211,             // Mob生成
+    SpawnLiving = 212,          // LivingEntity生成
+    EntityMetadata = 213,       // 实体数据同步
+    EntityVelocity = 214,       // 实体速度
+    EntityTeleport = 215,       // 实体传送
+    EntityDestroy = 216,        // 实体销毁
+    EntityAnimation = 217,      // 实体动画
+    EntityMove = 218,           // 实体移动（相对）
+    EntityHeadLook = 219,       // 实体头部朝向
+    EntityStatus = 220,         // 实体状态（受伤、死亡等）
+
     // 背包相关包 (双向)
     ContainerContent = 300,     // 容器内容同步 (S->C)
     ContainerSlot = 301,        // 单个槽位更新 (S->C)
