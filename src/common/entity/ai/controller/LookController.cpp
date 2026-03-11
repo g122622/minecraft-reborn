@@ -1,5 +1,6 @@
 #include "LookController.hpp"
 #include "../../mob/MobEntity.hpp"
+#include "../../../math/MathUtils.hpp"
 #include <cmath>
 
 namespace mr::entity::ai::controller {
@@ -55,7 +56,7 @@ f32 LookController::getTargetYaw() const {
 
     // atan2(dz, dx) 返回弧度，转换为度数
     // MC 使用 atan2(dz, dx) * 180/PI - 90
-    f32 yaw = static_cast<f32>(std::atan2(dz, dx) * (180.0 / 3.14159265358979323846) - 90.0);
+    f32 yaw = static_cast<f32>(std::atan2(dz, dx) * math::RAD_TO_DEG - 90.0);
 
     return yaw;
 }
@@ -70,29 +71,13 @@ f32 LookController::getTargetPitch() const {
     f64 horizontalDist = std::sqrt(dx * dx + dz * dz);
 
     // 俯仰角为负值表示向上看
-    f32 pitch = static_cast<f32>(-(std::atan2(dy, horizontalDist) * (180.0 / 3.14159265358979323846)));
+    f32 pitch = static_cast<f32>(-(std::atan2(dy, horizontalDist) * math::RAD_TO_DEG));
 
     return pitch;
 }
 
 f32 LookController::clampedRotate(f32 from, f32 to, f32 maxDelta) {
-    // 计算角度差，归一化到 [-180, 180]
-    f32 diff = to - from;
-
-    while (diff < -180.0f) diff += 360.0f;
-    while (diff > 180.0f) diff -= 360.0f;
-
-    // 限制变化量
-    if (diff > maxDelta) diff = maxDelta;
-    if (diff < -maxDelta) diff = -maxDelta;
-
-    f32 result = from + diff;
-
-    // 归一化到 [0, 360]
-    while (result < 0.0f) result += 360.0f;
-    while (result >= 360.0f) result -= 360.0f;
-
-    return result;
+    return math::clampAngle(from, to, maxDelta);
 }
 
 } // namespace mr::entity::ai::controller

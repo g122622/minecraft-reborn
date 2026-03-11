@@ -181,4 +181,97 @@ inline void idToChunkPos(u64 id, ChunkCoord& x, ChunkCoord& z) noexcept
     z = static_cast<ChunkCoord>(static_cast<i32>(id & 0xFFFFFFFF));
 }
 
+// ============================================================================
+// 角度处理函数
+// ============================================================================
+
+/**
+ * @brief 将角度规范化到 [-180, 180) 范围
+ *
+ * @param degrees 输入角度（度）
+ * @return 规范化后的角度
+ */
+[[nodiscard]] inline f32 wrapDegrees(f32 degrees) noexcept
+{
+    degrees = std::fmod(degrees, 360.0f);
+    if (degrees >= 180.0f) {
+        degrees -= 360.0f;
+    } else if (degrees < -180.0f) {
+        degrees += 360.0f;
+    }
+    return degrees;
+}
+
+/**
+ * @brief 将角度规范化到 [0, 360) 范围
+ *
+ * @param degrees 输入角度（度）
+ * @return 规范化后的角度
+ */
+[[nodiscard]] inline f32 wrapDegreesPositive(f32 degrees) noexcept
+{
+    degrees = std::fmod(degrees, 360.0f);
+    if (degrees < 0.0f) {
+        degrees += 360.0f;
+    }
+    return degrees;
+}
+
+/**
+ * @brief 限制角度变化量
+ *
+ * 计算从 sourceAngle 到 targetAngle 的最短路径，
+ * 并限制最大变化量为 maximumChange。
+ *
+ * @param sourceAngle 起始角度（度）
+ * @param targetAngle 目标角度（度）
+ * @param maximumChange 最大变化量（度）
+ * @return 调整后的角度
+ */
+[[nodiscard]] inline f32 clampAngle(f32 sourceAngle, f32 targetAngle, f32 maximumChange) noexcept
+{
+    f32 diff = wrapDegrees(targetAngle - sourceAngle);
+    if (diff > maximumChange) {
+        diff = maximumChange;
+    } else if (diff < -maximumChange) {
+        diff = -maximumChange;
+    }
+    return wrapDegreesPositive(sourceAngle + diff);
+}
+
+/**
+ * @brief 计算两点之间的水平距离平方
+ *
+ * @param x1 第一个点的X坐标
+ * @param z1 第一个点的Z坐标
+ * @param x2 第二个点的X坐标
+ * @param z2 第二个点的Z坐标
+ * @return 水平距离的平方
+ */
+[[nodiscard]] inline f32 distanceHorizontalSq(f32 x1, f32 z1, f32 x2, f32 z2) noexcept
+{
+    const f32 dx = x2 - x1;
+    const f32 dz = z2 - z1;
+    return dx * dx + dz * dz;
+}
+
+/**
+ * @brief 计算两点之间的距离平方
+ *
+ * @param x1 第一个点的X坐标
+ * @param y1 第一个点的Y坐标
+ * @param z1 第一个点的Z坐标
+ * @param x2 第二个点的X坐标
+ * @param y2 第二个点的Y坐标
+ * @param z2 第二个点的Z坐标
+ * @return 距离的平方
+ */
+[[nodiscard]] inline f32 distanceSq(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2) noexcept
+{
+    const f32 dx = x2 - x1;
+    const f32 dy = y2 - y1;
+    const f32 dz = z2 - z1;
+    return dx * dx + dy * dy + dz * dz;
+}
+
 } // namespace mr::math

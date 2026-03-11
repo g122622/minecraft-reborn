@@ -3,6 +3,7 @@
 #include "../../mob/MobEntity.hpp"
 #include "../../living/LivingEntity.hpp"
 #include "../../attribute/Attributes.hpp"
+#include "../../../math/MathUtils.hpp"
 #include <cmath>
 
 namespace mr::entity::ai::controller {
@@ -55,11 +56,11 @@ void MovementController::tick() {
         }
 
         // 计算目标偏航角
-        f32 targetYaw = static_cast<f32>(std::atan2(dz, dx) * (180.0 / 3.14159265358979323846) - 90.0);
+        f32 targetYaw = static_cast<f32>(std::atan2(dz, dx) * math::RAD_TO_DEG - 90.0);
 
         // 限制旋转速度
         f32 currentYaw = m_mob->yaw();
-        f32 newYaw = limitAngle(currentYaw, targetYaw, 90.0f);
+        f32 newYaw = math::clampAngle(currentYaw, targetYaw, 90.0f);
 
         m_mob->setRotation(newYaw, m_mob->pitch());
 
@@ -90,26 +91,6 @@ void MovementController::tick() {
         m_mob->setMoveForward(0.0f);
         m_mob->setMoveStrafing(0.0f);
     }
-}
-
-f32 MovementController::limitAngle(f32 sourceAngle, f32 targetAngle, f32 maximumChange) {
-    // 计算角度差，归一化到 [-180, 180]
-    f32 diff = targetAngle - sourceAngle;
-
-    while (diff < -180.0f) diff += 360.0f;
-    while (diff > 180.0f) diff -= 360.0f;
-
-    // 限制变化量
-    if (diff > maximumChange) diff = maximumChange;
-    if (diff < -maximumChange) diff = -maximumChange;
-
-    f32 result = sourceAngle + diff;
-
-    // 归一化到 [0, 360]
-    while (result < 0.0f) result += 360.0f;
-    while (result >= 360.0f) result -= 360.0f;
-
-    return result;
 }
 
 } // namespace mr::entity::ai::controller

@@ -6,6 +6,7 @@
 #include "../../../ai/pathfinding/PathNavigator.hpp"
 #include "../../../../world/IWorld.hpp"
 #include "../../../../math/random/Random.hpp"
+#include "../../../../math/MathUtils.hpp"
 #include <cmath>
 
 namespace mr::entity::ai::goal {
@@ -94,7 +95,7 @@ bool PanicGoal::findRandomPosition() {
     math::Random rng = m_creature->getRandom();
 
     // 生成远离当前位置的随机方向
-    f32 angle = rng.nextFloat() * 2.0f * 3.14159265f;
+    f32 angle = rng.nextFloat() * math::TWO_PI;
     f32 distance = 5.0f + rng.nextFloat() * 5.0f; // 5-10 格距离
 
     m_targetX = m_creature->x() + std::cos(angle) * distance;

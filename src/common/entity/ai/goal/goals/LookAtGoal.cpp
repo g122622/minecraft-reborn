@@ -3,6 +3,7 @@
 #include "../../../living/LivingEntity.hpp"
 #include "../../../Entity.hpp"
 #include "../../../../math/random/Random.hpp"
+#include "../../../../math/MathUtils.hpp"
 #include "../../../../world/IWorld.hpp"
 #include "../../controller/LookController.hpp"
 #include <cmath>
@@ -168,8 +169,8 @@ void LookRandomlyGoal::tick() {
     // 使用视线控制器看向往方向
     if (auto* lookCtrl = m_mob->lookController()) {
         // 计算目标位置（使用当前坐标加方向向量）
-        f32 yawRad = m_targetYaw * 3.14159265f / 180.0f;
-        f32 pitchRad = m_targetPitch * 3.14159265f / 180.0f;
+        f32 yawRad = m_targetYaw * math::DEG_TO_RAD;
+        f32 pitchRad = m_targetPitch * math::DEG_TO_RAD;
 
         f32 dx = std::cos(pitchRad) * std::cos(yawRad);
         f32 dy = -std::sin(pitchRad);

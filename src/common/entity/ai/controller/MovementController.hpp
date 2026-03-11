@@ -89,15 +89,6 @@ public:
     void tick();
 
 protected:
-    /**
-     * @brief 限制角度变化
-     * @param sourceAngle 当前角度
-     * @param targetAngle 目标角度
-     * @param maximumChange 最大变化量
-     * @return 限制后的角度
-     */
-    [[nodiscard]] static f32 limitAngle(f32 sourceAngle, f32 targetAngle, f32 maximumChange);
-
     MobEntity* m_mob;
     f64 m_posX = 0.0;
     f64 m_posY = 0.0;

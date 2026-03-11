@@ -6,6 +6,7 @@
 #include "../../../ai/pathfinding/PathNavigator.hpp"
 #include "../../../../world/IWorld.hpp"
 #include "../../../../math/random/Random.hpp"
+#include "../../../../math/MathUtils.hpp"
 #include <cmath>
 
 namespace mr::entity::ai::goal {
@@ -152,7 +153,7 @@ bool AvoidEntityGoal::findEscapePosition() {
     }
 
     // 添加随机偏移
-    f32 randomAngle = rng.nextFloat() * 2.0f * 3.14159265f;
+    f32 randomAngle = rng.nextFloat() * math::TWO_PI;
     f32 randomDist = distance * rng.nextFloat();
 
     m_escapeX = m_creature->x() + dirX * distance + std::cos(randomAngle) * randomDist * 0.5f;
