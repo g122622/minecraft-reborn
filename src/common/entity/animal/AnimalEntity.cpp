@@ -1,4 +1,11 @@
 #include "AnimalEntity.hpp"
+#include "../ai/goal/goals/SwimGoal.hpp"
+#include "../ai/goal/goals/PanicGoal.hpp"
+#include "../ai/goal/goals/BreedGoal.hpp"
+#include "../ai/goal/goals/TemptGoal.hpp"
+#include "../ai/goal/goals/FollowParentGoal.hpp"
+#include "../ai/goal/goals/RandomWalkingGoal.hpp"
+#include "../ai/goal/goals/LookAtGoal.hpp"
 
 namespace mr {
 
@@ -44,8 +51,34 @@ void AnimalEntity::tick() {
 }
 
 void AnimalEntity::registerGoals() {
-    // TODO: 注册基础动物 AI 目标
-    // 子类应该调用此方法
+    // 调用父类方法
+    AgeableEntity::registerGoals();
+
+    // 基础动物 AI 目标
+    // 优先级 0: 游泳（最高优先级）
+    m_goalSelector.addGoal(0, new entity::ai::goal::SwimGoal(this));
+
+    // 优先级 1: 恐慌逃跑（受到伤害时）
+    m_goalSelector.addGoal(1, new entity::ai::goal::PanicGoal(this, 1.25));
+
+    // 优先级 2: 繁殖（当处于爱心状态时）
+    m_goalSelector.addGoal(2, new entity::ai::goal::BreedGoal(this, 1.0));
+
+    // 优先级 3: 食物诱惑（当玩家手持食物时）
+    // 子类需要设置食物检测谓词
+    // m_goalSelector.addGoal(3, new entity::ai::goal::TemptGoal(this, 1.0, foodPredicate));
+
+    // 优先级 4: 跟随父母（幼体行为）
+    m_goalSelector.addGoal(4, new entity::ai::goal::FollowParentGoal(this, 1.0));
+
+    // 优先级 5: 随机漫步
+    m_goalSelector.addGoal(5, new entity::ai::goal::RandomWalkingGoal(this, 1.0));
+
+    // 优先级 6: 看向玩家
+    m_goalSelector.addGoal(6, new entity::ai::goal::LookAtGoal(this, 6.0f));
+
+    // 优先级 7: 随机看向
+    m_goalSelector.addGoal(7, new entity::ai::goal::LookRandomlyGoal(this));
 }
 
 void AnimalEntity::updateInLove() {

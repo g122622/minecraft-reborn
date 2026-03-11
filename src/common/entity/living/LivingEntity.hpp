@@ -4,6 +4,7 @@
 #include "../attribute/AttributeMap.hpp"
 #include "../attribute/Attributes.hpp"
 #include "../damage/DamageSource.hpp"
+#include "../damage/CombatTracker.hpp"
 #include "../../item/ItemStack.hpp"
 #include <array>
 #include <memory>
@@ -278,6 +279,14 @@ public:
     void setMoveStrafing(f32 strafing) { m_moveStrafing = strafing; }
     void setMoveForward(f32 forward) { m_moveForward = forward; }
 
+    // ========== 战斗追踪 ==========
+
+    /**
+     * @brief 获取战斗追踪器
+     */
+    [[nodiscard]] CombatTracker& combatTracker() { return m_combatTracker; }
+    [[nodiscard]] const CombatTracker& combatTracker() const { return m_combatTracker; }
+
     // ========== 死亡 ==========
 
     /**
@@ -375,6 +384,9 @@ protected:
 
     // 最近攻击
     i32 m_ticksSinceLastSwing = 0;       // 上次攻击后的 tick
+
+    // 战斗追踪
+    CombatTracker m_combatTracker;       // 战斗追踪器
 };
 
 } // namespace mr

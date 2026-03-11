@@ -42,6 +42,9 @@ public:
 
     void tick() override;
 
+protected:
+    void registerGoals() override;
+
 private:
     i32 m_eggTimer = 0;        // 下蛋计时器
     f32 m_eggTime = 0.0f;      // 累计时间

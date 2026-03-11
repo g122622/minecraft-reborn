@@ -36,7 +36,8 @@ public:
      */
     void setSaddle(bool saddle) { m_hasSaddle = saddle; }
 
-    // TODO: 骑乘逻辑
+protected:
+    void registerGoals() override;
 
 private:
     bool m_hasSaddle = false;

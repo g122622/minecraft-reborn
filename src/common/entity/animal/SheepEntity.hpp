@@ -65,6 +65,9 @@ public:
 
     void tick() override;
 
+protected:
+    void registerGoals() override;
+
 private:
     u8 m_woolColor = 0;         // 羊毛颜色（默认白色）
     bool m_hasWool = true;       // 是否有羊毛

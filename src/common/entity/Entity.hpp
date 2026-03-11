@@ -224,6 +224,25 @@ public:
     void setRotation(f32 yaw, f32 pitch);
     void setVelocity(f32 x, f32 y, f32 z);
     void setVelocity(const Vector3& vel) { setVelocity(vel.x, vel.y, vel.z); }
+
+    /**
+     * @brief 添加速度增量
+     * @param dx X方向增量
+     * @param dy Y方向增量
+     * @param dz Z方向增量
+     */
+    void addVelocity(f32 dx, f32 dy, f32 dz) {
+        m_velocity.x += dx;
+        m_velocity.y += dy;
+        m_velocity.z += dz;
+    }
+
+    /**
+     * @brief 添加速度增量
+     * @param delta 速度增量向量
+     */
+    void addVelocity(const Vector3& delta) { addVelocity(delta.x, delta.y, delta.z); }
+
     void setOnGround(bool onGround) { m_onGround = onGround; }
     void setPose(EntityPose pose) { m_pose = pose; }
     void setFlags(EntityFlags flags) { m_flags = flags; }
@@ -473,6 +492,81 @@ public:
      */
     void updateFallDistance();
 
+    // ========== 乘客/骑乘系统 ==========
+
+    /**
+     * @brief 获取乘客列表
+     * @return 乘客实体ID列表
+     */
+    [[nodiscard]] const std::vector<EntityId>& getPassengers() const { return m_passengers; }
+
+    /**
+     * @brief 检查是否有乘客
+     */
+    [[nodiscard]] bool hasPassengers() const { return !m_passengers.empty(); }
+
+    /**
+     * @brief 检查是否被骑乘
+     */
+    [[nodiscard]] bool isBeingRidden() const { return hasPassengers(); }
+
+    /**
+     * @brief 获取所骑乘的车辆
+     * @return 车辆实体ID，如果没有则返回 INVALID_ENTITY_ID
+     */
+    [[nodiscard]] EntityId getVehicle() const { return m_vehicle; }
+
+    /**
+     * @brief 检查是否正在骑乘
+     */
+    [[nodiscard]] bool isRiding() const { return m_vehicle != INVALID_ENTITY_ID; }
+
+    /**
+     * @brief 检查指定实体是否是乘客
+     * @param entityId 实体ID
+     */
+    [[nodiscard]] bool isPassenger(EntityId entityId) const;
+
+    /**
+     * @brief 添加乘客
+     * @param passenger 乘客实体
+     * @return 是否成功添加
+     */
+    bool addPassenger(Entity& passenger);
+
+    /**
+     * @brief 移除乘客
+     * @param passenger 乘客实体
+     */
+    void removePassenger(Entity& passenger);
+
+    /**
+     * @brief 开始骑乘
+     * @param vehicle 车辆实体
+     * @return 是否成功骑乘
+     */
+    bool startRiding(Entity& vehicle);
+
+    /**
+     * @brief 停止骑乘
+     * @param clearVehicle 是否清除车辆引用
+     */
+    void stopRiding(bool clearVehicle = true);
+
+    /**
+     * @brief 获取第一个乘客
+     * @return 第一个乘客的实体ID，如果没有则返回 INVALID_ENTITY_ID
+     */
+    [[nodiscard]] EntityId getFirstPassenger() const {
+        return m_passengers.empty() ? INVALID_ENTITY_ID : m_passengers.front();
+    }
+
+    /**
+     * @brief 获取骑乘者在车辆中的位置偏移
+     * @return 骑乘位置偏移
+     */
+    [[nodiscard]] virtual Vector3 getRidingPosition() const;
+
     // ========== 更新 ==========
 
     /**
@@ -538,6 +632,15 @@ protected:
 
     // 重力
     bool m_noGravity = false;
+
+    // 乘客/骑乘系统
+    std::vector<EntityId> m_passengers;  // 乘客列表
+    EntityId m_vehicle = INVALID_ENTITY_ID;  // 正在骑乘的车辆
+
+    /**
+     * @brief 设置车辆（内部方法）
+     */
+    void setVehicle(EntityId vehicle) { m_vehicle = vehicle; }
 };
 
 } // namespace mr

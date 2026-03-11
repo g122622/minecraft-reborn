@@ -100,6 +100,9 @@ using WorldHeight = i32;
 // 实体ID类型
 using EntityId = u64;
 
+// 无效实体ID常量
+inline constexpr EntityId INVALID_ENTITY_ID = 0;
+
 // 物品ID类型
 using ItemId = u16;
 

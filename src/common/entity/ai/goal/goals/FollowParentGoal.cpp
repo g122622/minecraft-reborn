@@ -44,13 +44,8 @@ bool FollowParentGoal::shouldContinueExecuting() {
         return false;
     }
 
-    // 检查距离
+    // 检查距离 - 只有超出最大距离才停止
     f32 distSq = m_childAnimal->distanceSqTo(*m_parentAnimal);
-
-    // 太近或太远都停止
-    if (distSq < FOLLOW_PARENT_MIN_DISTANCE_SQ) {
-        return false;
-    }
     if (distSq > FOLLOW_PARENT_MAX_DISTANCE_SQ) {
         return false;
     }
@@ -75,6 +70,14 @@ void FollowParentGoal::tick() {
     // 看向父/母
     m_childAnimal->lookAt(*m_parentAnimal);
 
+    // 检查距离 - 太近时只暂停移动，不停止目标
+    f32 distSq = m_childAnimal->distanceSqTo(*m_parentAnimal);
+    if (distSq < FOLLOW_PARENT_MIN_DISTANCE_SQ) {
+        // 距离足够近，暂停移动
+        m_childAnimal->clearNavigation();
+        return;
+    }
+
     // 定期更新路径
     if (--m_delayCounter <= 0) {
         m_delayCounter = FOLLOW_DELAY_INTERVAL;
@@ -95,7 +98,7 @@ AnimalEntity* FollowParentGoal::findParent() {
     return EntityUtils::findClosestEntity<AnimalEntity>(
         m_childAnimal->world(),
         m_childAnimal->position(),
-        SEARCH_RANGE,
+        FOLLOW_PARENT_SEARCH_RANGE,
         m_childAnimal,
         [](AnimalEntity* animal) {
             // 必须是成年动物

@@ -239,7 +239,7 @@ void ChickenModel::setAngles(f32 limbSwing, f32 limbSwingAmount,
 
     // 翅膀动画（飞行时拍打）
     m_rightWing->setRotateAngleZ(-std::sin(ageInTicks * 0.3f) * walkAmount * 0.5f);
-    m_leftLeg->setRotateAngleZ(std::sin(ageInTicks * 0.3f) * walkAmount * 0.5f);
+    m_leftWing->setRotateAngleZ(std::sin(ageInTicks * 0.3f) * walkAmount * 0.5f);
 
     (void)scale;
 }

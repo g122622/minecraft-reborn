@@ -252,4 +252,78 @@ void Entity::applyPhysics(f32 deltaTime) {
     (void)deltaTime; // MC物理是基于tick的，不使用deltaTime
 }
 
+// ============================================================================
+// 乘客/骑乘系统
+// ============================================================================
+
+bool Entity::isPassenger(EntityId entityId) const {
+    for (EntityId passenger : m_passengers) {
+        if (passenger == entityId) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Entity::addPassenger(Entity& passenger) {
+    // 检查是否已经是乘客
+    if (isPassenger(passenger.id())) {
+        return false;
+    }
+
+    // 如果乘客正在骑乘其他实体，先停止
+    if (passenger.isRiding()) {
+        passenger.stopRiding();
+    }
+
+    // 添加乘客
+    m_passengers.push_back(passenger.id());
+    passenger.setVehicle(m_id);
+
+    return true;
+}
+
+void Entity::removePassenger(Entity& passenger) {
+    // 查找并移除乘客
+    auto it = std::find(m_passengers.begin(), m_passengers.end(), passenger.id());
+    if (it != m_passengers.end()) {
+        m_passengers.erase(it);
+        passenger.setVehicle(INVALID_ENTITY_ID);
+    }
+}
+
+bool Entity::startRiding(Entity& vehicle) {
+    // 不能骑乘自己
+    if (vehicle.id() == m_id) {
+        return false;
+    }
+
+    // 如果已经在骑乘，先停止
+    if (isRiding()) {
+        stopRiding();
+    }
+
+    // 添加到车辆的乘客列表
+    return vehicle.addPassenger(*this);
+}
+
+void Entity::stopRiding(bool clearVehicle) {
+    if (!isRiding()) {
+        return;
+    }
+
+    // 从车辆中移除自己
+    if (m_world && clearVehicle) {
+        // TODO: 通过世界获取车辆实体并移除
+        // 目前只清除自己的车辆引用
+    }
+
+    m_vehicle = INVALID_ENTITY_ID;
+}
+
+Vector3 Entity::getRidingPosition() const {
+    // 默认骑乘位置在实体顶部中心
+    return Vector3(0.0f, height(), 0.0f);
+}
+
 } // namespace mr

@@ -24,6 +24,9 @@ public:
 
     std::unique_ptr<AnimalEntity> spawnBaby(AnimalEntity& partner) override;
 
+protected:
+    void registerGoals() override;
+
     // TODO: 挤奶逻辑
 };
 

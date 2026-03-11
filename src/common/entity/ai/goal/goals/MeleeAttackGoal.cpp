@@ -3,6 +3,8 @@
 #include "../../../mob/MobEntity.hpp"
 #include "../../../living/LivingEntity.hpp"
 #include "../../../Entity.hpp"
+#include "../../../damage/DamageSource.hpp"
+#include "../../../attribute/Attributes.hpp"
 #include "../GoalConstants.hpp"
 #include "../../../ai/controller/LookController.hpp"
 #include "../../../ai/pathfinding/PathNavigator.hpp"
@@ -103,13 +105,39 @@ bool MeleeAttackGoal::canAttack(LivingEntity* target) const {
 void MeleeAttackGoal::attackTarget(LivingEntity* target) {
     if (!m_creature || !target) return;
 
-    // TODO: 实现攻击逻辑
-    // 1. 重置攻击冷却
-    // 2. 调用 attackEntity 方法
-    // 3. 应用击退效果
+    // 重置攻击冷却（在外部tick()中已处理）
 
-    // 暂时简单处理
-    // m_creature->attackEntity(target);
+    // 获取攻击者的攻击伤害属性
+    f32 damage = static_cast<f32>(m_creature->getAttributeValue("generic.attack_damage", 1.0));
+
+    // 创建伤害来源
+    EntityDamageSource damageSource(DamageType::MobAttack, m_creature);
+
+    // 应用伤害
+    target->hurt(damageSource, damage);
+
+    // 应用击退
+    f32 knockbackStrength = static_cast<f32>(
+        m_creature->getAttributeValue("generic.attack_knockback", 1.0));
+
+    if (knockbackStrength > 0.0f) {
+        // 计算击退方向
+        f32 dx = target->x() - m_creature->x();
+        f32 dz = target->z() - m_creature->z();
+        f32 dist = std::sqrt(dx * dx + dz * dz);
+
+        if (dist > 0.001f) {
+            dx /= dist;
+            dz /= dist;
+        }
+
+        // 应用击退速度
+        f32 knockbackX = dx * knockbackStrength * 0.5f;
+        f32 knockbackY = 0.1f * knockbackStrength;
+        f32 knockbackZ = dz * knockbackStrength * 0.5f;
+
+        target->addVelocity(knockbackX, knockbackY, knockbackZ);
+    }
 }
 
 void MeleeAttackGoal::checkPath() {

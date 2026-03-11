@@ -23,6 +23,7 @@ namespace {
 
 LivingEntity::LivingEntity(LegacyEntityType type, EntityId id, IWorld* world)
     : Entity(type, id, world)
+    , m_combatTracker(this)
 {
     // 初始化装备槽
     for (auto& slot : m_equipment) {
@@ -62,7 +63,7 @@ void LivingEntity::heal(f32 amount) {
     }
 }
 
-bool LivingEntity::hurt(DamageSource& /*source*/, f32 amount) {
+bool LivingEntity::hurt(DamageSource& source, f32 amount) {
     if (m_hurtTime > 0) {
         return false;  // 无敌帧期间
     }
@@ -80,6 +81,12 @@ bool LivingEntity::hurt(DamageSource& /*source*/, f32 amount) {
         m_hurtTime = m_maxHurtTime;
         m_lastDamage = amount;
 
+        // 记录伤害到战斗追踪器
+        m_combatTracker.recordDamage(source.clone(), amount, ticksExisted());
+
+        // 保存伤害来源（用于死亡消息）
+        m_lastDamageSource = source.clone();
+
         if (m_health <= 0.0f) {
             // 实际死亡将在 die() 中处理
         }
@@ -91,8 +98,8 @@ bool LivingEntity::hurt(DamageSource& /*source*/, f32 amount) {
 }
 
 void LivingEntity::die(DamageSource& /*cause*/) {
-    if (!isDead()) {
-        return;
+    if (isDead()) {
+        return;  // 已经死亡，避免重复执行
     }
 
     m_deathTime = 0;

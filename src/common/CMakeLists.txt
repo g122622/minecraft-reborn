@@ -37,6 +37,7 @@ add_library(mr_common STATIC
     # Entity
     entity/Entity.cpp
     entity/EntityType.cpp
+    entity/EntityClassification.cpp
     entity/Player.cpp
     entity/PlayerManager.cpp
     entity/ItemEntity.cpp
@@ -57,6 +58,8 @@ add_library(mr_common STATIC
     entity/loot/LootTable.cpp
     entity/combat/AttackContext.cpp
     entity/combat/PlayerAttackHelper.cpp
+    entity/damage/CombatEntry.cpp
+    entity/damage/CombatTracker.cpp
     entity/ai/controller/LookController.cpp
     entity/ai/controller/MovementController.cpp
     entity/ai/controller/JumpController.cpp
@@ -191,6 +194,9 @@ add_library(mr_common STATIC
     resource/ResourcePackList.cpp
     resource/InMemoryResourcePack.cpp
     resource/VanillaResources.cpp
+
+    # NBT (Named Binary Tag) Library
+    util/nbt/Nbt.cpp
 )
 
 target_include_directories(mr_common

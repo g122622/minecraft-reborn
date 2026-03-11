@@ -6,8 +6,9 @@ namespace mr {
 SheepEntity::SheepEntity(LegacyEntityType type, EntityId id)
     : AnimalEntity(type, id)
 {
-    // TODO: 注册 AI 目标
-    // SheepEntity 有特殊的 EatGrassGoal
+    // 注册 AI 目标
+    registerGoals();
+    // SheepEntity 有特殊的 EatGrassGoal，后续添加
 }
 
 i32 SheepEntity::shear() {
@@ -36,6 +37,17 @@ bool SheepEntity::canMateWith(const AnimalEntity& other) const {
 std::unique_ptr<AnimalEntity> SheepEntity::spawnBaby(AnimalEntity& /*partner*/) {
     // TODO: 创建小羊，继承父母颜色混合
     return nullptr;
+}
+
+void SheepEntity::registerGoals() {
+    // 调用父类方法注册基础动物 AI
+    AnimalEntity::registerGoals();
+
+    // 羊特有目标：食物诱惑（小麦）
+    // m_goalSelector.addGoal(3, std::make_shared<entity::ai::goal::TemptGoal>(
+    //     this, 1.0, [](const ItemStack& stack) { return stack.getItem() == Items::WHEAT; }));
+
+    // TODO: 添加吃草目标 (EatGrassGoal)
 }
 
 void SheepEntity::tick() {

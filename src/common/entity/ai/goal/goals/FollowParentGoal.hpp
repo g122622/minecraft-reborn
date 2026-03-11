@@ -45,11 +45,6 @@ protected:
     f64 m_speed;
     AnimalEntity* m_parentAnimal = nullptr;
     i32 m_delayCounter = 0;
-
-    static constexpr f32 SEARCH_RANGE = 8.0f; // 搜索范围
-    static constexpr f32 MIN_DISTANCE = 3.0f; // 最小距离（开始跟随）
-    static constexpr f32 MAX_DISTANCE = 16.0f; // 最大距离（停止跟随）
-    static constexpr i32 DELAY_INTERVAL = 10; // 路径更新间隔（ticks）
 };
 
 } // namespace entity::ai::goal

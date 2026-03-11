@@ -7,6 +7,8 @@ namespace mr {
 ChickenEntity::ChickenEntity(LegacyEntityType type, EntityId id)
     : AnimalEntity(type, id)
 {
+    // 注册 AI 目标
+    registerGoals();
     // 初始化下蛋计时器
     resetEggTimer();
 }
@@ -31,6 +33,15 @@ bool ChickenEntity::canMateWith(const AnimalEntity& other) const {
 std::unique_ptr<AnimalEntity> ChickenEntity::spawnBaby(AnimalEntity& /*partner*/) {
     // TODO: 创建小鸡
     return nullptr;
+}
+
+void ChickenEntity::registerGoals() {
+    // 调用父类方法注册基础动物 AI
+    AnimalEntity::registerGoals();
+
+    // 鸡特有目标：食物诱惑（种子）
+    // m_goalSelector.addGoal(3, std::make_shared<entity::ai::goal::TemptGoal>(
+    //     this, 1.0, [](const ItemStack& stack) { return stack.getItem()->isIn(ItemTags::SEEDS); }));
 }
 
 void ChickenEntity::tick() {

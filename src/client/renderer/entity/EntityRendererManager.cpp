@@ -22,21 +22,18 @@ EntityRenderer* EntityRendererManager::getRenderer(const String& typeId) {
 }
 
 void EntityRendererManager::render(Entity& entity, f32 partialTicks) {
-    // TODO: 获取实体类型ID并查找渲染器
-    // String typeId = entity.getTypeId();
-    // EntityRenderer* renderer = getOrCreateRenderer(typeId);
-    // if (renderer) {
-    //     renderer->render(entity, partialTicks);
-    //     if (m_renderShadows) {
-    //         renderer->renderShadow(entity, partialTicks);
-    //     }
-    //     if (m_renderNameTags) {
-    //         renderer->renderNameTag(entity);
-    //     }
-    // }
-
-    (void)entity;
-    (void)partialTicks;
+    // 获取实体类型ID并查找渲染器
+    String typeId = entity.getTypeId();
+    EntityRenderer* renderer = getOrCreateRenderer(typeId);
+    if (renderer) {
+        renderer->render(entity, partialTicks);
+        if (m_renderShadows) {
+            renderer->renderShadow(entity, partialTicks);
+        }
+        if (m_renderNameTags) {
+            renderer->renderNameTag(entity);
+        }
+    }
 }
 
 void EntityRendererManager::initializeDefaults() {

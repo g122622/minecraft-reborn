@@ -123,63 +123,53 @@ void LivingRenderer<TModel>::setModelAngles(LivingEntity& entity, f32 partialTic
 template<typename TModel>
 f32 LivingRenderer<TModel>::getLimbSwing(LivingEntity& entity, f32 partialTicks) const {
     // 步态动画周期
-    // TODO: 从 LivingEntity 获取
-    // return Math::lerp(entity.prevLimbSwing, entity.limbSwing, partialTicks);
-    (void)entity;
-    (void)partialTicks;
-    return 0.0f;
+    f32 prevLimbSwing = entity.prevLimbSwing();
+    f32 limbSwing = entity.limbSwing();
+    return prevLimbSwing + (limbSwing - prevLimbSwing) * partialTicks;
 }
 
 template<typename TModel>
 f32 LivingRenderer<TModel>::getLimbSwingAmount(LivingEntity& entity, f32 partialTicks) const {
     // 步态动画强度
-    // TODO: 从 LivingEntity 获取
-    // return Math::lerp(entity.prevLimbSwingAmount, entity.limbSwingAmount, partialTicks);
-    (void)entity;
-    (void)partialTicks;
-    return 0.0f;
+    f32 prevAmount = entity.prevLimbSwingAmount();
+    f32 amount = entity.limbSwingAmount();
+    return prevAmount + (amount - prevAmount) * partialTicks;
 }
 
 template<typename TModel>
 f32 LivingRenderer<TModel>::getHeadYaw(LivingEntity& entity, f32 partialTicks) const {
     // 头部偏航角（相对于身体）
-    // TODO: 从 LivingEntity 获取
-    // f32 bodyYaw = Math::lerp(entity.prevRenderYawOffset, entity.renderYawOffset, partialTicks);
-    // f32 headYaw = Math::lerp(entity.prevRotationYaw, entity.rotationYaw, partialTicks);
-    // return headYaw - bodyYaw;
-    (void)entity;
-    (void)partialTicks;
-    return 0.0f;
+    f32 bodyYaw = entity.prevRenderYawOffset() + (entity.renderYawOffset() - entity.prevRenderYawOffset()) * partialTicks;
+    f32 headYaw = entity.prevRotationYawHead() + (entity.rotationYawHead() - entity.prevRotationYawHead()) * partialTicks;
+    f32 diff = headYaw - bodyYaw;
+
+    // 归一化到 -180 到 180
+    while (diff < -180.0f) diff += 360.0f;
+    while (diff > 180.0f) diff -= 360.0f;
+
+    return diff;
 }
 
 template<typename TModel>
 f32 LivingRenderer<TModel>::getHeadPitch(LivingEntity& entity, f32 partialTicks) const {
     // 头部俯仰角
-    // TODO: 从 LivingEntity 获取
-    // return Math::lerp(entity.prevRotationPitch, entity.rotationPitch, partialTicks);
-    (void)entity;
-    (void)partialTicks;
-    return 0.0f;
+    f32 prevPitch = entity.prevPitch();
+    f32 pitch = entity.pitch();
+    return prevPitch + (pitch - prevPitch) * partialTicks;
 }
 
 template<typename TModel>
 f32 LivingRenderer<TModel>::getAgeInTicks(LivingEntity& entity) const {
     // 年龄（用于空闲动画）
-    // TODO: 从 LivingEntity 获取
-    // return static_cast<f32>(entity.ticksExisted);
-    (void)entity;
-    return 0.0f;
+    return static_cast<f32>(entity.ticksExisted());
 }
 
 template<typename TModel>
 f32 LivingRenderer<TModel>::getScale(LivingEntity& entity) const {
-    // 幼体缩放
-    // TODO: 检查是否为 AgeableEntity 并计算缩放
-    // if (auto* ageable = dynamic_cast<AgeableEntity*>(&entity)) {
-    //     if (ageable->isChild()) {
-    //         return 0.5f;
-    //     }
-    // }
+    // 幼体缩放 - 检查是否为 AgeableEntity
+    // AgeableEntity 实现了 isChild() 方法
+    // 这里我们使用动态转换来检查
+    // TODO: 当 AgeableEntity 完全实现后启用
     (void)entity;
     return 1.0f;
 }

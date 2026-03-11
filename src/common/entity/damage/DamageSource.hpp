@@ -59,6 +59,12 @@ public:
     virtual ~DamageSource() = default;
 
     /**
+     * @brief 克隆伤害来源
+     * @return 伤害来源的副本
+     */
+    [[nodiscard]] virtual std::unique_ptr<DamageSource> clone() const = 0;
+
+    /**
      * @brief 获取伤害类型
      */
     [[nodiscard]] virtual DamageType type() const = 0;
@@ -74,6 +80,14 @@ public:
      * @return 直接造成伤害的实体，没有则返回nullptr
      */
     [[nodiscard]] virtual Entity* directSource() const { return nullptr; }
+
+    /**
+     * @brief 获取造成伤害的实体
+     *
+     * 对于直接伤害返回source()，对于间接伤害返回source()
+     * CombatTracker使用此方法获取攻击者
+     */
+    [[nodiscard]] virtual Entity* getEntity() const { return source(); }
 
     /**
      * @brief 是否可以绕过护甲
@@ -133,6 +147,20 @@ public:
     }
 
     /**
+     * @brief 是否是岩浆伤害
+     */
+    [[nodiscard]] bool isLava() const {
+        return type() == DamageType::Lava;
+    }
+
+    /**
+     * @brief 是否是仙人掌伤害
+     */
+    [[nodiscard]] bool isCactus() const {
+        return type() == DamageType::Cactus;
+    }
+
+    /**
      * @brief 是否是饥饿伤害
      */
     [[nodiscard]] bool isStarve() const {
@@ -160,6 +188,10 @@ public:
     explicit EnvironmentalDamage(DamageType type)
         : m_type(type)
     {}
+
+    [[nodiscard]] std::unique_ptr<DamageSource> clone() const override {
+        return std::make_unique<EnvironmentalDamage>(m_type);
+    }
 
     [[nodiscard]] DamageType type() const override { return m_type; }
 
@@ -230,6 +262,10 @@ public:
         , m_source(source)
     {}
 
+    [[nodiscard]] std::unique_ptr<DamageSource> clone() const override {
+        return std::make_unique<EntityDamageSource>(m_type, m_source);
+    }
+
     [[nodiscard]] DamageType type() const override { return m_type; }
 
     [[nodiscard]] Entity* source() const override { return m_source; }
@@ -291,10 +327,15 @@ public:
         , m_isPlayer(isPlayer)
     {}
 
+    [[nodiscard]] std::unique_ptr<DamageSource> clone() const override {
+        return std::make_unique<IndirectEntityDamageSource>(m_type, m_source, m_directSource, m_isPlayer);
+    }
+
     [[nodiscard]] DamageType type() const override { return m_type; }
 
     [[nodiscard]] Entity* source() const override { return m_source; }
     [[nodiscard]] Entity* directSource() const override { return m_directSource; }
+    [[nodiscard]] Entity* getEntity() const override { return m_source; }
 
     [[nodiscard]] bool isFire() const override {
         return m_type == DamageType::Fireball;
