@@ -1,6 +1,7 @@
 #include "ServerWorld.hpp"
 #include "ServerChunkManager.hpp"
 #include "common/world/gen/chunk/NoiseChunkGenerator.hpp"
+#include "common/entity/Entity.hpp"
 #include "server/network/TcpSession.hpp"
 #include <chrono>
 #include <spdlog/spdlog.h>
@@ -458,36 +459,6 @@ void ServerWorld::sendUnloadChunkToPlayer(PlayerId playerId, ChunkCoord x, Chunk
 // 方块操作
 // ============================================================================
 
-void ServerWorld::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {
-    ChunkCoord chunkX = blockToChunk(static_cast<f32>(x));
-    ChunkCoord chunkZ = blockToChunk(static_cast<f32>(z));
-
-    ChunkData* chunk = getChunkSync(chunkX, chunkZ);
-    if (!chunk) return;
-
-    i32 localX = x - chunkX * 16;
-    i32 localZ = z - chunkZ * 16;
-
-    chunk->setBlock(localX, y, localZ, state);
-    chunk->setDirty(true);
-
-    // 广播方块更新
-    broadcastBlockUpdate(x, y, z, state ? state->stateId() : 0);
-}
-
-const BlockState* ServerWorld::getBlockState(i32 x, i32 y, i32 z) const {
-    ChunkCoord chunkX = blockToChunk(static_cast<f32>(x));
-    ChunkCoord chunkZ = blockToChunk(static_cast<f32>(z));
-
-    const ChunkData* chunk = getChunk(chunkX, chunkZ);
-    if (!chunk) return nullptr;
-
-    i32 localX = x - chunkX * 16;
-    i32 localZ = z - chunkZ * 16;
-
-    return chunk->getBlock(localX, y, localZ);
-}
-
 void ServerWorld::broadcastBlockUpdate(i32 x, i32 y, i32 z, u32 blockStateId) {
     network::BlockUpdatePacket blockPacket(x, y, z, blockStateId);
     network::PacketSerializer ser;
@@ -553,6 +524,12 @@ void ServerWorld::tick() {
 
     // 更新游戏时间
     m_gameTime.tick();
+
+    // 更新所有实体
+    m_entityManager.tick();
+
+    // 更新实体追踪
+    m_entityTracker.tick(*this);
 
     // 更新区块管理器
     if (m_chunkManager) {
@@ -631,6 +608,118 @@ void ServerWorld::broadcastTimeUpdate() {
     fullPacket.writeBytes(ser.buffer());
 
     broadcastPacket(fullPacket.buffer());
+}
+
+// ============================================================================
+// IWorld 接口实现
+// ============================================================================
+
+const BlockState* ServerWorld::getBlockState(i32 x, i32 y, i32 z) const {
+    // 调用已有的 const 版本方法
+    ChunkCoord chunkX = blockToChunk(static_cast<f32>(x));
+    ChunkCoord chunkZ = blockToChunk(static_cast<f32>(z));
+
+    const ChunkData* chunk = getChunk(chunkX, chunkZ);
+    if (!chunk) return nullptr;
+
+    i32 localX = x - chunkX * 16;
+    i32 localZ = z - chunkZ * 16;
+
+    return chunk->getBlock(localX, y, localZ);
+}
+
+bool ServerWorld::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {
+    ChunkCoord chunkX = blockToChunk(static_cast<f32>(x));
+    ChunkCoord chunkZ = blockToChunk(static_cast<f32>(z));
+
+    ChunkData* chunk = getChunkSync(chunkX, chunkZ);
+    if (!chunk) return false;
+
+    i32 localX = x - chunkX * 16;
+    i32 localZ = z - chunkZ * 16;
+
+    chunk->setBlock(localX, y, localZ, state);
+    chunk->setDirty(true);
+
+    // 广播方块更新
+    broadcastBlockUpdate(x, y, z, state ? state->stateId() : 0);
+    return true;
+}
+
+i32 ServerWorld::getHeight(i32 /*x*/, i32 /*z*/) const {
+    // TODO: 实现高度图查询
+    return 64;
+}
+
+u8 ServerWorld::getBlockLight(i32 /*x*/, i32 /*y*/, i32 /*z*/) const {
+    // TODO: 实现光照系统
+    return 15;
+}
+
+u8 ServerWorld::getSkyLight(i32 /*x*/, i32 /*y*/, i32 /*z*/) const {
+    // TODO: 实现光照系统
+    return 15;
+}
+
+bool ServerWorld::hasBlockCollision(const AxisAlignedBB& /*box*/) const {
+    // TODO: 实现碰撞检测
+    return false;
+}
+
+std::vector<AxisAlignedBB> ServerWorld::getBlockCollisions(const AxisAlignedBB& /*box*/) const {
+    // TODO: 实现碰撞检测
+    return {};
+}
+
+std::vector<Entity*> ServerWorld::getEntitiesInAABB(const AxisAlignedBB& box, const Entity* except) const {
+    return m_entityManager.getEntitiesInAABB(box, except);
+}
+
+std::vector<Entity*> ServerWorld::getEntitiesInRange(const Vector3& pos, f32 range, const Entity* except) const {
+    return m_entityManager.getEntitiesInRange(pos, range, except);
+}
+
+// ============================================================================
+// 实体管理
+// ============================================================================
+
+EntityId ServerWorld::spawnEntity(std::unique_ptr<Entity> entity) {
+    if (!entity) {
+        return 0;
+    }
+
+    // 设置实体的世界引用
+    entity->setWorld(this);
+
+    // 添加到实体管理器
+    EntityId id = m_entityManager.addEntity(std::move(entity));
+
+    spdlog::debug("Spawned entity with ID {}", id);
+    return id;
+}
+
+std::unique_ptr<Entity> ServerWorld::removeEntity(EntityId id) {
+    auto entity = m_entityManager.removeEntity(id);
+    if (entity) {
+        spdlog::debug("Removed entity with ID {}", id);
+    }
+    return entity;
+}
+
+Entity* ServerWorld::getEntity(EntityId id) {
+    return m_entityManager.getEntity(id);
+}
+
+const Entity* ServerWorld::getEntity(EntityId id) const {
+    return m_entityManager.getEntity(id);
+}
+
+bool ServerWorld::hasEntity(EntityId id) const {
+    return m_entityManager.hasEntity(id);
+}
+
+size_t ServerWorld::entityCount() const {
+    return m_entityManager.entityCount();
 }
 
 } // namespace mr::server

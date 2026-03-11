@@ -34,6 +34,18 @@ enum class EquipmentSlot : u8 {
  * 所有有生命值的实体的基类，包括玩家、怪物、动物等。
  * 提供生命值、属性、装备、药水效果等功能。
  *
+ * 数据参数（通过 EntityDataManager 同步）：
+ * - LIVING_FLAGS: 生物标志（手部动画等）
+ * - HEALTH: 当前生命值
+ * - POTION_EFFECTS: 药水效果颜色
+ * - ARROW_COUNT: 箭矢数量
+ *
+ * 渲染属性（用于客户端插值）：
+ * - limbSwing, limbSwingAmount: 步态动画
+ * - swingProgress: 攻击动画
+ * - renderYawOffset: 身体旋转偏移
+ * - rotationYawHead: 头部旋转
+ *
  * 参考 MC 1.16.5 LivingEntity
  */
 class LivingEntity : public Entity {
@@ -42,8 +54,9 @@ public:
      * @brief 构造函数
      * @param type 实体类型
      * @param id 实体ID
+     * @param world 世界指针（可选）
      */
-    LivingEntity(LegacyEntityType type, EntityId id);
+    LivingEntity(LegacyEntityType type, EntityId id, IWorld* world = nullptr);
 
     ~LivingEntity() override = default;
 
@@ -54,6 +67,17 @@ public:
     // 允许移动
     LivingEntity(LivingEntity&&) = default;
     LivingEntity& operator=(LivingEntity&&) = default;
+
+    // ========== 初始化 ==========
+
+    void registerData() override;
+
+    /**
+     * @brief 注册默认属性
+     *
+     * 子类应重写此方法来注册自己的属性
+     */
+    virtual void registerAttributes();
 
     // ========== 生命值 ==========
 
@@ -105,13 +129,6 @@ public:
      */
     entity::attribute::AttributeMap& attributes() { return m_attributes; }
     [[nodiscard]] const entity::attribute::AttributeMap& attributes() const { return m_attributes; }
-
-    /**
-     * @brief 注册默认属性
-     *
-     * 子类应重写此方法来注册自己的属性
-     */
-    virtual void registerAttributes();
 
     /**
      * @brief 获取属性值
@@ -184,6 +201,83 @@ public:
      */
     [[nodiscard]] DamageSource* lastDamageSource() const { return m_lastDamageSource.get(); }
 
+    // ========== 渲染属性（用于客户端插值）==========
+
+    /**
+     * @brief 获取步态动画周期
+     * 用于腿部动画
+     */
+    [[nodiscard]] f32 limbSwing() const { return m_limbSwing; }
+    [[nodiscard]] f32 prevLimbSwing() const { return m_prevLimbSwing; }
+
+    /**
+     * @brief 获取步态动画速度
+     * 表示移动速度对动画的影响
+     */
+    [[nodiscard]] f32 limbSwingAmount() const { return m_limbSwingAmount; }
+    [[nodiscard]] f32 prevLimbSwingAmount() const { return m_prevLimbSwingAmount; }
+
+    /**
+     * @brief 获取攻击动画进度
+     * 0.0 - 1.0，表示挥动手臂的进度
+     */
+    [[nodiscard]] f32 swingProgress() const { return m_swingProgress; }
+    [[nodiscard]] f32 prevSwingProgress() const { return m_prevSwingProgress; }
+
+    /**
+     * @brief 获取身体旋转偏移
+     * 用于身体朝向与头部朝向的分离
+     */
+    [[nodiscard]] f32 renderYawOffset() const { return m_renderYawOffset; }
+    [[nodiscard]] f32 prevRenderYawOffset() const { return m_prevRenderYawOffset; }
+
+    /**
+     * @brief 获取头部旋转
+     * 头部的实际朝向
+     */
+    [[nodiscard]] f32 rotationYawHead() const { return m_rotationYawHead; }
+    [[nodiscard]] f32 prevRotationYawHead() const { return m_prevRotationYawHead; }
+
+    /**
+     * @brief 是否正在挥动手臂
+     */
+    [[nodiscard]] bool isSwingInProgress() const { return m_swingInProgress; }
+
+    /**
+     * @brief 获取挥动手臂进度
+     */
+    [[nodiscard]] i32 swingProgressInt() const { return m_swingProgressInt; }
+
+    // ========== 跳跃 ==========
+
+    /**
+     * @brief 是否正在跳跃
+     */
+    [[nodiscard]] bool isJumping() const { return m_isJumping; }
+
+    /**
+     * @brief 设置跳跃状态
+     */
+    void setJumping(bool jumping) { m_isJumping = jumping; }
+
+    // ========== 移动 ==========
+
+    /**
+     * @brief 获取横向移动速度
+     */
+    [[nodiscard]] f32 moveStrafing() const { return m_moveStrafing; }
+
+    /**
+     * @brief 获取前进移动速度
+     */
+    [[nodiscard]] f32 moveForward() const { return m_moveForward; }
+
+    /**
+     * @brief 设置移动方向
+     */
+    void setMoveStrafing(f32 strafing) { m_moveStrafing = strafing; }
+    void setMoveForward(f32 forward) { m_moveForward = forward; }
+
     // ========== 死亡 ==========
 
     /**
@@ -210,7 +304,20 @@ public:
      */
     virtual void tickDeath();
 
+    // ========== 摔落伤害 ==========
+
+    /**
+     * @brief 处理摔落伤害
+     * @param distance 摔落距离
+     * @param damageMultiplier 伤害倍率
+     */
+    void handleFallDamage(f32 distance, f32 damageMultiplier) override;
+
 protected:
+    /**
+     * @brief 更新动画参数
+     */
+    virtual void updateAnimation();
     // 生命值
     f32 m_health = 20.0f;
     f32 m_lastHealth = 20.0f;           // 上一tick的生命值
@@ -225,6 +332,7 @@ protected:
     // 受伤无敌帧
     i32 m_hurtTime = 0;                  // 受伤无敌时间
     i32 m_maxHurtTime = 10;              // 最大受伤无敌时间
+    static constexpr i32 MAX_HURT_RESISTANT_TIME = 20;  // 最大无敌帧
     f32 m_lastDamage = 0.0f;             // 最近伤害量
     std::unique_ptr<DamageSource> m_lastDamageSource;  // 最近伤害来源
 
@@ -233,6 +341,40 @@ protected:
 
     // 回血
     i32 m_healTime = 0;                  // 回血计时器
+
+    // 渲染插值属性
+    f32 m_limbSwing = 0.0f;              // 步态动画周期
+    f32 m_prevLimbSwing = 0.0f;          // 上一帧步态周期
+    f32 m_limbSwingAmount = 0.0f;        // 步态动画速度
+    f32 m_prevLimbSwingAmount = 0.0f;    // 上一帧步态速度
+    f32 m_swingProgress = 0.0f;          // 攻击动画进度
+    f32 m_prevSwingProgress = 0.0f;      // 上一帧攻击进度
+    i32 m_swingProgressInt = 0;          // 攻击动画计数
+    bool m_swingInProgress = false;      // 是否正在攻击动画
+
+    // 身体旋转
+    f32 m_renderYawOffset = 0.0f;        // 身体旋转偏移
+    f32 m_prevRenderYawOffset = 0.0f;    // 上一帧身体旋转
+    f32 m_rotationYawHead = 0.0f;        // 头部旋转
+    f32 m_prevRotationYawHead = 0.0f;    // 上一帧头部旋转
+
+    // 跳跃
+    bool m_isJumping = false;
+
+    // 移动
+    f32 m_moveStrafing = 0.0f;           // 横向移动（左右）
+    f32 m_moveForward = 0.0f;            // 前进移动（前后）
+    f32 m_jumpMovementFactor = 0.02f;    // 跳跃时的移动因子
+
+    // 移动距离（用于动画）
+    f32 m_movedDistance = 0.0f;          // 移动距离
+    f32 m_prevMovedDistance = 0.0f;      // 上一帧移动距离
+
+    // 受伤动画
+    f32 m_attackedAtYaw = 0.0f;          // 受伤时的偏航角
+
+    // 最近攻击
+    i32 m_ticksSinceLastSwing = 0;       // 上次攻击后的 tick
 };
 
 } // namespace mr

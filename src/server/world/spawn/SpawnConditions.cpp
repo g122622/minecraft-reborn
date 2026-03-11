@@ -1,0 +1,133 @@
+#include "SpawnConditions.hpp"
+#include "../../../common/world/IWorld.hpp"
+#include "../../../common/world/block/Block.hpp"
+#include "../../../common/util/AxisAlignedBB.hpp"
+
+namespace mr::world::spawn {
+
+/**
+ * @brief MC 1.16.5 光照等级检查
+ *
+ * 怪物: 光照等级 <= 7
+ * 动物: 光照等级 > 7 (通常需要光照等级 7+)
+ */
+bool SpawnConditions::checkLightLevel(i32 skyLight, i32 blockLight, bool isMonster) {
+    // 计算有效光照等级
+    i32 effectiveLight = std::max(skyLight, blockLight);
+
+    if (isMonster) {
+        // 怪物生成需要低光照
+        return effectiveLight <= 7;
+    } else {
+        // 动物生成需要足够的光照
+        return effectiveLight > 7;
+    }
+}
+
+bool SpawnConditions::canSpawnAtPosition(IWorld& world, i32 x, i32 y, i32 z,
+                                          f32 entityWidth, f32 entityHeight) {
+    // 边界检查
+    if (y < 0 || y >= 256) {
+        return false;
+    }
+
+    // 检查碰撞空间
+    if (!hasCollisionSpace(world, x, y, z, entityWidth, entityHeight)) {
+        return false;
+    }
+
+    // 获取脚下方块
+    const BlockState* belowBlock = world.getBlockState(x, y - 1, z);
+    if (!belowBlock || belowBlock->isAir()) {
+        return false;
+    }
+
+    // 检查方块是否阻止生成
+    if (blockPreventsSpawn(belowBlock->isLiquid(), belowBlock->isAir())) {
+        return false;
+    }
+
+    return true;
+}
+
+bool SpawnConditions::hasCollisionSpace(IWorld& world, i32 x, i32 y, i32 z,
+                                         f32 width, f32 height) {
+    // 创建实体的碰撞箱
+    // 实体中心在 x.5, y, z.5
+    f32 halfWidth = width / 2.0f;
+    f32 minX = static_cast<f32>(x) + 0.5f - halfWidth;
+    f32 maxX = static_cast<f32>(x) + 0.5f + halfWidth;
+    f32 minY = static_cast<f32>(y);
+    f32 maxY = static_cast<f32>(y) + height;
+    f32 minZ = static_cast<f32>(z) + 0.5f - halfWidth;
+    f32 maxZ = static_cast<f32>(z) + 0.5f + halfWidth;
+
+    // 边界检查
+    if (minY < 0 || maxY > 256) {
+        return false;
+    }
+
+    // 检查碰撞箱是否在有效范围内
+    // TODO 这里的范围不要硬编码
+    if (minX < -30000000.0f || maxX > 30000000.0f ||
+        minZ < -30000000.0f || maxZ > 30000000.0f) {
+        return false;
+    }
+
+    // 使用 IWorld 的碰撞检测
+    AxisAlignedBB box(minX, minY, minZ, maxX, maxY, maxZ);
+    return !world.hasBlockCollision(box);
+}
+
+bool SpawnConditions::blockPreventsSpawn(bool isLiquid, bool isAir) {
+    // 液体方块阻止生成
+    if (isLiquid) {
+        return true;
+    }
+
+    // 空气方块阻止站立
+    if (isAir) {
+        return true;
+    }
+
+    return false;
+}
+
+i32 SpawnConditions::getGroundHeight(IWorld& world, i32 x, i32 z) {
+    // 从最高点向下搜索第一个可站立方块
+    i32 height = world.getHeight(x, z);
+
+    // 检查是否有有效的站立位置
+    if (height > 0) {
+        const BlockState* block = world.getBlockState(x, height - 1, z);
+        if (block && !block->isAir() && !block->isLiquid()) {
+            return height;
+        }
+    }
+
+    return height;
+}
+
+bool SpawnConditions::isInWater(IWorld& world, i32 x, i32 y, i32 z) {
+    const BlockState* block = world.getBlockState(x, y, z);
+    if (!block) {
+        return false;
+    }
+
+    // 检查是否为水方块
+    // TODO: 使用更精确的水方块检测
+    return block->isLiquid() && !block->isSolid();
+}
+
+bool SpawnConditions::isInLava(IWorld& world, i32 x, i32 y, i32 z) {
+    const BlockState* block = world.getBlockState(x, y, z);
+    if (!block) {
+        return false;
+    }
+
+    // TODO: 使用更精确的岩浆方块检测
+    // 当前使用简单的液体检测
+    return block->isLiquid() && block->lightLevel() > 0;
+}
+
+} // namespace mr::world::spawn

@@ -53,6 +53,7 @@ add_executable(mr_tests
     client/test_mesh_worker_pool.cpp
     client/renderer/test_renderer.cpp
     network/EntityPacketsTest.cpp
+    common/entity/loot/LootTest.cpp
 )
 
 # 添加服务端源文件
@@ -61,6 +62,9 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/ChunkWorkerPool.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/ServerChunkManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/world/entity/EntityTracker.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/world/spawn/NaturalSpawner.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/world/spawn/SpawnConditions.cpp
         ${CMAKE_SOURCE_DIR}/src/server/player/ServerPlayer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpServer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpSession.cpp
@@ -154,6 +158,12 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/world/blockentity/BlockEntity.cpp
         # 物品实体和掉落表
         ${CMAKE_SOURCE_DIR}/src/common/entity/ItemEntity.cpp
+        # 掉落系统
+        ${CMAKE_SOURCE_DIR}/src/common/entity/loot/LootContext.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/entity/loot/RandomRanges.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/entity/loot/LootEntry.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/entity/loot/LootPool.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/entity/loot/LootTable.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/drop/DropTables.cpp
         # 天体计算
         ${CMAKE_SOURCE_DIR}/src/client/renderer/sky/CelestialCalculations.cpp

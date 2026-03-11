@@ -2,12 +2,15 @@
 
 #include "common/core/Types.hpp"
 #include "common/core/Result.hpp"
+#include "common/world/IWorld.hpp"
 #include "common/world/chunk/ChunkData.hpp"
+#include "common/world/entity/EntityManager.hpp"
 #include "common/entity/PlayerManager.hpp"
 #include "common/network/ChunkSync.hpp"
 #include "common/network/ProtocolPackets.hpp"
 #include "common/world/time/GameTime.hpp"
 #include "server/network/TcpSession.hpp"
+#include "server/world/entity/EntityTracker.hpp"
 #include <unordered_map>
 #include <memory>
 #include <functional>
@@ -81,11 +84,11 @@ struct ServerWorldConfig {
 // 服务端世界
 // ============================================================================
 
-class ServerWorld {
+class ServerWorld : public IWorld {
 public:
     ServerWorld();
     explicit ServerWorld(const ServerWorldConfig& config);
-    ~ServerWorld();
+    ~ServerWorld() override;
 
     // 初始化
     [[nodiscard]] Result<void> initialize();
@@ -97,8 +100,8 @@ public:
 
     // 区块管理
     [[nodiscard]] ChunkData* getChunk(ChunkCoord x, ChunkCoord z);
-    [[nodiscard]] const ChunkData* getChunk(ChunkCoord x, ChunkCoord z) const;
-    [[nodiscard]] bool hasChunk(ChunkCoord x, ChunkCoord z) const;
+    [[nodiscard]] const ChunkData* getChunk(ChunkCoord x, ChunkCoord z) const override;
+    [[nodiscard]] bool hasChunk(ChunkCoord x, ChunkCoord z) const override;
     [[nodiscard]] ChunkData* getChunkSync(ChunkCoord x, ChunkCoord z);
     void unloadChunk(ChunkCoord x, ChunkCoord z);
 
@@ -125,8 +128,8 @@ public:
     void updateChunkSubscription(PlayerId playerId);
 
     // 方块操作
-    void setBlock(i32 x, i32 y, i32 z, const BlockState* state);
-    [[nodiscard]] const BlockState* getBlockState(i32 x, i32 y, i32 z) const;
+    bool setBlock(i32 x, i32 y, i32 z, const BlockState* state) override;
+    [[nodiscard]] const BlockState* getBlockState(i32 x, i32 y, i32 z) const override;
 
     // 发送数据包给玩家
     void sendPacket(PlayerId playerId, const std::vector<u8>& data);
@@ -175,6 +178,69 @@ public:
      */
     void setDaylightCycleEnabled(bool enabled);
 
+    // ========== 其他 IWorld 接口 ==========
+
+    [[nodiscard]] i32 getHeight(i32 x, i32 z) const override;
+    [[nodiscard]] u8 getBlockLight(i32 x, i32 y, i32 z) const override;
+    [[nodiscard]] u8 getSkyLight(i32 x, i32 y, i32 z) const override;
+    [[nodiscard]] bool hasBlockCollision(const AxisAlignedBB& box) const override;
+    [[nodiscard]] std::vector<AxisAlignedBB> getBlockCollisions(const AxisAlignedBB& box) const override;
+    [[nodiscard]] std::vector<Entity*> getEntitiesInAABB(const AxisAlignedBB& box, const Entity* except = nullptr) const override;
+    [[nodiscard]] std::vector<Entity*> getEntitiesInRange(const Vector3& pos, f32 range, const Entity* except = nullptr) const override;
+    [[nodiscard]] DimensionId dimension() const override { return m_config.dimension; }
+    [[nodiscard]] u64 seed() const override { return m_config.seed; }
+    [[nodiscard]] u64 currentTick() const override { return m_currentTick; }
+    [[nodiscard]] i64 dayTime() const override { return m_gameTime.dayTime(); }
+    [[nodiscard]] bool isHardcore() const override { return false; }
+    [[nodiscard]] i32 difficulty() const override { return 1; } // Normal
+
+    // ========== 实体管理 ==========
+
+    /**
+     * @brief 生成实体到世界
+     * @param entity 实体指针（世界获得所有权）
+     * @return 实体ID
+     */
+    EntityId spawnEntity(std::unique_ptr<Entity> entity);
+
+    /**
+     * @brief 移除实体
+     * @param id 实体ID
+     * @return 被移除的实体指针
+     */
+    std::unique_ptr<Entity> removeEntity(EntityId id);
+
+    /**
+     * @brief 获取实体
+     * @param id 实体ID
+     * @return 实体指针
+     */
+    [[nodiscard]] Entity* getEntity(EntityId id);
+    [[nodiscard]] const Entity* getEntity(EntityId id) const;
+
+    /**
+     * @brief 检查实体是否存在
+     * @param id 实体ID
+     */
+    [[nodiscard]] bool hasEntity(EntityId id) const;
+
+    /**
+     * @brief 获取实体数量
+     */
+    [[nodiscard]] size_t entityCount() const;
+
+    /**
+     * @brief 获取实体管理器
+     */
+    [[nodiscard]] EntityManager& entityManager() { return m_entityManager; }
+    [[nodiscard]] const EntityManager& entityManager() const { return m_entityManager; }
+
+    /**
+     * @brief 获取实体追踪器
+     */
+    [[nodiscard]] EntityTracker& entityTracker() { return m_entityTracker; }
+    [[nodiscard]] const EntityTracker& entityTracker() const { return m_entityTracker; }
+
 private:
     // 内部方法
     void sendChunkToPlayer(PlayerId playerId, ChunkCoord x, ChunkCoord z);
@@ -188,6 +254,8 @@ private:
 private:
     ServerWorldConfig m_config;
     std::unique_ptr<ServerChunkManager> m_chunkManager;
+    EntityManager m_entityManager;  // 实体管理器
+    EntityTracker m_entityTracker;   // 实体追踪器
     bool m_initialized = false;
 
     // 玩家存储

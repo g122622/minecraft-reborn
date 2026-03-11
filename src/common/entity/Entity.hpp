@@ -5,14 +5,17 @@
 #include "../math/Vector3.hpp"
 #include "../util/AxisAlignedBB.hpp"
 #include "EntityPose.hpp"
+#include "EntityDataManager.hpp"
 #include <string>
 #include <memory>
 #include <array>
+#include <functional>
 
 namespace mr {
 
 // 前向声明
 class PhysicsEngine;
+class IWorld;
 
 // ============================================================================
 // 旧实体类型枚举（兼容）
@@ -71,10 +74,30 @@ inline bool hasFlag(EntityFlags flags, EntityFlags flag) {
  * - 位置使用 Vector3 存储，但组件是 f64 精度
  * - 碰撞箱使用 AxisAlignedBB（f32 精度）
  * - 子类应重写 width()、height()、eyeHeight() 方法
+ *
+ * 数据参数（通过 EntityDataManager 同步）：
+ * - FLAGS: 实体标志（燃烧、潜行等）
+ * - AIR: 空气值
+ * - CUSTOM_NAME: 自定义名称
+ * - CUSTOM_NAME_VISIBLE: 名称可见性
+ * - SILENT: 静音标志
+ * - NO_GRAVITY: 无重力标志
+ * - POSE: 姿态
+ *
+ * 参考 MC 1.16.5 Entity
  */
 class Entity {
 public:
-    Entity(LegacyEntityType type, EntityId id);
+    // ========== 静态数据参数 ==========
+    // 子类应定义自己的数据参数
+
+    /**
+     * @brief 构造函数
+     * @param type 实体类型
+     * @param id 实体ID
+     * @param world 世界指针（可选）
+     */
+    Entity(LegacyEntityType type, EntityId id, IWorld* world = nullptr);
     virtual ~Entity() = default;
 
     // 禁止拷贝
@@ -85,12 +108,39 @@ public:
     Entity(Entity&&) = default;
     Entity& operator=(Entity&&) = default;
 
+    // ========== 初始化 ==========
+
+    /**
+     * @brief 注册数据参数
+     *
+     * 子类应重写此方法来注册自己的数据参数。
+     * 在构造函数中调用。
+     */
+    virtual void registerData();
+
     // ========== 基本属性 ==========
 
     [[nodiscard]] EntityId id() const { return m_id; }
     [[nodiscard]] LegacyEntityType legacyType() const { return m_legacyType; }
     [[nodiscard]] const String& uuid() const { return m_uuid; }
     void setUuid(const String& uuid) { m_uuid = uuid; }
+
+    /**
+     * @brief 获取实体类型标识符
+     * @return 实体类型字符串（用于网络同步和渲染）
+     */
+    [[nodiscard]] virtual String getTypeId() const;
+
+    // ========== 世界访问 ==========
+
+    [[nodiscard]] IWorld* world() { return m_world; }
+    [[nodiscard]] const IWorld* world() const { return m_world; }
+    void setWorld(IWorld* world) { m_world = world; }
+
+    // ========== 数据管理 ==========
+
+    [[nodiscard]] entity::EntityDataManager& dataManager() { return m_dataManager; }
+    [[nodiscard]] const entity::EntityDataManager& dataManager() const { return m_dataManager; }
 
     // ========== 位置 ==========
 
@@ -255,6 +305,145 @@ public:
 
     [[nodiscard]] u32 ticksExisted() const { return m_ticksExisted; }
 
+    // ========== 存活状态 ==========
+
+    /**
+     * @brief 检查实体是否存活
+     * @return 如果实体未被移除且未死亡则返回 true
+     */
+    [[nodiscard]] virtual bool isAlive() const { return !m_removed; }
+
+    // ========== 环境检测 ==========
+
+    /**
+     * @brief 检查实体是否在水中
+     *
+     * 需要世界引用才能正常工作
+     */
+    [[nodiscard]] virtual bool isInWater() const { return m_inWater; }
+
+    /**
+     * @brief 检查实体是否在岩浆中
+     */
+    [[nodiscard]] virtual bool isInLava() const { return m_inLava; }
+
+    /**
+     * @brief 检查实体是否着火
+     */
+    [[nodiscard]] bool isOnFire() const { return m_fire > 0; }
+
+    /**
+     * @brief 获取着火时间（tick）
+     */
+    [[nodiscard]] i32 fire() const { return m_fire; }
+
+    /**
+     * @brief 设置着火时间
+     */
+    void setFire(i32 ticks) { m_fire = ticks; }
+
+    // ========== 空气管理 ==========
+
+    /**
+     * @brief 获取空气值
+     */
+    [[nodiscard]] i32 air() const { return m_air; }
+
+    /**
+     * @brief 设置空气值
+     */
+    void setAir(i32 air) { m_air = air; }
+
+    /**
+     * @brief 获取最大空气值
+     */
+    [[nodiscard]] virtual i32 maxAir() const { return 300; }
+
+    // ========== 无敌 ==========
+
+    /**
+     * @brief 检查是否无敌
+     */
+    [[nodiscard]] bool isInvulnerable() const { return m_invulnerable; }
+
+    /**
+     * @brief 设置无敌状态
+     */
+    void setInvulnerable(bool invulnerable) { m_invulnerable = invulnerable; }
+
+    // ========== 自定义名称 ==========
+
+    /**
+     * @brief 获取自定义名称
+     */
+    [[nodiscard]] const String& customName() const { return m_customName; }
+
+    /**
+     * @brief 设置自定义名称
+     */
+    void setCustomName(const String& name) { m_customName = name; }
+
+    /**
+     * @brief 检查自定义名称是否可见
+     */
+    [[nodiscard]] bool isCustomNameVisible() const { return m_customNameVisible; }
+
+    /**
+     * @brief 设置自定义名称可见性
+     */
+    void setCustomNameVisible(bool visible) { m_customNameVisible = visible; }
+
+    // ========== 静音 ==========
+
+    /**
+     * @brief 检查是否静音
+     */
+    [[nodiscard]] bool isSilent() const { return m_silent; }
+
+    /**
+     * @brief 设置静音状态
+     */
+    void setSilent(bool silent) { m_silent = silent; }
+
+    // ========== 重力 ==========
+
+    /**
+     * @brief 检查是否受重力影响
+     */
+    [[nodiscard]] bool hasNoGravity() const { return m_noGravity; }
+
+    /**
+     * @brief 设置是否受重力影响
+     */
+    void setNoGravity(bool noGravity) { m_noGravity = noGravity; }
+
+    // ========== 摔落伤害 ==========
+
+    /**
+     * @brief 处理摔落伤害
+     * @param distance 摔落距离
+     * @param damageMultiplier 伤害倍率
+     */
+    virtual void handleFallDamage(f32 distance, f32 damageMultiplier);
+
+    /**
+     * @brief 更新摔落距离
+     * 在移动时调用，跟踪摔落距离以便着地时计算伤害
+     */
+    void updateFallDistance();
+
+    // ========== 更新 ==========
+
+    /**
+     * @brief 基础 tick 更新
+     */
+    virtual void baseTick();
+
+    /**
+     * @brief 更新环境状态（水中、岩浆中）
+     */
+    virtual void updateEnvironmentState();
+
 protected:
     EntityId m_id;
     LegacyEntityType m_legacyType;
@@ -281,6 +470,33 @@ protected:
 
     DimensionId m_dimension = 0;
     u32 m_ticksExisted = 0;
+
+    // 世界引用
+    IWorld* m_world = nullptr;
+
+    // 数据管理器
+    entity::EntityDataManager m_dataManager;
+
+    // 环境状态
+    bool m_inWater = false;
+    bool m_inLava = false;
+    i32 m_fire = 0;             // 着火时间（tick）
+
+    // 空气值
+    i32 m_air = 300;            // 默认最大空气值
+
+    // 无敌
+    bool m_invulnerable = false;
+
+    // 自定义名称
+    String m_customName;
+    bool m_customNameVisible = false;
+
+    // 静音
+    bool m_silent = false;
+
+    // 重力
+    bool m_noGravity = false;
 };
 
 } // namespace mr

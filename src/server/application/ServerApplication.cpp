@@ -27,8 +27,8 @@ public:
     [[nodiscard]] i64 getDay() const override { return m_world ? m_world->gameTime().dayCount() : 0; }
     [[nodiscard]] i64 getDayTime() const override { return m_world ? m_world->gameTime().dayTime() : 0; }
     [[nodiscard]] i64 getGameTime() const override { return m_world ? m_world->gameTime().gameTime() : 0; }
-    [[nodiscard]] std::vector<ServerPlayer*> getPlayers() override { return {}; }
-    [[nodiscard]] ServerPlayer* getPlayer(const String& /*name*/) override { return nullptr; }
+    [[nodiscard]] std::vector<mr::ServerPlayer*> getPlayers() override { return {}; }
+    [[nodiscard]] mr::ServerPlayer* getPlayer(const String& /*name*/) override { return nullptr; }
     void broadcast(const String& message) override { spdlog::info("[Broadcast] {}", message); }
     bool setDayTime(i64 time) override {
         if (!m_world) {
@@ -251,6 +251,7 @@ void ServerApplication::mainLoop()
             // 每秒输出一次统计信息
             if (m_tickCount % 20 == 0) {
                 const auto tps = 1.0 / (std::chrono::duration<f64>(deltaTime).count());
+                (void)tps;  // Avoid unused variable warning when SPDLOG_TRACE is disabled
                 SPDLOG_TRACE("TPS: {:.1f}, Tick: {}", tps, m_tickCount);
             }
         } else {
@@ -619,7 +620,7 @@ Result<void> ServerApplication::loadSettings(const String& path)
     }
 
     // 确保设置目录存在
-    SettingsBase::ensureSettingsDir("minecraft-server");
+    (void)SettingsBase::ensureSettingsDir("minecraft-server");
 
     // 启用自动保存
     m_settings.enableAutoSave(path);

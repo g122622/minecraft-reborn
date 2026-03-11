@@ -59,6 +59,9 @@ add_executable(minecraft-client
     ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ChunkWorkerPool.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ServerChunkManager.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/world/entity/EntityTracker.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/world/spawn/NaturalSpawner.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/world/spawn/SpawnConditions.cpp
     ${CMAKE_SOURCE_DIR}/src/server/player/ServerPlayer.cpp
     ${CMAKE_SOURCE_DIR}/src/server/menu/CraftingMenu.cpp
     ${CMAKE_SOURCE_DIR}/src/server/command/ServerCommandSource.cpp

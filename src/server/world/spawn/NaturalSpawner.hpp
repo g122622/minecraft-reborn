@@ -1,18 +1,21 @@
 #pragma once
 
 #include "../../../common/world/spawn/MobSpawnInfo.hpp"
-#include "../../../common/entity/Entity.hpp"
+#include "../../../common/world/chunk/ChunkData.hpp"
 #include "../../../common/math/random/Random.hpp"
+#include "../../../common/core/Types.hpp"
 #include <functional>
 #include <memory>
+#include <unordered_map>
 
-namespace mr {
+namespace mr::server {
 
 // 前向声明
 class ServerWorld;
-class ChunkData;
 
-namespace world::spawn {
+} // namespace mr::server
+
+namespace mr::world::spawn {
 
 /**
  * @brief 生成位置检查函数类型
@@ -20,7 +23,7 @@ namespace world::spawn {
  * 检查指定位置是否可以生成特定类型的实体。
  * 返回 true 表示可以生成。
  */
-using SpawnPositionCheck = std::function<bool(ServerWorld&, i32 x, i32 y, i32 z, const SpawnEntry&)>;
+using SpawnPositionCheck = std::function<bool(mr::server::ServerWorld&, i32 x, i32 y, i32 z, const SpawnEntry&)>;
 
 /**
  * @brief 自然生成器
@@ -45,7 +48,7 @@ public:
      * @param spawnInfo 生物群系生成信息
      * @param random 随机数生成器
      */
-    void spawnInChunk(ServerWorld& world, i32 chunkX, i32 chunkZ,
+    void spawnInChunk(mr::server::ServerWorld& world, i32 chunkX, i32 chunkZ,
                       const MobSpawnInfo& spawnInfo, math::Random& random);
 
     /**
@@ -54,7 +57,7 @@ public:
      * @param hostile 是否生成敌对生物
      * @param passive 是否生成被动生物
      */
-    void tick(ServerWorld& world, bool hostile, bool passive);
+    void tick(mr::server::ServerWorld& world, bool hostile, bool passive);
 
     // ========== 生成配置 ==========
 
@@ -101,7 +104,7 @@ private:
      * @brief 在指定位置尝试生成实体
      * @return 生成的实体数量
      */
-    i32 trySpawnAt(ServerWorld& world, i32 x, i32 y, i32 z,
+    i32 trySpawnAt(mr::server::ServerWorld& world, i32 x, i32 y, i32 z,
                    const SpawnEntry& entry, math::Random& random);
 
     /**
@@ -113,20 +116,19 @@ private:
     /**
      * @brief 检查位置是否可以生成
      */
-    [[nodiscard]] bool canSpawnAt(ServerWorld& world, i32 x, i32 y, i32 z,
+    [[nodiscard]] bool canSpawnAt(mr::server::ServerWorld& world, i32 x, i32 y, i32 z,
                                    const SpawnEntry& entry) const;
 
     /**
      * @brief 检查光照条件
      */
-    [[nodiscard]] bool checkLightLevel(ServerWorld& world, i32 x, i32 y, i32 z,
+    [[nodiscard]] bool checkLightLevel(mr::server::ServerWorld& world, i32 x, i32 y, i32 z,
                                         bool isMonster) const;
 
     /**
      * @brief 获取生成高度
      */
-    [[nodiscard]] i32 getSpawnHeight(ServerWorld& world, i32 x, i32 z) const;
+    [[nodiscard]] i32 getSpawnHeight(mr::server::ServerWorld& world, i32 x, i32 z) const;
 };
 
 } // namespace world::spawn
-} // namespace mr

@@ -1,19 +1,46 @@
 #include "LivingEntity.hpp"
 #include "../../core/Constants.hpp"
+#include "../../math/MathUtils.hpp"
+#include <cmath>
 
 namespace mr {
+
+// ============================================================================
+// 静态数据参数定义
+// ============================================================================
+
+namespace {
+    // 数据参数
+    entity::DataParameter<i8> LIVING_FLAGS_PARAM{10};
+    entity::DataParameter<f32> HEALTH_PARAM{11};
+    entity::DataParameter<i32> POTION_EFFECTS_PARAM{12};
+    entity::DataParameter<i32> ARROW_COUNT_PARAM{13};
+}
 
 // ============================================================================
 // 构造函数
 // ============================================================================
 
-LivingEntity::LivingEntity(LegacyEntityType type, EntityId id)
-    : Entity(type, id)
+LivingEntity::LivingEntity(LegacyEntityType type, EntityId id, IWorld* world)
+    : Entity(type, id, world)
 {
     // 初始化装备槽
     for (auto& slot : m_equipment) {
         slot = ItemStack();
     }
+
+    // 注册属性
+    registerAttributes();
+}
+
+void LivingEntity::registerData() {
+    Entity::registerData();
+
+    // 注册生物数据参数
+    m_dataManager.registerParam(LIVING_FLAGS_PARAM, static_cast<i8>(0));
+    m_dataManager.registerParam(HEALTH_PARAM, m_health);
+    m_dataManager.registerParam(POTION_EFFECTS_PARAM, static_cast<i32>(0));
+    m_dataManager.registerParam(ARROW_COUNT_PARAM, static_cast<i32>(0));
 }
 
 // ============================================================================
@@ -127,10 +154,33 @@ bool LivingEntity::isInvulnerableTo(DamageSource& /*source*/) const {
 void LivingEntity::tick() {
     Entity::tick();
 
+    // 保存上一帧渲染属性
+    m_prevLimbSwing = m_limbSwing;
+    m_prevLimbSwingAmount = m_limbSwingAmount;
+    m_prevSwingProgress = m_swingProgress;
+    m_prevRenderYawOffset = m_renderYawOffset;
+    m_prevRotationYawHead = m_rotationYawHead;
+
     // 更新受伤无敌帧
     if (m_hurtTime > 0) {
         m_hurtTime--;
     }
+
+    // 更新攻击动画
+    if (m_swingInProgress) {
+        m_swingProgressInt++;
+        if (m_swingProgressInt >= 6) {
+            m_swingProgressInt = 0;
+            m_swingInProgress = false;
+        }
+        m_swingProgress = static_cast<f32>(m_swingProgressInt) / 6.0f;
+    } else {
+        m_swingProgress = 0.0f;
+        m_swingProgressInt = 0;
+    }
+
+    // 更新步态动画
+    updateAnimation();
 
     // 更新生命值
     tickHealth();
@@ -139,6 +189,26 @@ void LivingEntity::tick() {
     if (isDead()) {
         tickDeath();
     }
+}
+
+void LivingEntity::updateAnimation() {
+    // 计算移动距离
+    f32 dx = x() - prevX();
+    f32 dz = z() - prevZ();
+    f32 distance = std::sqrt(dx * dx + dz * dz);
+
+    // 更新步态动画
+    m_prevLimbSwingAmount = m_limbSwingAmount;
+    m_limbSwingAmount += (distance - m_limbSwingAmount) * 0.4f;
+
+    // 如果在移动，增加步态周期
+    if (distance > 0.001f) {
+        m_limbSwing += std::min(distance, 1.0f);
+    }
+
+    // 更新移动距离
+    m_prevMovedDistance = m_movedDistance;
+    m_movedDistance = distance;
 }
 
 void LivingEntity::tickHealth() {
@@ -159,6 +229,27 @@ void LivingEntity::tickDeath() {
     // 死亡动画（20 ticks = 1 秒）
     if (m_deathTime >= 20) {
         remove();  // 移除实体
+    }
+}
+
+// ============================================================================
+// 摔落伤害
+// ============================================================================
+
+void LivingEntity::handleFallDamage(f32 distance, f32 damageMultiplier) {
+    // 计算摔落伤害
+    // MC 规则：摔落 > 3 格才开始受伤，每格 1 点伤害
+    if (distance > 3.0f) {
+        f32 damage = (distance - 3.0f) * damageMultiplier;
+
+        // 考虑摔落保护效果
+        // TODO: 实现摔落保护附魔
+
+        if (damage > 0.0f) {
+            // 创建摔落伤害来源
+            EnvironmentalDamage source = DamageSources::fall();
+            hurt(source, damage);
+        }
     }
 }
 

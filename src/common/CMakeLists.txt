@@ -32,6 +32,7 @@ add_library(mr_common STATIC
     network/InventoryPackets.cpp
     network/ContainerPacketHandler.cpp
     network/EntityPackets.cpp
+    network/EntityMetadataSerializer.cpp
 
     # Entity
     entity/Entity.cpp
@@ -48,6 +49,12 @@ add_library(mr_common STATIC
     entity/animal/CowEntity.cpp
     entity/animal/SheepEntity.cpp
     entity/animal/ChickenEntity.cpp
+    # Entity - Loot System
+    entity/loot/LootContext.cpp
+    entity/loot/RandomRanges.cpp
+    entity/loot/LootEntry.cpp
+    entity/loot/LootPool.cpp
+    entity/loot/LootTable.cpp
     entity/combat/AttackContext.cpp
     entity/combat/PlayerAttackHelper.cpp
     entity/ai/controller/LookController.cpp
@@ -87,6 +94,9 @@ add_library(mr_common STATIC
 
     # World - Drop Tables
     world/drop/DropTables.cpp
+
+    # World - Entity
+    world/entity/EntityManager.cpp
 
     # World - Spawn
     world/spawn/MobSpawnInfo.cpp

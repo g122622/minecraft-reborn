@@ -12,6 +12,8 @@ add_executable(minecraft-server
     world/ChunkWorkerPool.cpp
     world/ServerChunkManager.cpp
     world/spawn/NaturalSpawner.cpp
+    world/spawn/SpawnConditions.cpp
+    world/entity/EntityTracker.cpp
     player/ServerPlayer.cpp
     # 命令系统
     command/ServerCommandSource.cpp

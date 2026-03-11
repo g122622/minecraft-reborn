@@ -1,6 +1,8 @@
 #include "Entity.hpp"
+#include "../world/IWorld.hpp"
 #include "../physics/PhysicsEngine.hpp"
 #include "../math/random/Random.hpp"
+#include "../world/block/Block.hpp"
 #include <algorithm>
 #include <sstream>
 #include <chrono>
@@ -8,24 +10,62 @@
 namespace mr {
 
 // ============================================================================
+// 静态数据参数定义
+// ============================================================================
+
+namespace {
+    // 数据参数 ID 生成器
+    entity::DataParameter<i8> FLAGS_PARAM{0};
+    entity::DataParameter<i32> AIR_PARAM{1};
+    entity::DataParameter<String> CUSTOM_NAME_PARAM{2};
+    entity::DataParameter<bool> CUSTOM_NAME_VISIBLE_PARAM{3};
+    entity::DataParameter<bool> SILENT_PARAM{4};
+    entity::DataParameter<bool> NO_GRAVITY_PARAM{5};
+    entity::DataParameter<i8> POSE_PARAM{6};
+}
+
+// ============================================================================
 // Entity 实现
 // ============================================================================
 
-Entity::Entity(LegacyEntityType type, EntityId id)
+Entity::Entity(LegacyEntityType type, EntityId id, IWorld* world)
     : m_id(id)
     , m_legacyType(type)
+    , m_world(world)
     , m_position(0.0f, 0.0f, 0.0f)
     , m_prevPosition(0.0f, 0.0f, 0.0f)
     , m_velocity(0.0f, 0.0f, 0.0f)
 {
     // 生成随机UUID
-    // 使用时间戳和随机数组合
     u64 seed = static_cast<u64>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
     math::Random rng(seed);
 
     std::stringstream ss;
     ss << std::hex << rng.nextU64() << rng.nextU64();
     m_uuid = ss.str();
+
+    // 注册数据参数
+    registerData();
+}
+
+void Entity::registerData() {
+    // 注册基础数据参数
+    m_dataManager.registerParam(FLAGS_PARAM, static_cast<i8>(0));
+    m_dataManager.registerParam(AIR_PARAM, maxAir());
+    m_dataManager.registerParam(CUSTOM_NAME_PARAM, String{});
+    m_dataManager.registerParam(CUSTOM_NAME_VISIBLE_PARAM, false);
+    m_dataManager.registerParam(SILENT_PARAM, false);
+    m_dataManager.registerParam(NO_GRAVITY_PARAM, false);
+    m_dataManager.registerParam(POSE_PARAM, static_cast<i8>(EntityPose::Standing));
+}
+
+String Entity::getTypeId() const {
+    // 根据旧类型返回类型字符串
+    switch (m_legacyType) {
+        case LegacyEntityType::Player: return "minecraft:player";
+        case LegacyEntityType::Item: return "minecraft:item";
+        default: return "minecraft:unknown";
+    }
 }
 
 void Entity::setPosition(f32 x, f32 y, f32 z) {
@@ -46,6 +86,67 @@ void Entity::setVelocity(f32 x, f32 y, f32 z) {
 
 void Entity::tick() {
     m_ticksExisted++;
+
+    // 基础 tick
+    baseTick();
+}
+
+void Entity::baseTick() {
+    // 更新前一帧位置
+    m_prevPosition = m_position;
+    m_prevYaw = m_yaw;
+    m_prevPitch = m_pitch;
+
+    // 处理着火
+    if (m_fire > 0) {
+        if (isInWater() || isInLava()) {
+            m_fire = 0;
+        } else {
+            m_fire--;
+        }
+    }
+
+    // 处理空气值
+    if (isInWater() || isInLava()) {
+        if (!m_invulnerable) {
+            m_air--;
+            if (m_air <= -20) {
+                m_air = 0;
+                // TODO: 处理溺水伤害
+            }
+        }
+    } else {
+        m_air = maxAir();
+    }
+
+    // 更新环境状态
+    updateEnvironmentState();
+}
+
+void Entity::updateEnvironmentState() {
+    // 如果有世界引用，检测水中/岩浆中状态
+    if (m_world) {
+        // 检测当前位置的方块
+        // TODO: 实现完整的液体检测
+        // 暂时通过位置简单判断
+        m_inWater = false;
+        m_inLava = false;
+    }
+}
+
+void Entity::updateFallDistance() {
+    // 更新摔落距离
+    if (!m_onGround && m_velocity.y < 0.0f) {
+        m_fallDistance -= m_velocity.y;
+    } else if (m_onGround && m_fallDistance > 0.0f) {
+        handleFallDamage(m_fallDistance, 1.0f);
+        m_fallDistance = 0.0f;
+    }
+}
+
+void Entity::handleFallDamage(f32 distance, f32 damageMultiplier) {
+    // 基础实体不处理摔落伤害
+    // LivingEntity 会重写此方法
 }
 
 void Entity::update() {
@@ -119,20 +220,13 @@ Vector3 Entity::moveWithCollision(f32 dx, f32 dy, f32 dz) {
     m_collidedVertically = m_physicsEngine->collidedVertically();
 
     // 更新地面状态
-    // 优先使用“向下移动时发生垂直碰撞”的判定，避免纯接触检测抖动。
+    // 优先使用”向下移动时发生垂直碰撞”的判定，避免纯接触检测抖动。
     bool groundedByCollision = m_collidedVertically && desiredMovement.y < 0.0f;
     bool groundedByContact = m_physicsEngine->isOnGround(entityBox);
     m_onGround = groundedByCollision || groundedByContact;
 
-    // 更新坠落距离
-    // 参考MC: 如果在空中且向下移动，累积坠落距离
-    if (!m_onGround && actualMovement.y < 0.0f) {
-        m_fallDistance -= actualMovement.y;
-    } else if (m_onGround && m_fallDistance > 0.0f) {
-        // 着地，处理摔落伤害
-        // TODO: 处理摔落伤害
-        m_fallDistance = 0.0f;
-    }
+    // 更新摔落距离并处理摔落伤害
+    updateFallDistance();
 
     return actualMovement;
 }
