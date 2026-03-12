@@ -5,6 +5,7 @@
 #include <memory>
 #include <functional>
 #include <vector>
+#include <unordered_set>
 
 namespace mr {
 namespace command {
@@ -74,9 +75,17 @@ public:
      */
     [[nodiscard]] bool hasCommand(const String& name) const;
 
+    /**
+     * @brief 获取全局命令注册表实例
+     *
+     * 线程安全的单例模式，首次调用时自动注册默认命令。
+     */
+    [[nodiscard]] static CommandRegistry& getGlobal();
+
 private:
     Dispatcher m_dispatcher;
     std::vector<String> m_commandNames;
+    std::unordered_set<String> m_commandNameSet;  // 用于快速查找
 };
 
 } // namespace command

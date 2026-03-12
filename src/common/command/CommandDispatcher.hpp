@@ -6,22 +6,11 @@
 #include "common/command/StringReader.hpp"
 #include "common/command/CommandResult.hpp"
 #include <memory>
-#include <functional>
 #include <vector>
 #include <unordered_set>
 #include <utility>
 
 namespace mr::command {
-
-// ========== 类型别名 ==========
-
-/// 命令执行回调
-template<typename S>
-using CommandCallback = std::function<i32(CommandContext<S>&)>;
-
-/// 权限检查谓词
-template<typename S>
-using RequirementPredicate = std::function<bool(const S&)>;
 
 // ========== 前向声明 ==========
 

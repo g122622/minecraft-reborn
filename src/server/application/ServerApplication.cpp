@@ -15,9 +15,8 @@ namespace {
 
 class ServerApplicationCommandBridge final : public MinecraftServer {
 public:
-    ServerApplicationCommandBridge(mr::server::ServerWorld* world, command::CommandRegistry& registry)
+    ServerApplicationCommandBridge(mr::server::ServerWorld* world)
         : m_world(world)
-        , m_registry(registry)
     {
     }
 
@@ -54,24 +53,12 @@ public:
     bool setPlayerGameMode(PlayerId playerId, GameMode mode) override {
         return m_world ? m_world->setPlayerGameMode(playerId, mode) : false;
     }
-    [[nodiscard]] command::CommandRegistry& getCommandRegistry() override { return m_registry; }
+    [[nodiscard]] command::CommandRegistry& getCommandRegistry() override { return command::CommandRegistry::getGlobal(); }
     bool isCommandAllowed(const command::ICommandSource& /*source*/, const String& /*command*/) override { return true; }
 
 private:
     mr::server::ServerWorld* m_world;
-    command::CommandRegistry& m_registry;
 };
-
-command::CommandRegistry& getCommandRegistryInstance()
-{
-    static command::CommandRegistry registry;
-    static const bool initialized = [] {
-        registry.registerDefaults();
-        return true;
-    }();
-    (void)initialized;
-    return registry;
-}
 
 }
 
@@ -558,8 +545,8 @@ void ServerApplication::handleChatMessage(TcpSession* session, const u8* data, s
     String message = packet.message();
 
     if (!message.empty() && message[0] == '/') {
-        auto& registry = getCommandRegistryInstance();
-        ServerApplicationCommandBridge bridge(m_world.get(), registry);
+        auto& registry = command::CommandRegistry::getGlobal();
+        ServerApplicationCommandBridge bridge(m_world.get());
         command::ServerCommandSource source(&bridge, nullptr, m_world.get(), position, rotation, 4, playerId, username);
         auto commandResult = registry.execute(message, source);
 

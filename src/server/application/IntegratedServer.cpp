@@ -104,8 +104,7 @@ public:
         const std::function<bool(i64)>& setDayTimeFn,
         const std::function<bool(i64)>& addDayTimeFn,
         const std::function<bool(PlayerId, f64, f64, f64, f32, f32)>& teleportFn,
-        const std::function<bool(PlayerId, GameMode)>& setGameModeFn,
-        command::CommandRegistry& registry)
+        const std::function<bool(PlayerId, GameMode)>& setGameModeFn)
         : m_seed(seed)
         , m_ticksProvider(ticksProvider)
         , m_dayProvider(dayProvider)
@@ -115,7 +114,6 @@ public:
         , m_addDayTimeFn(addDayTimeFn)
         , m_teleportFn(teleportFn)
         , m_setGameModeFn(setGameModeFn)
-        , m_registry(registry)
     {
     }
 
@@ -136,7 +134,7 @@ public:
     bool setPlayerGameMode(PlayerId playerId, GameMode mode) override {
         return m_setGameModeFn ? m_setGameModeFn(playerId, mode) : false;
     }
-    [[nodiscard]] command::CommandRegistry& getCommandRegistry() override { return m_registry; }
+    [[nodiscard]] command::CommandRegistry& getCommandRegistry() override { return command::CommandRegistry::getGlobal(); }
     bool isCommandAllowed(const command::ICommandSource& /*source*/, const String& /*command*/) override { return true; }
 
 private:
@@ -149,19 +147,7 @@ private:
     std::function<bool(i64)> m_addDayTimeFn;
     std::function<bool(PlayerId, f64, f64, f64, f32, f32)> m_teleportFn;
     std::function<bool(PlayerId, GameMode)> m_setGameModeFn;
-    command::CommandRegistry& m_registry;
 };
-
-command::CommandRegistry& getIntegratedCommandRegistry()
-{
-    static command::CommandRegistry registry;
-    static const bool initialized = [] {
-        registry.registerDefaults();
-        return true;
-    }();
-    (void)initialized;
-    return registry;
-}
 
 }
 
@@ -1007,7 +993,7 @@ void IntegratedServer::handleChatMessage(const u8* data, size_t size) {
     auto& packet = result.value();
 
     if (!packet.message().empty() && packet.message()[0] == '/') {
-        auto& registry = getIntegratedCommandRegistry();
+        auto& registry = command::CommandRegistry::getGlobal();
         IntegratedServerCommandBridge bridge(
             m_config.seed,
             [this]() { return static_cast<i64>(m_tickCount); },
@@ -1049,8 +1035,7 @@ void IntegratedServer::handleChatMessage(const u8* data, size_t size) {
                 }
                 m_client.gameMode = mode;
                 return true;
-            },
-            registry);
+            });
         command::ServerCommandSource source(
             &bridge,
             nullptr,
