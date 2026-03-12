@@ -1,21 +1,30 @@
 #pragma once
 
 #include "EntityRenderer.hpp"
+#include "EntityPipeline.hpp"
+#include "model/EntityModel.hpp"
 #include "../../../common/core/Types.hpp"
 #include <unordered_map>
 #include <memory>
 #include <functional>
+#include <vector>
 
 namespace mr {
-
 class Entity;
+}
 
-namespace client::renderer {
+namespace mr::client {
+
+// 前向声明
+class ClientEntity;
+
+namespace renderer {
 
 /**
  * @brief 实体渲染器管理器
  *
  * 管理所有实体渲染器，根据实体类型分派渲染。
+ * 集成EntityPipeline进行Vulkan渲染。
  *
  * 参考 MC 1.16.5 EntityRendererManager
  */
@@ -25,6 +34,10 @@ public:
 
     EntityRendererManager();
     ~EntityRendererManager() = default;
+
+    // 禁止拷贝
+    EntityRendererManager(const EntityRendererManager&) = delete;
+    EntityRendererManager& operator=(const EntityRendererManager&) = delete;
 
     // ========== 渲染器管理 ==========
 
@@ -42,12 +55,59 @@ public:
      */
     [[nodiscard]] EntityRenderer* getRenderer(const String& typeId);
 
+    // ========== 实体网格缓存 ==========
+
+    /**
+     * @brief 获取或创建实体网格
+     * @param entity 客户端实体
+     * @return 网格指针，如果实体类型无渲染器返回nullptr
+     */
+    [[nodiscard]] EntityMesh* getOrCreateMesh(ClientEntity& entity);
+
+    /**
+     * @brief 更新实体网格
+     *
+     * 当实体动画变化时调用，重新生成网格。
+     *
+     * @param entity 客户端实体
+     */
+    void updateMesh(ClientEntity& entity);
+
+    /**
+     * @brief 移除实体网格
+     * @param entityId 实体ID
+     */
+    void removeMesh(EntityId entityId);
+
+    // ========== 渲染 ==========
+
     /**
      * @brief 渲染实体
      * @param entity 要渲染的实体
      * @param partialTicks 部分tick
+     * @deprecated 使用 renderWithPipeline 代替
      */
     void render(Entity& entity, f32 partialTicks);
+
+    /**
+     * @brief 使用管线渲染实体
+     * @param cmd 命令缓冲区
+     * @param entity 客户端实体
+     * @param partialTicks 部分tick
+     */
+    void renderWithPipeline(VkCommandBuffer cmd, ClientEntity& entity, f32 partialTicks);
+
+    // ========== 管线 ==========
+
+    /**
+     * @brief 设置实体渲染管线
+     */
+    void setPipeline(EntityPipeline* pipeline) { m_pipeline = pipeline; }
+
+    /**
+     * @brief 获取实体渲染管线
+     */
+    [[nodiscard]] EntityPipeline* pipeline() { return m_pipeline; }
 
     // ========== 渲染设置 ==========
 
@@ -82,6 +142,12 @@ private:
     std::unordered_map<String, std::unique_ptr<EntityRenderer>> m_renderers;
     std::unordered_map<String, RendererCreator> m_creators;
 
+    // 实体网格缓存
+    std::unordered_map<EntityId, EntityMesh> m_meshes;
+
+    // 管线
+    EntityPipeline* m_pipeline = nullptr;
+
     bool m_renderShadows = true;
     bool m_renderNameTags = true;
 
@@ -89,7 +155,18 @@ private:
      * @brief 创建或获取渲染器
      */
     [[nodiscard]] EntityRenderer* getOrCreateRenderer(const String& typeId);
+
+    /**
+     * @brief 生成实体模型网格
+     * @param typeId 实体类型ID
+     * @param vertices 输出顶点
+     * @param indices 输出索引
+     * @return 是否成功生成
+     */
+    bool generateModelMesh(const String& typeId,
+                           std::vector<ModelVertex>& vertices,
+                           std::vector<u32>& indices);
 };
 
-} // namespace client::renderer
-} // namespace mr
+} // namespace renderer
+} // namespace mr::client

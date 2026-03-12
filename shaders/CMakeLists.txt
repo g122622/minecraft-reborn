@@ -40,6 +40,8 @@ set(SHADER_SOURCES
     debug.frag
     gui.vert
     gui.frag
+    entity.vert
+    entity.frag
 )
 
 # 输出目录

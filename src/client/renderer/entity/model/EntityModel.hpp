@@ -27,6 +27,16 @@ public:
     virtual void render(f32 scale = 1.0f / 16.0f);
 
     /**
+     * @brief 生成模型网格
+     * @param vertices 顶点输出缓冲区
+     * @param indices 索引输出缓冲区
+     * @param scale 缩放因子
+     */
+    virtual void generateMesh(std::vector<ModelVertex>& vertices,
+                              std::vector<u32>& indices,
+                              f32 scale = 1.0f / 16.0f) const;
+
+    /**
      * @brief 设置动画参数
      * @param limbSwing 步态动画周期（0-1）
      * @param limbSwingAmount 步态动画强度

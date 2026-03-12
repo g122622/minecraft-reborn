@@ -54,6 +54,13 @@ add_executable(minecraft-client
     renderer/entity/model/ModelRenderer.cpp
     renderer/entity/model/EntityModel.cpp
     renderer/entity/model/AnimalModels.cpp
+    renderer/entity/EntityPipeline.cpp
+    renderer/entity/EntityTextureAtlas.cpp
+    # 客户端实体管理
+    world/entity/ClientEntity.cpp
+    world/entity/ClientEntityManager.cpp
+    # 实体纹理加载
+    resource/EntityTextureLoader.cpp
     # 内置服务端支持
     ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp

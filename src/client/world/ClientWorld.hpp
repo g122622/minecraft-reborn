@@ -10,6 +10,7 @@
 #include "../../common/physics/PhysicsEngine.hpp"
 #include "../renderer/Camera.hpp"
 #include "../renderer/MeshWorkerPool.hpp"
+#include "entity/ClientEntityManager.hpp"
 #include <unordered_map>
 #include <unordered_set>
 #include <memory>
@@ -258,6 +259,14 @@ public:
      */
     [[nodiscard]] const MeshWorkerPool* meshWorkerPool() const { return m_meshWorkerPool.get(); }
 
+    // ========== 实体管理 ==========
+
+    /**
+     * @brief 获取实体管理器
+     */
+    [[nodiscard]] ClientEntityManager& entityManager() { return m_entityManager; }
+    [[nodiscard]] const ClientEntityManager& entityManager() const { return m_entityManager; }
+
 private:
     // 区块卸载回调
     std::function<void(const ChunkId&)> m_chunkUnloadCallback;
@@ -313,6 +322,9 @@ private:
     i64 m_prevDayTime = 0;       // 上一帧的 dayTime (用于插值)
     i64 m_targetDayTime = 0;     // 目标 dayTime (从服务端接收)
     bool m_daylightCycleEnabled = true;
+
+    // 实体管理器
+    ClientEntityManager m_entityManager;
 };
 
 } // namespace mr::client

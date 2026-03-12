@@ -73,6 +73,17 @@ struct NetworkClientCallbacks {
     std::function<void(const ContainerContentPacket& packet)> onContainerContent;
     std::function<void(const ContainerSlotPacket& packet)> onContainerSlot;
     std::function<void(ContainerId containerId)> onCloseContainer;
+
+    // 实体事件
+    std::function<void(u32 entityId, const String& typeId, f32 x, f32 y, f32 z, f32 yaw, f32 pitch, f32 headYaw)> onSpawnMob;
+    std::function<void(u32 entityId, const String& typeId, f32 x, f32 y, f32 z, f32 yaw, f32 pitch)> onSpawnEntity;
+    std::function<void(u32 entityId, f32 x, f32 y, f32 z, f32 yaw, f32 pitch)> onEntityMove;
+    std::function<void(u32 entityId, i16 vx, i16 vy, i16 vz)> onEntityVelocity;
+    std::function<void(u32 entityId, f32 x, f32 y, f32 z, f32 yaw, f32 pitch)> onEntityTeleport;
+    std::function<void(const std::vector<u32>& entityIds)> onEntityDestroy;
+    std::function<void(u32 entityId, u8 animation)> onEntityAnimation;
+    std::function<void(u32 entityId, f32 headYaw)> onEntityHeadLook;
+    std::function<void(u32 entityId, u8 status)> onEntityStatus;
 };
 
 // ============================================================================

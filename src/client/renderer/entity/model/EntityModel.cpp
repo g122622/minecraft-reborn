@@ -23,6 +23,16 @@ void EntityModel::copyAnglesTo(const EntityModel& /*target*/) const {
     // TODO: 实现角度复制
 }
 
+void EntityModel::generateMesh(std::vector<ModelVertex>& vertices,
+                                std::vector<u32>& indices,
+                                f32 scale) const {
+    for (const auto& part : m_parts) {
+        if (part) {
+            part->generateMesh(vertices, indices, scale);
+        }
+    }
+}
+
 // ==================== QuadrupedModel ====================
 
 QuadrupedModel::QuadrupedModel() {
