@@ -3,7 +3,7 @@
 #include "IRandom.hpp"
 #include <random>
 
-namespace mr::math {
+namespace mc::math {
 
 /**
  * @brief Mersenne Twister 随机数生成器
@@ -46,4 +46,4 @@ private:
     std::mt19937_64 m_engine;
 };
 
-} // namespace mr::math
+} // namespace mc::math

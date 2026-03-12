@@ -6,7 +6,7 @@
 #include "common/entity/attribute/AttributeMap.hpp"
 #include "common/entity/attribute/Attributes.hpp"
 
-using namespace mr::entity::attribute;
+using namespace mc::entity::attribute;
 
 // ============================================================================
 // Attribute 测试

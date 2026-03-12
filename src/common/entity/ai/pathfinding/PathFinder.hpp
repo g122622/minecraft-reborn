@@ -8,7 +8,7 @@
 #include "../../../core/Types.hpp"
 #include <memory>
 
-namespace mr::entity::ai::pathfinding {
+namespace mc::entity::ai::pathfinding {
 
 /**
  * @brief 寻路器
@@ -196,4 +196,4 @@ private:
     }
 };
 
-} // namespace mr::entity::ai::pathfinding
+} // namespace mc::entity::ai::pathfinding

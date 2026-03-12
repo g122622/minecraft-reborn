@@ -1,7 +1,7 @@
 #include "TcpConnection.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr::server {
+namespace mc::server {
 
 TcpConnection::TcpConnection(std::shared_ptr<TcpSession> session)
     : m_session(std::move(session))
@@ -39,4 +39,4 @@ SessionId TcpConnection::sessionId() const {
     return m_session ? m_session->id() : 0;
 }
 
-} // namespace mr::server
+} // namespace mc::server

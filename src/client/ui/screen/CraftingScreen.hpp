@@ -4,7 +4,7 @@
 #include "server/menu/CraftingMenu.hpp"
 #include "core/Types.hpp"
 
-namespace mr::client {
+namespace mc::client {
 
 /**
  * @brief 工作台屏幕 (3x3合成)
@@ -21,13 +21,13 @@ namespace mr::client {
  * - 宽度: 176 像素
  * - 高度: 166 像素
  */
-class CraftingScreen : public AbstractContainerScreen<mr::CraftingMenu> {
+class CraftingScreen : public AbstractContainerScreen<mc::CraftingMenu> {
 public:
     /**
      * @brief 构造函数
      * @param menu 工作台菜单
      */
-    explicit CraftingScreen(std::unique_ptr<mr::CraftingMenu> menu,
+    explicit CraftingScreen(std::unique_ptr<mc::CraftingMenu> menu,
                             ContainerClickSender clickSender = {},
                             ContainerCloseSender closeSender = {});
 
@@ -57,7 +57,7 @@ protected:
     /**
      * @brief 槽位点击处理
      */
-    bool onSlotClick(mr::Slot& slot, i32 slotIndex, i32 button) override;
+    bool onSlotClick(mc::Slot& slot, i32 slotIndex, i32 button) override;
 
 private:
     /**
@@ -79,15 +79,15 @@ private:
      * @brief 检查是否是结果槽位
      */
     [[nodiscard]] bool isResultSlot(i32 slotIndex) const {
-        return slotIndex == mr::CraftingMenu::RESULT_SLOT;
+        return slotIndex == mc::CraftingMenu::RESULT_SLOT;
     }
 
     /**
      * @brief 检查是否是合成网格槽位
      */
     [[nodiscard]] bool isGridSlot(i32 slotIndex) const {
-        return slotIndex >= mr::CraftingMenu::GRID_SLOT_START &&
-               slotIndex < mr::CraftingMenu::GRID_SLOT_START + mr::CraftingMenu::GRID_SLOT_COUNT;
+        return slotIndex >= mc::CraftingMenu::GRID_SLOT_START &&
+               slotIndex < mc::CraftingMenu::GRID_SLOT_START + mc::CraftingMenu::GRID_SLOT_COUNT;
     }
 
     // GUI尺寸常量
@@ -126,13 +126,13 @@ private:
  * - 宽度: 176 像素
  * - 高度: 166 像素
  */
-class InventoryCraftingScreen : public AbstractContainerScreen<mr::InventoryCraftingMenu> {
+class InventoryCraftingScreen : public AbstractContainerScreen<mc::InventoryCraftingMenu> {
 public:
     /**
      * @brief 构造函数
      * @param menu 玩家背包合成菜单
      */
-    explicit InventoryCraftingScreen(std::unique_ptr<mr::InventoryCraftingMenu> menu,
+    explicit InventoryCraftingScreen(std::unique_ptr<mc::InventoryCraftingMenu> menu,
                                      ContainerClickSender clickSender = {},
                                      ContainerCloseSender closeSender = {});
 
@@ -162,7 +162,7 @@ protected:
     /**
      * @brief 槽位点击处理
      */
-    bool onSlotClick(mr::Slot& slot, i32 slotIndex, i32 button) override;
+    bool onSlotClick(mc::Slot& slot, i32 slotIndex, i32 button) override;
 
 private:
     /**
@@ -184,15 +184,15 @@ private:
      * @brief 检查是否是结果槽位
      */
     [[nodiscard]] bool isResultSlot(i32 slotIndex) const {
-        return slotIndex == mr::InventoryCraftingMenu::RESULT_SLOT;
+        return slotIndex == mc::InventoryCraftingMenu::RESULT_SLOT;
     }
 
     /**
      * @brief 检查是否是合成网格槽位
      */
     [[nodiscard]] bool isGridSlot(i32 slotIndex) const {
-        return slotIndex >= mr::InventoryCraftingMenu::GRID_SLOT_START &&
-               slotIndex < mr::InventoryCraftingMenu::GRID_SLOT_START + mr::InventoryCraftingMenu::GRID_SLOT_COUNT;
+        return slotIndex >= mc::InventoryCraftingMenu::GRID_SLOT_START &&
+               slotIndex < mc::InventoryCraftingMenu::GRID_SLOT_START + mc::InventoryCraftingMenu::GRID_SLOT_COUNT;
     }
 
     // GUI尺寸常量
@@ -216,4 +216,4 @@ private:
     static constexpr i32 TITLE_Y = 6;
 };
 
-} // namespace mr::client
+} // namespace mc::client

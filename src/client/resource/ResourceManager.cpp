@@ -5,7 +5,7 @@
 // stb_image for PNG loading (implementation in TextureAtlasBuilder.cpp)
 #include <stb_image.h>
 
-namespace mr {
+namespace mc {
 
 namespace {
     /**
@@ -699,4 +699,4 @@ ResourceLocation ResourceManager::texturePathToLocation(StringView path) {
     return ResourceLocation(p);
 }
 
-} // namespace mr
+} // namespace mc

@@ -1,7 +1,7 @@
 #include "Packet.hpp"
 #include "PacketSerializer.hpp"
 
-namespace mr::network {
+namespace mc::network {
 
 // ============================================================================
 // Packet 基类实现
@@ -101,4 +101,4 @@ Result<void> DisconnectPacket::deserialize(const u8* data, size_t size) {
     return Result<void>::ok();
 }
 
-} // namespace mr::network
+} // namespace mc::network

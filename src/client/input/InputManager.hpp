@@ -9,7 +9,7 @@
 // 前向声明
 struct GLFWwindow;
 
-namespace mr::client {
+namespace mc::client {
 
 /**
  * @brief 输入管理器
@@ -196,4 +196,4 @@ private:
     KeyEventCallback m_keyEventCallback;
 };
 
-} // namespace mr::client
+} // namespace mc::client

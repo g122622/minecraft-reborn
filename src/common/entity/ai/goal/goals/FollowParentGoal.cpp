@@ -7,7 +7,7 @@
 #include "../GoalConstants.hpp"
 #include "../../../../world/IWorld.hpp"
 
-namespace mr::entity::ai::goal {
+namespace mc::entity::ai::goal {
 
 using namespace constants;
 
@@ -107,4 +107,4 @@ AnimalEntity* FollowParentGoal::findParent() {
     );
 }
 
-} // namespace mr::entity::ai::goal
+} // namespace mc::entity::ai::goal

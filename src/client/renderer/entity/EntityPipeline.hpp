@@ -8,7 +8,7 @@
 #include <memory>
 #include <vector>
 
-namespace mr::client {
+namespace mc::client {
 
 // 前向声明
 class VulkanContext;
@@ -206,4 +206,4 @@ private:
     VkCommandPool m_commandPool = VK_NULL_HANDLE;
 };
 
-} // namespace mr::client
+} // namespace mc::client

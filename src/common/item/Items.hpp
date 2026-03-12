@@ -3,7 +3,7 @@
 #include "Item.hpp"
 #include "ItemRegistry.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 原版物品静态引用
@@ -281,4 +281,4 @@ private:
     static void registerCrops();
 };
 
-} // namespace mr
+} // namespace mc

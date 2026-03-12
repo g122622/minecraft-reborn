@@ -15,7 +15,7 @@
 #include "../../../math/random/Random.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 噪声区块生成器
@@ -157,4 +157,4 @@ private:
                                 i32 surfaceHeight, f32 surfaceNoise, BiomeId biome);
 };
 
-} // namespace mr
+} // namespace mc

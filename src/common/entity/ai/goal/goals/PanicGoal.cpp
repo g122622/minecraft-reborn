@@ -10,7 +10,7 @@
 #include "../../../../math/MathUtils.hpp"
 #include <cmath>
 
-namespace mr::entity::ai::goal {
+namespace mc::entity::ai::goal {
 
 using namespace constants;
 
@@ -138,4 +138,4 @@ Vector3 PanicGoal::getRandomWaterPosition(i32 range, i32 verticalRange) {
     return Vector3(0.0f, 0.0f, 0.0f);
 }
 
-} // namespace mr::entity::ai::goal
+} // namespace mc::entity::ai::goal

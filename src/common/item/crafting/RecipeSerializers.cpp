@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <limits>
 
-namespace mr {
+namespace mc {
 namespace crafting {
 
 Result<std::unique_ptr<CraftingRecipe>> RecipeSerializers::fromJson(
@@ -333,4 +333,4 @@ Result<std::vector<Ingredient>> RecipeSerializers::parsePatternIngredients(
 }
 
 } // namespace crafting
-} // namespace mr
+} // namespace mc

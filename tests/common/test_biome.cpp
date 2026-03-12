@@ -8,7 +8,7 @@
 #include "common/world/biome/layer/transformers/BasicTransformers.hpp"
 #include "common/world/biome/layer/transformers/BiomeTransformers.hpp"
 
-using namespace mr;
+using namespace mc;
 
 // ============================================================================
 // Biome 类测试

@@ -11,7 +11,7 @@
 #include <future>
 #include <functional>
 
-namespace mr::server {
+namespace mc::server {
 
 // 前向声明
 class ServerWorld;
@@ -350,4 +350,4 @@ private:
     static constexpr u32 UNLOAD_CHECK_INTERVAL = 6000; // 5 分钟（20 tick/秒）
 };
 
-} // namespace mr::server
+} // namespace mc::server

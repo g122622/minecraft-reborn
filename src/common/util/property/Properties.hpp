@@ -16,7 +16,7 @@
 #include "DirectionProperty.hpp"
 #include "../Direction.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 预定义的方块状态属性集合
@@ -446,4 +446,4 @@ private:
     BlockStateProperties& operator=(const BlockStateProperties&) = delete;
 };
 
-} // namespace mr
+} // namespace mc

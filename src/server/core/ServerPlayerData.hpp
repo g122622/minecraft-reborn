@@ -7,12 +7,12 @@
 #include <memory>
 #include <unordered_set>
 
-namespace mr {
+namespace mc {
 class AbstractContainerMenu;  // 前向声明
 class PlayerInventory;         // 前向声明
 }
 
-namespace mr::server {
+namespace mc::server {
 
 /**
  * @brief 服务端玩家数据
@@ -72,7 +72,7 @@ struct ServerPlayerData {
     std::unordered_set<ChunkId> loadedChunks;
 
     // 容器相关（使用原始指针避免 incomplete type 问题）
-    mr::AbstractContainerMenu* openMenu = nullptr;
+    mc::AbstractContainerMenu* openMenu = nullptr;
     ContainerType openContainerType = ContainerType::Player;
     ContainerId nextContainerId = 1;
 
@@ -147,4 +147,4 @@ struct ServerPlayerData {
     }
 };
 
-} // namespace mr::server
+} // namespace mc::server

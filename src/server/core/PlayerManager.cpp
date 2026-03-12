@@ -1,7 +1,7 @@
 #include "PlayerManager.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr::server::core {
+namespace mc::server::core {
 
 PlayerManager::PlayerManager(const ServerCoreConfig& config)
     : m_maxPlayers(config.maxPlayers)
@@ -181,4 +181,4 @@ PlayerId PlayerManager::getPlayerIdBySession(u32 sessionId) const {
     return it != m_sessionToPlayer.end() ? it->second : 0;
 }
 
-} // namespace mr::server::core
+} // namespace mc::server::core

@@ -5,7 +5,7 @@
 #include "../../../common/math/MathUtils.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr::client::renderer {
+namespace mc::client::renderer {
 
 EntityRendererManager::EntityRendererManager()
 {
@@ -229,4 +229,4 @@ bool EntityRendererManager::generateModelMesh(const String& typeId,
     return false;
 }
 
-} // namespace mr::client::renderer
+} // namespace mc::client::renderer

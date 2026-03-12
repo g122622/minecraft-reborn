@@ -5,7 +5,7 @@
 #include "../../core/Types.hpp"
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 // Axis 枚举已移至 Direction.hpp
 
@@ -137,4 +137,4 @@ private:
     std::vector<AxisAlignedBB> m_boxes;  // 方块本地坐标 (0-1范围)
 };
 
-} // namespace mr
+} // namespace mc

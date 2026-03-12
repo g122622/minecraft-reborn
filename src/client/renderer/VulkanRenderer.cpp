@@ -19,7 +19,7 @@
 #endif
 #include <GLFW/glfw3.h>
 
-namespace mr::client {
+namespace mc::client {
 
 VulkanRenderer::VulkanRenderer() = default;
 
@@ -1612,4 +1612,4 @@ const TextureRegion* VulkanRenderer::getTextureRegion(const ResourceLocation& lo
     return nullptr;
 }
 
-} // namespace mr::client
+} // namespace mc::client

@@ -3,7 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 Result<void> BlockStateLoader::loadFromResourcePack(IResourcePack& resourcePack) {
     m_resourcePack = &resourcePack;
@@ -130,4 +130,4 @@ String BlockStateLoader::propertiesToStateStr(const std::map<String, String>& pr
     return result;
 }
 
-} // namespace mr
+} // namespace mc

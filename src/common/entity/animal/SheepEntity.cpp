@@ -2,7 +2,7 @@
 #include "../../item/ItemStack.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 std::unique_ptr<Entity> SheepEntity::create(IWorld* /*world*/) {
     // 创建一个临时ID，实际ID由实体管理器分配
@@ -72,4 +72,4 @@ void SheepEntity::tick() {
     AnimalEntity::tick();
 }
 
-} // namespace mr
+} // namespace mc

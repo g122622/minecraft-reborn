@@ -9,11 +9,11 @@
 #include <algorithm>
 #include <vector>
 
-using namespace mr::server::core;
-using namespace mr::network;
-using mr::server::ServerCoreConfig;
-using mr::ChunkPos;
-using mr::ChunkCoord;
+using namespace mc::server::core;
+using namespace mc::network;
+using mc::server::ServerCoreConfig;
+using mc::ChunkPos;
+using mc::ChunkCoord;
 
 /**
  * @brief PositionTracker 单元测试

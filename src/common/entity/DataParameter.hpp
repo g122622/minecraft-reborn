@@ -5,20 +5,20 @@
 #include <variant>
 #include <vector>
 
-namespace mr::entity {
+namespace mc::entity {
 
-// 引入 mr 命名空间的类型
-using mr::u8;
-using mr::u16;
-using mr::i8;
-using mr::i32;
-using mr::i64;
-using mr::f32;
-using mr::String;
-using mr::Vector3i;
-using mr::Vector2f;
-using mr::Vector3f;
-using mr::Vector3d;
+// 引入 mc 命名空间的类型
+using mc::u8;
+using mc::u16;
+using mc::i8;
+using mc::i32;
+using mc::i64;
+using mc::f32;
+using mc::String;
+using mc::Vector3i;
+using mc::Vector2f;
+using mc::Vector3f;
+using mc::Vector3d;
 
 /**
  * @brief 数据序列化器类型枚举
@@ -112,4 +112,4 @@ template<> inline DataSerializerType DataParameter<Vector2f>::type() const { ret
 template<> inline DataSerializerType DataParameter<Vector3f>::type() const { return DataSerializerType::Vector3f; }
 template<> inline DataSerializerType DataParameter<Vector3d>::type() const { return DataSerializerType::Vector3f; }
 
-} // namespace mr::entity
+} // namespace mc::entity

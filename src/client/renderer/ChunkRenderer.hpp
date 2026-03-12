@@ -14,7 +14,7 @@
 #include <queue>
 #include <functional>
 
-namespace mr::client {
+namespace mc::client {
 
 // 区块GPU缓冲区
 struct ChunkGpuBuffer {
@@ -199,4 +199,4 @@ private:
         VkDeviceSize size);
 };
 
-} // namespace mr::client
+} // namespace mc::client

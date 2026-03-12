@@ -4,11 +4,11 @@
 #include "server/player/ServerPlayer.hpp"
 #include <sstream>
 
-namespace mr {
+namespace mc {
 namespace command {
 
 void KillCommand::registerTo(CommandDispatcher<ServerCommandSource>& dispatcher) {
-    using namespace mr::command;
+    using namespace mc::command;
 
     // /kill - 杀死自己
     auto killNode = std::make_shared<LiteralCommandNode<ServerCommandSource>>("kill");
@@ -67,4 +67,4 @@ i32 KillCommand::killTarget(CommandContext<ServerCommandSource>& context) {
 }
 
 } // namespace command
-} // namespace mr
+} // namespace mc

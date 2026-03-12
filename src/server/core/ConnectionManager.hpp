@@ -5,7 +5,7 @@
 #include "common/network/PacketSerializer.hpp"
 #include <vector>
 
-namespace mr::server::core {
+namespace mc::server::core {
 
 // 前向声明
 class PlayerManager;
@@ -134,4 +134,4 @@ private:
     PlayerManager& m_playerManager;
 };
 
-} // namespace mr::server::core
+} // namespace mc::server::core

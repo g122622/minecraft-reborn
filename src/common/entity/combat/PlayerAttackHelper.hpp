@@ -3,7 +3,7 @@
 #include "AttackContext.hpp"
 #include "../../core/Types.hpp"
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class PlayerEntity;
@@ -134,4 +134,4 @@ private:
 };
 
 } // namespace entity::combat
-} // namespace mr
+} // namespace mc

@@ -4,7 +4,7 @@
 #include "../../../common/item/ItemStack.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class ItemStack;
@@ -82,4 +82,4 @@ private:
 };
 
 } // namespace client
-} // namespace mr
+} // namespace mc

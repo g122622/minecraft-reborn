@@ -8,9 +8,9 @@
 #include "client/settings/ClientSettings.hpp"
 #include "server/settings/ServerSettings.hpp"
 
-using namespace mr;
-using namespace mr::client;
-using namespace mr::server;
+using namespace mc;
+using namespace mc::client;
+using namespace mc::server;
 
 // ============================================================================
 // SettingsTypes 测试

@@ -3,7 +3,7 @@
 #include "../block/Block.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // BiomeContainer 实现
@@ -139,4 +139,4 @@ bool Heightmap::isOpaque(const BlockState* state) const
     }
 }
 
-} // namespace mr
+} // namespace mc

@@ -7,7 +7,7 @@
 #include <future>
 #include <algorithm>
 
-namespace mr::command {
+namespace mc::command {
 
 /**
  * @brief 建议文本
@@ -237,4 +237,4 @@ private:
     std::vector<String> m_candidates;
 };
 
-} // namespace mr::command
+} // namespace mc::command

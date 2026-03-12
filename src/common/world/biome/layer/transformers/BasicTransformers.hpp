@@ -3,7 +3,7 @@
 #include "../Layer.hpp"
 #include "../../../../core/Types.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 岛屿层变换器
@@ -123,4 +123,4 @@ public:
                              i32 x, i32 z) const override;
 };
 
-} // namespace mr
+} // namespace mc

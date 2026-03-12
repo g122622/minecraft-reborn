@@ -3,7 +3,7 @@
 #include "CreatureEntity.hpp"
 #include "../../core/Types.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 可成长实体基类
@@ -154,4 +154,4 @@ private:
     static constexpr f32 BABY_SCALE = 0.5f;     // 幼体缩放比例
 };
 
-} // namespace mr
+} // namespace mc

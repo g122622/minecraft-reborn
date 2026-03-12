@@ -11,7 +11,7 @@
 #include <cmath>
 #include <spdlog/spdlog.h>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 常量
@@ -731,4 +731,4 @@ i32 NoiseChunkGenerator::spawnInitialMobs(WorldGenRegion& region, ChunkPrimer& c
     return m_worldGenSpawner->spawnInitialMobs(region, biome, chunk.x(), chunk.z(), *this, rng, outEntities);
 }
 
-} // namespace mr
+} // namespace mc

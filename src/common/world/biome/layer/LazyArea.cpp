@@ -1,7 +1,7 @@
 #include "LazyArea.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // LazyArea 实现
@@ -113,4 +113,4 @@ i32 SimpleAreaContext::nextIntWithMod(i32 bound)
     return i;
 }
 
-} // namespace mr
+} // namespace mc

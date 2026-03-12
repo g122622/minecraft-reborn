@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <spdlog/spdlog.h>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // BiomeGenerationSettings 实现
@@ -215,4 +215,4 @@ void BiomeFeaturePlacer::placeFeaturesForStage(
     }
 }
 
-} // namespace mr
+} // namespace mc

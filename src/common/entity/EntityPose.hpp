@@ -2,11 +2,11 @@
 
 #include "../core/Types.hpp"
 
-namespace mr::entity {
+namespace mc::entity {
 
-// 引入 mr 命名空间的类型
-using mr::u8;
-using mr::String;
+// 引入 mc 命名空间的类型
+using mc::u8;
+using mc::String;
 
 /**
  * @brief 实体姿态枚举
@@ -60,4 +60,4 @@ inline EntityPose getPoseByName(const String& name) {
     return EntityPose::Standing;
 }
 
-} // namespace mr::entity
+} // namespace mc::entity

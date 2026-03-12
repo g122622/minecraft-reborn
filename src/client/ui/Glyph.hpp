@@ -3,7 +3,7 @@
 #include "../../common/core/Types.hpp"
 #include <array>
 
-namespace mr::client {
+namespace mc::client {
 
 /**
  * @brief 字形数据结构
@@ -189,4 +189,4 @@ namespace Colors {
     }
 } // namespace Colors
 
-} // namespace mr::client
+} // namespace mc::client

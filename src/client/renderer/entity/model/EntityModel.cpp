@@ -1,7 +1,7 @@
 #include "EntityModel.hpp"
 #include <cmath>
 
-namespace mr::client::renderer {
+namespace mc::client::renderer {
 
 // ==================== EntityModel ====================
 
@@ -192,4 +192,4 @@ void BipedModel::setAngles(f32 limbSwing, f32 limbSwingAmount,
     m_leftLeg->setRotateAngleX(-std::cos(walkAngle) * 1.4f * walkAmount);
 }
 
-} // namespace mr::client::renderer
+} // namespace mc::client::renderer

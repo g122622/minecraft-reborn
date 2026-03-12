@@ -5,11 +5,11 @@
 #include "server/world/ServerWorld.hpp"
 #include <sstream>
 
-namespace mr {
+namespace mc {
 namespace command {
 
 void TimeCommand::registerTo(CommandDispatcher<ServerCommandSource>& dispatcher) {
-    using namespace mr::command;
+    using namespace mc::command;
 
     // /time set <value>
     auto setValueNode = std::make_shared<LiteralCommandNode<ServerCommandSource>>("set");
@@ -134,4 +134,4 @@ i32 TimeCommand::queryTime(CommandContext<ServerCommandSource>& context) {
 }
 
 } // namespace command
-} // namespace mr
+} // namespace mc

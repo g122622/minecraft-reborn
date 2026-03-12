@@ -7,7 +7,7 @@
 #include <queue>
 #include <functional>
 
-namespace mr::world {
+namespace mc::world {
 
 /**
  * @brief 区块距离图 - 管理 BFS 级别传播
@@ -271,4 +271,4 @@ private:
     void updateChunksInRange();
 };
 
-} // namespace mr::world
+} // namespace mc::world

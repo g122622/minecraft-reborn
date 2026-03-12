@@ -2,7 +2,7 @@
 
 #include "../../../core/Types.hpp"
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class MobEntity;
@@ -47,4 +47,4 @@ private:
 };
 
 } // namespace entity::ai::controller
-} // namespace mr
+} // namespace mc

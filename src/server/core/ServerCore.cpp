@@ -9,7 +9,7 @@
 #include "server/world/ServerWorld.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr::server {
+namespace mc::server {
 
 ServerCore::ServerCore()
     : m_playerManager(std::make_unique<core::PlayerManager>())
@@ -234,4 +234,4 @@ void ServerCore::tick() {
     }
 }
 
-} // namespace mr::server
+} // namespace mc::server

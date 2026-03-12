@@ -5,8 +5,8 @@
 #include "resource/ResourceLocation.hpp"
 #include <nlohmann/json.hpp>
 
-using namespace mr;
-using namespace mr::crafting;
+using namespace mc;
+using namespace mc::crafting;
 
 /**
  * @brief 配方加载器测试

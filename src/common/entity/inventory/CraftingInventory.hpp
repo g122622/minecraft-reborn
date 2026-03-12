@@ -5,7 +5,7 @@
 #include <vector>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 合成网格背包
@@ -259,4 +259,4 @@ private:
     ItemStack m_result;
 };
 
-} // namespace mr
+} // namespace mc

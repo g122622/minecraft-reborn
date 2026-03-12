@@ -4,7 +4,7 @@
 #include "../core/Types.hpp"
 #include <vector>
 
-namespace mr::network {
+namespace mc::network {
 
 /**
  * @brief 实体元数据序列化器
@@ -77,4 +77,4 @@ private:
     static String readString(const u8* data, size_t size, size_t& offset);
 };
 
-} // namespace mr::network
+} // namespace mc::network

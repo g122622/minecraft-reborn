@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 错误类型
@@ -361,7 +361,7 @@ private:
  * }
  * @endcode
  */
-#define MR_TRY(expr)               \
+#define MC_TRY(expr)               \
     do {                           \
         auto _result = (expr);     \
         if (_result.failed()) {    \
@@ -369,7 +369,7 @@ private:
         }                          \
     } while (0)
 
-#define MR_TRY_ASSIGN(var, expr) \
+#define MC_TRY_ASSIGN(var, expr) \
     do {                         \
         auto _result = (expr);   \
         if (_result.failed()) {  \
@@ -378,4 +378,4 @@ private:
         var = std::move(_result.value()); \
     } while (0)
 
-} // namespace mr
+} // namespace mc

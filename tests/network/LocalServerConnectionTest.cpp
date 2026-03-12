@@ -2,7 +2,7 @@
 #include "common/network/LocalServerConnection.hpp"
 #include "common/network/LocalConnection.hpp"
 
-using namespace mr::network;
+using namespace mc::network;
 
 // ============================================================================
 // LocalServerConnection 测试
@@ -30,11 +30,11 @@ TEST_F(LocalServerConnectionTest, BasicSendReceive) {
     EXPECT_EQ(serverConn.type(), ConnectionType::Local);
 
     // 发送数据
-    mr::u8 sendData[] = {1, 2, 3, 4, 5};
+    mc::u8 sendData[] = {1, 2, 3, 4, 5};
     serverConn.send(sendData, 5);
 
     // 客户端接收
-    std::vector<mr::u8> recvData;
+    std::vector<mc::u8> recvData;
     bool received = m_connectionPair->clientEndpoint().receive(recvData);
     EXPECT_TRUE(received);
     EXPECT_EQ(recvData.size(), static_cast<size_t>(5));
@@ -50,8 +50,8 @@ TEST_F(LocalServerConnectionTest, Disconnect) {
 
 TEST_F(LocalServerConnectionTest, Identifier) {
     LocalServerConnection serverConn(&m_connectionPair->serverEndpoint());
-    mr::String id = serverConn.identifier();
-    EXPECT_TRUE(id.find("Local:") != mr::String::npos);
+    mc::String id = serverConn.identifier();
+    EXPECT_TRUE(id.find("Local:") != mc::String::npos);
 }
 
 TEST_F(LocalServerConnectionTest, SendWhenDisconnected) {
@@ -59,7 +59,7 @@ TEST_F(LocalServerConnectionTest, SendWhenDisconnected) {
     serverConn.disconnect();
 
     // 发送到断开的连接不应崩溃
-    mr::u8 data[] = {1, 2, 3};
+    mc::u8 data[] = {1, 2, 3};
     serverConn.send(data, 3);  // 不应崩溃
 }
 
@@ -67,11 +67,11 @@ TEST_F(LocalServerConnectionTest, NullEndpoint) {
     LocalServerConnection serverConn(nullptr);
     EXPECT_FALSE(serverConn.isConnected());
     // identifier 仍然会有一个 ID 号
-    mr::String id = serverConn.identifier();
-    EXPECT_TRUE(id.find("Local:") != mr::String::npos);
+    mc::String id = serverConn.identifier();
+    EXPECT_TRUE(id.find("Local:") != mc::String::npos);
 
     // 发送到 null endpoint 不应崩溃
-    mr::u8 data[] = {1, 2, 3};
+    mc::u8 data[] = {1, 2, 3};
     serverConn.send(data, 3);  // 不应崩溃
 }
 
@@ -82,10 +82,10 @@ TEST_F(LocalServerConnectionTest, UseThroughInterface) {
     EXPECT_TRUE(conn->isConnected());
     EXPECT_EQ(conn->type(), ConnectionType::Local);
 
-    mr::u8 sendData[] = {10, 20, 30};
+    mc::u8 sendData[] = {10, 20, 30};
     conn->send(sendData, 3);
 
-    std::vector<mr::u8> recvData;
+    std::vector<mc::u8> recvData;
     bool received = m_connectionPair->clientEndpoint().receive(recvData);
     EXPECT_TRUE(received);
     EXPECT_EQ(recvData.size(), static_cast<size_t>(3));

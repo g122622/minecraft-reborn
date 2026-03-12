@@ -4,7 +4,7 @@
 #include "../../../ai/controller/JumpController.hpp"
 #include "../../../../math/random/Random.hpp"
 
-namespace mr::entity::ai::goal {
+namespace mc::entity::ai::goal {
 
 SwimGoal::SwimGoal(MobEntity* mob)
     : m_mob(mob)
@@ -39,4 +39,4 @@ void SwimGoal::tick() {
     }
 }
 
-} // namespace mr::entity::ai::goal
+} // namespace mc::entity::ai::goal

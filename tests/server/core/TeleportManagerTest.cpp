@@ -6,8 +6,8 @@
 #include "common/network/LocalConnection.hpp"
 #include "common/core/Types.hpp"
 
-using namespace mr::server::core;
-using namespace mr::network;
+using namespace mc::server::core;
+using namespace mc::network;
 
 /**
  * @brief TeleportManager 单元测试
@@ -43,7 +43,7 @@ TEST_F(TeleportManagerTest, RequestTeleport) {
     auto conn = createConnection();
     m_playerManager->addPlayer(1, "Steve", conn);
 
-    mr::u32 teleportId = m_teleportManager->requestTeleport(1, 100.0, 64.0, 200.0, 90.0f, 45.0f);
+    mc::u32 teleportId = m_teleportManager->requestTeleport(1, 100.0, 64.0, 200.0, 90.0f, 45.0f);
     EXPECT_NE(teleportId, 0u);
 
     // 验证玩家位置已更新
@@ -61,7 +61,7 @@ TEST_F(TeleportManagerTest, RequestTeleport) {
 }
 
 TEST_F(TeleportManagerTest, RequestTeleportNonexistentPlayer) {
-    mr::u32 teleportId = m_teleportManager->requestTeleport(999, 100.0, 64.0, 200.0);
+    mc::u32 teleportId = m_teleportManager->requestTeleport(999, 100.0, 64.0, 200.0);
     EXPECT_EQ(teleportId, 0u);
 }
 
@@ -69,7 +69,7 @@ TEST_F(TeleportManagerTest, ConfirmTeleport) {
     auto conn = createConnection();
     m_playerManager->addPlayer(1, "Steve", conn);
 
-    mr::u32 teleportId = m_teleportManager->requestTeleport(1, 100.0, 64.0, 200.0);
+    mc::u32 teleportId = m_teleportManager->requestTeleport(1, 100.0, 64.0, 200.0);
 
     // 确认传送
     bool result = m_teleportManager->confirmTeleport(1, teleportId);
@@ -107,8 +107,8 @@ TEST_F(TeleportManagerTest, MultipleTeleports) {
     auto conn = createConnection();
     m_playerManager->addPlayer(1, "Steve", conn);
 
-    mr::u32 id1 = m_teleportManager->requestTeleport(1, 100.0, 64.0, 200.0);
-    mr::u32 id2 = m_teleportManager->requestTeleport(1, 200.0, 64.0, 300.0);
+    mc::u32 id1 = m_teleportManager->requestTeleport(1, 100.0, 64.0, 200.0);
+    mc::u32 id2 = m_teleportManager->requestTeleport(1, 200.0, 64.0, 300.0);
 
     EXPECT_NE(id1, id2);
 
@@ -123,9 +123,9 @@ TEST_F(TeleportManagerTest, MultipleTeleports) {
 }
 
 TEST_F(TeleportManagerTest, NextTeleportId) {
-    mr::u32 id1 = m_teleportManager->nextTeleportId();
-    mr::u32 id2 = m_teleportManager->nextTeleportId();
-    mr::u32 id3 = m_teleportManager->nextTeleportId();
+    mc::u32 id1 = m_teleportManager->nextTeleportId();
+    mc::u32 id2 = m_teleportManager->nextTeleportId();
+    mc::u32 id3 = m_teleportManager->nextTeleportId();
 
     EXPECT_NE(id1, id2);
     EXPECT_NE(id2, id3);

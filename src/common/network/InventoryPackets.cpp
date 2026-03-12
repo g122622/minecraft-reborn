@@ -1,7 +1,7 @@
 #include "InventoryPackets.hpp"
 #include "../entity/inventory/PlayerInventory.hpp"
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // PlayerInventoryPacket 实现
@@ -64,4 +64,4 @@ Result<PlayerInventoryPacket> PlayerInventoryPacket::deserialize(network::Packet
     return packet;
 }
 
-} // namespace mr
+} // namespace mc

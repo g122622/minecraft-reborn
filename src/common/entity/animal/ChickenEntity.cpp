@@ -3,7 +3,7 @@
 #include "../../math/random/Random.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 std::unique_ptr<Entity> ChickenEntity::create(IWorld* /*world*/) {
     // 创建一个临时ID，实际ID由实体管理器分配
@@ -66,4 +66,4 @@ void ChickenEntity::tick() {
     }
 }
 
-} // namespace mr
+} // namespace mc

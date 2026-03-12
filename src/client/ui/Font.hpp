@@ -9,11 +9,11 @@
 #include <memory>
 #include <string>
 
-namespace mr {
+namespace mc {
 class IResourcePack;
 }
 
-namespace mr::client {
+namespace mc::client {
 
 /**
  * @brief 字形提供者接口
@@ -216,4 +216,4 @@ private:
     EmptyGlyph m_emptyGlyph;                            // 空字形缓存
 };
 
-} // namespace mr::client
+} // namespace mc::client

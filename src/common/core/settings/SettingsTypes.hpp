@@ -10,7 +10,7 @@
 #include <vector>
 #include <optional>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 前向声明
@@ -740,4 +740,4 @@ private:
     SettingsCallback<String> m_callback;
 };
 
-} // namespace mr
+} // namespace mc

@@ -10,11 +10,11 @@
 #include <unordered_map>
 #include <string>
 
-namespace mr {
-class IResourcePack;  // Forward declaration in mr namespace
+namespace mc {
+class IResourcePack;  // Forward declaration in mc namespace
 }
 
-namespace mr::client {
+namespace mc::client {
 
 // 前向声明
 class VulkanContext;
@@ -71,7 +71,7 @@ public:
      * @param location 纹理资源位置（如 minecraft:textures/entity/pig/pig.png）
      * @return 成功或错误
      */
-    [[nodiscard]] Result<void> addTexture(mr::IResourcePack& pack, const ResourceLocation& location);
+    [[nodiscard]] Result<void> addTexture(mc::IResourcePack& pack, const ResourceLocation& location);
 
     /**
      * @brief 构建图集
@@ -157,7 +157,7 @@ private:
      * @param outHeight 输出高度
      * @return 成功或错误
      */
-    [[nodiscard]] Result<void> loadTextureWithFallback(mr::IResourcePack& pack,
+    [[nodiscard]] Result<void> loadTextureWithFallback(mc::IResourcePack& pack,
                                                         const ResourceLocation& location,
                                                         std::vector<u8>& outData,
                                                         u32& outWidth,
@@ -192,4 +192,4 @@ private:
     VkCommandPool m_commandPool = VK_NULL_HANDLE;
 };
 
-} // namespace mr::client
+} // namespace mc::client

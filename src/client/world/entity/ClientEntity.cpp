@@ -1,7 +1,7 @@
 #include "ClientEntity.hpp"
 #include <cmath>
 
-namespace mr::client {
+namespace mc::client {
 
 ClientEntity::ClientEntity(EntityId id, const String& typeId)
     : m_id(id)
@@ -91,4 +91,4 @@ void ClientEntity::tick() {
     tickRotation();
 }
 
-} // namespace mr::client
+} // namespace mc::client

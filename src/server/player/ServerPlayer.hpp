@@ -3,7 +3,7 @@
 #include "common/entity/Player.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 class ServerWorld;
 class MinecraftServer;
@@ -67,4 +67,4 @@ private:
     bool m_online = true;
 };
 
-} // namespace mr
+} // namespace mc

@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <random>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // DropEntry
@@ -303,4 +303,4 @@ void DropTableRegistry::initializeVanillaDrops() {
     m_initialized = true;
 }
 
-} // namespace mr
+} // namespace mc

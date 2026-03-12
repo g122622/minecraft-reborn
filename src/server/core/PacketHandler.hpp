@@ -6,7 +6,7 @@
 #include "ServerCoreConfig.hpp"
 #include <functional>
 
-namespace mr::network {
+namespace mc::network {
 class PacketDeserializer;
 class LoginRequestPacket;
 class PlayerMovePacket;
@@ -15,7 +15,7 @@ class KeepAlivePacket;
 class ChatMessagePacket;
 }
 
-namespace mr::server::core {
+namespace mc::server::core {
 
 // 前向声明
 class PlayerManager;
@@ -191,4 +191,4 @@ private:
     ChatCallback m_onChat;
 };
 
-} // namespace mr::server::core
+} // namespace mc::server::core

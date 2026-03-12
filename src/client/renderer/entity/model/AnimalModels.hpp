@@ -2,7 +2,7 @@
 
 #include "EntityModel.hpp"
 
-namespace mr::client::renderer {
+namespace mc::client::renderer {
 
 /**
  * @brief 猪模型
@@ -90,4 +90,4 @@ private:
     std::shared_ptr<ModelRenderer> m_comb;      // 鸡冠
 };
 
-} // namespace mr::client::renderer
+} // namespace mc::client::renderer

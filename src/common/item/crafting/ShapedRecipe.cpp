@@ -1,7 +1,7 @@
 #include "item/crafting/ShapedRecipe.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 namespace crafting {
 
 ShapedRecipe::ShapedRecipe(const ResourceLocation& id,
@@ -143,4 +143,4 @@ bool ShapedRecipe::getContentBounds(const CraftingInventory& inventory,
 }
 
 } // namespace crafting
-} // namespace mr
+} // namespace mc

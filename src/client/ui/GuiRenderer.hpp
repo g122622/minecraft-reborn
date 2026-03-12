@@ -8,7 +8,7 @@
 #include <memory>
 #include <vector>
 
-namespace mr::client {
+namespace mc::client {
 
 // 前向声明
 class VulkanContext;
@@ -247,4 +247,4 @@ private:
     bool m_inFrame = false;
 };
 
-} // namespace mr::client
+} // namespace mc::client

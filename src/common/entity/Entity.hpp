@@ -11,7 +11,7 @@
 #include <array>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class PhysicsEngine;
@@ -20,7 +20,7 @@ class IWorld;
 // ============================================================================
 // 旧实体类型枚举（兼容）
 //
-// 注意：新代码应使用 mr::entity::EntityType 类
+// 注意：新代码应使用 mc::entity::EntityType 类
 // 此枚举保留用于向后兼容
 // ============================================================================
 enum class LegacyEntityType : u32 {
@@ -30,7 +30,7 @@ enum class LegacyEntityType : u32 {
     // 后续添加: Mob, Projectile 等
 };
 
-// 引入 mr::entity::EntityPose 到 mr 命名空间以保持兼容
+// 引入 mc::entity::EntityPose 到 mc 命名空间以保持兼容
 using EntityPose = entity::EntityPose;
 
 // ============================================================================
@@ -253,7 +253,7 @@ public:
         m_flags = static_cast<EntityFlags>(static_cast<u8>(m_flags) & ~static_cast<u8>(flag));
     }
     [[nodiscard]] bool hasFlag(EntityFlags flag) const {
-        return mr::hasFlag(m_flags, flag);
+        return mc::hasFlag(m_flags, flag);
     }
 
     // ========== 尺寸 ==========
@@ -652,4 +652,4 @@ protected:
     void setVehicle(EntityId vehicle) { m_vehicle = vehicle; }
 };
 
-} // namespace mr
+} // namespace mc

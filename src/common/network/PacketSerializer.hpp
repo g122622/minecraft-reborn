@@ -7,7 +7,7 @@
 #include <cstring>
 #include <type_traits>
 
-namespace mr::network {
+namespace mc::network {
 
 // 网络字节序转换
 class NetworkEndian {
@@ -157,4 +157,4 @@ private:
     size_t m_readPos = 0;
 };
 
-} // namespace mr::network
+} // namespace mc::network

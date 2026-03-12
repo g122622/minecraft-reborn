@@ -2,7 +2,7 @@
 
 #include "common/core/Types.hpp"
 
-namespace mr::server {
+namespace mc::server {
 
 /**
  * @brief 服务端核心配置
@@ -40,4 +40,4 @@ struct ServerCoreConfig {
     i32 tickRate = 20;
 };
 
-} // namespace mr::server
+} // namespace mc::server

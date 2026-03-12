@@ -3,7 +3,7 @@
 #include "common/core/Types.hpp"
 #include "common/world/time/GameTime.hpp"
 
-namespace mr::server::core {
+namespace mc::server::core {
 
 /**
  * @brief 时间管理器
@@ -116,4 +116,4 @@ private:
     bool m_daylightCycleEnabled = true;
 };
 
-} // namespace mr::server::core
+} // namespace mc::server::core

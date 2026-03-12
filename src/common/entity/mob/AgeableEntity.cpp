@@ -1,6 +1,6 @@
 #include "AgeableEntity.hpp"
 
-namespace mr {
+namespace mc {
 
 AgeableEntity::AgeableEntity(LegacyEntityType type, EntityId id)
     : CreatureEntity(type, id)
@@ -107,4 +107,4 @@ f32 AgeableEntity::getChildScale() const {
     return 1.0f;
 }
 
-} // namespace mr
+} // namespace mc

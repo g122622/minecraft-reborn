@@ -5,7 +5,7 @@
 #include <functional>
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class IInventory;
@@ -230,4 +230,4 @@ private:
     CraftingInventory* m_craftingGrid;
 };
 
-} // namespace mr
+} // namespace mc

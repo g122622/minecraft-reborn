@@ -7,7 +7,7 @@
 #include <functional>
 #include <type_traits>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 实体工具函数集合
@@ -186,4 +186,4 @@ inline f32 calculatePitchTo(const Entity& source, const Entity& target) {
 
 } // namespace EntityUtils
 
-} // namespace mr
+} // namespace mc

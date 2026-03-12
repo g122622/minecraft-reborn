@@ -1,7 +1,7 @@
 #include "LootPool.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 namespace loot {
 
 // ============================================================================
@@ -114,4 +114,4 @@ std::unique_ptr<LootPool> LootPoolBuilder::build() const {
 }
 
 } // namespace loot
-} // namespace mr
+} // namespace mc

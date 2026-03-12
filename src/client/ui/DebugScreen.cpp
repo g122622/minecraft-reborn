@@ -12,7 +12,7 @@
 #include <iomanip>
 #include <spdlog/spdlog.h>
 
-namespace mr::client {
+namespace mc::client {
 
 DebugScreen::DebugScreen()
     : m_version("Minecraft Reborn 0.1.0")
@@ -426,4 +426,4 @@ void DebugScreen::logColumnBlocks() {
     spdlog::info("=== End of column ===");
 }
 
-} // namespace mr::client
+} // namespace mc::client

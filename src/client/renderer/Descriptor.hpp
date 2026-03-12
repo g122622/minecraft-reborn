@@ -6,7 +6,7 @@
 #include <vector>
 #include <unordered_map>
 
-namespace mr::client {
+namespace mc::client {
 
 // 描述符绑定信息
 struct DescriptorBinding {
@@ -110,4 +110,4 @@ void update(VkDevice device, const std::vector<VkWriteDescriptorSet>& writes);
 
 } // namespace DescriptorWriter
 
-} // namespace mr::client
+} // namespace mc::client

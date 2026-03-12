@@ -8,7 +8,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace mr::client {
+namespace mc::client {
 
 // 着色器类型
 enum class ShaderStage {
@@ -140,4 +140,4 @@ private:
     bool m_initialized = false;
 };
 
-} // namespace mr::client
+} // namespace mc::client

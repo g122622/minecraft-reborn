@@ -5,9 +5,9 @@
 #include "common/network/LocalServerConnection.hpp"
 #include "common/network/LocalConnection.hpp"
 
-using namespace mr::server::core;
-using namespace mr::network;
-using mr::server::ServerCoreConfig;
+using namespace mc::server::core;
+using namespace mc::network;
+using mc::server::ServerCoreConfig;
 
 /**
  * @brief KeepAliveManager 单元测试
@@ -90,7 +90,7 @@ TEST_F(KeepAliveManagerTest, HandleKeepAliveResponse) {
     m_keepAliveManager->handleKeepAliveResponse(1, 1000, 1050);
 
     // ping 应该约为 50ms
-    mr::u32 ping = m_keepAliveManager->getPlayerPing(1);
+    mc::u32 ping = m_keepAliveManager->getPlayerPing(1);
     EXPECT_EQ(ping, 50u);
 }
 
@@ -104,7 +104,7 @@ TEST_F(KeepAliveManagerTest, HandleKeepAliveResponseWrongTimestamp) {
     m_keepAliveManager->handleKeepAliveResponse(1, 2000, 1050);
 
     // ping 应该还是 0（时间戳不匹配）
-    mr::u32 ping = m_keepAliveManager->getPlayerPing(1);
+    mc::u32 ping = m_keepAliveManager->getPlayerPing(1);
     EXPECT_EQ(ping, 0u);
 }
 

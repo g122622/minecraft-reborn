@@ -2,7 +2,7 @@
 
 #include "../../core/Types.hpp"
 
-namespace mr::time {
+namespace mc::time {
 
 /**
  * @brief 时间常量定义
@@ -149,4 +149,4 @@ private:
     bool m_daylightCycleEnabled = true; ///< 日光周期是否启用
 };
 
-} // namespace mr::time
+} // namespace mc::time

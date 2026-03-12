@@ -8,7 +8,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 namespace {
 
@@ -623,4 +623,4 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createAncientDebris() {
     return std::make_unique<ConfiguredOreFeature>(std::move(config), std::move(placement), "ancient_debris");
 }
 
-} // namespace mr
+} // namespace mc

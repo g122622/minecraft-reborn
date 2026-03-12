@@ -7,7 +7,7 @@
 #include <vector>
 #include <functional>
 
-namespace mr::client {
+namespace mc::client {
 
 /**
  * @brief 客户端实体管理器
@@ -124,4 +124,4 @@ private:
     std::vector<EntityId> m_entitiesToRemove;
 };
 
-} // namespace mr::client
+} // namespace mc::client

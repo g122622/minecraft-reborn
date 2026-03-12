@@ -4,7 +4,7 @@
 #include "common/network/ProtocolPackets.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr::server::core {
+namespace mc::server::core {
 
 TeleportManager::TeleportManager(PlayerManager& playerManager)
     : m_playerManager(playerManager)
@@ -77,4 +77,4 @@ u32 TeleportManager::getPendingTeleportId(PlayerId playerId) const {
     return player ? player->pendingTeleportId : 0;
 }
 
-} // namespace mr::server::core
+} // namespace mc::server::core

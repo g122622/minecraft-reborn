@@ -2,7 +2,7 @@
 
 #include "AnimalEntity.hpp"
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class IWorld;
@@ -42,4 +42,4 @@ protected:
     // TODO: 挤奶逻辑
 };
 
-} // namespace mr
+} // namespace mc

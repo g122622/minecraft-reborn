@@ -8,7 +8,7 @@
 #include <functional>
 #include <algorithm>
 
-namespace mr::entity::ai {
+namespace mc::entity::ai {
 
 /**
  * @brief AI目标选择器
@@ -293,4 +293,4 @@ private:
     int m_tickRate;                                           // 更新间隔
 };
 
-} // namespace mr::entity::ai
+} // namespace mc::entity::ai

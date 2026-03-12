@@ -1,7 +1,7 @@
 #include "EntityRenderer.hpp"
 #include "../../../common/entity/Entity.hpp"
 
-namespace mr::client::renderer {
+namespace mc::client::renderer {
 
 void EntityRenderer::renderShadow(Entity& entity, f32 partialTicks) {
     if (!shouldRenderShadow(entity)) {
@@ -38,4 +38,4 @@ f32 EntityRenderer::getShadowScale(Entity& entity, f32 partialTicks) const {
     return m_shadowSize;
 }
 
-} // namespace mr::client::renderer
+} // namespace mc::client::renderer

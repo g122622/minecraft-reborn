@@ -4,7 +4,7 @@
 #include "../world/block/Block.hpp"
 #include <sstream>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // ItemProperties
@@ -107,4 +107,4 @@ String Item::getName() const {
     return getTranslationKey();
 }
 
-} // namespace mr
+} // namespace mc

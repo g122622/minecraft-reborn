@@ -2,7 +2,7 @@
 
 #include "FoliagePlacer.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 球形树叶放置器
@@ -54,4 +54,4 @@ private:
     i32 m_height;
 };
 
-} // namespace mr
+} // namespace mc

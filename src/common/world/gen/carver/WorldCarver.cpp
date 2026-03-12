@@ -4,7 +4,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // CarvingMask 实现
@@ -281,4 +281,4 @@ bool WorldCarver<Config>::checkAreaForFluid(
 // 显式实例化常用模板
 template class WorldCarver<ProbabilityConfig>;
 
-} // namespace mr
+} // namespace mc

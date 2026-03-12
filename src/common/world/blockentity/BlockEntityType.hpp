@@ -5,7 +5,7 @@
 #include <nlohmann/json.hpp>
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 方块实体类型枚举
@@ -82,4 +82,4 @@ ResourceLocation blockEntityTypeToId(BlockEntityType type);
  */
 BlockEntityType blockEntityTypeFromId(const ResourceLocation& id);
 
-} // namespace mr
+} // namespace mc

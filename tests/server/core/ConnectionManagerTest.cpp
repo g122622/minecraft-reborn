@@ -6,8 +6,8 @@
 #include "common/network/Packet.hpp"
 #include "common/core/Types.hpp"
 
-using namespace mr::server::core;
-using namespace mr::network;
+using namespace mc::server::core;
+using namespace mc::network;
 
 /**
  * @brief ConnectionManager 单元测试
@@ -40,7 +40,7 @@ TEST_F(ConnectionManagerTest, SendToPlayer) {
     auto conn = createConnection();
     m_playerManager->addPlayer(1, "Steve", conn);
 
-    std::vector<mr::u8> data = {1, 2, 3, 4, 5};
+    std::vector<mc::u8> data = {1, 2, 3, 4, 5};
     EXPECT_TRUE(m_connectionManager->sendToPlayer(1, data.data(), data.size()));
 
     // 发送给不存在的玩家应返回 false
@@ -51,7 +51,7 @@ TEST_F(ConnectionManagerTest, SendPacketToPlayer) {
     auto conn = createConnection();
     m_playerManager->addPlayer(1, "Steve", conn);
 
-    std::vector<mr::u8> payload = {1, 2, 3};
+    std::vector<mc::u8> payload = {1, 2, 3};
     EXPECT_TRUE(m_connectionManager->sendPacketToPlayer(1, PacketType::KeepAlive, payload));
 }
 
@@ -61,7 +61,7 @@ TEST_F(ConnectionManagerTest, Broadcast) {
     m_playerManager->addPlayer(1, "Steve", conn1);
     m_playerManager->addPlayer(2, "Alex", conn2);
 
-    std::vector<mr::u8> data = {1, 2, 3};
+    std::vector<mc::u8> data = {1, 2, 3};
     // 广播应不会崩溃
     m_connectionManager->broadcast(data.data(), data.size());
 }
@@ -72,7 +72,7 @@ TEST_F(ConnectionManagerTest, BroadcastExcept) {
     m_playerManager->addPlayer(1, "Steve", conn1);
     m_playerManager->addPlayer(2, "Alex", conn2);
 
-    std::vector<mr::u8> data = {1, 2, 3};
+    std::vector<mc::u8> data = {1, 2, 3};
     // 广播给除玩家1以外的所有玩家
     m_connectionManager->broadcastExcept(1, data.data(), data.size());
 }
@@ -81,7 +81,7 @@ TEST_F(ConnectionManagerTest, BroadcastPacket) {
     auto conn = createConnection();
     m_playerManager->addPlayer(1, "Steve", conn);
 
-    std::vector<mr::u8> payload = {1, 2, 3};
+    std::vector<mc::u8> payload = {1, 2, 3};
     m_connectionManager->broadcastPacket(PacketType::KeepAlive, payload);
 }
 
@@ -123,7 +123,7 @@ TEST_F(ConnectionManagerTest, CleanupDisconnectedPlayers) {
 }
 
 TEST_F(ConnectionManagerTest, EncapsulatePacket) {
-    std::vector<mr::u8> payload = {1, 2, 3, 4, 5};
+    std::vector<mc::u8> payload = {1, 2, 3, 4, 5};
     auto packet = ConnectionManager::encapsulatePacket(PacketType::KeepAlive, payload);
 
     // 验证包头
@@ -138,5 +138,5 @@ TEST_F(ConnectionManagerTest, EncapsulatePacket) {
     ASSERT_TRUE(typeResult.success());
 
     EXPECT_EQ(sizeResult.value(), PACKET_HEADER_SIZE + payload.size());
-    EXPECT_EQ(typeResult.value(), static_cast<mr::u16>(PacketType::KeepAlive));
+    EXPECT_EQ(typeResult.value(), static_cast<mc::u16>(PacketType::KeepAlive));
 }

@@ -9,7 +9,7 @@
 #include <vector>
 #include <unordered_map>
 
-namespace mr {
+namespace mc {
 namespace loot {
 
 /**
@@ -254,4 +254,4 @@ private:
 };
 
 } // namespace loot
-} // namespace mr
+} // namespace mc

@@ -5,7 +5,7 @@
 #include "../../../core/Types.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class Entity;
@@ -225,4 +225,4 @@ protected:
 };
 
 } // namespace entity::ai::pathfinding
-} // namespace mr
+} // namespace mc

@@ -2,7 +2,7 @@
 #include "common/item/ItemRegistry.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 namespace loot {
 
 // ============================================================================
@@ -220,4 +220,4 @@ void LootTableManager::initializeDefaultTables() {
 }
 
 } // namespace loot
-} // namespace mr
+} // namespace mc

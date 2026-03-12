@@ -1,7 +1,7 @@
 #include "Feature.hpp"
 #include "../../block/BlockRegistry.hpp"
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // RuleTest 实现
@@ -98,4 +98,4 @@ bool BlockIdRuleTest::test(const BlockState& state, math::Random& random) const 
     return state.blockId() == static_cast<u32>(m_blockId);
 }
 
-} // namespace mr
+} // namespace mc

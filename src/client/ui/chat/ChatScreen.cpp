@@ -25,7 +25,7 @@
 #define GLFW_MOD_CONTROL        2
 #define GLFW_MOD_SHIFT          1
 
-namespace mr::client {
+namespace mc::client {
 
 void ChatScreen::initialize(Font* font) {
     m_font = font;
@@ -465,4 +465,4 @@ void ChatScreen::addSystemMessage(const String& message) {
     m_history.addSystemMessage(message);
 }
 
-} // namespace mr::client
+} // namespace mc::client

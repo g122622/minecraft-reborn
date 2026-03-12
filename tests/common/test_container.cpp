@@ -5,7 +5,7 @@
 #include "../src/common/item/Items.hpp"
 #include "../src/common/network/InventoryPackets.hpp"
 
-using namespace mr;
+using namespace mc;
 
 // ============================================================================
 // Container 测试

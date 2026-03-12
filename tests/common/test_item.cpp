@@ -4,7 +4,7 @@
 #include "../src/common/item/ItemRegistry.hpp"
 #include "../src/common/item/Items.hpp"
 
-using namespace mr;
+using namespace mc;
 
 // ============================================================================
 // ItemProperties 测试

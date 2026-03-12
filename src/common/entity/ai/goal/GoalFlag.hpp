@@ -3,7 +3,7 @@
 #include "../../../core/Types.hpp"
 #include "../../../core/EnumSet.hpp"
 
-namespace mr::entity::ai {
+namespace mc::entity::ai {
 
 /**
  * @brief AI目标互斥标志
@@ -29,4 +29,4 @@ inline EnumSet<GoalFlag> allGoalFlags() {
     return EnumSet<GoalFlag>{GoalFlag::Move, GoalFlag::Look, GoalFlag::Jump, GoalFlag::Target};
 }
 
-} // namespace mr::entity::ai
+} // namespace mc::entity::ai

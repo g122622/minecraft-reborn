@@ -3,7 +3,7 @@
 #include "../../../common/core/Types.hpp"
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class Player;
@@ -149,4 +149,4 @@ private:
 };
 
 } // namespace client
-} // namespace mr
+} // namespace mc

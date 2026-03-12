@@ -10,8 +10,8 @@
 #include "common/entity/EntityDataManager.hpp"
 #include "common/entity/Entity.hpp"
 
-using namespace mr;
-using namespace mr::entity;
+using namespace mc;
+using namespace mc::entity;
 
 // ============================================================================
 // EntityClassification 测试

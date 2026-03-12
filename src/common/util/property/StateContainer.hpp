@@ -15,7 +15,7 @@
 #include <stdexcept>
 #include <regex>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 状态容器模板
@@ -271,4 +271,4 @@ private:
     std::unordered_map<u32, State*> m_stateIdMap;
 };
 
-} // namespace mr
+} // namespace mc

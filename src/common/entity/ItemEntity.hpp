@@ -4,7 +4,7 @@
 #include "../item/ItemStack.hpp"
 #include <random>
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class Player;
@@ -239,4 +239,4 @@ private:
     static constexpr f32 MERGE_RADIUS = 1.5f;  // 合并检测半径
 };
 
-} // namespace mr
+} // namespace mc

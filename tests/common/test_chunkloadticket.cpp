@@ -4,8 +4,8 @@
 #include "common/world/chunk/ChunkLoadTicketManager.hpp"
 #include "common/core/Types.hpp"
 
-using namespace mr;
-using namespace mr::world;
+using namespace mc;
+using namespace mc::world;
 
 // ============================================================================
 // ChunkLoadTicket 测试

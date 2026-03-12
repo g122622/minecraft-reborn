@@ -6,7 +6,7 @@
 #include <vector>
 #include <array>
 
-namespace mr::network {
+namespace mc::network {
 
 /**
  * @brief 实体生成包
@@ -423,4 +423,4 @@ private:
     Status m_status = Status::Hurt;
 };
 
-} // namespace mr::network
+} // namespace mc::network

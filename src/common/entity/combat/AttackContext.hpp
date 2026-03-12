@@ -3,7 +3,7 @@
 #include "../../core/Types.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class Entity;
@@ -114,4 +114,4 @@ private:
 };
 
 } // namespace entity::combat
-} // namespace mr
+} // namespace mc

@@ -3,7 +3,7 @@
 #include "../common/math/random/Random.hpp"
 #include <nlohmann/json.hpp>
 
-namespace mr {
+namespace mc {
 
 Direction parseDirection(StringView str) {
     auto result = Directions::fromName(str);
@@ -696,4 +696,4 @@ ModelRotation BlockModelLoader::parseRotation(const nlohmann::json& json)
     return rot;
 }
 
-} // namespace mr
+} // namespace mc

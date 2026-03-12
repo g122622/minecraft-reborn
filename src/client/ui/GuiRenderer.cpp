@@ -9,7 +9,7 @@
 #include <fstream>
 #include <spdlog/spdlog.h>
 
-namespace mr::client {
+namespace mc::client {
 
 // 从文件加载SPIR-V着色器
 static std::vector<u8> loadShaderFile(const std::filesystem::path& path) {
@@ -756,4 +756,4 @@ void GuiRenderer::uploadBufferData(VkCommandBuffer commandBuffer) {
     (void)commandBuffer; // 不再需要commandBuffer
 }
 
-} // namespace mr::client
+} // namespace mc::client

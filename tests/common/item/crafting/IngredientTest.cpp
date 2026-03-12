@@ -4,8 +4,8 @@
 #include "item/ItemStack.hpp"
 #include "item/ItemRegistry.hpp"
 
-using namespace mr;
-using namespace mr::crafting;
+using namespace mc;
+using namespace mc::crafting;
 
 // 测试用的模拟Item类
 class TestItem : public Item {

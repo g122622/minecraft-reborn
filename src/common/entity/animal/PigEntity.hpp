@@ -2,7 +2,7 @@
 
 #include "AnimalEntity.hpp"
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class IWorld;
@@ -55,4 +55,4 @@ private:
     bool m_hasSaddle = false;
 };
 
-} // namespace mr
+} // namespace mc

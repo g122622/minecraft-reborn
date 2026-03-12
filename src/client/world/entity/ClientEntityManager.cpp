@@ -1,7 +1,7 @@
 #include "ClientEntityManager.hpp"
 #include <algorithm>
 
-namespace mr::client {
+namespace mc::client {
 
 ClientEntity* ClientEntityManager::spawnEntity(EntityId id, const String& typeId) {
     // 检查是否已存在
@@ -131,4 +131,4 @@ void ClientEntityManager::updateAnimations(f32 /*partialTick*/) {
     // 如果需要更精确的插值，可以在这里进行
 }
 
-} // namespace mr::client
+} // namespace mc::client

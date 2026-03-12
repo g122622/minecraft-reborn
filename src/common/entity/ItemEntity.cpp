@@ -4,7 +4,7 @@
 #include <cmath>
 #include <chrono>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 静态工厂方法
@@ -366,4 +366,4 @@ Result<std::unique_ptr<ItemEntity>> ItemEntity::deserialize(
     return entity;
 }
 
-} // namespace mr
+} // namespace mc

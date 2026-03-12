@@ -11,7 +11,7 @@
 #include "../../core/Types.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 战斗条目
@@ -59,4 +59,4 @@ private:
     u32 m_timestamp;
 };
 
-} // namespace mr
+} // namespace mc

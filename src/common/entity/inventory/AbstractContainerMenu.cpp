@@ -3,7 +3,7 @@
 #include "entity/inventory/PlayerInventory.hpp"
 #include "entity/Player.hpp"
 
-namespace mr {
+namespace mc {
 
 AbstractContainerMenu::AbstractContainerMenu(ContainerId id, PlayerInventory* playerInventory)
     : m_id(id)
@@ -245,4 +245,4 @@ void AbstractContainerMenu::removed(Player& player) {
     }
 }
 
-} // namespace mr
+} // namespace mc

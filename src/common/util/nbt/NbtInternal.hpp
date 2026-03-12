@@ -9,7 +9,7 @@
 
 #include "Nbt.hpp"
 
-namespace mr {
+namespace mc {
 namespace nbt {
 
 /**
@@ -131,4 +131,4 @@ std::enable_if_t<std::is_signed_v<numeric>> dump_zint(std::ostream& output, nume
 }
 
 } // namespace nbt
-} // namespace mr
+} // namespace mc

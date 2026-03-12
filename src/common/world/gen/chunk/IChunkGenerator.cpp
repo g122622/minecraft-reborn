@@ -6,7 +6,7 @@
 #include "../../WorldConstants.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // WorldGenRegion 实现
@@ -200,4 +200,4 @@ i32 BaseChunkGenerator::spawnInitialMobs(WorldGenRegion& region, ChunkPrimer& ch
     return m_worldGenSpawner->spawnInitialMobs(region, biome, chunk.x(), chunk.z(), *this, rng, outEntities);
 }
 
-} // namespace mr
+} // namespace mc

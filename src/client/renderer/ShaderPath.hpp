@@ -4,7 +4,7 @@
 #include <string_view>
 #include <vector>
 
-namespace mr::client {
+namespace mc::client {
 
 inline std::filesystem::path resolveShaderPath(std::string_view shaderFileName) {
     namespace fs = std::filesystem;
@@ -58,4 +58,4 @@ inline std::filesystem::path resolveShaderPath(std::string_view shaderFileName) 
     return {};
 }
 
-} // namespace mr::client
+} // namespace mc::client

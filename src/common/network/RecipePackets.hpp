@@ -8,7 +8,7 @@
 #include <vector>
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 配方同步包 (服务端 -> 客户端)
@@ -253,4 +253,4 @@ private:
     ResourceLocation m_recipeId;
 };
 
-} // namespace mr
+} // namespace mc

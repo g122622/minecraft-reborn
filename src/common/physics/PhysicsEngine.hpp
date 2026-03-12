@@ -6,7 +6,7 @@
 #include "../world/chunk/ChunkData.hpp"
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 碰撞世界接口
@@ -204,4 +204,4 @@ private:
     bool m_collidedHorizontally = false;
 };
 
-} // namespace mr
+} // namespace mc

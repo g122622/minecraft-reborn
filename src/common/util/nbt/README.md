@@ -15,7 +15,7 @@ Minecraft NBT (Named Binary Tag) 格式序列化库，已集成到 Minecraft Reb
 #include "util/nbt/Nbt.hpp"
 #include <fstream>
 
-using namespace mr::nbt;
+using namespace mc::nbt;
 
 // 读取 Java Edition NBT 文件
 std::ifstream input("level.dat", std::ios::binary);
@@ -62,7 +62,7 @@ std::cout << contexts::mojangson << player;
 为了符合项目命名风格，提供了以下类型别名：
 
 ```cpp
-namespace mr::nbt {
+namespace mc::nbt {
     using Tag = tags::tag;
     using CompoundTag = tags::compound_tag;
     using ListTag = tags::list_tag;
@@ -77,9 +77,9 @@ namespace mr::nbt {
 
 ## 命名空间
 
-- `mr::nbt` - 主命名空间
-- `mr::nbt::tags` - 标签类型命名空间
-- `mr::nbt::Contexts` - 预定义上下文
+- `mc::nbt` - 主命名空间
+- `mc::nbt::tags` - 标签类型命名空间
+- `mc::nbt::Contexts` - 预定义上下文
 
 ## License
 

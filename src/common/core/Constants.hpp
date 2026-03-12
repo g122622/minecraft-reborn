@@ -4,7 +4,7 @@
 #include <cmath>
 #include <limits>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 数学常量
@@ -166,7 +166,7 @@ constexpr Size MAX_PLAYERS = 256;
 constexpr Size MAX_ENTITIES = 65536;
 
 // 实体类型ID（旧枚举，用于网络同步）
-// 注意：新代码应使用 mr::entity::EntityType 类和 mr::entity::EntityTypeId
+// 注意：新代码应使用 mc::entity::EntityType 类和 mc::entity::EntityTypeId
 enum class LegacyEntityTypeId : u32 {
     None = 0,
     Player = 1,
@@ -214,4 +214,4 @@ constexpr Size MAX_PATH_LENGTH = 256;
 
 } // namespace capacity
 
-} // namespace mr
+} // namespace mc

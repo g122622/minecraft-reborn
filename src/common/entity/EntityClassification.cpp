@@ -5,7 +5,7 @@
 
 #include "EntityClassification.hpp"
 
-namespace mr::entity {
+namespace mc::entity {
 
 EntityClassificationInfo EntityClassificationInfo::get(EntityClassification classification) {
     switch (classification) {
@@ -73,4 +73,4 @@ EntityClassificationInfo EntityClassificationInfo::get(EntityClassification clas
     }
 }
 
-} // namespace mr::entity
+} // namespace mc::entity

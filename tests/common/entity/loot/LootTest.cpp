@@ -11,8 +11,8 @@
 #include "world/block/Block.hpp"
 #include "math/random/Random.hpp"
 
-using namespace mr;
-using namespace mr::loot;
+using namespace mc;
+using namespace mc::loot;
 
 // Test implementation of IWorld for loot testing
 class LootTestWorld : public IWorld {

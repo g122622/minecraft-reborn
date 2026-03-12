@@ -12,11 +12,11 @@
 #include <memory>
 #include <functional>
 
-namespace mr {
+namespace mc {
 class AbstractContainerMenu;
 }
 
-namespace mr::server {
+namespace mc::server {
 
 // 前向声明
 class ServerWorld;
@@ -329,4 +329,4 @@ void ServerCore::forEachPlayer(Func&& func) const {
     m_playerManager->forEachPlayer(std::forward<Func>(func));
 }
 
-} // namespace mr::server
+} // namespace mc::server

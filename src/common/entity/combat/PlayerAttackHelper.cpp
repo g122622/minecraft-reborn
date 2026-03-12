@@ -3,7 +3,7 @@
 #include "../../math/MathUtils.hpp"
 #include <cmath>
 
-namespace mr::entity::combat {
+namespace mc::entity::combat {
 
 bool PlayerAttackHelper::isCriticalHit(const PlayerEntity& /*player*/) {
     // 暴击条件：
@@ -127,4 +127,4 @@ AttackContext PlayerAttackHelper::createContext(PlayerEntity& player,
     return context;
 }
 
-} // namespace mr::entity::combat
+} // namespace mc::entity::combat

@@ -2,7 +2,7 @@
 #include "../../entity/Player.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // PlayerInventory
@@ -454,4 +454,4 @@ bool PlayerInventory::stacksEqualExact(const ItemStack& stack1, const ItemStack&
     // TODO: 还需要检查NBT标签
 }
 
-} // namespace mr
+} // namespace mc

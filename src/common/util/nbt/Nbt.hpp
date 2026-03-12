@@ -11,18 +11,18 @@
  * @example 读取Java版NBT文件
  * @code
  * std::ifstream file("level.dat", std::ios::binary);
- * file >> mr::nbt::contexts::java;
- * auto compound = mr::nbt::tags::compound_tag::read(file);
- * auto& levelName = compound->get<mr::nbt::tags::string_tag>("LevelName");
+ * file >> mc::nbt::contexts::java;
+ * auto compound = mc::nbt::tags::compound_tag::read(file);
+ * auto& levelName = compound->get<mc::nbt::tags::string_tag>("LevelName");
  * @endcode
  *
  * @example 写入NBT数据
  * @code
- * mr::nbt::tags::compound_tag tag;
+ * mc::nbt::tags::compound_tag tag;
  * tag.put("name", std::string("Test"));
  * tag.put("value", 42);
  * std::ofstream out("data.nbt", std::ios::binary);
- * out << mr::nbt::contexts::java << tag;
+ * out << mc::nbt::contexts::java << tag;
  * @endcode
  */
 
@@ -46,7 +46,7 @@
     defined(__THUMBEB__) || \
     defined(__AARCH64EB__) || \
     defined(_MIBSEB) || defined(__MIBSEB) || defined(__MIBSEB__)
-#	define MR_NBT_BIG_ENDIAN
+#	define MC_NBT_BIG_ENDIAN
 #elif defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN || \
     defined(__LITTLE_ENDIAN__) || \
     defined(__ARMEL__) || \
@@ -59,7 +59,7 @@
 // 未知架构，假设小端序
 #endif
 
-namespace mr {
+namespace mc {
 namespace nbt {
 
 /**
@@ -87,14 +87,14 @@ enum class TagId : u8 {
 using tag_id = TagId;
 
 } // namespace nbt
-} // namespace mr
+} // namespace mc
 
 // std::to_string 重载声明
 namespace std {
-string to_string(mr::nbt::TagId tid);
+string to_string(mc::nbt::TagId tid);
 } // namespace std
 
-namespace mr {
+namespace mc {
 namespace nbt {
 
 /**
@@ -138,7 +138,7 @@ number_t reverse(number_t number) {
  */
 template <typename number_t>
 number_t net_order(number_t number) {
-#ifndef MR_NBT_BIG_ENDIAN
+#ifndef MC_NBT_BIG_ENDIAN
     return reverse(number);
 #else
     return number;
@@ -150,7 +150,7 @@ number_t net_order(number_t number) {
  */
 template <typename number_t>
 number_t disk_order(number_t number) {
-#ifdef MR_NBT_BIG_ENDIAN
+#ifdef MC_NBT_BIG_ENDIAN
     return reverse(number);
 #else
     return number;
@@ -202,7 +202,7 @@ using context = Context;
  * @brief 从输入流设置上下文
  * @code
  * std::ifstream file("level.dat", std::ios::binary);
- * file >> mr::nbt::contexts::java;  // 设置为Java Edition格式
+ * file >> mc::nbt::contexts::java;  // 设置为Java Edition格式
  * @endcode
  */
 inline std::istream& operator>>(std::istream& input, const Context& ctxt) {
@@ -214,7 +214,7 @@ inline std::istream& operator>>(std::istream& input, const Context& ctxt) {
  * @brief 向输出流设置上下文
  * @code
  * std::ofstream out("data.nbt", std::ios::binary);
- * out << mr::nbt::contexts::java;  // 设置为Java Edition格式
+ * out << mc::nbt::contexts::java;  // 设置为Java Edition格式
  * @endcode
  */
 inline std::ostream& operator<<(std::ostream& output, const Context& ctxt) {
@@ -1251,13 +1251,13 @@ template <>
 void dump_array_text<std::int64_t>(std::ostream& output, const std::vector<std::int64_t>& array);
 
 } // namespace nbt
-} // namespace mr
+} // namespace mc
 
 namespace std {
 
 /**
  * @brief 标签转换为字符串（Mojangson格式）
  */
-string to_string(const mr::nbt::tags::tag& tag);
+string to_string(const mc::nbt::tags::tag& tag);
 
 } // namespace std

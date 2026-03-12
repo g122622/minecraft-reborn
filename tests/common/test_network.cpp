@@ -4,8 +4,8 @@
 #include "common/network/PacketSerializer.hpp"
 #include "common/network/ProtocolPackets.hpp"
 
-using namespace mr::network;
-using namespace mr;
+using namespace mc::network;
+using namespace mc;
 
 // ============================================================================
 // PacketSerializer 测试
@@ -129,7 +129,7 @@ TEST(PacketSerializer, WriteReadString) {
 
 TEST(PacketSerializer, WriteReadBytes) {
     PacketSerializer serializer;
-    std::vector<mr::u8> data = {0x01, 0x02, 0x03, 0x04, 0x05};
+    std::vector<mc::u8> data = {0x01, 0x02, 0x03, 0x04, 0x05};
     serializer.writeBytes(data);
 
     auto result = serializer.readBytes(5);
@@ -150,7 +150,7 @@ TEST(PacketSerializer, OutOfBounds) {
     // 读取失败 - 没有数据了
     auto result2 = serializer.readU8();
     EXPECT_FALSE(result2.success());
-    EXPECT_EQ(result2.error().code(), mr::ErrorCode::OutOfBounds);
+    EXPECT_EQ(result2.error().code(), mc::ErrorCode::OutOfBounds);
 }
 
 TEST(PacketSerializer, ResetRead) {
@@ -195,12 +195,12 @@ TEST(KeepAlivePacket, SerializeDeserialize) {
 }
 
 TEST(KeepAlivePacket, PacketTooSmall) {
-    std::vector<mr::u8> smallData(PACKET_HEADER_SIZE - 1, 0x00);
+    std::vector<mc::u8> smallData(PACKET_HEADER_SIZE - 1, 0x00);
 
     KeepAlivePacket packet;
     auto result = packet.deserialize(smallData.data(), smallData.size());
     EXPECT_FALSE(result.success());
-    EXPECT_EQ(result.error().code(), mr::ErrorCode::InvalidArgument);
+    EXPECT_EQ(result.error().code(), mc::ErrorCode::InvalidArgument);
 }
 
 TEST(PlayerTryUseItemOnBlockPacket, SerializeDeserialize) {

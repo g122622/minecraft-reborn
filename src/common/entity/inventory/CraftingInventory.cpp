@@ -1,7 +1,7 @@
 #include "entity/inventory/CraftingInventory.hpp"
 #include "network/PacketSerializer.hpp"
 
-namespace mr {
+namespace mc {
 
 // ========== CraftingInventory ==========
 
@@ -221,4 +221,4 @@ void CraftResultInventory::serialize(network::PacketSerializer& ser) const {
     m_result.serialize(ser);
 }
 
-} // namespace mr
+} // namespace mc

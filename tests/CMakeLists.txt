@@ -5,7 +5,7 @@ find_package(GTest CONFIG REQUIRED)
 find_package(asio CONFIG REQUIRED)
 
 # 通用测试可执行文件
-add_executable(mr_tests
+add_executable(mc_tests
     common/test_math.cpp
     common/test_network.cpp
     common/test_world.cpp
@@ -68,7 +68,7 @@ add_executable(mr_tests
 )
 
 # 添加服务端源文件
-target_sources(mr_tests
+target_sources(mc_tests
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src/server/core/ServerCore.cpp
         ${CMAKE_SOURCE_DIR}/src/server/core/PlayerManager.cpp
@@ -205,9 +205,9 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/client/resource/TextureAtlasBuilder.cpp
 )
 
-target_link_libraries(mr_tests
+target_link_libraries(mc_tests
     PRIVATE
-        mr_common
+        mc_common
         GTest::gtest
         GTest::gtest_main
         asio::asio
@@ -217,26 +217,26 @@ target_link_libraries(mr_tests
 )
 
 if(WIN32)
-    target_link_libraries(mr_tests PRIVATE ws2_32)
+    target_link_libraries(mc_tests PRIVATE ws2_32)
 endif()
 
-target_include_directories(mr_tests
+target_include_directories(mc_tests
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/include
 )
 
-mr_set_compiler_warnings(mr_tests)
+mc_set_compiler_warnings(mc_tests)
 
 # 资源测试可执行文件
-add_executable(mr_resource_tests
+add_executable(mc_resource_tests
     client/resource/test_resource_location.cpp
     client/resource/test_model_loader.cpp
 )
 
-target_link_libraries(mr_resource_tests
+target_link_libraries(mc_resource_tests
     PRIVATE
-        mr_common
+        mc_common
         GTest::gtest
         GTest::gtest_main
         nlohmann_json::nlohmann_json
@@ -245,7 +245,7 @@ target_link_libraries(mr_resource_tests
 )
 
 # 添加客户端资源源文件
-target_sources(mr_resource_tests
+target_sources(mc_resource_tests
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src/client/resource/BlockModelLoader.cpp
         ${CMAKE_SOURCE_DIR}/src/client/resource/BlockStateLoader.cpp
@@ -269,7 +269,7 @@ target_sources(mr_resource_tests
         ${CMAKE_SOURCE_DIR}/src/client/renderer/MeshTypes.cpp
 )
 
-target_include_directories(mr_resource_tests
+target_include_directories(mc_resource_tests
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/include
@@ -277,18 +277,18 @@ target_include_directories(mr_resource_tests
 
 # stb_image 实现放在TextureAtlasBuilder.cpp中
 
-mr_set_compiler_warnings(mr_resource_tests)
+mc_set_compiler_warnings(mc_resource_tests)
 
 # 发现测试
 include(GoogleTest)
-gtest_discover_tests(mr_tests)
-gtest_discover_tests(mr_resource_tests)
+gtest_discover_tests(mc_tests)
+gtest_discover_tests(mc_resource_tests)
 
 # 输出测试可执行文件位置
-set_target_properties(mr_tests PROPERTIES
+set_target_properties(mc_tests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
 
-set_target_properties(mr_resource_tests PROPERTIES
+set_target_properties(mc_resource_tests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )

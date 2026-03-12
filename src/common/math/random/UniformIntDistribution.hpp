@@ -4,7 +4,7 @@
 #include "IRandom.hpp"
 #include <limits>
 
-namespace mr::math {
+namespace mc::math {
 
 /**
  * @brief 均匀整数分布生成器
@@ -80,4 +80,4 @@ private:
     i32 m_max;
 };
 
-} // namespace mr::math
+} // namespace mc::math

@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 装饰阶段枚举
@@ -127,4 +127,4 @@ struct DecorationStages {
     }
 };
 
-} // namespace mr
+} // namespace mc

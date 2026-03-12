@@ -16,7 +16,7 @@
 #include <mutex>
 #include <condition_variable>
 
-namespace mr::client {
+namespace mc::client {
 
 // ============================================================================
 // 客户端网络状态
@@ -220,4 +220,4 @@ private:
     std::atomic<u64> m_packetsSent{0};
 };
 
-} // namespace mr::client
+} // namespace mc::client

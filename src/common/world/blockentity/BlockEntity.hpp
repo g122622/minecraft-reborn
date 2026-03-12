@@ -6,7 +6,7 @@
 #include <nlohmann/json.hpp>
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 class World;
 class BlockState;
@@ -159,4 +159,4 @@ protected:
     bool m_changed;
 };
 
-} // namespace mr
+} // namespace mc

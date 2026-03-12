@@ -2,7 +2,7 @@
 #include <spdlog/spdlog.h>
 #include <algorithm>
 
-namespace mr::client {
+namespace mc::client {
 
 VulkanSwapchain::VulkanSwapchain() = default;
 
@@ -288,4 +288,4 @@ Result<void> VulkanSwapchain::createImageViews() {
     return Result<void>::ok();
 }
 
-} // namespace mr::client
+} // namespace mc::client

@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class ItemStack;
@@ -311,4 +311,4 @@ private:
 };
 
 } // namespace loot
-} // namespace mr
+} // namespace mc

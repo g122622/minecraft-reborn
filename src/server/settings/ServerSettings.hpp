@@ -4,7 +4,7 @@
 #include "common/core/settings/SettingsTypes.hpp"
 #include "common/core/Types.hpp"
 
-namespace mr::server {
+namespace mc::server {
 
 /**
  * @brief 服务端设置类
@@ -214,4 +214,4 @@ namespace DifficultyValue {
     constexpr u8 Hard = 3;
 }
 
-} // namespace mr::server
+} // namespace mc::server

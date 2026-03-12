@@ -18,7 +18,7 @@
 #include <queue>
 #include <functional>
 
-namespace mr::client {
+namespace mc::client {
 
 /**
  * @brief 客户端区块数据
@@ -345,4 +345,4 @@ private:
     ClientEntityManager m_entityManager;
 };
 
-} // namespace mr::client
+} // namespace mc::client

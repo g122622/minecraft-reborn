@@ -1,6 +1,6 @@
 #include "LcgRandom.hpp"
 
-namespace mr::math {
+namespace mc::math {
 
 LcgRandom::LcgRandom(u64 seed)
     : m_state(seed)
@@ -26,4 +26,4 @@ u64 LcgRandom::nextU64() {
     return m_state;
 }
 
-} // namespace mr::math
+} // namespace mc::math

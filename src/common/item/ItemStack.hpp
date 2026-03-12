@@ -6,7 +6,7 @@
 #include <memory>
 #include <optional>
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class Item;
@@ -243,4 +243,4 @@ private:
     // TODO: NBT数据、附魔等
 };
 
-} // namespace mr
+} // namespace mc

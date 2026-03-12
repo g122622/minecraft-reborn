@@ -7,7 +7,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-namespace mr::client {
+namespace mc::client {
 
 // 验证层名称
 const std::vector<const char*> VALIDATION_LAYERS = {
@@ -650,4 +650,4 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanContext::debugCallback(
     return VK_FALSE;
 }
 
-} // namespace mr::client
+} // namespace mc::client

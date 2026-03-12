@@ -9,7 +9,7 @@
 #include "commands/GiveCommand.hpp"
 #include "commands/ClearCommand.hpp"
 
-namespace mr {
+namespace mc {
 namespace command {
 
 CommandRegistry::CommandRegistry()
@@ -63,4 +63,4 @@ CommandRegistry& CommandRegistry::getGlobal() {
 }
 
 } // namespace command
-} // namespace mr
+} // namespace mc

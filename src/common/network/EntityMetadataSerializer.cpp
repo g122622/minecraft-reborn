@@ -2,7 +2,7 @@
 #include "../math/Vector3.hpp"
 #include <cstring>
 
-namespace mr::network {
+namespace mc::network {
 
 // ============================================================================
 // 类型ID映射
@@ -314,4 +314,4 @@ String EntityMetadataSerializer::readString(const u8* data, size_t size, size_t&
     return result;
 }
 
-} // namespace mr::network
+} // namespace mc::network

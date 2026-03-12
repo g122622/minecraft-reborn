@@ -4,7 +4,7 @@
 #include "../../../util/Direction.hpp"
 #include "../../../util/property/DirectionProperty.hpp"
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class BlockState;
@@ -41,4 +41,4 @@ public:
     const BlockState& withAxis(const BlockState& state, Axis axis) const;
 };
 
-} // namespace mr
+} // namespace mc

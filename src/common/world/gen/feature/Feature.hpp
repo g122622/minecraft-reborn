@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class BlockState;
@@ -127,4 +127,4 @@ enum class OreTargetType {
  */
 std::unique_ptr<RuleTest> createOreTarget(OreTargetType type);
 
-} // namespace mr
+} // namespace mc

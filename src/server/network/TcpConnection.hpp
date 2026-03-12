@@ -4,7 +4,7 @@
 #include "TcpSession.hpp"
 #include <memory>
 
-namespace mr::server {
+namespace mc::server {
 
 /**
  * @brief TCP 连接适配器
@@ -58,4 +58,4 @@ private:
     std::shared_ptr<TcpSession> m_session;
 };
 
-} // namespace mr::server
+} // namespace mc::server

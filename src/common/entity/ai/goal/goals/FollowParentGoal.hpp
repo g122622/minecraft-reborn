@@ -3,7 +3,7 @@
 #include "../Goal.hpp"
 #include "../../../../core/Types.hpp"
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class AnimalEntity;
@@ -48,4 +48,4 @@ protected:
 };
 
 } // namespace entity::ai::goal
-} // namespace mr
+} // namespace mc

@@ -35,9 +35,9 @@ void printBanner()
 )" << std::endl;
 
     std::cout << "  Minecraft Reborn Server v"
-              << MR_VERSION_MAJOR << "."
-              << MR_VERSION_MINOR << "."
-              << MR_VERSION_PATCH << std::endl;
+              << MC_VERSION_MAJOR << "."
+              << MC_VERSION_MINOR << "."
+              << MC_VERSION_PATCH << std::endl;
     std::cout << "  ========================================\n" << std::endl;
 }
 
@@ -66,7 +66,7 @@ int main(int argc, char* argv[])
     printBanner();
 
     // 启动参数
-    mr::server::ServerLaunchParams params;
+    mc::server::ServerLaunchParams params;
 
     // 解析命令行参数
     for (int i = 1; i < argc; ++i) {
@@ -77,7 +77,7 @@ int main(int argc, char* argv[])
             return 0;
         }
         if ((arg == "-p" || arg == "--port") && i + 1 < argc) {
-            params.port = static_cast<mr::u16>(std::stoi(argv[++i]));
+            params.port = static_cast<mc::u16>(std::stoi(argv[++i]));
         }
         if ((arg == "-n" || arg == "--name") && i + 1 < argc) {
             params.worldName = argv[++i];
@@ -86,7 +86,7 @@ int main(int argc, char* argv[])
             params.seed = std::stoll(argv[++i]);
         }
         if ((arg == "-m" || arg == "--max") && i + 1 < argc) {
-            params.maxPlayers = static_cast<mr::u32>(std::stoi(argv[++i]));
+            params.maxPlayers = static_cast<mc::u32>(std::stoi(argv[++i]));
         }
         // onlineMode 暂不支持命令行覆盖，可通过设置文件修改
         if (arg == "-v" || arg == "--verbose") {
@@ -96,7 +96,7 @@ int main(int argc, char* argv[])
 
     try {
         // 创建服务端实例
-        mr::server::ServerApplication server;
+        mc::server::ServerApplication server;
 
         // 初始化
         auto initResult = server.initialize(params);

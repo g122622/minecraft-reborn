@@ -3,7 +3,7 @@
 #include "../../../math/MathUtils.hpp"
 #include <cmath>
 
-namespace mr::entity::ai::controller {
+namespace mc::entity::ai::controller {
 
 LookController::LookController(MobEntity* mob)
     : m_mob(mob)
@@ -80,4 +80,4 @@ f32 LookController::clampedRotate(f32 from, f32 to, f32 maxDelta) {
     return math::clampAngle(from, to, maxDelta);
 }
 
-} // namespace mr::entity::ai::controller
+} // namespace mc::entity::ai::controller

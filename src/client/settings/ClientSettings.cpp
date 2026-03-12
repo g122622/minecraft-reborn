@@ -3,7 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <fstream>
 
-namespace mr::client {
+namespace mc::client {
 
 // 静态成员初始化
 std::vector<std::unique_ptr<KeyBinding>> ClientSettings::s_keyBindings;
@@ -251,4 +251,4 @@ Result<void> ClientSettings::saveSettings(const std::filesystem::path& path)
     return Result<void>::ok();
 }
 
-} // namespace mr::client
+} // namespace mc::client

@@ -1,6 +1,6 @@
 #include "FeatureSpread.hpp"
 
-namespace mr {
+namespace mc {
 
 i32 FeatureSpread::get(math::Random& random) const {
     if (m_spread == 0) {
@@ -9,4 +9,4 @@ i32 FeatureSpread::get(math::Random& random) const {
     return m_base + random.nextInt(0, m_spread);
 }
 
-} // namespace mr
+} // namespace mc

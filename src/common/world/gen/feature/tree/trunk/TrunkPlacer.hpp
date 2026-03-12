@@ -8,7 +8,7 @@
 #include <set>
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class WorldGenRegion;
@@ -124,4 +124,4 @@ protected:
     i32 m_heightRandB;
 };
 
-} // namespace mr
+} // namespace mc

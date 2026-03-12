@@ -2,7 +2,7 @@
 #include "../../item/ItemStack.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 std::unique_ptr<Entity> PigEntity::create(IWorld* /*world*/) {
     // 创建一个临时ID，实际ID由实体管理器分配
@@ -46,4 +46,4 @@ void PigEntity::registerGoals() {
     //     this, 1.2, [](const ItemStack& stack) { return stack.getItem() == Items::CARROT; }));
 }
 
-} // namespace mr
+} // namespace mc

@@ -3,7 +3,7 @@
 #include "AnimalEntity.hpp"
 #include "../../core/Types.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 羊实体
@@ -83,4 +83,4 @@ private:
     i32 m_eatAnimationTimer = 0; // 吃草动画计时器
 };
 
-} // namespace mr
+} // namespace mc

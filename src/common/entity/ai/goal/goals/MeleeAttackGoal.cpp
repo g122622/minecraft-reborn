@@ -11,7 +11,7 @@
 #include "../../../../math/random/Random.hpp"
 #include <cmath>
 
-namespace mr::entity::ai::goal {
+namespace mc::entity::ai::goal {
 
 using namespace constants;
 
@@ -106,7 +106,7 @@ void MeleeAttackGoal::attackTarget(LivingEntity* target) {
     if (!m_creature || !target) return;
 
     // 获取攻击者的攻击伤害属性
-    using namespace mr::entity::attribute;
+    using namespace mc::entity::attribute;
     f32 damage = static_cast<f32>(m_creature->getAttributeValue(Attributes::ATTACK_DAMAGE, 1.0));
 
     // 创建伤害来源
@@ -159,4 +159,4 @@ void MeleeAttackGoal::checkPath() {
     }
 }
 
-} // namespace mr::entity::ai::goal
+} // namespace mc::entity::ai::goal

@@ -20,7 +20,7 @@ cmake --build build --config Debug
 cmake --build build --config Release
 
 # Run tests
-./build/bin/Debug/mr_tests.exe
+./build/bin/Debug/mc_tests.exe
 
 # Run server
 ./build/bin/Debug/minecraft-server.exe --help
@@ -33,11 +33,11 @@ cmake --build build --config Release
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `MR_BUILD_CLIENT` | ON | Build client application |
-| `MR_BUILD_SERVER` | ON | Build server application |
-| `MR_BUILD_TESTS` | ON | Build unit tests |
-| `MR_ENABLE_SANITIZERS` | OFF | Enable sanitizers for debug |
-| `MR_ENABLE_VULKAN_VALIDATION` | ON | Enable Vulkan validation layers |
+| `MC_BUILD_CLIENT` | ON | Build client application |
+| `MC_BUILD_SERVER` | ON | Build server application |
+| `MC_BUILD_TESTS` | ON | Build unit tests |
+| `MC_ENABLE_SANITIZERS` | OFF | Enable sanitizers for debug |
+| `MC_ENABLE_VULKAN_VALIDATION` | ON | Enable Vulkan validation layers |
 
 ## Architecture
 
@@ -125,7 +125,7 @@ src/
 
 ## Key Types
 
-All types are in namespace `mr` (client types in `mr::client`, server types in `mr::server`):
+All types are in namespace `mc` (client types in `mc::client`, server types in `mc::server`):
 
 - **Primitive types**: `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32`, `f64` （浮点数尽量使用f32而非f64以提升性能。）
 - **String types**: `String` (std::string), `StringView` (std::string_view)
@@ -328,7 +328,7 @@ Key error codes in `ErrorCode` enum:
 
 From AGENTS.md:
 
-- **Namespaces**: lowercase (`mr`, `mr::client`, `mr::server`)
+- **Namespaces**: lowercase (`mc`, `mc::client`, `mc::server`)
 - **Classes/Structs**: PascalCase (`ChunkManager`, `Vector3`)
 - **Functions**: camelCase (`loadChunk`, `getPlayerName`)
 - **Member variables**: `m_` prefix + camelCase (`m_health`, `m_position`)
@@ -388,7 +388,7 @@ src/common/math/random/
 ```cpp
 #include "math/random/Random.hpp"
 
-mr::math::Random rng(seed);
+mc::math::Random rng(seed);
 i32 value = rng.nextInt(100);   // [0, 100)
 i32 range = rng.nextInt(10, 20); // [10, 20]
 f32 f = rng.nextFloat();         // [0.0, 1.0)
@@ -399,9 +399,9 @@ f32 g = rng.nextGaussian();      // Standard normal distribution
 
 ### Algorithm Selection
 Compile-time algorithm selection via macro in `Random.hpp`:
-- `MR_RANDOM_XOROSHIRO128PP` - xoroshiro128++ (small state, high performance)
-- `MR_RANDOM_XOSHIRO256PP` - xoshiro256++ (high quality)
-- `MR_RANDOM_LCG` - Linear Congruential (minimal state)
+- `MC_RANDOM_XOROSHIRO128PP` - xoroshiro128++ (small state, high performance)
+- `MC_RANDOM_XOSHIRO256PP` - xoshiro256++ (high quality)
+- `MC_RANDOM_LCG` - Linear Congruential (minimal state)
 - Default: Mersenne Twister (highest compatibility)
 
 ### Interface Methods
@@ -437,7 +437,7 @@ All random implementations provide MC-style methods:
 
 ```cpp
 
-namespace mr {
+namespace mc {
 namespace entity {
 namespace attribute {
 

@@ -5,7 +5,7 @@
 #include <glm/glm.hpp>
 #include <cmath>
 
-namespace mr::client {
+namespace mc::client {
 
 /**
  * @brief 天体计算工具类
@@ -176,4 +176,4 @@ private:
     };
 };
 
-} // namespace mr::client
+} // namespace mc::client

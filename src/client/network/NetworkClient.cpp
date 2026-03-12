@@ -4,7 +4,7 @@
 #include <chrono>
 #include <spdlog/spdlog.h>
 
-namespace mr::client {
+namespace mc::client {
 
 // ============================================================================
 // 常量
@@ -1074,4 +1074,4 @@ void NetworkClient::handleEntityStatus(network::PacketDeserializer& deser) {
     }
 }
 
-} // namespace mr::client
+} // namespace mc::client

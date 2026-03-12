@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <spdlog/spdlog.h>
 
-namespace mr {
+namespace mc {
 
 InMemoryResourcePack::InMemoryResourcePack(String name)
     : m_name(std::move(name))
@@ -126,4 +126,4 @@ String InMemoryResourcePack::normalizePath(StringView path) {
     return result;
 }
 
-} // namespace mr
+} // namespace mc

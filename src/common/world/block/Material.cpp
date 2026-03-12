@@ -1,6 +1,6 @@
 #include "Material.hpp"
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // MaterialBuilder
@@ -381,4 +381,4 @@ const Material& Material::DECORATION = []() -> const Material& {
     return material;
 }();
 
-} // namespace mr
+} // namespace mc

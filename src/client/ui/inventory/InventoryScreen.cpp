@@ -6,7 +6,7 @@
 #include "../../../common/item/ItemStack.hpp"
 #include "../../../common/item/Item.hpp"
 
-namespace mr {
+namespace mc {
 namespace client {
 
 // ============================================================================
@@ -348,4 +348,4 @@ void InventoryScreen::renderItemTooltip(GuiRenderer& gui, const ItemStack& stack
 }
 
 } // namespace client
-} // namespace mr
+} // namespace mc

@@ -6,7 +6,7 @@
 #include "server/command/ServerCommandSource.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 namespace command {
 
 /**
@@ -34,4 +34,4 @@ private:
 };
 
 } // namespace command
-} // namespace mr
+} // namespace mc

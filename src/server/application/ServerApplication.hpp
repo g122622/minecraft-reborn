@@ -10,7 +10,7 @@
 #include <memory>
 #include <atomic>
 
-namespace mr::server {
+namespace mc::server {
 
 /**
  * @brief 服务端启动参数
@@ -127,4 +127,4 @@ private:
     u64 m_lastKeepAliveTime = 0;
 };
 
-} // namespace mr::server
+} // namespace mc::server

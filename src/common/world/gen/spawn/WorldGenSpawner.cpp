@@ -7,7 +7,7 @@
 #include "../../../entity/mob/MobEntity.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 常量定义
@@ -299,4 +299,4 @@ bool WorldGenSpawner::checkSpawnRules(
     return true;
 }
 
-} // namespace mr
+} // namespace mc

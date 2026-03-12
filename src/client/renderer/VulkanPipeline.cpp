@@ -3,7 +3,7 @@
 #include <fstream>
 #include <vector>
 
-namespace mr::client {
+namespace mc::client {
 
 VulkanPipeline::VulkanPipeline() = default;
 
@@ -343,4 +343,4 @@ void VulkanPipelineCache::destroy() {
     m_initialized = false;
 }
 
-} // namespace mr::client
+} // namespace mc::client

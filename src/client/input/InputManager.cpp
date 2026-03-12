@@ -3,7 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
 
-namespace mr::client {
+namespace mc::client {
 
 void InputManager::initialize(GLFWwindow* window)
 {
@@ -228,4 +228,4 @@ void InputManager::handleCharInput(u32 codepoint)
     }
 }
 
-} // namespace mr::client
+} // namespace mc::client

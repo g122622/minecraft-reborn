@@ -12,7 +12,7 @@
 #include <vector>
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class LivingEntity;
@@ -128,4 +128,4 @@ private:
     size_t m_bestEntryIndex = 0;            // 最佳伤害记录索引
 };
 
-} // namespace mr
+} // namespace mc

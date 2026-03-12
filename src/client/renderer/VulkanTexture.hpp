@@ -6,7 +6,7 @@
 #include <vulkan/vulkan.h>
 #include <memory>
 
-namespace mr::client {
+namespace mc::client {
 
 // 前向声明
 class VulkanBuffer;
@@ -126,8 +126,8 @@ public:
         VulkanBuffer& stagingBuffer);
 
     // 获取UV坐标
-    [[nodiscard]] mr::TextureRegion getRegion(u32 tileX, u32 tileY) const;
-    [[nodiscard]] mr::TextureRegion getRegion(u32 tileIndex) const;
+    [[nodiscard]] mc::TextureRegion getRegion(u32 tileX, u32 tileY) const;
+    [[nodiscard]] mc::TextureRegion getRegion(u32 tileIndex) const;
 
     // 获取器
     VulkanTexture& texture() { return m_texture; }
@@ -148,4 +148,4 @@ private:
     f32 m_tileV = 0.0f;
 };
 
-} // namespace mr::client
+} // namespace mc::client

@@ -2,7 +2,7 @@
 
 #include "../../../core/Types.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 滑动设置（用于地形边界平滑）
@@ -22,4 +22,4 @@ struct SlideSettings {
         : target(target_), size(size_), offset(offset_) {}
 };
 
-} // namespace mr
+} // namespace mc

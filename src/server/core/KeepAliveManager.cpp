@@ -2,7 +2,7 @@
 #include "PlayerManager.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr::server::core {
+namespace mc::server::core {
 
 KeepAliveManager::KeepAliveManager(PlayerManager& playerManager, const ServerCoreConfig& config)
     : m_playerManager(playerManager)
@@ -99,4 +99,4 @@ u64 KeepAliveManager::getLastKeepAliveReceived(PlayerId playerId) const {
     return player ? player->lastKeepAliveReceived : 0;
 }
 
-} // namespace mr::server::core
+} // namespace mc::server::core

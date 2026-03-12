@@ -4,7 +4,7 @@
 #include "common/network/Packet.hpp"
 #include <vector>
 
-namespace mr::server::core {
+namespace mc::server::core {
 
 // 前向声明
 class PlayerManager;
@@ -83,4 +83,4 @@ private:
     u32 m_nextTeleportId = 1;
 };
 
-} // namespace mr::server::core
+} // namespace mc::server::core

@@ -8,7 +8,7 @@
 #include <vector>
 #include <mutex>
 
-namespace mr::server {
+namespace mc::server {
 
 // 前向声明
 class ServerWorld;
@@ -177,4 +177,4 @@ private:
     f32 m_rotationUpdateThreshold = 1.0f;
 };
 
-} // namespace mr::server
+} // namespace mc::server

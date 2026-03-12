@@ -1,7 +1,7 @@
 #include "JumpController.hpp"
 #include "../../mob/MobEntity.hpp"
 
-namespace mr::entity::ai::controller {
+namespace mc::entity::ai::controller {
 
 JumpController::JumpController(MobEntity* mob)
     : m_mob(mob)
@@ -19,4 +19,4 @@ void JumpController::tick() {
     m_isJumping = false;
 }
 
-} // namespace mr::entity::ai::controller
+} // namespace mc::entity::ai::controller

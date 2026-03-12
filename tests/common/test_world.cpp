@@ -4,8 +4,8 @@
 #include "common/world/chunk/ChunkData.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
 
-using namespace mr;
-using namespace mr::world;
+using namespace mc;
+using namespace mc::world;
 
 // ============================================================================
 // 测试固件

@@ -8,7 +8,7 @@
 #include <memory>
 #include <vector>
 
-namespace mr {
+namespace mc {
 namespace loot {
 
 // Forward declarations
@@ -343,4 +343,4 @@ private:
 };
 
 } // namespace loot
-} // namespace mr
+} // namespace mc

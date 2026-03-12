@@ -5,7 +5,7 @@
 #include <vector>
 #include <memory>
 
-namespace mr::network {
+namespace mc::network {
 
 // 数据包类型ID
 enum class PacketType : u16 {
@@ -132,4 +132,4 @@ constexpr u16 PACKET_FLAG_COMPRESSED = 0x0001;
 constexpr u16 PACKET_FLAG_ENCRYPTED = 0x0002;
 constexpr u16 PACKET_FLAG_RELIABLE = 0x0004;
 
-} // namespace mr::network
+} // namespace mc::network

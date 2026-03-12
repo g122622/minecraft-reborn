@@ -5,7 +5,7 @@
 #include <vector>
 #include <optional>
 
-namespace mr::entity::ai::pathfinding {
+namespace mc::entity::ai::pathfinding {
 
 /**
  * @brief 路径对象
@@ -202,4 +202,4 @@ private:
     i32 m_currentIndex = 0;
 };
 
-} // namespace mr::entity::ai::pathfinding
+} // namespace mc::entity::ai::pathfinding

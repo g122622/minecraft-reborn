@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <sstream>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 类型安全的属性模板基类
@@ -149,4 +149,4 @@ protected:
     std::unordered_map<T, size_t> m_valueToIndex;
 };
 
-} // namespace mr
+} // namespace mc

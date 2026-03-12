@@ -8,7 +8,7 @@
 #include <glm/glm.hpp>
 #include <memory>
 
-namespace mr::client {
+namespace mc::client {
 
 // 前向声明
 class VulkanBuffer;
@@ -231,4 +231,4 @@ private:
     f32 m_thunderStrength = 0.0f;
 };
 
-} // namespace mr::client
+} // namespace mc::client

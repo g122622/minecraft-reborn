@@ -6,15 +6,15 @@
 #include <mutex>
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 namespace entity {
 
-// 引入 mr 命名空间的类型
-using mr::String;
-using mr::Error;
-using mr::ErrorCode;
-using mr::Result;
+// 引入 mc 命名空间的类型
+using mc::String;
+using mc::Error;
+using mc::ErrorCode;
+using mc::Result;
 
 /**
  * @brief 实体类型注册表
@@ -175,7 +175,7 @@ private:
  * @endcode
  */
 #define REGISTER_ENTITY_TYPE(name, type) \
-    ::mr::entity::EntityRegistry::instance().registerType(name, type)
+    ::mc::entity::EntityRegistry::instance().registerType(name, type)
 
 /**
  * @brief 内置实体类型常量
@@ -216,4 +216,4 @@ namespace EntityTypes {
 }
 
 } // namespace entity
-} // namespace mr
+} // namespace mc

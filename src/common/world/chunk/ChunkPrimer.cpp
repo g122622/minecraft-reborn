@@ -2,7 +2,7 @@
 #include "../block/BlockRegistry.hpp"
 #include "../WorldConstants.hpp"
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 构造函数
@@ -252,4 +252,4 @@ void ChunkPrimer::initializeCarvingMasks()
     m_carvingMaskLiquid.resize(carvingMaskSize, false);
 }
 
-} // namespace mr
+} // namespace mc

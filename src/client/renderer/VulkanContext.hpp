@@ -8,7 +8,7 @@
 #include <optional>
 #include <memory>
 
-namespace mr::client {
+namespace mc::client {
 
 // Vulkan版本
 struct VulkanVersion {
@@ -189,4 +189,4 @@ private:
         void* pUserData);
 };
 
-} // namespace mr::client
+} // namespace mc::client

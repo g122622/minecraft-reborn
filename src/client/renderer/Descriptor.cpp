@@ -1,7 +1,7 @@
 #include "Descriptor.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr::client {
+namespace mc::client {
 
 // ============================================================================
 // DescriptorLayoutManager 实现
@@ -218,4 +218,4 @@ void update(VkDevice device, const std::vector<VkWriteDescriptorSet>& writes) {
 
 } // namespace DescriptorWriter
 
-} // namespace mr::client
+} // namespace mc::client

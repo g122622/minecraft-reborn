@@ -7,7 +7,7 @@
 #include "../world/block/Block.hpp"
 #include "../math/ray/Raycast.hpp"
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class Player;
@@ -120,4 +120,4 @@ protected:
     f32 m_hitZ = 0.0f;
 };
 
-} // namespace mr
+} // namespace mc

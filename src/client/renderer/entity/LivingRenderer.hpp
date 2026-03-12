@@ -5,7 +5,7 @@
 #include "../../../common/entity/living/LivingEntity.hpp"
 #include <memory>
 
-namespace mr::client::renderer {
+namespace mc::client::renderer {
 
 /**
  * @brief 生物渲染器基类
@@ -174,4 +174,4 @@ f32 LivingRenderer<TModel>::getScale(LivingEntity& entity) const {
     return 1.0f;
 }
 
-} // namespace mr::client::renderer
+} // namespace mc::client::renderer

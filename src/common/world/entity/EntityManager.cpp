@@ -2,7 +2,7 @@
 #include "../../entity/Entity.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 EntityManager::EntityManager()
     : m_nextId(1)
@@ -206,4 +206,4 @@ void EntityManager::releaseId(EntityId id) {
     }
 }
 
-} // namespace mr
+} // namespace mc

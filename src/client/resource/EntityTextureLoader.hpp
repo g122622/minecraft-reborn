@@ -8,11 +8,11 @@
 #include <vector>
 #include <string>
 
-namespace mr {
+namespace mc {
 class IResourcePack;
 }
 
-namespace mr::client {
+namespace mc::client {
 
 /**
  * @brief 实体纹理加载器
@@ -40,7 +40,7 @@ public:
      * @param atlas 纹理图集（需要已初始化）
      * @return 加载的纹理数量
      */
-    [[nodiscard]] Result<u32> loadDefaultTextures(mr::IResourcePack& pack, EntityTextureAtlas& atlas);
+    [[nodiscard]] Result<u32> loadDefaultTextures(mc::IResourcePack& pack, EntityTextureAtlas& atlas);
 
     /**
      * @brief 加载指定实体类型的纹理
@@ -49,7 +49,7 @@ public:
      * @param entityTypeId 实体类型ID（如 "minecraft:pig"）
      * @return 成功或错误
      */
-    [[nodiscard]] Result<void> loadEntityTexture(mr::IResourcePack& pack,
+    [[nodiscard]] Result<void> loadEntityTexture(mc::IResourcePack& pack,
                                                   EntityTextureAtlas& atlas,
                                                   const String& entityTypeId);
 
@@ -74,4 +74,4 @@ private:
     [[nodiscard]] static String parseEntityName(const String& entityTypeId);
 };
 
-} // namespace mr::client
+} // namespace mc::client

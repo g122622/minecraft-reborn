@@ -7,7 +7,7 @@
 #include <vector>
 #include <unordered_set>
 
-namespace mr {
+namespace mc {
 namespace command {
 
 /**
@@ -89,4 +89,4 @@ private:
 };
 
 } // namespace command
-} // namespace mr
+} // namespace mc

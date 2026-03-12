@@ -2,7 +2,7 @@
 #include "PacketSerializer.hpp"
 #include <algorithm>
 
-namespace mr::network {
+namespace mc::network {
 
 // ==================== SpawnEntityPacket ====================
 
@@ -416,4 +416,4 @@ Result<void> EntityStatusPacket::deserialize(const u8* data, size_t size) {
     return {};
 }
 
-} // namespace mr::network
+} // namespace mc::network

@@ -11,7 +11,7 @@
 #include <memory>
 #include <map>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class ResourcePackList;
@@ -200,4 +200,4 @@ private:
     [[nodiscard]] static ResourceLocation texturePathToLocation(StringView path);
 };
 
-} // namespace mr
+} // namespace mc

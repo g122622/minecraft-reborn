@@ -7,7 +7,7 @@
 #include <string>
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 生物群系气候设置
@@ -227,4 +227,4 @@ constexpr BiomeId Count = 42;
 
 } // namespace Biomes
 
-} // namespace mr
+} // namespace mc

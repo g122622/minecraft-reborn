@@ -1,6 +1,6 @@
 #include "StraightTrunkPlacer.hpp"
 
-namespace mr {
+namespace mc {
 
 StraightTrunkPlacer::StraightTrunkPlacer(i32 baseHeight, i32 heightRandA, i32 heightRandB)
     : TrunkPlacer(baseHeight, heightRandA, heightRandB)
@@ -34,4 +34,4 @@ std::vector<FoliagePosition> StraightTrunkPlacer::placeTrunk(
     return foliagePositions;
 }
 
-} // namespace mr
+} // namespace mc

@@ -9,7 +9,7 @@
 #include <functional>
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 namespace command {
 
@@ -319,4 +319,4 @@ private:
 };
 
 } // namespace command
-} // namespace mr
+} // namespace mc

@@ -8,9 +8,9 @@
 #include <algorithm>
 #include <cmath>
 
-namespace mr::client {
+namespace mc::client {
 
-using namespace mr::world;
+using namespace mc::world;
 
 ClientWorld::ClientWorld() = default;
 
@@ -564,17 +564,17 @@ f32 ClientWorld::getInterpolatedCelestialAngle(f32 partialTick) const {
         i64 diff = m_dayTime - m_prevDayTime;
         if (diff < 0) {
             // 时间从 23999 跳到 0，需要特殊处理
-            diff += mr::game::DAY_LENGTH_TICKS;
+            diff += mc::game::DAY_LENGTH_TICKS;
         }
         dayTimeForInterp = m_prevDayTime + static_cast<i64>(diff * partialTick);
     }
 
     // 计算天体角度 (MC 1.16.5 算法)
-    f32 d0 = std::fmod(static_cast<f32>(dayTimeForInterp) / static_cast<f32>(mr::game::DAY_LENGTH_TICKS) - 0.25f, 1.0f);
+    f32 d0 = std::fmod(static_cast<f32>(dayTimeForInterp) / static_cast<f32>(mc::game::DAY_LENGTH_TICKS) - 0.25f, 1.0f);
     if (d0 < 0.0f) {
         d0 += 1.0f;
     }
-    f32 d1 = 0.5f - std::cos(d0 * mr::math::PI) / 2.0f;
+    f32 d1 = 0.5f - std::cos(d0 * mc::math::PI) / 2.0f;
 
     return (d0 * 2.0f + d1) / 3.0f;
 }
@@ -631,4 +631,4 @@ void ClientWorld::processMeshBuildResults(u32 maxPerFrame) {
     );
 }
 
-} // namespace mr::client
+} // namespace mc::client

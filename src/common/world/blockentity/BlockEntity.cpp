@@ -1,6 +1,6 @@
 #include "world/blockentity/BlockEntity.hpp"
 
-namespace mr {
+namespace mc {
 
 const BlockState* BlockEntity::getBlockState() const {
     // TODO: 需要World类支持获取方块状态
@@ -8,4 +8,4 @@ const BlockState* BlockEntity::getBlockState() const {
     return nullptr;
 }
 
-} // namespace mr
+} // namespace mc

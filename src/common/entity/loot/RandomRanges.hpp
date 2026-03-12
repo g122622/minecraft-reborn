@@ -3,7 +3,7 @@
 #include "common/core/Types.hpp"
 #include "common/math/random/Random.hpp"
 
-namespace mr {
+namespace mc {
 namespace loot {
 
 /**
@@ -124,4 +124,4 @@ private:
 };
 
 } // namespace loot
-} // namespace mr
+} // namespace mc

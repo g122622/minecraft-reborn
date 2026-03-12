@@ -5,7 +5,7 @@
 
 #include "CombatEntry.hpp"
 
-namespace mr {
+namespace mc {
 
 CombatEntry::CombatEntry(std::unique_ptr<DamageSource> source, f32 damage, u32 timestamp)
     : m_source(std::move(source))
@@ -22,4 +22,4 @@ bool CombatEntry::isPlayerSource() const {
     return m_source && m_source->isPlayerSource();
 }
 
-} // namespace mr
+} // namespace mc

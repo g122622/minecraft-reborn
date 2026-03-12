@@ -5,7 +5,7 @@
 #include "../src/common/item/ItemRegistry.hpp"
 #include "../src/common/item/Items.hpp"
 
-using namespace mr;
+using namespace mc;
 
 // ============================================================================
 // Slot 索引常量测试

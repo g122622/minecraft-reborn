@@ -1,6 +1,6 @@
 #include "PlayerManager.hpp"
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // PlayerManager 实现
@@ -173,4 +173,4 @@ EntityId PlayerManager::generateEntityId() {
     return m_nextEntityId++;
 }
 
-} // namespace mr
+} // namespace mc

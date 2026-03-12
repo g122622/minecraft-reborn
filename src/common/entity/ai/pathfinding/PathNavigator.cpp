@@ -4,7 +4,7 @@
 #include "../controller/MovementController.hpp"
 #include <cmath>
 
-namespace mr::entity::ai::pathfinding {
+namespace mc::entity::ai::pathfinding {
 
 PathNavigator::PathNavigator(std::unique_ptr<PathFinder> finder)
     : m_pathFinder(std::move(finder))
@@ -207,4 +207,4 @@ const PathPoint* PathNavigator::getCurrentWaypoint() const {
     return m_path ? m_path->getCurrentTarget() : nullptr;
 }
 
-} // namespace mr::entity::ai::pathfinding
+} // namespace mc::entity::ai::pathfinding

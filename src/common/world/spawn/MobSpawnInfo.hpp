@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 
-namespace mr::world::spawn {
+namespace mc::world::spawn {
 
 /**
  * @brief 生成成本
@@ -211,4 +211,4 @@ private:
     static constexpr i32 DEFAULT_MAX_WATER_CREATURES = 5;
 };
 
-} // namespace mr::world::spawn
+} // namespace mc::world::spawn

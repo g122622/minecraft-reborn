@@ -6,7 +6,7 @@
 #include "common/resource/ResourcePackList.hpp"
 #include "common/core/settings/ResourcePackListOption.hpp"
 
-using namespace mr;
+using namespace mc;
 
 // ResourceLocation测试
 TEST(ResourceLocationTest, DefaultConstructor) {

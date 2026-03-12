@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <memory>
 
-namespace mr::entity::ai::pathfinding {
+namespace mc::entity::ai::pathfinding {
 
 /**
  * @brief 节点处理器基类
@@ -141,4 +141,4 @@ protected:
     }
 };
 
-} // namespace mr::entity::ai::pathfinding
+} // namespace mc::entity::ai::pathfinding

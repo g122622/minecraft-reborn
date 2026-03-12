@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class Block;
@@ -448,4 +448,4 @@ protected:
     const BlockState* m_defaultState = nullptr;
 };
 
-} // namespace mr
+} // namespace mc

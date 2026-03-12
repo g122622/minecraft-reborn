@@ -5,7 +5,7 @@
 #include <vector>
 #include <functional>
 
-namespace mr::entity::ai::pathfinding {
+namespace mc::entity::ai::pathfinding {
 
 /**
  * @brief 路径点最小堆
@@ -193,4 +193,4 @@ private:
     }
 };
 
-} // namespace mr::entity::ai::pathfinding
+} // namespace mc::entity::ai::pathfinding

@@ -1,6 +1,6 @@
 #include "RandomRanges.hpp"
 
-namespace mr {
+namespace mc {
 namespace loot {
 
 i32 BinomialRange::generateInt(math::Random& random) const {
@@ -16,4 +16,4 @@ i32 BinomialRange::generateInt(math::Random& random) const {
 }
 
 } // namespace loot
-} // namespace mr
+} // namespace mc

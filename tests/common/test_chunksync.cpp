@@ -5,8 +5,8 @@
 #include "common/world/chunk/ChunkData.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
 
-using namespace mr;
-using namespace mr::network;
+using namespace mc;
+using namespace mc::network;
 
 // ============================================================================
 // ChunkView 测试

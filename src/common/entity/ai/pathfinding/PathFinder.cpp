@@ -1,7 +1,7 @@
 #include "PathFinder.hpp"
 #include <cmath>
 
-namespace mr::entity::ai::pathfinding {
+namespace mc::entity::ai::pathfinding {
 
 Path PathFinder::findPath(i32 startX, i32 startY, i32 startZ,
                           i32 targetX, i32 targetY, i32 targetZ,
@@ -198,4 +198,4 @@ Path PathFinder::findPathToRange(i32 startX, i32 startY, i32 startZ,
     return Path();
 }
 
-} // namespace mr::entity::ai::pathfinding
+} // namespace mc::entity::ai::pathfinding

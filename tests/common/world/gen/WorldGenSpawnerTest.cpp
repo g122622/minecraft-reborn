@@ -5,7 +5,7 @@
 #include "common/world/spawn/MobSpawnInfo.hpp"
 #include "common/math/random/Random.hpp"
 
-namespace mr {
+namespace mc {
 namespace test {
 
 /**
@@ -149,4 +149,4 @@ TEST_F(WorldGenSpawnerTest, BiomeSpawnInfo) {
 }
 
 } // namespace test
-} // namespace mr
+} // namespace mc

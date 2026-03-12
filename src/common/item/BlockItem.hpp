@@ -4,7 +4,7 @@
 #include "BlockItemUseContext.hpp"
 #include "../world/block/Block.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 方块物品类
@@ -93,4 +93,4 @@ private:
     const Block* m_block;
 };
 
-} // namespace mr
+} // namespace mc

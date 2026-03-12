@@ -3,7 +3,7 @@
 #include "IResourcePack.hpp"
 #include <filesystem>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 文件夹资源包实现
@@ -38,4 +38,4 @@ private:
     [[nodiscard]] String normalizePath(StringView resourcePath) const;
 };
 
-} // namespace mr
+} // namespace mc

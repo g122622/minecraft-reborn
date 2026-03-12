@@ -3,7 +3,7 @@
 #include <bitset>
 #include <initializer_list>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 枚举集合类
@@ -255,14 +255,14 @@ private:
     std::bitset<Size> m_bits;
 };
 
-} // namespace mr
+} // namespace mc
 
 // 为标准库提供 EnumSet 的哈希支持
 namespace std {
 template<typename E>
-struct hash<mr::EnumSet<E>> {
-    size_t operator()(const mr::EnumSet<E>& set) const noexcept {
-        return std::hash<std::bitset<mr::EnumSet<E>::Size>>{}(set.bits());
+struct hash<mc::EnumSet<E>> {
+    size_t operator()(const mc::EnumSet<E>& set) const noexcept {
+        return std::hash<std::bitset<mc::EnumSet<E>::Size>>{}(set.bits());
     }
 };
 }

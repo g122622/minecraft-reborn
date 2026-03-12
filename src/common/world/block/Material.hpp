@@ -3,7 +3,7 @@
 #include "../../core/Types.hpp"
 #include <string>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 材质类
@@ -255,4 +255,4 @@ private:
     u8 m_materialColor;
 };
 
-} // namespace mr
+} // namespace mc

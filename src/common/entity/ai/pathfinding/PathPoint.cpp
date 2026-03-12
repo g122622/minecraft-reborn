@@ -1,6 +1,6 @@
 #include "PathPoint.hpp"
 
-namespace mr::entity::ai::pathfinding {
+namespace mc::entity::ai::pathfinding {
 
 PathPoint::PathPoint(i32 x, i32 y, i32 z)
     : m_x(x)
@@ -9,4 +9,4 @@ PathPoint::PathPoint(i32 x, i32 y, i32 z)
 {
 }
 
-} // namespace mr::entity::ai::pathfinding
+} // namespace mc::entity::ai::pathfinding

@@ -112,7 +112,7 @@ ConfiguredPlacement (放置器链)
 #include "../../placement/Placement.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 class WorldGenRegion;
 
@@ -127,7 +127,7 @@ struct MyFeatureConfig : public IFeatureConfig {
         : blockToPlace(block), size(s) {}
 };
 
-} // namespace mr
+} // namespace mc
 ```
 
 ### 第二步：创建 Feature 类
@@ -211,7 +211,7 @@ private:
     static std::vector<std::unique_ptr<ConfiguredMyFeature>> s_features;
 };
 
-} // namespace mr
+} // namespace mc
 ```
 
 ### 第三步：实现 Feature 类
@@ -223,7 +223,7 @@ private:
 #include "../../chunk/ChunkPrimer.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr {
+namespace mc {
 
 // 静态成员定义
 std::vector<std::unique_ptr<ConfiguredMyFeature>> MyFeatures::s_features;
@@ -354,7 +354,7 @@ std::unique_ptr<ConfiguredMyFeature> MyFeatures::createDefault() {
         std::move(config), std::move(countConfigured), "my_feature");
 }
 
-} // namespace mr
+} // namespace mc
 ```
 
 ### 第四步：注册到 FeatureRegistry

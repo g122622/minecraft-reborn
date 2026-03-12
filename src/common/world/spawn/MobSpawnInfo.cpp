@@ -1,6 +1,6 @@
 #include "MobSpawnInfo.hpp"
 
-namespace mr::world::spawn {
+namespace mc::world::spawn {
 
 MobSpawnInfo MobSpawnInfo::createPlains() {
     MobSpawnInfo info;
@@ -92,4 +92,4 @@ MobSpawnInfo MobSpawnInfo::createOcean() {
     return info;
 }
 
-} // namespace mr::world::spawn
+} // namespace mc::world::spawn

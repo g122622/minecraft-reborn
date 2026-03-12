@@ -19,7 +19,7 @@
 #include <chrono>
 #include <thread>
 
-namespace mr::server {
+namespace mc::server {
 
 ServerApplication::ServerApplication() = default;
 
@@ -82,7 +82,7 @@ Result<void> ServerApplication::initialize(const ServerLaunchParams& params)
     }
 
     spdlog::info("=== Minecraft Reborn Server ===");
-    spdlog::info("Version: {}.{}.{}", MR_VERSION_MAJOR, MR_VERSION_MINOR, MR_VERSION_PATCH);
+    spdlog::info("Version: {}.{}.{}", MC_VERSION_MAJOR, MC_VERSION_MINOR, MC_VERSION_PATCH);
     spdlog::info("Initializing server...");
 
     // 注册实体类型
@@ -623,4 +623,4 @@ void ServerApplication::applySettings()
     });
 }
 
-} // namespace mr::server
+} // namespace mc::server

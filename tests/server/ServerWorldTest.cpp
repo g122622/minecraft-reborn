@@ -5,8 +5,8 @@
 #include <thread>
 #include <atomic>
 
-using namespace mr;
-using namespace mr::server;
+using namespace mc;
+using namespace mc::server;
 
 // ============================================================================
 // Mock 连接用于测试

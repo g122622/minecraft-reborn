@@ -21,11 +21,11 @@
 #include <mutex>
 #include <vector>
 
-namespace mr {
+namespace mc {
 class AbstractContainerMenu;
 }
 
-namespace mr::server {
+namespace mc::server {
 
 /**
  * @brief 内置服务端配置
@@ -152,7 +152,7 @@ private:
     void sendPlayerInventory();
     void sendChunkData(ChunkCoord x, ChunkCoord z, const std::vector<u8>& data);
     void sendUnloadChunk(ChunkCoord x, ChunkCoord z);
-    void sendContainerContent(const mr::AbstractContainerMenu& menu);
+    void sendContainerContent(const mc::AbstractContainerMenu& menu);
     void sendOpenContainer(ContainerId containerId, ContainerType type, const String& title, i32 slotCount);
     void sendCloseContainer(ContainerId containerId);
     void sendToClient(const u8* data, size_t size);
@@ -189,8 +189,8 @@ private:
 
     // 客户端特有数据（容器、物品栏等）
     struct ClientGameData {
-        mr::PlayerInventory inventory;  ///< 玩家物品栏
-        std::unique_ptr<mr::AbstractContainerMenu> openMenu;
+        mc::PlayerInventory inventory;  ///< 玩家物品栏
+        std::unique_ptr<mc::AbstractContainerMenu> openMenu;
         ContainerType openContainerType = ContainerType::Player;
         ContainerId nextContainerId = 1;
     };
@@ -208,4 +208,4 @@ private:
     bool m_daylightCycleEnabled = true;
 };
 
-} // namespace mr::server
+} // namespace mc::server

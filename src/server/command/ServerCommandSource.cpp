@@ -5,7 +5,7 @@
 #include "common/command/exceptions/CommandExceptions.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr {
+namespace mc {
 namespace command {
 
 ServerCommandSource::ServerCommandSource(
@@ -129,4 +129,4 @@ ServerCommandSource ServerCommandSource::forConsole(MinecraftServer* server) {
 }
 
 } // namespace command
-} // namespace mr
+} // namespace mc

@@ -3,7 +3,7 @@
 #include "../../../core/Types.hpp"
 #include "../../../math/Vector3.hpp"
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class MobEntity;
@@ -100,4 +100,4 @@ protected:
 };
 
 } // namespace entity::ai::controller
-} // namespace mr
+} // namespace mc

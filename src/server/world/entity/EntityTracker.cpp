@@ -8,7 +8,7 @@
 #include <spdlog/spdlog.h>
 #include <cmath>
 
-namespace mr::server {
+namespace mc::server {
 
 EntityTracker::EntityTracker()
     : m_trackingDistance(10)
@@ -298,4 +298,4 @@ void EntityTracker::sendMovePacket(ServerWorld& world, PlayerId playerId, Entity
     }
 }
 
-} // namespace mr::server
+} // namespace mc::server

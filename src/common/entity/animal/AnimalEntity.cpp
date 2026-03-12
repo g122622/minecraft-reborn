@@ -7,7 +7,7 @@
 #include "../ai/goal/goals/RandomWalkingGoal.hpp"
 #include "../ai/goal/goals/LookAtGoal.hpp"
 
-namespace mr {
+namespace mc {
 
 AnimalEntity::AnimalEntity(LegacyEntityType type, EntityId id)
     : AgeableEntity(type, id)
@@ -96,4 +96,4 @@ void AnimalEntity::resetInLove() {
     m_loveCause = 0;
 }
 
-} // namespace mr
+} // namespace mc

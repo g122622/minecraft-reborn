@@ -4,7 +4,7 @@
 #include "../../../math/random/Random.hpp"
 #include <array>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 改进的 Perlin 噪声生成器
@@ -136,4 +136,4 @@ constexpr f32 PERLIN_GRADIENTS[16][3] = {
     { 1.0f,  1.0f,  0.0f}, {-1.0f,  1.0f,  0.0f}, { 0.0f, -1.0f,  1.0f}, { 0.0f,  1.0f, -1.0f}
 };
 
-} // namespace mr
+} // namespace mc

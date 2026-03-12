@@ -8,7 +8,7 @@
 #include "PacketSerializer.hpp"
 #include <memory>
 
-namespace mr::network {
+namespace mc::network {
 
 // ============================================================================
 // 协议常量
@@ -1087,4 +1087,4 @@ private:
     bool m_daylightCycleEnabled = true;
 };
 
-} // namespace mr::network
+} // namespace mc::network

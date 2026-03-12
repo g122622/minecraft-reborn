@@ -9,7 +9,7 @@
 #include <functional>
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class Entity;
@@ -383,4 +383,4 @@ private:
 };
 
 } // namespace command
-} // namespace mr
+} // namespace mc

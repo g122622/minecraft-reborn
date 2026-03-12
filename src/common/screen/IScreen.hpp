@@ -3,7 +3,7 @@
 #include "core/Types.hpp"
 #include <string>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 屏幕接口
@@ -156,4 +156,4 @@ public:
     }
 };
 
-} // namespace mr
+} // namespace mc

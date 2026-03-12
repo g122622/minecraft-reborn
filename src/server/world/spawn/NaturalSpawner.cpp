@@ -10,7 +10,7 @@
 #include "../../../common/math/random/Random.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr::world::spawn {
+namespace mc::world::spawn {
 
 // ============================================================================
 // 常量定义
@@ -24,7 +24,7 @@ NaturalSpawner::NaturalSpawner()
     // 初始化默认配置
 }
 
-void NaturalSpawner::spawnInChunk(mr::server::ServerWorld& world, i32 chunkX, i32 chunkZ,
+void NaturalSpawner::spawnInChunk(mc::server::ServerWorld& world, i32 chunkX, i32 chunkZ,
                                    const MobSpawnInfo& spawnInfo, math::Random& random) {
     // 获取区块的世界坐标范围（使用工具函数）
     i32 minX = world::toWorldCoord(chunkX);
@@ -104,7 +104,7 @@ void NaturalSpawner::spawnInChunk(mr::server::ServerWorld& world, i32 chunkX, i3
     }
 }
 
-void NaturalSpawner::tick(mr::server::ServerWorld& /*world*/, bool /*hostile*/, bool /*passive*/) {
+void NaturalSpawner::tick(mc::server::ServerWorld& /*world*/, bool /*hostile*/, bool /*passive*/) {
     // TODO: 实现每tick的自然生成
     // 1. 获取玩家位置
     // 2. 在玩家周围选择生成位置
@@ -117,7 +117,7 @@ void NaturalSpawner::tick(mr::server::ServerWorld& /*world*/, bool /*hostile*/, 
     // - EntityManager 集成
 }
 
-i32 NaturalSpawner::trySpawnAt(mr::server::ServerWorld& world, i32 x, i32 y, i32 z,
+i32 NaturalSpawner::trySpawnAt(mc::server::ServerWorld& world, i32 x, i32 y, i32 z,
                                 const SpawnEntry& entry, math::Random& random) {
     // 获取实体类型
     auto& registry = entity::EntityRegistry::instance();
@@ -204,7 +204,7 @@ const SpawnEntry* NaturalSpawner::selectEntry(
     return nullptr;
 }
 
-bool NaturalSpawner::canSpawnAt(mr::server::ServerWorld& world, i32 x, i32 y, i32 z,
+bool NaturalSpawner::canSpawnAt(mc::server::ServerWorld& world, i32 x, i32 y, i32 z,
                                  const SpawnEntry& entry) const {
     // 获取实体类型
     auto& registry = entity::EntityRegistry::instance();
@@ -255,7 +255,7 @@ bool NaturalSpawner::canSpawnAt(mr::server::ServerWorld& world, i32 x, i32 y, i3
     return true;
 }
 
-bool NaturalSpawner::checkLightLevel(mr::server::ServerWorld& /*world*/,
+bool NaturalSpawner::checkLightLevel(mc::server::ServerWorld& /*world*/,
                                       i32 /*x*/, i32 y, i32 /*z*/,
                                       bool isMonster) const {
     // 获取光照等级
@@ -283,7 +283,7 @@ bool NaturalSpawner::checkLightLevel(mr::server::ServerWorld& /*world*/,
     return SpawnConditions::checkLightLevel(skyLight, blockLight, isMonster);
 }
 
-i32 NaturalSpawner::getSpawnHeight(mr::server::ServerWorld& world, i32 x, i32 z) const {
+i32 NaturalSpawner::getSpawnHeight(mc::server::ServerWorld& world, i32 x, i32 z) const {
     // 获取区块
     ChunkCoord chunkX = static_cast<ChunkCoord>(x >> 4);
     ChunkCoord chunkZ = static_cast<ChunkCoord>(z >> 4);
@@ -302,4 +302,4 @@ i32 NaturalSpawner::getSpawnHeight(mr::server::ServerWorld& world, i32 x, i32 z)
     return 64;
 }
 
-} // namespace mr::world::spawn
+} // namespace mc::world::spawn

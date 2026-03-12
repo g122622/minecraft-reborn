@@ -1,6 +1,6 @@
 #include "Biome.hpp"
 
-namespace mr {
+namespace mc {
 
 Biome::Biome(BiomeId id, const String& name)
     : m_id(id)
@@ -8,4 +8,4 @@ Biome::Biome(BiomeId id, const String& name)
 {
 }
 
-} // namespace mr
+} // namespace mc

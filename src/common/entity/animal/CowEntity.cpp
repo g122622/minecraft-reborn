@@ -2,7 +2,7 @@
 #include "../../item/ItemStack.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 std::unique_ptr<Entity> CowEntity::create(IWorld* /*world*/) {
     // 创建一个临时ID，实际ID由实体管理器分配
@@ -44,4 +44,4 @@ void CowEntity::registerGoals() {
     //     this, 1.0, [](const ItemStack& stack) { return stack.getItem() == Items::WHEAT; }));
 }
 
-} // namespace mr
+} // namespace mc

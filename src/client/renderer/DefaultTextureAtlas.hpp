@@ -3,7 +3,7 @@
 #include "../../common/core/Types.hpp"
 #include <vector>
 
-namespace mr::client {
+namespace mc::client {
 
 /**
  * @brief 默认纹理图集生成器
@@ -32,4 +32,4 @@ private:
     static void generateMissingTexture(u8* pixels, u32 tileX, u32 tileY);
 };
 
-} // namespace mr::client
+} // namespace mc::client

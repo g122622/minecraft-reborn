@@ -8,7 +8,7 @@
 #include "../../placement/Placement.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 树木特征配置
@@ -296,4 +296,4 @@ private:
     static TreeFeatureConfig jungleConfig();
 };
 
-} // namespace mr
+} // namespace mc

@@ -2,7 +2,7 @@
 #include <spdlog/spdlog.h>
 #include <cstring>
 
-namespace mr::client {
+namespace mc::client {
 
 // ============================================================================
 // ChunkRenderer 实现
@@ -596,4 +596,4 @@ void FenceManager::destroy(VkDevice device, VkCommandPool commandPool) {
     nextIndex = 0;
 }
 
-} // namespace mr::client
+} // namespace mc::client

@@ -10,7 +10,7 @@
 #include <functional>
 #include <mutex>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 实体管理器
@@ -147,4 +147,4 @@ private:
     void removeDeadEntitiesInternal();
 };
 
-} // namespace mr
+} // namespace mc

@@ -3,7 +3,7 @@
 #include "../../../common/core/Types.hpp"
 #include "../../../common/math/Vector3.hpp"
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class IWorld;
@@ -84,5 +84,5 @@ bool isInLava(IWorld& world, i32 x, i32 y, i32 z);
 
 } // namespace SpawnConditions
 
-} // namespace mr::world::spawn
-} // namespace mr
+} // namespace mc::world::spawn
+} // namespace mc

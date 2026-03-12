@@ -6,7 +6,7 @@
 #include <memory>
 #include <mutex>
 
-namespace mr {
+namespace mc {
 namespace entity {
 namespace attribute {
 
@@ -184,4 +184,4 @@ private:
 
 } // namespace attribute
 } // namespace entity
-} // namespace mr
+} // namespace mc

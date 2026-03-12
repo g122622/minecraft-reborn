@@ -1,7 +1,7 @@
 #include "DefaultAsciiFont.hpp"
 #include <cstring>
 
-namespace mr::client {
+namespace mc::client {
 
 // 5x7点阵字体数据，每个字符占7字节
 // 每字节代表一行，最低5位有效
@@ -334,4 +334,4 @@ u32 DefaultAsciiFont::generateCharBitmap(char c, std::array<u8, 64>& outPixels) 
     return actualWidth > 0 ? actualWidth : 1;
 }
 
-} // namespace mr::client
+} // namespace mc::client

@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include "server/core/TimeManager.hpp"
 
-using namespace mr::server::core;
+using namespace mc::server::core;
 
 /**
  * @brief TimeManager 单元测试

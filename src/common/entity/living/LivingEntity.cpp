@@ -3,7 +3,7 @@
 #include "../../math/MathUtils.hpp"
 #include <cmath>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 静态数据参数定义
@@ -260,4 +260,4 @@ void LivingEntity::handleFallDamage(f32 distance, f32 damageMultiplier) {
     }
 }
 
-} // namespace mr
+} // namespace mc

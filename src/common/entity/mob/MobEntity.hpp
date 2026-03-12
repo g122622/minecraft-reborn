@@ -5,7 +5,7 @@
 #include "../../math/random/Random.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 namespace entity::ai::controller {
@@ -183,4 +183,4 @@ protected:
     i32 m_idleTime = 0;  // 空闲时间（用于随机漫步等）
 };
 
-} // namespace mr
+} // namespace mc

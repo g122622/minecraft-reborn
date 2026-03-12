@@ -2,7 +2,7 @@
 
 #include "WorldCarver.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 洞穴世界雕刻器
@@ -160,4 +160,4 @@ private:
         CarvingMask& carvingMask);
 };
 
-} // namespace mr
+} // namespace mc

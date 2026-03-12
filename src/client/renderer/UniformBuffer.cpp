@@ -1,7 +1,7 @@
 #include "UniformBuffer.hpp"
 #include <cstring>
 
-namespace mr::client {
+namespace mc::client {
 
 // ============================================================================
 // UniformBuffer 实现
@@ -112,4 +112,4 @@ VkDescriptorBufferInfo UniformBuffer::descriptorInfo(u32 frameIndex) const {
     return info;
 }
 
-} // namespace mr::client
+} // namespace mc::client

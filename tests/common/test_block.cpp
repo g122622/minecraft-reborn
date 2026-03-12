@@ -7,7 +7,7 @@
 #include "../src/common/world/block/VanillaBlocks.hpp"
 #include "../src/common/util/property/Properties.hpp"
 
-using namespace mr;
+using namespace mc;
 
 // ============================================================================
 // 测试用的简单方块类

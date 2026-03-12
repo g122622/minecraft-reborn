@@ -5,7 +5,7 @@
 #include "client/renderer/ChunkMesher.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
 
-using namespace mr;
+using namespace mc;
 
 // ============================================================================
 // BlockGeometry 测试

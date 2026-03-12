@@ -2,7 +2,7 @@
 #include "entity/inventory/CraftingInventory.hpp"
 #include "item/ItemRegistry.hpp"
 
-using namespace mr;
+using namespace mc;
 
 class CraftingInventoryTest : public ::testing::Test {
 protected:

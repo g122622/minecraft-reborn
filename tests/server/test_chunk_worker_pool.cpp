@@ -5,8 +5,8 @@
 #include <atomic>
 #include <chrono>
 
-using namespace mr;
-using namespace mr::server;
+using namespace mc;
+using namespace mc::server;
 
 // ============================================================================
 // ChunkWorkerPool 测试固件

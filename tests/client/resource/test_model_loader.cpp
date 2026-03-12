@@ -3,7 +3,7 @@
 #include "client/resource/BlockStateLoader.hpp"
 #include "common/resource/FolderResourcePack.hpp"
 
-using namespace mr;
+using namespace mc;
 
 // Direction测试
 TEST(DirectionTest, ParseDirection) {

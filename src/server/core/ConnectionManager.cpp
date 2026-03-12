@@ -2,7 +2,7 @@
 #include "PlayerManager.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr::server::core {
+namespace mc::server::core {
 
 ConnectionManager::ConnectionManager(PlayerManager& playerManager)
     : m_playerManager(playerManager)
@@ -107,4 +107,4 @@ void ConnectionManager::encapsulatePacket(network::PacketType type, const std::v
     out.writeBytes(payload);
 }
 
-} // namespace mr::server::core
+} // namespace mc::server::core

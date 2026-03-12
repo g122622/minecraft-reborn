@@ -1,7 +1,7 @@
 #include "CelestialCalculations.hpp"
 #include <cmath>
 
-namespace mr::client {
+namespace mc::client {
 
 // 静态成员定义
 constexpr f32 CelestialCalculations::MOON_PHASE_FACTORS[8];
@@ -20,14 +20,14 @@ f32 CelestialCalculations::calculateCelestialAngle(i64 dayTime) {
         d0 += 1.0f;
     }
 
-    f32 d1 = 0.5f - std::cos(d0 * mr::math::PI) / 2.0f;
+    f32 d1 = 0.5f - std::cos(d0 * mc::math::PI) / 2.0f;
 
     return (d0 * 2.0f + d1) / 3.0f;
 }
 
 f32 CelestialCalculations::calculateCelestialAngleInterpolated(i64 dayTime, f32 partialTick) {
     // 计算插值后的 dayTime
-    i64 nextDayTime = (dayTime + 1) % mr::game::DAY_LENGTH_TICKS;
+    i64 nextDayTime = (dayTime + 1) % mc::game::DAY_LENGTH_TICKS;
     f32 currentAngle = calculateCelestialAngle(dayTime);
     f32 nextAngle = calculateCelestialAngle(nextDayTime);
 
@@ -52,7 +52,7 @@ f32 CelestialCalculations::calculateCelestialAngleInterpolated(i64 dayTime, f32 
 
 i32 CelestialCalculations::calculateMoonPhase(i64 gameTime) {
     // MC 1.16.5: 月相 = (gameTime / 24000) % 8
-    return static_cast<i32>((gameTime / mr::game::DAY_LENGTH_TICKS) % 8);
+    return static_cast<i32>((gameTime / mc::game::DAY_LENGTH_TICKS) % 8);
 }
 
 f32 CelestialCalculations::getMoonPhaseFactor(i32 moonPhase) {
@@ -78,7 +78,7 @@ glm::vec3 CelestialCalculations::calculateSunDirection(f32 celestialAngle) {
     // - 太阳角度从正午开始，所以需要偏移
 
     // celestialAngle 转弧度，乘以 2π
-    f32 angle = celestialAngle * mr::math::TAU_F;
+    f32 angle = celestialAngle * mc::math::TAU_F;
 
     // 太阳高度角:
     // - 正午 (angle=0): cos(0) = 1, 太阳在头顶
@@ -98,7 +98,7 @@ glm::vec3 CelestialCalculations::calculateSunDirection(f32 celestialAngle) {
 }
 
 f32 CelestialCalculations::calculateSunIntensity(f32 celestialAngle) {
-    f32 angleRad = celestialAngle * mr::math::TAU_F;
+    f32 angleRad = celestialAngle * mc::math::TAU_F;
     f32 sunHeight = std::cos(angleRad); // 正午=1, 午夜=-1
 
     // 在地平线附近做轻微软过渡，避免晨昏突变。
@@ -110,7 +110,7 @@ glm::vec4 CelestialCalculations::calculateSkyColor(
     f32 celestialAngle,
     f32 rainStrength,
     f32 thunderStrength) {
-    const f32 angleRad = celestialAngle * mr::math::TAU_F;
+    const f32 angleRad = celestialAngle * mc::math::TAU_F;
     const f32 sunHeight = std::cos(angleRad);
 
     // 基础昼夜渐变（接近 MC 的蓝天/夜空对比）。
@@ -154,10 +154,10 @@ f32 CelestialCalculations::calculateStarBrightness(f32 celestialAngle) {
     // MC 风格的星空亮度曲线：
     // f = 1 - (cos(angle * TAU) * 2 + 0.25)
     // clamp 到 [0,1] 后平方再缩放。
-    const f32 angleRad = celestialAngle * mr::math::TAU_F;
+    const f32 angleRad = celestialAngle * mc::math::TAU_F;
     f32 brightness = 1.0f - (std::cos(angleRad) * 2.0f + 0.25f);
     brightness = glm::clamp(brightness, 0.0f, 1.0f);
     return brightness * brightness * 0.5f;
 }
 
-} // namespace mr::client
+} // namespace mc::client

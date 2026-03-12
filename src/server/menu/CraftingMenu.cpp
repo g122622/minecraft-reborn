@@ -8,7 +8,7 @@
 
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 namespace {
 
@@ -376,4 +376,4 @@ void InventoryCraftingMenu::consumeIngredients(const crafting::CraftingRecipe* r
     shrinkCraftingGrid(m_craftingGrid, recipe);
 }
 
-} // namespace mr
+} // namespace mc

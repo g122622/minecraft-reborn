@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 #include "network/EntityPackets.hpp"
 
-using namespace mr::network;
-using mr::u8;
+using namespace mc::network;
+using mc::u8;
 
 // ==================== SpawnEntityPacket Tests ====================
 
@@ -340,7 +340,7 @@ TEST(EntityMetadataPacketTest, EmptyMetadata) {
 
 TEST(EntityPacketsErrorTest, SpawnEntityPacketTooSmall) {
     SpawnEntityPacket packet;
-    mr::u8 smallData[] = {0x01, 0x02};  // 数据太小
+    mc::u8 smallData[] = {0x01, 0x02};  // 数据太小
 
     auto result = packet.deserialize(smallData, sizeof(smallData));
     EXPECT_FALSE(result.success());
@@ -348,7 +348,7 @@ TEST(EntityPacketsErrorTest, SpawnEntityPacketTooSmall) {
 
 TEST(EntityPacketsErrorTest, SpawnMobPacketTooSmall) {
     SpawnMobPacket packet;
-    mr::u8 smallData[] = {0x01, 0x02, 0x03};  // 数据太小
+    mc::u8 smallData[] = {0x01, 0x02, 0x03};  // 数据太小
 
     auto result = packet.deserialize(smallData, sizeof(smallData));
     EXPECT_FALSE(result.success());
@@ -356,7 +356,7 @@ TEST(EntityPacketsErrorTest, SpawnMobPacketTooSmall) {
 
 TEST(EntityPacketsErrorTest, EntityVelocityPacketTooSmall) {
     EntityVelocityPacket packet;
-    mr::u8 smallData[] = {0x01};  // 数据太小
+    mc::u8 smallData[] = {0x01};  // 数据太小
 
     auto result = packet.deserialize(smallData, sizeof(smallData));
     EXPECT_FALSE(result.success());
@@ -364,7 +364,7 @@ TEST(EntityPacketsErrorTest, EntityVelocityPacketTooSmall) {
 
 TEST(EntityPacketsErrorTest, EntityTeleportPacketTooSmall) {
     EntityTeleportPacket packet;
-    mr::u8 smallData[] = {0x01, 0x02, 0x03, 0x04};  // 数据太小
+    mc::u8 smallData[] = {0x01, 0x02, 0x03, 0x04};  // 数据太小
 
     auto result = packet.deserialize(smallData, sizeof(smallData));
     EXPECT_FALSE(result.success());

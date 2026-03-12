@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cstring>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 构造函数 / 析构函数
@@ -249,4 +249,4 @@ String ZipResourcePack::normalizePath(StringView path)
     return result;
 }
 
-} // namespace mr
+} // namespace mc

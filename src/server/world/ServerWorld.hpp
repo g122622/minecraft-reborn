@@ -17,7 +17,7 @@
 #include <functional>
 #include <mutex>
 
-namespace mr::server {
+namespace mc::server {
 
 // 前向声明
 class ServerChunkManager;
@@ -253,4 +253,4 @@ private:
     u64 m_lastChunkUnloadCheck = 0;
 };
 
-} // namespace mr::server
+} // namespace mc::server

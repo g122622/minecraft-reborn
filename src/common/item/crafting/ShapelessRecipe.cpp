@@ -1,7 +1,7 @@
 #include "item/crafting/ShapelessRecipe.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 namespace crafting {
 
 ShapelessRecipe::ShapelessRecipe(const ResourceLocation& id,
@@ -59,4 +59,4 @@ bool ShapelessRecipe::canFitIn(i32 width, i32 height) const {
 }
 
 } // namespace crafting
-} // namespace mr
+} // namespace mc

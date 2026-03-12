@@ -2,7 +2,7 @@
 
 #include "../../../core/Types.hpp"
 
-namespace mr::entity::ai::pathfinding {
+namespace mc::entity::ai::pathfinding {
 
 /**
  * @brief 世界区域访问接口
@@ -70,4 +70,4 @@ public:
     }
 };
 
-} // namespace mr::entity::ai::pathfinding
+} // namespace mc::entity::ai::pathfinding

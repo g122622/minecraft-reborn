@@ -32,7 +32,7 @@
 #include <chrono>
 #include <cmath>
 
-namespace mr::server {
+namespace mc::server {
 
 namespace {
 
@@ -1183,4 +1183,4 @@ void IntegratedServer::openCraftingTableMenu() {
     }
 }
 
-} // namespace mr::server
+} // namespace mc::server

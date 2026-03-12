@@ -9,7 +9,7 @@
 #include <memory>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class IInventory;
@@ -341,4 +341,4 @@ private:
     PlayerInventory* m_playerInventory;
 };
 
-} // namespace mr
+} // namespace mc

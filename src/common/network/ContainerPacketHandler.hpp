@@ -6,7 +6,7 @@
 #include <functional>
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class Player;
@@ -118,4 +118,4 @@ namespace ContainerTypes {
 
 } // namespace ContainerTypes
 
-} // namespace mr
+} // namespace mc

@@ -6,7 +6,7 @@
 #include "../../placement/Placement.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class WorldGenRegion;
@@ -166,4 +166,4 @@ private:
     static std::vector<std::unique_ptr<ConfiguredOreFeature>> s_features;
 };
 
-} // namespace mr
+} // namespace mc

@@ -10,7 +10,7 @@
 #include <unordered_set>
 #include <utility>
 
-namespace mr::command {
+namespace mc::command {
 
 // ========== 前向声明 ==========
 
@@ -451,4 +451,4 @@ void CommandDispatcher<S>::findAmbiguities(
     // TODO: 实现歧义检测
 }
 
-} // namespace mr::command
+} // namespace mc::command

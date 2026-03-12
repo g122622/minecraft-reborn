@@ -4,7 +4,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace mr::network {
+namespace mc::network {
 
 // ============================================================================
 // ChunkSerializer 实现
@@ -424,4 +424,4 @@ std::vector<PlayerId> ChunkSyncManager::getChunkSubscribers(ChunkCoord x, ChunkC
     return subscribers;
 }
 
-} // namespace mr::network
+} // namespace mc::network

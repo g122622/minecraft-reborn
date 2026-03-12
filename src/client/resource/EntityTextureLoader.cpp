@@ -2,7 +2,7 @@
 #include "../../common/resource/IResourcePack.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr::client {
+namespace mc::client {
 
 const std::vector<String>& EntityTextureLoader::getDefaultEntityTypes() {
     static const std::vector<String> defaultTypes = {
@@ -14,7 +14,7 @@ const std::vector<String>& EntityTextureLoader::getDefaultEntityTypes() {
     return defaultTypes;
 }
 
-Result<u32> EntityTextureLoader::loadDefaultTextures(mr::IResourcePack& pack, EntityTextureAtlas& atlas) {
+Result<u32> EntityTextureLoader::loadDefaultTextures(mc::IResourcePack& pack, EntityTextureAtlas& atlas) {
     u32 loadedCount = 0;
 
     for (const auto& typeId : getDefaultEntityTypes()) {
@@ -34,7 +34,7 @@ Result<u32> EntityTextureLoader::loadDefaultTextures(mr::IResourcePack& pack, En
     return loadedCount;  // 隐式转换为Result<u32>
 }
 
-Result<void> EntityTextureLoader::loadEntityTexture(mr::IResourcePack& pack,
+Result<void> EntityTextureLoader::loadEntityTexture(mc::IResourcePack& pack,
                                                      EntityTextureAtlas& atlas,
                                                      const String& entityTypeId) {
     auto paths = getTexturePaths(entityTypeId);
@@ -89,4 +89,4 @@ String EntityTextureLoader::parseEntityName(const String& entityTypeId) {
     return entityTypeId;
 }
 
-} // namespace mr::client
+} // namespace mc::client

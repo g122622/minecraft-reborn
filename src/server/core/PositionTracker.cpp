@@ -2,7 +2,7 @@
 #include "PlayerManager.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr::server::core {
+namespace mc::server::core {
 
 PositionTracker::PositionTracker(PlayerManager& playerManager, const ServerCoreConfig& config)
     : m_playerManager(playerManager)
@@ -131,4 +131,4 @@ i32 PositionTracker::getViewDistance(PlayerId playerId) const {
     return player->chunkTracker->viewDistance();
 }
 
-} // namespace mr::server::core
+} // namespace mc::server::core

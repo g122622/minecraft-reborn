@@ -1,7 +1,7 @@
 #include "IRandom.hpp"
 #include <cmath>
 
-namespace mr::math {
+namespace mc::math {
 
 // ============================================================================
 // 默认实现
@@ -133,4 +133,4 @@ void IRandom::skip(u64 count) {
     }
 }
 
-} // namespace mr::math
+} // namespace mc::math

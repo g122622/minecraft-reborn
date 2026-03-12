@@ -1,7 +1,7 @@
 #include "ItemRegistry.hpp"
 #include "Items.hpp"
 
-namespace mr {
+namespace mc {
 
 ItemRegistry& ItemRegistry::instance() {
     static ItemRegistry instance;
@@ -29,4 +29,4 @@ ItemId ItemRegistry::allocateItemId() {
     return m_nextItemId++;
 }
 
-} // namespace mr
+} // namespace mc

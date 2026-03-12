@@ -11,7 +11,7 @@
 #include <map>
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 // Direction 枚举已在 util/Direction.hpp 中定义
 
@@ -203,4 +203,4 @@ private:
     void mergeParent(UnbakedBlockModel& child, const UnbakedBlockModel& parent);
 };
 
-} // namespace mr
+} // namespace mc

@@ -4,8 +4,8 @@
 #include "entity/inventory/CraftingInventory.hpp"
 #include "item/ItemRegistry.hpp"
 
-using namespace mr;
-using namespace mr::crafting;
+using namespace mc;
+using namespace mc::crafting;
 
 class ShapedRecipeTest : public ::testing::Test {
 protected:

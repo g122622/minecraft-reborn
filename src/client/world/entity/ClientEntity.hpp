@@ -4,7 +4,7 @@
 #include "../../../common/math/Vector3.hpp"
 #include <string>
 
-namespace mr::client {
+namespace mc::client {
 
 /**
  * @brief 客户端实体代理类
@@ -232,4 +232,4 @@ private:
     u32 m_ticksExisted = 0;
 };
 
-} // namespace mr::client
+} // namespace mc::client

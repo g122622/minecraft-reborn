@@ -1,7 +1,7 @@
 #include "WalkNodeProcessor.hpp"
 #include <cmath>
 
-namespace mr::entity::ai::pathfinding {
+namespace mc::entity::ai::pathfinding {
 
 PathNodeType WalkNodeProcessor::getNodeType(i32 x, i32 y, i32 z) {
     if (!m_region) {
@@ -273,4 +273,4 @@ void WalkNodeProcessor::addFallNeighbor(std::vector<PathPoint*>& neighbors, i32 
     }
 }
 
-} // namespace mr::entity::ai::pathfinding
+} // namespace mc::entity::ai::pathfinding

@@ -9,7 +9,7 @@
 #include "ItemEntity.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr {
+namespace mc {
 namespace entity {
 
 /**
@@ -115,4 +115,4 @@ public:
 };
 
 } // namespace entity
-} // namespace mr
+} // namespace mc

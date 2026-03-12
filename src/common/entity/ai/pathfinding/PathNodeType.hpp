@@ -2,7 +2,7 @@
 
 #include "../../../core/Types.hpp"
 
-namespace mr::entity::ai::pathfinding {
+namespace mc::entity::ai::pathfinding {
 
 /**
  * @brief 路径节点类型
@@ -124,4 +124,4 @@ enum class PathNodeType : u8 {
            type == PathNodeType::Climbable;
 }
 
-} // namespace mr::entity::ai::pathfinding
+} // namespace mc::entity::ai::pathfinding

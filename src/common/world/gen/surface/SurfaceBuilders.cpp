@@ -4,7 +4,7 @@
 #include "../../biome/Biome.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // DefaultSurfaceBuilder 实现
@@ -464,4 +464,4 @@ void BeachSurfaceBuilder::buildSurface(
     }
 }
 
-} // namespace mr
+} // namespace mc

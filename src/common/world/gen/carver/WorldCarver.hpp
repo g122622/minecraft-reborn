@@ -9,7 +9,7 @@
 #include <functional>
 #include <BitSet>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class BiomeProvider;
@@ -298,4 +298,4 @@ private:
     Config m_config;
 };
 
-} // namespace mr
+} // namespace mc

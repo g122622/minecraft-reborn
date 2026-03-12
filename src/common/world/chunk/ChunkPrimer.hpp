@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 区块生成器 (中间状态)
@@ -272,4 +272,4 @@ private:
     void initializeCarvingMasks();
 };
 
-} // namespace mr
+} // namespace mc

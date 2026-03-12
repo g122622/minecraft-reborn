@@ -1,7 +1,7 @@
 #include "BiomeRegistry.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // BiomeRegistry 实现
@@ -517,4 +517,4 @@ Biome createMountainEdge()
 
 } // namespace BiomeFactory
 
-} // namespace mr
+} // namespace mc

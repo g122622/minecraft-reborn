@@ -3,7 +3,7 @@
 #include "item/crafting/RecipeManager.hpp"
 #include <vector>
 
-namespace mr {
+namespace mc {
 namespace crafting {
 
 /**
@@ -109,4 +109,4 @@ private:
 };
 
 } // namespace crafting
-} // namespace mr
+} // namespace mc

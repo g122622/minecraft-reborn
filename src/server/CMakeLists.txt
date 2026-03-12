@@ -43,7 +43,7 @@ add_executable(minecraft-server
 
 target_link_libraries(minecraft-server
     PRIVATE
-        mr_common
+        mc_common
         spdlog::spdlog
         nlohmann_json::nlohmann_json
 )
@@ -52,7 +52,7 @@ if(WIN32)
     target_link_libraries(minecraft-server PRIVATE ws2_32)
 endif()
 
-mr_set_compiler_warnings(minecraft-server)
+mc_set_compiler_warnings(minecraft-server)
 
 target_compile_features(minecraft-server PRIVATE cxx_std_17)
 

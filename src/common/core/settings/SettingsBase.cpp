@@ -4,7 +4,7 @@
 #include <fstream>
 #include <sstream>
 
-namespace mr {
+namespace mc {
 
 Result<void> SettingsBase::load(const std::filesystem::path& path)
 {
@@ -236,4 +236,4 @@ std::filesystem::path SettingsBase::ensureSettingsDir(const String& appName)
     return dir;
 }
 
-} // namespace mr
+} // namespace mc

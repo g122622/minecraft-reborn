@@ -6,8 +6,8 @@
 #include "common/entity/ai/goal/PrioritizedGoal.hpp"
 #include "common/entity/ai/goal/GoalSelector.hpp"
 
-using namespace mr;
-using namespace mr::entity::ai;
+using namespace mc;
+using namespace mc::entity::ai;
 
 // ============================================================================
 // EnumSet 测试

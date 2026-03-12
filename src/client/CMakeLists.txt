@@ -94,7 +94,7 @@ add_executable(minecraft-client
 
 target_link_libraries(minecraft-client
     PRIVATE
-        mr_common
+        mc_common
         spdlog::spdlog
         nlohmann_json::nlohmann_json
         glfw
@@ -105,7 +105,7 @@ if(WIN32)
     target_link_libraries(minecraft-client PRIVATE user32 gdi32 ws2_32)
 endif()
 
-mr_set_compiler_warnings(minecraft-client)
+mc_set_compiler_warnings(minecraft-client)
 
 target_compile_features(minecraft-client PRIVATE cxx_std_17)
 

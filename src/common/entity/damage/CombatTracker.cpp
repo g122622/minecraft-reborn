@@ -7,7 +7,7 @@
 #include "../living/LivingEntity.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 CombatTracker::CombatTracker(LivingEntity* owner)
     : m_owner(owner)
@@ -180,4 +180,4 @@ void CombatTracker::updateBestEntry() {
     m_bestEntryIndex = bestIndex;
 }
 
-} // namespace mr
+} // namespace mc

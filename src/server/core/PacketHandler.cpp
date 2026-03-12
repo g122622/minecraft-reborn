@@ -9,7 +9,7 @@
 #include "common/network/ProtocolPackets.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr::server::core {
+namespace mc::server::core {
 
 PacketHandler::PacketHandler(PlayerManager& playerManager,
                               ConnectionManager& connectionManager,
@@ -244,4 +244,4 @@ PacketHandleResult PacketHandler::handleChatMessage(u32 sessionId, const u8* dat
     return PacketHandleResult::Success;
 }
 
-} // namespace mr::server::core
+} // namespace mc::server::core

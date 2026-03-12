@@ -6,11 +6,11 @@
 #include "server/player/ServerPlayer.hpp"
 #include <sstream>
 
-namespace mr {
+namespace mc {
 namespace command {
 
 void ClearCommand::registerTo(CommandDispatcher<ServerCommandSource>& dispatcher) {
-    using namespace mr::command;
+    using namespace mc::command;
 
     auto clearNode = std::make_shared<LiteralCommandNode<ServerCommandSource>>("clear");
     clearNode->setRequirement([](const ServerCommandSource& source) {
@@ -158,4 +158,4 @@ i32 ClearCommand::clearPlayerItemCount(CommandContext<ServerCommandSource>& cont
 }
 
 } // namespace command
-} // namespace mr
+} // namespace mc

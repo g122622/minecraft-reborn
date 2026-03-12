@@ -1,6 +1,6 @@
 #include "ChunkStatus.hpp"
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 静态成员初始化
@@ -67,4 +67,4 @@ const ChunkStatus* ChunkStatus::byOrdinal(i32 ordinal)
     return nullptr;
 }
 
-} // namespace mr
+} // namespace mc

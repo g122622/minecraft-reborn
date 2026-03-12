@@ -9,18 +9,18 @@
 #include <mutex>
 #include <any>
 
-namespace mr::entity {
+namespace mc::entity {
 
-// 引入 mr 命名空间的类型
-using mr::u16;
-using mr::i8;
-using mr::i32;
-using mr::i64;
-using mr::f32;
-using mr::String;
-using mr::Vector3i;
-using mr::Vector2f;
-using mr::Vector3f;
+// 引入 mc 命名空间的类型
+using mc::u16;
+using mc::i8;
+using mc::i32;
+using mc::i64;
+using mc::f32;
+using mc::String;
+using mc::Vector3i;
+using mc::Vector2f;
+using mc::Vector3f;
 
 /**
  * @brief 数据参数值包装
@@ -258,4 +258,4 @@ private:
     static inline std::mutex s_mutex;
 };
 
-} // namespace mr::entity
+} // namespace mc::entity

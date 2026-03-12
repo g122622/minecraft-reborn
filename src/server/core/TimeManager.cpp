@@ -1,6 +1,6 @@
 #include "TimeManager.hpp"
 
-namespace mr::server::core {
+namespace mc::server::core {
 
 TimeManager::TimeManager(i64 initialGameTime, i64 initialDayTime)
     : m_gameTime()
@@ -51,4 +51,4 @@ void TimeManager::setDaylightCycleEnabled(bool enabled) {
     m_gameTime.setDaylightCycleEnabled(enabled);
 }
 
-} // namespace mr::server::core
+} // namespace mc::server::core

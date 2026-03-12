@@ -5,7 +5,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-namespace mr::client {
+namespace mc::client {
 
 // 相机投影模式
 enum class ProjectionMode : u8 {
@@ -203,4 +203,4 @@ private:
     bool m_moving = false;
 };
 
-} // namespace mr::client
+} // namespace mc::client

@@ -6,9 +6,9 @@
 #include "common/core/Types.hpp"
 #include <algorithm>
 
-using namespace mr::server::core;
-using namespace mr::network;
-using mr::server::ServerCoreConfig;
+using namespace mc::server::core;
+using namespace mc::network;
+using mc::server::ServerCoreConfig;
 
 /**
  * @brief PlayerManager 单元测试
@@ -159,14 +159,14 @@ TEST_F(PlayerManagerTest, ForEachPlayer) {
     manager.addPlayer(1, "Steve", conn1);
     manager.addPlayer(2, "Alex", conn2);
 
-    std::vector<mr::PlayerId> ids;
-    manager.forEachPlayer([&ids](mr::server::ServerPlayerData& player) {
+    std::vector<mc::PlayerId> ids;
+    manager.forEachPlayer([&ids](mc::server::ServerPlayerData& player) {
         ids.push_back(player.playerId);
     });
 
     EXPECT_EQ(ids.size(), 2u);
-    EXPECT_NE(std::find(ids.begin(), ids.end(), mr::PlayerId(1)), ids.end());
-    EXPECT_NE(std::find(ids.begin(), ids.end(), mr::PlayerId(2)), ids.end());
+    EXPECT_NE(std::find(ids.begin(), ids.end(), mc::PlayerId(1)), ids.end());
+    EXPECT_NE(std::find(ids.begin(), ids.end(), mc::PlayerId(2)), ids.end());
 }
 
 TEST_F(PlayerManagerTest, GetPlayerIds) {

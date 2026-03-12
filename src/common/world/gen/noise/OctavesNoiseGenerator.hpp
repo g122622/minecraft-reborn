@@ -6,7 +6,7 @@
 #include <memory>
 #include <cmath>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 多倍频噪声生成器
@@ -199,4 +199,4 @@ private:
     [[nodiscard]] f32 grad(i32 hash, f32 x, f32 y, f32 z) const;
 };
 
-} // namespace mr
+} // namespace mc

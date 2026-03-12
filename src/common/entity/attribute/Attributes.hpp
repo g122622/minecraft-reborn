@@ -4,7 +4,7 @@
 #include <memory>
 #include <unordered_map>
 
-namespace mr {
+namespace mc {
 namespace entity {
 namespace attribute {
 
@@ -197,4 +197,4 @@ constexpr const char* JUMP_BOOST = "generic.jump_boost";
 
 } // namespace attribute
 } // namespace entity
-} // namespace mr
+} // namespace mc

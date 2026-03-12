@@ -10,7 +10,7 @@
 #include <functional>
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class WorldGenRegion;
@@ -238,4 +238,4 @@ protected:
     std::unique_ptr<WorldGenSpawner> m_worldGenSpawner;
 };
 
-} // namespace mr
+} // namespace mc

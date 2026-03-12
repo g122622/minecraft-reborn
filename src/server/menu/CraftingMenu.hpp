@@ -6,7 +6,7 @@
 #include "screen/ScreenType.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 class CraftingTableEntity;
 class World;
@@ -245,4 +245,4 @@ private:
     CraftResultInventory m_result;
 };
 
-} // namespace mr
+} // namespace mc

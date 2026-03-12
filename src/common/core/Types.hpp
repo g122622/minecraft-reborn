@@ -6,7 +6,7 @@
 #include <string_view>
 #include <optional>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 基础类型定义
@@ -299,4 +299,4 @@ enum class BlockId : u32 {
     Unknown = 0xFFFFFFFF
 };
 
-} // namespace mr
+} // namespace mc

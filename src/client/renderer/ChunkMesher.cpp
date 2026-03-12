@@ -3,7 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 静态成员初始化
@@ -388,4 +388,4 @@ void ChunkMeshCache::clear() {
     m_dirtyCount = 0;
 }
 
-} // namespace mr
+} // namespace mc

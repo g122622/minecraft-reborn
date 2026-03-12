@@ -1,7 +1,7 @@
 #include "ResourceLocation.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 ResourceLocation::ResourceLocation()
     : m_namespace("minecraft")
@@ -81,4 +81,4 @@ size_t ResourceLocation::hash() const {
     return h1 ^ (h2 << 1);
 }
 
-} // namespace mr
+} // namespace mc

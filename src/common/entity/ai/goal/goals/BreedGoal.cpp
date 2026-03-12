@@ -11,7 +11,7 @@
 #include "../../../../math/random/Random.hpp"
 #include <cmath>
 
-namespace mr::entity::ai::goal {
+namespace mc::entity::ai::goal {
 
 using namespace constants;
 
@@ -107,4 +107,4 @@ void BreedGoal::spawnBaby() {
     }
 }
 
-} // namespace mr::entity::ai::goal
+} // namespace mc::entity::ai::goal

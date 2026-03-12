@@ -7,7 +7,7 @@
 #include <memory>
 #include <random>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 生物群系提供者基类
@@ -130,4 +130,4 @@ private:
         f32 valley) const;
 };
 
-} // namespace mr
+} // namespace mc

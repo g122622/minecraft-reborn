@@ -5,7 +5,7 @@
 #include "../network/ProtocolPackets.hpp"
 #include <array>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 玩家能力标志
@@ -357,4 +357,4 @@ private:
     i32 deathTime = 0;
 };
 
-} // namespace mr
+} // namespace mc

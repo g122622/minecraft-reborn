@@ -8,7 +8,7 @@
 #include <chrono>
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class Entity;
@@ -204,4 +204,4 @@ private:
 };
 
 } // namespace client
-} // namespace mr
+} // namespace mc

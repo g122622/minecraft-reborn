@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-namespace mr::network {
+namespace mc::network {
 
 /**
  * @brief 服务端连接类型
@@ -71,4 +71,4 @@ using ConnectionPtr = std::shared_ptr<IServerConnection>;
 /// 连接弱指针类型
 using ConnectionWeakPtr = std::weak_ptr<IServerConnection>;
 
-} // namespace mr::network
+} // namespace mc::network

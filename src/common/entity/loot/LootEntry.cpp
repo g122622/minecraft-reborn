@@ -2,7 +2,7 @@
 #include "LootTable.hpp"
 #include "common/item/ItemRegistry.hpp"
 
-namespace mr {
+namespace mc {
 namespace loot {
 
 // ============================================================================
@@ -259,4 +259,4 @@ std::unique_ptr<LootEntry> LootEntryBuilder::build() const {
 }
 
 } // namespace loot
-} // namespace mr
+} // namespace mc

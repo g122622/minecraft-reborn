@@ -10,7 +10,7 @@
 #include <cmath>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 namespace entity::ai::goal {
 
@@ -83,4 +83,4 @@ protected:
 };
 
 } // namespace entity::ai::goal
-} // namespace mr
+} // namespace mc

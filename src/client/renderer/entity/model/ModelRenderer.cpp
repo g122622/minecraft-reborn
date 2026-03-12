@@ -2,7 +2,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace mr::client::renderer {
+namespace mc::client::renderer {
 
 // ============================================================================
 // TexturedQuad
@@ -462,4 +462,4 @@ void ModelRenderer::interpolateRotation(const Vector3f& target, f32 speed) {
     m_rotateAngleZ += (target.z - m_rotateAngleZ) * speed;
 }
 
-} // namespace mr::client::renderer
+} // namespace mc::client::renderer

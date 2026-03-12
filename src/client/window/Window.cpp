@@ -3,7 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <GLFW/glfw3.h>
 
-namespace mr::client {
+namespace mc::client {
 
 // 静态计数器，跟踪GLFW初始化
 static int s_glfwInitCount = 0;
@@ -299,4 +299,4 @@ void Window::scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
     }
 }
 
-} // namespace mr::client
+} // namespace mc::client

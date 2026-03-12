@@ -4,14 +4,14 @@
 #include "../math/Vector3.hpp"
 #include "../util/AxisAlignedBB.hpp"
 
-namespace mr::entity {
+namespace mc::entity {
 
-// 引入 mr 命名空间的类型
-using mr::f32;
-using mr::f64;
-using mr::Vector3;
-using mr::Vector3d;
-using mr::AxisAlignedBB;
+// 引入 mc 命名空间的类型
+using mc::f32;
+using mc::f64;
+using mc::Vector3;
+using mc::Vector3d;
+using mc::AxisAlignedBB;
 
 /**
  * @brief 实体尺寸类
@@ -145,4 +145,4 @@ private:
     bool m_fixed;
 };
 
-} // namespace mr::entity
+} // namespace mc::entity

@@ -11,8 +11,8 @@
 #include "common/world/spawn/MobSpawnInfo.hpp"
 #include "common/math/random/Random.hpp"
 
-using namespace mr;
-using namespace mr::entity;
+using namespace mc;
+using namespace mc::entity;
 
 /**
  * @brief 区块生成生物集成测试

@@ -3,7 +3,7 @@
 #include "common/command/arguments/ArgumentType.hpp"
 #include <sstream>
 
-namespace mr {
+namespace mc {
 namespace command {
 
 // 命令帮助信息
@@ -24,7 +24,7 @@ static const struct {
 };
 
 void HelpCommand::registerTo(CommandDispatcher<ServerCommandSource>& dispatcher) {
-    using namespace mr::command;
+    using namespace mc::command;
 
     auto helpNode = std::make_shared<LiteralCommandNode<ServerCommandSource>>("help");
     helpNode->setRequirement([](const ServerCommandSource& source) {
@@ -83,4 +83,4 @@ i32 HelpCommand::showCommandHelp(CommandContext<ServerCommandSource>& context) {
 }
 
 } // namespace command
-} // namespace mr
+} // namespace mc

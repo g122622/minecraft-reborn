@@ -5,7 +5,7 @@
 #include <vector>
 #include <unordered_map>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 属性接口基类 - 提供类型擦除的接口
@@ -65,4 +65,4 @@ public:
     [[nodiscard]] virtual const char* typeName() const = 0;
 };
 
-} // namespace mr
+} // namespace mc

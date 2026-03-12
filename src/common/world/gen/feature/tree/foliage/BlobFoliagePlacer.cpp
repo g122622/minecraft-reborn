@@ -1,7 +1,7 @@
 #include "BlobFoliagePlacer.hpp"
 #include <cmath>
 
-namespace mr {
+namespace mc {
 
 BlobFoliagePlacer::BlobFoliagePlacer(const FeatureSpread& radius, const FeatureSpread& offset, i32 height)
     : FoliagePlacer(radius, offset)
@@ -68,4 +68,4 @@ std::unique_ptr<FoliagePlacer> BlobFoliagePlacer::clone() const {
     return std::make_unique<BlobFoliagePlacer>(m_radius, m_offset, m_height);
 }
 
-} // namespace mr
+} // namespace mc

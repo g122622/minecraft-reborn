@@ -7,7 +7,7 @@
 #include <nlohmann/json.hpp>
 #include <memory>
 
-namespace mr {
+namespace mc {
 namespace crafting {
 
 /**
@@ -130,4 +130,4 @@ private:
 };
 
 } // namespace crafting
-} // namespace mr
+} // namespace mc

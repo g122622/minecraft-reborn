@@ -17,8 +17,8 @@
 #include "server/command/CommandRegistry.hpp"
 #include "server/command/ServerCommandSource.hpp"
 
-using namespace mr;
-using namespace mr::command;
+using namespace mc;
+using namespace mc::command;
 
 // ========== StringReader Tests ==========
 

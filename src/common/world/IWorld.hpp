@@ -5,7 +5,7 @@
 #include "../util/AxisAlignedBB.hpp"
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class Entity;
@@ -160,4 +160,4 @@ protected:
     IWorld() = default;
 };
 
-} // namespace mr
+} // namespace mc

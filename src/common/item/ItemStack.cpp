@@ -4,7 +4,7 @@
 #include "../world/block/Block.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 静态常量
@@ -280,4 +280,4 @@ bool ItemStack::operator==(const ItemStack& other) const {
            m_damage == other.m_damage;
 }
 
-} // namespace mr
+} // namespace mc

@@ -3,7 +3,7 @@
 #include "common/network/IServerConnection.hpp"
 #include "common/network/LocalConnection.hpp"
 
-namespace mr::network {
+namespace mc::network {
 
 /**
  * @brief 本地服务端连接适配器
@@ -54,4 +54,4 @@ private:
     u64 m_id;
 };
 
-} // namespace mr::network
+} // namespace mc::network

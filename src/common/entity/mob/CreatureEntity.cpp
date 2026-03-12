@@ -1,7 +1,7 @@
 #include "CreatureEntity.hpp"
 #include "../ai/controller/MovementController.hpp"
 
-namespace mr {
+namespace mc {
 
 CreatureEntity::CreatureEntity(LegacyEntityType type, EntityId id)
     : MobEntity(type, id)
@@ -29,4 +29,4 @@ bool CreatureEntity::canSpawnAt(f32 /*x*/, f32 y, f32 /*z*/) const {
     return y >= 0.0f;
 }
 
-} // namespace mr
+} // namespace mc

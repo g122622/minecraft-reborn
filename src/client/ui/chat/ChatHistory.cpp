@@ -1,6 +1,6 @@
 #include "ChatHistory.hpp"
 
-namespace mr::client {
+namespace mc::client {
 
 void ChatHistory::addMessage(const String& message, u32 color, bool permanent) {
     m_messages.emplace_front(message, color, permanent);
@@ -101,4 +101,4 @@ void ChatHistory::clearInputHistory() {
     m_savedInput.clear();
 }
 
-} // namespace mr::client
+} // namespace mc::client

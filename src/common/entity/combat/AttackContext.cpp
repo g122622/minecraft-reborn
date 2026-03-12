@@ -1,7 +1,7 @@
 #include "AttackContext.hpp"
 #include "../damage/DamageSource.hpp"
 
-namespace mr::entity::combat {
+namespace mc::entity::combat {
 
 AttackContext::AttackContext(Entity* attacker, LivingEntity* target)
     : m_attacker(attacker)
@@ -66,4 +66,4 @@ std::unique_ptr<DamageSource> AttackContext::createDamageSource() const {
     return std::make_unique<EnvironmentalDamage>(DamageType::Generic);
 }
 
-} // namespace mr::entity::combat
+} // namespace mc::entity::combat

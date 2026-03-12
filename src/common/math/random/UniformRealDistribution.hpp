@@ -3,7 +3,7 @@
 #include "../../core/Types.hpp"
 #include "IRandom.hpp"
 
-namespace mr::math {
+namespace mc::math {
 
 /**
  * @brief 均匀实数分布生成器
@@ -78,4 +78,4 @@ private:
     f32 m_max;
 };
 
-} // namespace mr::math
+} // namespace mc::math

@@ -3,7 +3,7 @@
 #include "../mob/AgeableEntity.hpp"
 #include "../../core/Types.hpp"
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class ItemStack;
@@ -128,4 +128,4 @@ private:
     static constexpr i32 IN_LOVE_DURATION = 600; // 爱心状态持续时间（30秒）
 };
 
-} // namespace mr
+} // namespace mc

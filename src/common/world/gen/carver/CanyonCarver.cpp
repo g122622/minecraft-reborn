@@ -5,7 +5,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // CanyonCarver 实现
@@ -195,4 +195,4 @@ f32 CanyonCarver::updateRadius(
     return baseRadius * factor;
 }
 
-} // namespace mr
+} // namespace mc

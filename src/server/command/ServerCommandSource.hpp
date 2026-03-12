@@ -7,7 +7,7 @@
 #include <vector>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class MinecraftServer;
@@ -177,4 +177,4 @@ private:
 };
 
 } // namespace command
-} // namespace mr
+} // namespace mc

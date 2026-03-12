@@ -9,11 +9,11 @@
 #include <functional>
 #include <vector>
 
-namespace mr {
+namespace mc {
 class Entity;
 }
 
-namespace mr::client {
+namespace mc::client {
 
 // 前向声明
 class ClientEntity;
@@ -169,4 +169,4 @@ private:
 };
 
 } // namespace renderer
-} // namespace mr::client
+} // namespace mc::client

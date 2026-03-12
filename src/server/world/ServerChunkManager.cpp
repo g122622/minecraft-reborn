@@ -4,7 +4,7 @@
 #include <chrono>
 #include <spdlog/spdlog.h>
 
-namespace mr::server {
+namespace mc::server {
 
 namespace {
 
@@ -764,4 +764,4 @@ size_t ServerChunkManager::pendingTaskCount() const
     return m_workerPool.pendingTaskCount();
 }
 
-} // namespace mr::server
+} // namespace mc::server

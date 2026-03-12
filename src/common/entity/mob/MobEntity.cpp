@@ -5,7 +5,7 @@
 #include "../ai/pathfinding/PathNavigator.hpp"
 #include "../../math/random/Random.hpp"
 
-namespace mr {
+namespace mc {
 
 MobEntity::MobEntity(LegacyEntityType type, EntityId id)
     : LivingEntity(type, id)
@@ -108,4 +108,4 @@ void MobEntity::tick() {
     }
 }
 
-} // namespace mr
+} // namespace mc

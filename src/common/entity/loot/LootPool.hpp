@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-namespace mr {
+namespace mc {
 namespace loot {
 
 /**
@@ -184,4 +184,4 @@ private:
 };
 
 } // namespace loot
-} // namespace mr
+} // namespace mc

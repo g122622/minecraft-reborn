@@ -5,7 +5,7 @@
 #include "common/entity/PlayerManager.hpp"
 #include "common/network/PacketSerializer.hpp"
 
-using namespace mr;
+using namespace mc;
 
 // ============================================================================
 // Entity 测试

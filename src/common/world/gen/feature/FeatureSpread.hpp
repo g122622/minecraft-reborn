@@ -3,7 +3,7 @@
 #include "../../../core/Types.hpp"
 #include "../../../math/random/Random.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 特征扩散配置
@@ -67,4 +67,4 @@ private:
     i32 m_spread;
 };
 
-} // namespace mr
+} // namespace mc

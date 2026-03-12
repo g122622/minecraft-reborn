@@ -3,7 +3,7 @@
 #include "Goal.hpp"
 #include <memory>
 
-namespace mr::entity::ai {
+namespace mc::entity::ai {
 
 /**
  * @brief 带优先级的目标包装器
@@ -140,4 +140,4 @@ private:
     bool m_running;                  // 是否正在运行
 };
 
-} // namespace mr::entity::ai
+} // namespace mc::entity::ai

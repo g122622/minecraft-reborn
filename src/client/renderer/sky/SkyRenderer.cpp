@@ -9,7 +9,7 @@
 #include <fstream>
 #include <array>
 
-namespace mr::client {
+namespace mc::client {
 
 namespace {
 
@@ -320,7 +320,7 @@ void SkyRenderer::renderSun(VkCommandBuffer cmd) {
     }
 
     if (shouldLog) {
-        const f32 angle = m_celestialAngle * mr::math::TAU_F;
+        const f32 angle = m_celestialAngle * mc::math::TAU_F;
         const f32 height = std::cos(angle);
         const f32 xz = std::sin(angle);
         const glm::vec3 sunDir = glm::normalize(glm::vec3(xz, height, 0.0f));
@@ -463,7 +463,7 @@ Result<void> SkyRenderer::createStarVBO() {
     // 在单位球面上均匀分布星星
     for (i32 i = 0; i < CelestialCalculations::getStarCount(); ++i) {
         // 使用球面均匀分布算法（Random.nextDouble() 返回 f64，转换为 f32 用于内部计算）
-        f32 theta = static_cast<f32>(2.0 * mr::math::PI_DOUBLE * rng.nextDouble());
+        f32 theta = static_cast<f32>(2.0 * mc::math::PI_DOUBLE * rng.nextDouble());
         f32 phi = static_cast<f32>(std::acos(2.0 * rng.nextDouble() - 1.0));
         constexpr f32 radius = 100.0f; // 星星距离
 
@@ -876,7 +876,7 @@ void SkyRenderer::updateUniformBuffer(u32 frameIndex) {
     // sun.vert 在太阳接近天顶/天底时会出现 right=normalize(cross(up, sunDir)) 退化。
     // 这里做极小偏移，避免精确零向量导致太阳四边形退化不可见。
     f32 adjustedAngle = m_celestialAngle;
-    const f32 angleRad = adjustedAngle * mr::math::TAU_F;
+    const f32 angleRad = adjustedAngle * mc::math::TAU_F;
     if (std::abs(std::sin(angleRad)) < 1e-4f) {
         adjustedAngle += 1e-4f;
         if (adjustedAngle >= 1.0f) {
@@ -892,4 +892,4 @@ void SkyRenderer::updateUniformBuffer(u32 frameIndex) {
     m_uniformBuffers[frameIndex]->upload(&ubo, sizeof(SkyUBO));
 }
 
-} // namespace mr::client
+} // namespace mc::client

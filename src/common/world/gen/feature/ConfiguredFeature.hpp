@@ -8,7 +8,7 @@
 #include <vector>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class WorldGenRegion;
@@ -147,4 +147,4 @@ public:
         u64 seed);
 };
 
-} // namespace mr
+} // namespace mc

@@ -7,7 +7,7 @@
 // stb_image is already implemented in TextureAtlasBuilder.cpp
 #include <stb_image.h>
 
-namespace mr::client {
+namespace mc::client {
 
 EntityTextureAtlas::EntityTextureAtlas() = default;
 
@@ -75,7 +75,7 @@ void EntityTextureAtlas::destroy() {
     spdlog::info("EntityTextureAtlas destroyed");
 }
 
-Result<void> EntityTextureAtlas::addTexture(mr::IResourcePack& pack, const ResourceLocation& location) {
+Result<void> EntityTextureAtlas::addTexture(mc::IResourcePack& pack, const ResourceLocation& location) {
     if (m_built) {
         return Error(ErrorCode::InvalidState, "Atlas already built");
     }
@@ -232,7 +232,7 @@ const TextureRegion* EntityTextureAtlas::getRegion(const String& location) const
     return getRegion(loc);
 }
 
-Result<void> EntityTextureAtlas::loadTextureWithFallback(mr::IResourcePack& pack,
+Result<void> EntityTextureAtlas::loadTextureWithFallback(mc::IResourcePack& pack,
                                                           const ResourceLocation& location,
                                                           std::vector<u8>& outData,
                                                           u32& outWidth,
@@ -493,4 +493,4 @@ void EntityTextureAtlas::endSingleTimeCommands(VkCommandBuffer cmd) {
     vkFreeCommandBuffers(m_context->device(), m_commandPool, 1, &cmd);
 }
 
-} // namespace mr::client
+} // namespace mc::client

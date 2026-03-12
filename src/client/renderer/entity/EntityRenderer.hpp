@@ -4,7 +4,7 @@
 #include "../../../common/math/Vector3.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class Entity;
@@ -105,4 +105,4 @@ public:
 };
 
 } // namespace client::renderer
-} // namespace mr
+} // namespace mc

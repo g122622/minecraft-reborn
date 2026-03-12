@@ -8,7 +8,7 @@
 
 #include <unordered_map>
 
-using namespace mr;
+using namespace mc;
 
 namespace {
 

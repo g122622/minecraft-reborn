@@ -8,7 +8,7 @@
 #include <memory>
 #include <functional>
 
-namespace mr::client {
+namespace mc::client {
 
 /**
  * @brief 容器屏幕基类
@@ -36,7 +36,7 @@ namespace mr::client {
 template<typename Menu>
 class AbstractContainerScreen : public IScreen {
 public:
-    using ContainerClickSender = std::function<void(ContainerId, i32, i32, ClickAction, const mr::ItemStack&)>;
+    using ContainerClickSender = std::function<void(ContainerId, i32, i32, ClickAction, const mc::ItemStack&)>;
     using ContainerCloseSender = std::function<void(ContainerId)>;
 
     /**
@@ -112,7 +112,7 @@ public:
         }
 
         // 查找点击的槽位
-        mr::Slot* slot = getSlotAt(mouseX, mouseY);
+        mc::Slot* slot = getSlotAt(mouseX, mouseY);
         if (slot != nullptr) {
             return onSlotClick(*slot, slot->getIndex(), button);
         }
@@ -144,7 +144,7 @@ public:
      * @brief 屏幕关闭
      */
     void onClose() override {
-        if (m_closeSender && m_menu != nullptr && m_menu->getId() != mr::inventory::PLAYER_CONTAINER_ID) {
+        if (m_closeSender && m_menu != nullptr && m_menu->getId() != mc::inventory::PLAYER_CONTAINER_ID) {
             m_closeSender(m_menu->getId());
         }
     }
@@ -165,10 +165,10 @@ public:
     /**
      * @brief 获取鼠标持有的物品
      */
-    [[nodiscard]] mr::ItemStack& getCarriedItem() {
+    [[nodiscard]] mc::ItemStack& getCarriedItem() {
         return m_menu ? m_menu->getCarriedItem() : m_emptyStack;
     }
-    [[nodiscard]] const mr::ItemStack& getCarriedItem() const {
+    [[nodiscard]] const mc::ItemStack& getCarriedItem() const {
         return m_menu ? m_menu->getCarriedItem() : m_emptyStack;
     }
 
@@ -265,7 +265,7 @@ protected:
      * @brief 渲染悬停提示
      */
     virtual void renderTooltip(i32 mouseX, i32 mouseY) {
-        mr::Slot* slot = getSlotAt(mouseX, mouseY);
+        mc::Slot* slot = getSlotAt(mouseX, mouseY);
         if (slot != nullptr && !slot->getItem().isEmpty()) {
             // TODO: 渲染物品提示
         }
@@ -277,14 +277,14 @@ protected:
      * @param mouseY 鼠标Y坐标
      * @return 槽位指针，如果无效返回nullptr
      */
-    [[nodiscard]] mr::Slot* getSlotAt(i32 mouseX, i32 mouseY) {
+    [[nodiscard]] mc::Slot* getSlotAt(i32 mouseX, i32 mouseY) {
         if (m_menu == nullptr) {
             return nullptr;
         }
 
         // 遍历所有槽位查找
         for (i32 i = 0; i < m_menu->getSlotCount(); ++i) {
-            mr::Slot* slot = m_menu->getSlot(i);
+            mc::Slot* slot = m_menu->getSlot(i);
             if (slot != nullptr && isMouseOverSlot(*slot, mouseX, mouseY)) {
                 return slot;
             }
@@ -295,7 +295,7 @@ protected:
     /**
      * @brief 检查鼠标是否在槽位上
      */
-    [[nodiscard]] virtual bool isMouseOverSlot(const mr::Slot& slot, i32 mouseX, i32 mouseY) const {
+    [[nodiscard]] virtual bool isMouseOverSlot(const mc::Slot& slot, i32 mouseX, i32 mouseY) const {
         i32 slotX = m_leftPos + slot.getX();
         i32 slotY = m_topPos + slot.getY();
         return mouseX >= slotX && mouseX < slotX + 16 &&
@@ -305,12 +305,12 @@ protected:
     /**
      * @brief 槽位点击处理
      */
-    virtual bool onSlotClick(mr::Slot& slot, i32 slotIndex, i32 button) {
+    virtual bool onSlotClick(mc::Slot& slot, i32 slotIndex, i32 button) {
         if (m_menu == nullptr) {
             return false;
         }
 
-        if (m_clickSender && m_menu->getId() != mr::inventory::PLAYER_CONTAINER_ID) {
+        if (m_clickSender && m_menu->getId() != mc::inventory::PLAYER_CONTAINER_ID) {
             const ClickAction action = (button == 0) ? ClickAction::Pick : ClickAction::Pickup;
             m_clickSender(m_menu->getId(), slotIndex, button, action, m_menu->getCarriedItem());
         }
@@ -340,11 +340,11 @@ protected:
     bool m_initialized;     ///< 是否已初始化
 
     // 空物品堆（用于空菜单时返回）
-    static mr::ItemStack m_emptyStack;
+    static mc::ItemStack m_emptyStack;
 };
 
 // 静态成员定义
 template<typename Menu>
-mr::ItemStack AbstractContainerScreen<Menu>::m_emptyStack;
+mc::ItemStack AbstractContainerScreen<Menu>::m_emptyStack;
 
-} // namespace mr::client
+} // namespace mc::client

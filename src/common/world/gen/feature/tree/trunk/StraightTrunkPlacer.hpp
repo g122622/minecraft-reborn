@@ -2,7 +2,7 @@
 
 #include "TrunkPlacer.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 直树干放置器
@@ -51,4 +51,4 @@ public:
     }
 };
 
-} // namespace mr
+} // namespace mc

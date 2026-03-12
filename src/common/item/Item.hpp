@@ -6,7 +6,7 @@
 #include <string>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class BlockState;
@@ -309,4 +309,4 @@ protected:
     bool m_repairable = true;
 };
 
-} // namespace mr
+} // namespace mc

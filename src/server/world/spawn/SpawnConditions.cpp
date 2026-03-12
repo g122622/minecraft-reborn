@@ -3,7 +3,7 @@
 #include "../../../common/world/block/Block.hpp"
 #include "../../../common/util/AxisAlignedBB.hpp"
 
-namespace mr::world::spawn {
+namespace mc::world::spawn {
 
 /**
  * @brief MC 1.16.5 光照等级检查
@@ -130,4 +130,4 @@ bool SpawnConditions::isInLava(IWorld& world, i32 x, i32 y, i32 z) {
     return block->isLiquid() && block->lightLevel() > 0;
 }
 
-} // namespace mr::world::spawn
+} // namespace mc::world::spawn

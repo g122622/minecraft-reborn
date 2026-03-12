@@ -4,7 +4,7 @@
 #include "../../common/core/Result.hpp"
 #include <array>
 
-namespace mr::client {
+namespace mc::client {
 
 /**
  * @brief 默认ASCII位图字体生成器
@@ -50,4 +50,4 @@ private:
     [[nodiscard]] static const u8* getFontData(char c);
 };
 
-} // namespace mr::client
+} // namespace mc::client

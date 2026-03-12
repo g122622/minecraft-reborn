@@ -10,7 +10,7 @@
 #include <cassert>
 #include <sstream>
 
-namespace mr {
+namespace mc {
 namespace nbt {
 
 void skip_space(std::istream& input) {
@@ -905,13 +905,13 @@ void dump_array_text<std::int64_t>(std::ostream& output, const std::vector<std::
 }
 
 } // namespace nbt
-} // namespace mr
+} // namespace mc
 
 namespace std {
 
-string to_string(mr::nbt::TagId tid) {
+string to_string(mc::nbt::TagId tid) {
 #	define TAG_ID_CASE(name) \
-		case mr::nbt::TagId::name: return #name
+		case mc::nbt::TagId::name: return #name
 	switch (tid) {
 		TAG_ID_CASE(End);
 		TAG_ID_CASE(Byte);
@@ -932,8 +932,8 @@ string to_string(mr::nbt::TagId tid) {
 #	undef TAG_ID_CASE
 }
 
-string to_string(const mr::nbt::tags::tag& tag) {
-    using namespace mr::nbt;
+string to_string(const mc::nbt::tags::tag& tag) {
+    using namespace mc::nbt;
     std::stringstream result;
     tag.write(result << Contexts::mojangson);
     return result.str();

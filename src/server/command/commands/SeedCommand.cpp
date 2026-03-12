@@ -4,11 +4,11 @@
 #include "server/world/ServerWorld.hpp"
 #include <sstream>
 
-namespace mr {
+namespace mc {
 namespace command {
 
 void SeedCommand::registerTo(CommandDispatcher<ServerCommandSource>& dispatcher) {
-    using namespace mr::command;
+    using namespace mc::command;
 
     auto seedNode = std::make_shared<LiteralCommandNode<ServerCommandSource>>("seed");
     seedNode->setRequirement([](const ServerCommandSource& source) {
@@ -43,4 +43,4 @@ i32 SeedCommand::showSeed(CommandContext<ServerCommandSource>& context) {
 }
 
 } // namespace command
-} // namespace mr
+} // namespace mc

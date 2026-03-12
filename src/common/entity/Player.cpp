@@ -8,7 +8,7 @@
 #include <cmath>
 #include <chrono>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // Player 实现
@@ -598,4 +598,4 @@ Result<std::unique_ptr<Player>> Player::deserialize(network::PacketDeserializer&
     return player;
 }
 
-} // namespace mr
+} // namespace mc

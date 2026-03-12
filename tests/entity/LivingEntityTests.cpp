@@ -4,8 +4,8 @@
 #include "common/entity/damage/DamageSource.hpp"
 #include "common/entity/attribute/Attributes.hpp"
 
-using namespace mr;
-using namespace mr::entity::attribute;
+using namespace mc;
+using namespace mc::entity::attribute;
 
 // ============================================================================
 // LivingEntity 测试类

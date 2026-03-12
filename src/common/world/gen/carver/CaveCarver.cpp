@@ -6,7 +6,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // CaveCarver 实现
@@ -242,4 +242,4 @@ void CaveCarver::carveRoom(
                    carvingMask, seed);
 }
 
-} // namespace mr
+} // namespace mc

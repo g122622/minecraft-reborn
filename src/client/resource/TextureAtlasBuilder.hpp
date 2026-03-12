@@ -8,7 +8,7 @@
 #include <map>
 #include <set>
 
-namespace mr {
+namespace mc {
 
 class IResourcePack;
 
@@ -100,4 +100,4 @@ private:
         size_t index);
 };
 
-} // namespace mr
+} // namespace mc

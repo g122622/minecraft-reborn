@@ -3,7 +3,7 @@
 #include "NoiseSettings.hpp"
 #include "../../block/Block.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 维度生成设置
@@ -75,4 +75,4 @@ struct DimensionSettings {
     }
 };
 
-} // namespace mr
+} // namespace mc

@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <sstream>
 
-namespace mr {
+namespace mc {
 
 namespace fs = std::filesystem;
 
@@ -203,4 +203,4 @@ ResourceLocation RecipeLoader::pathToRecipeId(const String& filePath) const {
     return ResourceLocation(namespace_, recipePath);
 }
 
-} // namespace mr
+} // namespace mc

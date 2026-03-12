@@ -6,7 +6,7 @@
 #include "blocks/SimpleBlock.hpp"
 #include "blocks/RotatedPillarBlock.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 原版方块静态引用
@@ -214,4 +214,4 @@ private:
     static void registerVegetationBlocks();
 };
 
-} // namespace mr
+} // namespace mc

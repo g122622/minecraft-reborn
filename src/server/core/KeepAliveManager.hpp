@@ -4,7 +4,7 @@
 #include "ServerCoreConfig.hpp"
 #include <vector>
 
-namespace mr::server::core {
+namespace mc::server::core {
 
 // 前向声明
 class PlayerManager;
@@ -129,4 +129,4 @@ private:
     i32 m_keepAliveTimeout;   ///< 心跳超时（毫秒）
 };
 
-} // namespace mr::server::core
+} // namespace mc::server::core

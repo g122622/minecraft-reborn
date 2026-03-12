@@ -8,7 +8,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace mr::command {
+namespace mc::command {
 
 // 前向声明
 template<typename S>
@@ -359,4 +359,4 @@ private:
     std::unordered_map<String, T> m_values;
 };
 
-} // namespace mr::command
+} // namespace mc::command

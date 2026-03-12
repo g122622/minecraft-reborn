@@ -19,7 +19,7 @@
 #include <chrono>
 #include <filesystem>
 
-namespace mr::client {
+namespace mc::client {
 
 namespace {
 
@@ -88,7 +88,7 @@ void captureMouseAfterScreens(InputManager& input, bool& mouseCaptured) {
  * 射线检测接口当前要求 IBlockReader，
  * 而 ClientWorld 实现的是 ICollisionWorld（方法签名兼容）。
  */
-class ClientWorldBlockReader final : public mr::IBlockReader {
+class ClientWorldBlockReader final : public mc::IBlockReader {
 public:
     explicit ClientWorldBlockReader(const ClientWorld& world)
         : m_world(world)
@@ -169,7 +169,7 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
     }
 
     spdlog::info("=== Minecraft Reborn Client ===");
-    spdlog::info("Version: {}.{}.{}", MR_VERSION_MAJOR, MR_VERSION_MINOR, MR_VERSION_PATCH);
+    spdlog::info("Version: {}.{}.{}", MC_VERSION_MAJOR, MC_VERSION_MINOR, MC_VERSION_PATCH);
     spdlog::info("Initializing client...");
 
     // 初始化方块注册表
@@ -707,14 +707,14 @@ void ClientApplication::update(f32 deltaTime)
         glm::vec3 forward = m_camera.forward();
 
         // 创建射线
-        mr::Vector3 origin(eyePos.x, eyePos.y, eyePos.z);
-        mr::Vector3 direction(forward.x, forward.y, forward.z);
-        mr::Ray ray(origin, direction);
+        mc::Vector3 origin(eyePos.x, eyePos.y, eyePos.z);
+        mc::Vector3 direction(forward.x, forward.y, forward.z);
+        mc::Ray ray(origin, direction);
 
         // 执行射线检测（创造模式使用更远的距离）
-        mr::RaycastContext context(ray, 5.0f);  // 生存模式5格
+        mc::RaycastContext context(ray, 5.0f);  // 生存模式5格
         ClientWorldBlockReader blockReader(m_world);
-        m_raycastResult = mr::raycastBlocks(context, blockReader);
+        m_raycastResult = mc::raycastBlocks(context, blockReader);
 
         // 更新调试屏幕的目标方块
         m_debugScreen.setTargetBlock(&m_raycastResult);
@@ -1472,4 +1472,4 @@ void ClientApplication::handleChatCommand(const String& input)
     }
 }
 
-} // namespace mr::client
+} // namespace mc::client

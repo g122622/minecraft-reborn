@@ -1,7 +1,7 @@
 #include "LocalServerConnection.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr::network {
+namespace mc::network {
 
 LocalServerConnection::LocalServerConnection(LocalEndpoint* endpoint)
     : m_endpoint(endpoint)
@@ -38,4 +38,4 @@ ConnectionType LocalServerConnection::type() const {
     return ConnectionType::Local;
 }
 
-} // namespace mr::network
+} // namespace mc::network

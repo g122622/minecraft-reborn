@@ -4,7 +4,7 @@
 #include "../../util/Direction.hpp"
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 枚举属性
@@ -112,4 +112,4 @@ struct EnumProperty<Axis>::Traits {
     }
 };
 
-} // namespace mr
+} // namespace mc

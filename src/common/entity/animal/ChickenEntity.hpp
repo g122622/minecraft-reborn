@@ -3,7 +3,7 @@
 #include "AnimalEntity.hpp"
 #include "../../core/Types.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 鸡实体
@@ -62,4 +62,4 @@ private:
     static constexpr i32 EGG_TIME_MAX = 12000;  // 最大下蛋时间（10分钟）
 };
 
-} // namespace mr
+} // namespace mc

@@ -6,7 +6,7 @@
 #include <memory>
 #include <array>
 
-namespace mr::client::renderer {
+namespace mc::client::renderer {
 
 /**
  * @brief 模型顶点（参考MC PositionTextureVertex）
@@ -384,4 +384,4 @@ private:
     static ModelVertex transformVertex(const ModelVertex& vertex, const std::array<f32, 16>& matrix);
 };
 
-} // namespace mr::client::renderer
+} // namespace mc::client::renderer

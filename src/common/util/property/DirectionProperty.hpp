@@ -3,7 +3,7 @@
 #include "EnumProperty.hpp"
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 方向属性
@@ -104,4 +104,4 @@ public:
     }
 };
 
-} // namespace mr
+} // namespace mc

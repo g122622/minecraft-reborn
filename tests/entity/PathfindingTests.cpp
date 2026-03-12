@@ -6,8 +6,8 @@
 #include "core/Types.hpp"
 #include <cstdlib>
 
-using namespace mr;
-using namespace mr::entity::ai::pathfinding;
+using namespace mc;
+using namespace mc::entity::ai::pathfinding;
 
 // ==================== PathNodeType Tests ====================
 

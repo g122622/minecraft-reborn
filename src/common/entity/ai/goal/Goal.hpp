@@ -3,7 +3,7 @@
 #include "GoalFlag.hpp"
 #include "../../../core/Types.hpp"
 
-namespace mr::entity::ai {
+namespace mc::entity::ai {
 
 /**
  * @brief AI目标基类
@@ -113,4 +113,4 @@ protected:
     EnumSet<GoalFlag> m_flags;  // 互斥标志
 };
 
-} // namespace mr::entity::ai
+} // namespace mc::entity::ai

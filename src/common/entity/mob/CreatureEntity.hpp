@@ -2,7 +2,7 @@
 
 #include "../mob/MobEntity.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 生物实体基类
@@ -69,4 +69,4 @@ protected:
     f64 m_moveSpeed = 1.0;
 };
 
-} // namespace mr
+} // namespace mc

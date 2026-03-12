@@ -4,7 +4,7 @@
 #include <spdlog/spdlog.h>
 #include <cstring>
 
-namespace mr::client {
+namespace mc::client {
 
 // ============================================================================
 // VulkanTexture 实现
@@ -543,18 +543,18 @@ Result<void> VulkanTextureAtlas::upload(
     return Result<void>::ok();
 }
 
-mr::TextureRegion VulkanTextureAtlas::getRegion(u32 tileX, u32 tileY) const {
+mc::TextureRegion VulkanTextureAtlas::getRegion(u32 tileX, u32 tileY) const {
     f32 u0 = static_cast<f32>(tileX * m_tileSize) / static_cast<f32>(m_width);
     f32 v0 = static_cast<f32>(tileY * m_tileSize) / static_cast<f32>(m_height);
     f32 u1 = static_cast<f32>((tileX + 1) * m_tileSize) / static_cast<f32>(m_width);
     f32 v1 = static_cast<f32>((tileY + 1) * m_tileSize) / static_cast<f32>(m_height);
-    return mr::TextureRegion(u0, v0, u1, v1);
+    return mc::TextureRegion(u0, v0, u1, v1);
 }
 
-mr::TextureRegion VulkanTextureAtlas::getRegion(u32 tileIndex) const {
+mc::TextureRegion VulkanTextureAtlas::getRegion(u32 tileIndex) const {
     u32 tileX = tileIndex % m_tilesPerRow;
     u32 tileY = tileIndex / m_tilesPerRow;
     return getRegion(tileX, tileY);
 }
 
-} // namespace mr::client
+} // namespace mc::client

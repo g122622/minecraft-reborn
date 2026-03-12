@@ -2,7 +2,7 @@
 #include "LootTable.hpp"
 #include <chrono>
 
-namespace mr {
+namespace mc {
 namespace loot {
 
 // 预定义掉落参数
@@ -144,4 +144,4 @@ std::unique_ptr<LootContext> LootContextBuilder::build(const LootParameterSet& p
 }
 
 } // namespace loot
-} // namespace mr
+} // namespace mc

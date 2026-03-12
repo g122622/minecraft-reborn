@@ -5,14 +5,14 @@
 
 namespace {
 
-mr::Item& registerBlockBackedItem(mr::ItemRegistry& registry,
-                                  mr::Block* block,
+mc::Item& registerBlockBackedItem(mc::ItemRegistry& registry,
+                                  mc::Block* block,
                                   const char* path,
-                                  mr::ItemProperties properties)
+                                  mc::ItemProperties properties)
 {
-    const mr::ResourceLocation id("minecraft", path);
+    const mc::ResourceLocation id("minecraft", path);
     if (block != nullptr) {
-        return registry.registerItem<mr::BlockItem>(id, *block, std::move(properties));
+        return registry.registerItem<mc::BlockItem>(id, *block, std::move(properties));
     }
 
     return registry.registerItem(id, std::move(properties));
@@ -20,7 +20,7 @@ mr::Item& registerBlockBackedItem(mr::ItemRegistry& registry,
 
 } // namespace
 
-namespace mr {
+namespace mc {
 
 bool Items::s_initialized = false;
 
@@ -987,4 +987,4 @@ void Items::registerCrops() {
     );
 }
 
-} // namespace mr
+} // namespace mc

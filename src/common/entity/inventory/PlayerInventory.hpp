@@ -6,7 +6,7 @@
 #include <array>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class Player;
@@ -299,4 +299,4 @@ private:
     i32 m_timesChanged = 0;  // 变更计数器（用于同步）
 };
 
-} // namespace mr
+} // namespace mc

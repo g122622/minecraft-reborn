@@ -7,7 +7,7 @@
 #include <sstream>
 #include <chrono>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 静态数据参数定义
@@ -326,4 +326,4 @@ Vector3 Entity::getRidingPosition() const {
     return Vector3(0.0f, height(), 0.0f);
 }
 
-} // namespace mr
+} // namespace mc

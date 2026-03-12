@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 
-namespace mr::client {
+namespace mc::client {
 
 // 前向声明
 class VulkanContext;
@@ -155,4 +155,4 @@ private:
     bool m_inBatch = false;              // 是否在批次中
 };
 
-} // namespace mr::client
+} // namespace mc::client

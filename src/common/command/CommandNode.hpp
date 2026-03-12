@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <set>
 
-namespace mr::command {
+namespace mc::command {
 
 // 前向声明
 template<typename S>
@@ -302,4 +302,4 @@ private:
     std::shared_ptr<ArgumentType<T>> m_argumentType;
 };
 
-} // namespace mr::command
+} // namespace mc::command

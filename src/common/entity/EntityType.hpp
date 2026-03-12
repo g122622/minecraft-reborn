@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class Entity;
@@ -17,12 +17,12 @@ class IWorld;
 
 namespace entity {
 
-// 引入 mr 命名空间的类型
-using mr::u16;
-using mr::u32;
-using mr::i32;
-using mr::f32;
-using mr::String;
+// 引入 mc 命名空间的类型
+using mc::u16;
+using mc::u32;
+using mc::i32;
+using mc::f32;
+using mc::String;
 
 /**
  * @brief 实体类型ID
@@ -354,6 +354,6 @@ private:
 
 // 注意：不使用 using EntityType = entity::EntityType;
 // 因为 Constants.hpp 中已有 entity::EntityTypeId 枚举
-// 使用时请明确使用 mr::entity::EntityType
+// 使用时请明确使用 mc::entity::EntityType
 
-} // namespace mr
+} // namespace mc

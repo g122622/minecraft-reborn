@@ -3,7 +3,7 @@
 #include "ItemUseContext.hpp"
 #include "../world/block/Block.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 方块放置上下文
@@ -123,4 +123,4 @@ private:
     Direction m_horizontalDirection; // 玩家水平朝向
 };
 
-} // namespace mr
+} // namespace mc

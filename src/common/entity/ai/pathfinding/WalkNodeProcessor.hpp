@@ -4,7 +4,7 @@
 #include "PathNodeType.hpp"
 #include "../../../core/Types.hpp"
 
-namespace mr::entity::ai::pathfinding {
+namespace mc::entity::ai::pathfinding {
 
 /**
  * @brief 行走节点处理器
@@ -118,4 +118,4 @@ private:
     void addFallNeighbor(std::vector<PathPoint*>& neighbors, i32 x, i32 startY, i32 z);
 };
 
-} // namespace mr::entity::ai::pathfinding
+} // namespace mc::entity::ai::pathfinding

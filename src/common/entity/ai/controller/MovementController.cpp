@@ -6,7 +6,7 @@
 #include "../../../math/MathUtils.hpp"
 #include <cmath>
 
-namespace mr::entity::ai::controller {
+namespace mc::entity::ai::controller {
 
 MovementController::MovementController(MobEntity* mob)
     : m_mob(mob)
@@ -93,4 +93,4 @@ void MovementController::tick() {
     }
 }
 
-} // namespace mr::entity::ai::controller
+} // namespace mc::entity::ai::controller

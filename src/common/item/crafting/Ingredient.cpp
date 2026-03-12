@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <set>
 
-namespace mr {
+namespace mc {
 namespace crafting {
 
 Ingredient Ingredient::fromItem(const Item& item) {
@@ -156,4 +156,4 @@ size_t Ingredient::hash() const {
 }
 
 } // namespace crafting
-} // namespace mr
+} // namespace mc

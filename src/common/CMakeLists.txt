@@ -3,7 +3,7 @@
 
 find_package(LibArchive REQUIRED)
 
-add_library(mr_common STATIC
+add_library(mc_common STATIC
     # Core
     core/Result.cpp
     core/settings/SettingsBase.cpp
@@ -203,13 +203,13 @@ add_library(mr_common STATIC
     util/nbt/Nbt.cpp
 )
 
-target_include_directories(mr_common
+target_include_directories(mc_common
     PUBLIC
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/src
 )
 
-target_link_libraries(mr_common
+target_link_libraries(mc_common
     PUBLIC
         glm::glm
         spdlog::spdlog
@@ -218,12 +218,12 @@ target_link_libraries(mr_common
         LibArchive::LibArchive
 )
 
-mr_set_compiler_warnings(mr_common)
+mc_set_compiler_warnings(mc_common)
 
-target_compile_features(mr_common PUBLIC cxx_std_17)
+target_compile_features(mc_common PUBLIC cxx_std_17)
 
 # 导出头文件
-target_include_directories(mr_common
+target_include_directories(mc_common
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )

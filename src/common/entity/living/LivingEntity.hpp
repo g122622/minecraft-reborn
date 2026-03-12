@@ -9,7 +9,7 @@
 #include <array>
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class World;
@@ -389,4 +389,4 @@ protected:
     CombatTracker m_combatTracker;       // 战斗追踪器
 };
 
-} // namespace mr
+} // namespace mc

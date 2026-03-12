@@ -5,7 +5,7 @@
 #include <vector>
 #include <mutex>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 延迟计算的区域实现
@@ -90,4 +90,4 @@ private:
     u64 m_currentSeed;
 };
 
-} // namespace mr
+} // namespace mc

@@ -3,7 +3,7 @@
 #include "LivingRenderer.hpp"
 #include "model/AnimalModels.hpp"
 
-namespace mr::client::renderer {
+namespace mc::client::renderer {
 
 /**
  * @brief 猪渲染器
@@ -67,4 +67,4 @@ public:
     ~ChickenRenderer() override = default;
 };
 
-} // namespace mr::client::renderer
+} // namespace mc::client::renderer

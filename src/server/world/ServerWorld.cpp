@@ -9,7 +9,7 @@
 #include <chrono>
 #include <spdlog/spdlog.h>
 
-namespace mr::server {
+namespace mc::server {
 
 // ============================================================================
 // ServerWorld 实现
@@ -229,8 +229,8 @@ size_t ServerWorld::playerCount() const {
 
 void ServerWorld::updatePlayerPosition(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch, bool onGround) {
     // 准备区块更新数据（在锁外执行耗时操作）
-    std::vector<mr::ChunkPos> chunksToLoad;
-    std::vector<mr::ChunkPos> chunksToUnload;
+    std::vector<mc::ChunkPos> chunksToLoad;
+    std::vector<mc::ChunkPos> chunksToUnload;
     bool needsChunkUpdate = false;
 
     {
@@ -371,8 +371,8 @@ void ServerWorld::sendInitialChunks(PlayerId playerId) {
     auto it = m_players.find(playerId);
     if (it == m_players.end()) return;
 
-    std::vector<mr::ChunkPos> chunksToLoad;
-    std::vector<mr::ChunkPos> chunksToUnload;
+    std::vector<mc::ChunkPos> chunksToLoad;
+    std::vector<mc::ChunkPos> chunksToUnload;
 
     m_chunkSyncManager.calculateUpdates(playerId, chunksToLoad, chunksToUnload);
 
@@ -764,4 +764,4 @@ i32 ServerWorld::spawnEntitiesFromChunkGeneration(const std::vector<SpawnedEntit
     return spawnedCount;
 }
 
-} // namespace mr::server
+} // namespace mc::server

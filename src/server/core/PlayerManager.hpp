@@ -10,7 +10,7 @@
 #include <functional>
 #include <vector>
 
-namespace mr::server::core {
+namespace mc::server::core {
 
 /**
  * @brief 玩家管理器
@@ -234,4 +234,4 @@ private:
     network::ChunkSyncManager m_chunkSyncManager;
 };
 
-} // namespace mr::server::core
+} // namespace mc::server::core

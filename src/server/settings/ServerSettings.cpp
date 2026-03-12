@@ -3,7 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <fstream>
 
-namespace mr::server {
+namespace mc::server {
 
 ServerSettings::ServerSettings()
     // 网络设置
@@ -129,4 +129,4 @@ std::filesystem::path ServerSettings::getDefaultPath()
     return SettingsBase::getSettingsPath("minecraft-server") / "server.json";
 }
 
-} // namespace mr::server
+} // namespace mc::server

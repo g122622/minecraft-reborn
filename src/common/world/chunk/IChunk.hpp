@@ -6,7 +6,7 @@
 #include <array>
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class BlockState;
@@ -188,4 +188,4 @@ private:
     [[nodiscard]] bool isOpaque(const BlockState* state) const;
 };
 
-} // namespace mr
+} // namespace mc

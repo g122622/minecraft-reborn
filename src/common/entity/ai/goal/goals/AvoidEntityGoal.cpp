@@ -11,7 +11,7 @@
 #include "../../../../math/MathUtils.hpp"
 #include <cmath>
 
-namespace mr::entity::ai::goal {
+namespace mc::entity::ai::goal {
 
 using namespace constants;
 
@@ -132,4 +132,4 @@ bool AvoidEntityGoal::findEscapePosition() {
     return true;
 }
 
-} // namespace mr::entity::ai::goal
+} // namespace mc::entity::ai::goal

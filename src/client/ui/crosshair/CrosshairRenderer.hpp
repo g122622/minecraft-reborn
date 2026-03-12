@@ -2,7 +2,7 @@
 
 #include "common/core/Result.hpp"
 
-namespace mr::client {
+namespace mc::client {
 
 // 前向声明
 class GuiRenderer;
@@ -83,4 +83,4 @@ private:
     f32 m_thickness = 1.0f;       ///< 线宽
 };
 
-} // namespace mr::client
+} // namespace mc::client

@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <limits>
 
-namespace mr::math {
+namespace mc::math {
 
 // ============================================================================
 // 基本数学函数
@@ -274,4 +274,4 @@ inline void idToChunkPos(u64 id, ChunkCoord& x, ChunkCoord& z) noexcept
     return dx * dx + dy * dy + dz * dz;
 }
 
-} // namespace mr::math
+} // namespace mc::math

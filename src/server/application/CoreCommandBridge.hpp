@@ -8,7 +8,7 @@
 #include "server/player/ServerPlayer.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr::server {
+namespace mc::server {
 
 /**
  * @brief 统一的服务端命令桥接类
@@ -60,12 +60,12 @@ public:
         return m_core ? m_core->gameTime().gameTime() : 0;
     }
 
-    [[nodiscard]] std::vector<::mr::ServerPlayer*> getPlayers() override {
+    [[nodiscard]] std::vector<::mc::ServerPlayer*> getPlayers() override {
         // TODO: 从 PlayerManager 获取玩家列表
         return {};
     }
 
-    [[nodiscard]] ::mr::ServerPlayer* getPlayer(const String& /*name*/) override {
+    [[nodiscard]] ::mc::ServerPlayer* getPlayer(const String& /*name*/) override {
         // TODO: 从 PlayerManager 查找玩家
         return nullptr;
     }
@@ -109,4 +109,4 @@ private:
     ServerCore* m_core;
 };
 
-} // namespace mr::server
+} // namespace mc::server

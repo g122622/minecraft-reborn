@@ -2,7 +2,7 @@
 #include "ChunkLoadTicket.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr::world {
+namespace mc::world {
 
 // ============================================================================
 // 预定义票据类型
@@ -346,4 +346,4 @@ const ChunkTicketSet* ChunkLoadTicketManager::getChunkTickets(ChunkCoord x, Chun
     return nullptr;
 }
 
-} // namespace mr::world
+} // namespace mc::world

@@ -322,12 +322,12 @@ void UpdatePlayer();     // ❌ (应使用camelCase)
 
 ```cpp
 // ✅ 推荐：小写命名空间
-namespace mr {
+namespace mc {
 namespace client {
 namespace renderer {
 
 // ✅ 推荐：嵌套不超过3层
-namespace mr::client::renderer {
+namespace mc::client::renderer {
 
 // ✅ 推荐：命名空间别名（长命名空间）
 namespace fs = std::filesystem;
@@ -363,7 +363,7 @@ using namespace std;  // ❌
 class World;
 struct ChunkPos;
 
-namespace mr::world {
+namespace mc::world {
 
 /**
  * @brief 区块管理器
@@ -375,7 +375,7 @@ public:
     // 公共接口
 };
 
-} // namespace mr::world
+} // namespace mc::world
 ```
 
 ### 4.2 源文件结构
@@ -397,11 +397,11 @@ public:
 // 4. 第三方库
 #include <spdlog/spdlog.h>
 
-namespace mr::world {
+namespace mc::world {
 
 // 实现代码...
 
-} // namespace mr::world
+} // namespace mc::world
 ```
 
 ### 4.3 包含顺序规则

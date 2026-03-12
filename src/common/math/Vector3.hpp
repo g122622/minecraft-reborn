@@ -6,7 +6,7 @@
 #include <cmath>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 3D向量类
@@ -264,13 +264,13 @@ inline const Vector3 Vector3::BACK{0.0f, 0.0f, -1.0f};
 using Position = Vector3;
 using Velocity = Vector3;
 
-} // namespace mr
+} // namespace mc
 
 // 哈希函数支持
 namespace std {
 template<>
-struct hash<mr::Vector3> {
-    size_t operator()(const mr::Vector3& v) const noexcept
+struct hash<mc::Vector3> {
+    size_t operator()(const mc::Vector3& v) const noexcept
     {
         size_t h1 = std::hash<float>{}(v.x);
         size_t h2 = std::hash<float>{}(v.y);

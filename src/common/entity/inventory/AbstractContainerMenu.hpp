@@ -9,7 +9,7 @@
 #include <vector>
 #include <unordered_map>
 
-namespace mr {
+namespace mc {
 
 class Player;
 class PlayerInventory;
@@ -209,4 +209,4 @@ protected:
     i32 m_hotbarEnd = -1;        // 快捷栏结束索引
 };
 
-} // namespace mr
+} // namespace mc

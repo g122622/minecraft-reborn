@@ -1,6 +1,6 @@
 #include "VanillaBlocks.hpp"
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 静态成员初始化
@@ -822,4 +822,4 @@ void VanillaBlocks::registerVegetationBlocks() {
         ResourceLocation("minecraft:dark_oak_sapling"), saplingProps);
 }
 
-} // namespace mr
+} // namespace mc

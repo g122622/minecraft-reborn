@@ -6,7 +6,7 @@
 #include <memory>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class BlockState;
@@ -316,4 +316,4 @@ private:
     bool m_initialized = false;
 };
 
-} // namespace mr
+} // namespace mc

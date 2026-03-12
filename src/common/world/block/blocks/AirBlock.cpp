@@ -1,6 +1,6 @@
 #include "AirBlock.hpp"
 
-namespace mr {
+namespace mc {
 
 AirBlock::AirBlock(BlockProperties properties)
     : Block(properties) {
@@ -37,4 +37,4 @@ bool AirBlock::isOpaque(const BlockState& state) const {
     return false;
 }
 
-} // namespace mr
+} // namespace mc

@@ -1,7 +1,7 @@
 #include "LocalConnection.hpp"
 #include <cstring>
 
-namespace mr::network {
+namespace mc::network {
 
 void LocalEndpoint::send(const u8* data, size_t size) {
     if (!m_remote || !m_connected) {
@@ -89,4 +89,4 @@ void LocalConnectionPair::disconnect() {
     m_serverEndpoint.disconnect();
 }
 
-} // namespace mr::network
+} // namespace mc::network

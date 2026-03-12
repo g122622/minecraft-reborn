@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class Entity;
@@ -449,4 +449,4 @@ inline EntityDamageSource explosion(Entity* source) {
 
 } // namespace DamageSources
 
-} // namespace mr
+} // namespace mc

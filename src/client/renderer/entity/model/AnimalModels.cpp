@@ -1,7 +1,7 @@
 #include "AnimalModels.hpp"
 #include <cmath>
 
-namespace mr::client::renderer {
+namespace mc::client::renderer {
 
 // ==================== PigModel ====================
 
@@ -244,4 +244,4 @@ void ChickenModel::setAngles(f32 limbSwing, f32 limbSwingAmount,
     (void)scale;
 }
 
-} // namespace mr::client::renderer
+} // namespace mc::client::renderer

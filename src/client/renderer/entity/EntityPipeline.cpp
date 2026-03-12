@@ -6,7 +6,7 @@
 #include <cstring>
 #include <array>
 
-namespace mr::client {
+namespace mc::client {
 
 // ============================================================================
 // EntityPipeline
@@ -562,4 +562,4 @@ void EntityPipeline::endSingleTimeCommands(VkCommandBuffer cmd) {
     vkFreeCommandBuffers(m_context->device(), m_commandPool, 1, &cmd);
 }
 
-} // namespace mr::client
+} // namespace mc::client

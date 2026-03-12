@@ -4,7 +4,7 @@
 #include "../../../../common/core/Types.hpp"
 #include <memory>
 
-namespace mr::client::renderer {
+namespace mc::client::renderer {
 
 /**
  * @brief 实体模型基类
@@ -149,4 +149,4 @@ protected:
     std::shared_ptr<ModelRenderer> m_leftLeg;
 };
 
-} // namespace mr::client::renderer
+} // namespace mc::client::renderer

@@ -2,7 +2,7 @@
 
 #include "../../../core/Types.hpp"
 
-namespace mr {
+namespace mc {
 namespace entity {
 namespace ai {
 namespace goal {
@@ -132,4 +132,4 @@ constexpr f32 VIEW_CHANGE_THRESHOLD = 5.0f;
 } // namespace goal
 } // namespace ai
 } // namespace entity
-} // namespace mr
+} // namespace mc

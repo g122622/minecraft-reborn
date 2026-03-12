@@ -20,7 +20,7 @@
     #define SOCKET_ERROR_VALUE -1
 #endif
 
-namespace mr::server {
+namespace mc::server {
 
 // Winsock初始化辅助类
 class WinsockInitializer {
@@ -325,4 +325,4 @@ void TcpServer::broadcastExcept(SessionId excludeId, const u8* data, size_t size
     }
 }
 
-} // namespace mr::server
+} // namespace mc::server

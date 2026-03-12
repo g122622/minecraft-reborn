@@ -4,7 +4,7 @@
 #include "PathNodeType.hpp"
 #include <cmath>
 
-namespace mr::entity::ai::pathfinding {
+namespace mc::entity::ai::pathfinding {
 
 /**
  * @brief 路径点
@@ -128,4 +128,4 @@ private:
     i32 m_heapIndex = -1;          // 在堆中的索引（用于优先队列）
 };
 
-} // namespace mr::entity::ai::pathfinding
+} // namespace mc::entity::ai::pathfinding

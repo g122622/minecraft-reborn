@@ -2,7 +2,7 @@
 
 #include "../Block.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 简单方块基类
@@ -25,4 +25,4 @@ public:
     [[nodiscard]] bool isSolid(const BlockState& state) const override;
 };
 
-} // namespace mr
+} // namespace mc

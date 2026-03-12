@@ -3,7 +3,7 @@
 #include "world/blockentity/BlockEntityType.hpp"
 #include "world/blockentity/ContainerBlockEntity.hpp"
 
-using namespace mr;
+using namespace mc;
 
 // 测试用的简单方块实体
 class TestBlockEntity : public BlockEntity {

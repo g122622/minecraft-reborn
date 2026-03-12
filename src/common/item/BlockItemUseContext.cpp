@@ -2,7 +2,7 @@
 #include "../entity/Player.hpp"
 #include "../world/block/Material.hpp"
 
-namespace mr {
+namespace mc {
 
 BlockItemUseContext::BlockItemUseContext(const IBlockReader& world,
                                          Player* player,
@@ -109,4 +109,4 @@ const BlockState* BlockItemUseContext::getBlockStateAtPlacementPos() const
     return m_world.getBlockState(m_placementPos.x, m_placementPos.y, m_placementPos.z);
 }
 
-} // namespace mr
+} // namespace mc

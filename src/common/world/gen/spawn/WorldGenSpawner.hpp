@@ -8,7 +8,7 @@
 #include <vector>
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class WorldGenRegion;
@@ -186,4 +186,4 @@ private:
     ) const;
 };
 
-} // namespace mr
+} // namespace mc

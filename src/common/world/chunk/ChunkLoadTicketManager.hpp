@@ -9,7 +9,7 @@
 #include <vector>
 #include <memory>
 
-namespace mr::world {
+namespace mc::world {
 
 // 前向声明
 class ChunkHolder;
@@ -300,4 +300,4 @@ private:
     std::unordered_set<u64> m_dirtyChunks;
 };
 
-} // namespace mr::world
+} // namespace mc::world
