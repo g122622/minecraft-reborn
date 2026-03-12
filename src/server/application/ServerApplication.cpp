@@ -1,4 +1,5 @@
 #include "ServerApplication.hpp"
+#include "CoreCommandBridge.hpp"
 #include "minecraft-reborn/version.h"
 #include "common/network/ProtocolPackets.hpp"
 #include "common/entity/VanillaEntities.hpp"
@@ -19,53 +20,6 @@
 #include <thread>
 
 namespace mr::server {
-
-namespace {
-
-class ServerApplicationCommandBridge final : public MinecraftServer {
-public:
-    ServerApplicationCommandBridge(mr::server::ServerWorld* world, ServerCore* core)
-        : m_world(world)
-        , m_core(core)
-    {
-    }
-
-    [[nodiscard]] mr::server::ServerWorld* getWorld() override { return m_world; }
-    [[nodiscard]] i64 getSeed() const override { return m_world ? static_cast<i64>(m_world->config().seed) : 0; }
-    [[nodiscard]] i64 getTicks() const override { return m_core ? static_cast<i64>(m_core->currentTick()) : 0; }
-    [[nodiscard]] i64 getDay() const override { return m_core ? m_core->gameTime().dayCount() : 0; }
-    [[nodiscard]] i64 getDayTime() const override { return m_core ? m_core->gameTime().dayTime() : 0; }
-    [[nodiscard]] i64 getGameTime() const override { return m_core ? m_core->gameTime().gameTime() : 0; }
-    [[nodiscard]] std::vector<mr::ServerPlayer*> getPlayers() override { return {}; }
-    [[nodiscard]] mr::ServerPlayer* getPlayer(const String& /*name*/) override { return nullptr; }
-    void broadcast(const String& message) override { spdlog::info("[Broadcast] {}", message); }
-    bool setDayTime(i64 time) override {
-        if (!m_core) return false;
-        m_core->timeManager().setDayTime(time);
-        return true;
-    }
-    bool addDayTime(i64 ticks) override {
-        if (!m_core) return false;
-        m_core->timeManager().addDayTime(ticks);
-        return true;
-    }
-    bool teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch) override {
-        if (!m_world) return false;
-        m_world->teleportPlayer(playerId, x, y, z, yaw, pitch);
-        return true;
-    }
-    bool setPlayerGameMode(PlayerId playerId, GameMode mode) override {
-        return m_world ? m_world->setPlayerGameMode(playerId, mode) : false;
-    }
-    [[nodiscard]] command::CommandRegistry& getCommandRegistry() override { return command::CommandRegistry::getGlobal(); }
-    bool isCommandAllowed(const command::ICommandSource& /*source*/, const String& /*command*/) override { return true; }
-
-private:
-    mr::server::ServerWorld* m_world;
-    ServerCore* m_core;
-};
-
-}
 
 ServerApplication::ServerApplication() = default;
 
@@ -559,7 +513,7 @@ void ServerApplication::handleChatMessage(TcpSession* session, const u8* data, s
 
     if (!message.empty() && message[0] == '/') {
         auto& registry = command::CommandRegistry::getGlobal();
-        ServerApplicationCommandBridge bridge(m_world.get(), m_serverCore.get());
+        CoreCommandBridge bridge(m_world.get(), m_serverCore.get());
         command::ServerCommandSource source(&bridge, nullptr, m_world.get(),
                                             Vector3d(player->x, player->y, player->z),
                                             Vector2f(player->yaw, player->pitch),
@@ -590,15 +544,8 @@ void ServerApplication::sendLoginResponse(TcpSession* session, bool success,
     network::PacketSerializer ser;
     response.serialize(ser);
 
-    // 封装完整数据包
-    network::PacketSerializer fullPacket;
-    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
-    fullPacket.writeU16(static_cast<u16>(network::PacketType::LoginResponse));
-    fullPacket.writeU16(0); // flags
-    fullPacket.writeU16(0); // reserved
-    fullPacket.writeU16(0); // padding
-    fullPacket.writeBytes(ser.buffer());
-
+    auto fullPacket = core::ConnectionManager::encapsulatePacket(
+        network::PacketType::LoginResponse, ser.buffer());
     session->send(fullPacket.data(), fullPacket.size());
 }
 

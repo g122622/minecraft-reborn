@@ -1,4 +1,5 @@
 #include "IntegratedServer.hpp"
+#include "CoreCommandBridge.hpp"
 #include "common/item/BlockItem.hpp"
 #include "common/item/Items.hpp"
 #include "common/item/BlockItemRegistry.hpp"
@@ -40,6 +41,13 @@ Player& getMenuPlayer() {
     return player;
 }
 
+/**
+ * @brief 发送游戏数据包到本地端点
+ * @tparam PacketT 数据包类型
+ * @param endpoint 本地端点
+ * @param packetType 数据包类型
+ * @param packet 数据包实例
+ */
 template <typename PacketT>
 void sendGamePacket(network::LocalEndpoint* endpoint, network::PacketType packetType, const PacketT& packet) {
     if (endpoint == nullptr || !endpoint->isConnected()) {
@@ -49,21 +57,22 @@ void sendGamePacket(network::LocalEndpoint* endpoint, network::PacketType packet
     network::PacketSerializer payload;
     packet.serialize(payload);
 
-    network::PacketSerializer fullPacket;
-    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + payload.size()));
-    fullPacket.writeU16(static_cast<u16>(packetType));
-    fullPacket.writeU16(0);
-    fullPacket.writeU16(0);
-    fullPacket.writeU16(0);
-    fullPacket.writeBytes(payload.buffer());
-
+    auto fullPacket = core::ConnectionManager::encapsulatePacket(packetType, payload.buffer());
     endpoint->send(fullPacket.data(), fullPacket.size());
 }
 
+/**
+ * @brief 检查方块状态是否为工作台
+ */
 bool isCraftingTableState(const BlockState* state) {
     return state != nullptr && state->blockLocation() == ResourceLocation("minecraft:crafting_table");
 }
 
+/**
+ * @brief 服务端区块读取器
+ *
+ * 用于方块放置/破坏时读取区块数据
+ */
 class ServerChunkReader final : public IBlockReader {
 public:
     explicit ServerChunkReader(ServerChunkManager& chunkManager)
@@ -100,63 +109,7 @@ private:
     ServerChunkManager& m_chunkManager;
 };
 
-class IntegratedServerCommandBridge final : public MinecraftServer {
-public:
-    IntegratedServerCommandBridge(
-        i64 seed,
-        const std::function<i64()>& ticksProvider,
-        const std::function<i64()>& dayProvider,
-        const std::function<i64()>& dayTimeProvider,
-        const std::function<i64()>& gameTimeProvider,
-        const std::function<bool(i64)>& setDayTimeFn,
-        const std::function<bool(i64)>& addDayTimeFn,
-        const std::function<bool(PlayerId, f64, f64, f64, f32, f32)>& teleportFn,
-        const std::function<bool(PlayerId, GameMode)>& setGameModeFn)
-        : m_seed(seed)
-        , m_ticksProvider(ticksProvider)
-        , m_dayProvider(dayProvider)
-        , m_dayTimeProvider(dayTimeProvider)
-        , m_gameTimeProvider(gameTimeProvider)
-        , m_setDayTimeFn(setDayTimeFn)
-        , m_addDayTimeFn(addDayTimeFn)
-        , m_teleportFn(teleportFn)
-        , m_setGameModeFn(setGameModeFn)
-    {
-    }
-
-    [[nodiscard]] mr::server::ServerWorld* getWorld() override { return nullptr; }
-    [[nodiscard]] i64 getSeed() const override { return m_seed; }
-    [[nodiscard]] i64 getTicks() const override { return m_ticksProvider ? m_ticksProvider() : 0; }
-    [[nodiscard]] i64 getDay() const override { return m_dayProvider ? m_dayProvider() : 0; }
-    [[nodiscard]] i64 getDayTime() const override { return m_dayTimeProvider ? m_dayTimeProvider() : 0; }
-    [[nodiscard]] i64 getGameTime() const override { return m_gameTimeProvider ? m_gameTimeProvider() : 0; }
-    [[nodiscard]] std::vector<ServerPlayer*> getPlayers() override { return {}; }
-    [[nodiscard]] ServerPlayer* getPlayer(const String& /*name*/) override { return nullptr; }
-    void broadcast(const String& message) override { spdlog::info("[Broadcast] {}", message); }
-    bool setDayTime(i64 time) override { return m_setDayTimeFn ? m_setDayTimeFn(time) : false; }
-    bool addDayTime(i64 ticks) override { return m_addDayTimeFn ? m_addDayTimeFn(ticks) : false; }
-    bool teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch) override {
-        return m_teleportFn ? m_teleportFn(playerId, x, y, z, yaw, pitch) : false;
-    }
-    bool setPlayerGameMode(PlayerId playerId, GameMode mode) override {
-        return m_setGameModeFn ? m_setGameModeFn(playerId, mode) : false;
-    }
-    [[nodiscard]] command::CommandRegistry& getCommandRegistry() override { return command::CommandRegistry::getGlobal(); }
-    bool isCommandAllowed(const command::ICommandSource& /*source*/, const String& /*command*/) override { return true; }
-
-private:
-    i64 m_seed;
-    std::function<i64()> m_ticksProvider;
-    std::function<i64()> m_dayProvider;
-    std::function<i64()> m_dayTimeProvider;
-    std::function<i64()> m_gameTimeProvider;
-    std::function<bool(i64)> m_setDayTimeFn;
-    std::function<bool(i64)> m_addDayTimeFn;
-    std::function<bool(PlayerId, f64, f64, f64, f32, f32)> m_teleportFn;
-    std::function<bool(PlayerId, GameMode)> m_setGameModeFn;
-};
-
-}
+} // namespace
 
 IntegratedServer::IntegratedServer() = default;
 
@@ -584,7 +537,7 @@ void IntegratedServer::handleLoginRequest(const u8* data, size_t size) {
     sendLoginResponse(true, m_clientPlayerId, username, "Welcome to singleplayer world!");
 
     // 发送初始传送
-    u32 teleportId = m_serverCore->teleportPlayer(m_clientPlayerId, player->x, player->y, player->z, player->yaw, player->pitch);
+    [[maybe_unused]] u32 teleportId = m_serverCore->teleportPlayer(m_clientPlayerId, player->x, player->y, player->z, player->yaw, player->pitch);
     sendPlayerInventory();
 
     // 初始化玩家票据位置
@@ -895,10 +848,10 @@ void IntegratedServer::handleContainerClick(const u8* data, size_t size)
         return;
     }
 
-    std::unique_ptr<AbstractContainerMenu> openMenu;
+    AbstractContainerMenu* openMenu = nullptr;
     {
         std::lock_guard<std::mutex> lock(m_clientDataMutex);
-        openMenu = m_clientData.openMenu ? std::unique_ptr<AbstractContainerMenu>(m_clientData.openMenu.get()) : nullptr;
+        openMenu = m_clientData.openMenu.get();
     }
 
     if (!openMenu) {
@@ -1059,41 +1012,7 @@ void IntegratedServer::handleChatMessage(const u8* data, size_t size) {
 
     if (!packet.message().empty() && packet.message()[0] == '/') {
         auto& registry = command::CommandRegistry::getGlobal();
-        IntegratedServerCommandBridge bridge(
-            m_config.seed,
-            [this]() { return static_cast<i64>(tickCount()); },
-            [this]() { return dayTime() / 24000; },
-            [this]() { return dayTime(); },
-            [this]() { return gameTime(); },
-            [this](i64 time) {
-                m_serverCore->timeManager().setDayTime(time);
-                return true;
-            },
-            [this](i64 delta) {
-                m_serverCore->timeManager().addDayTime(delta);
-                return true;
-            },
-            [this](PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch) {
-                auto* p = m_serverCore->getPlayer(playerId);
-                if (!p || !p->loggedIn) {
-                    return false;
-                }
-
-                m_serverCore->teleportPlayer(playerId, x, y, z, yaw, pitch);
-
-                const ChunkCoord chunkX = static_cast<ChunkCoord>(std::floor(x / 16.0));
-                const ChunkCoord chunkZ = static_cast<ChunkCoord>(std::floor(z / 16.0));
-                handlePlayerChunkMove(chunkX, chunkZ);
-                return true;
-            },
-            [this](PlayerId playerId, GameMode mode) {
-                auto* p = m_serverCore->getPlayer(playerId);
-                if (!p || !p->loggedIn) {
-                    return false;
-                }
-                p->gameMode = mode;
-                return true;
-            });
+        CoreCommandBridge bridge(nullptr, m_serverCore.get());
         command::ServerCommandSource source(
             &bridge,
             nullptr,
@@ -1125,15 +1044,8 @@ void IntegratedServer::sendLoginResponse(bool success, PlayerId playerId,
     network::PacketSerializer ser;
     response.serialize(ser);
 
-    // 封装完整数据包
-    network::PacketSerializer fullPacket;
-    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
-    fullPacket.writeU16(static_cast<u16>(network::PacketType::LoginResponse));
-    fullPacket.writeU16(0);
-    fullPacket.writeU16(0);
-    fullPacket.writeU16(0);
-    fullPacket.writeBytes(ser.buffer());
-
+    auto fullPacket = core::ConnectionManager::encapsulatePacket(
+        network::PacketType::LoginResponse, ser.buffer());
     sendToClient(fullPacket.data(), fullPacket.size());
 }
 
@@ -1157,14 +1069,8 @@ void IntegratedServer::sendTeleport(f64 x, f64 y, f64 z, f32 yaw, f32 pitch, u32
     network::PacketSerializer ser;
     packet.serialize(ser);
 
-    network::PacketSerializer fullPacket;
-    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
-    fullPacket.writeU16(static_cast<u16>(network::PacketType::Teleport));
-    fullPacket.writeU16(0);
-    fullPacket.writeU16(0);
-    fullPacket.writeU16(0);
-    fullPacket.writeBytes(ser.buffer());
-
+    auto fullPacket = core::ConnectionManager::encapsulatePacket(
+        network::PacketType::Teleport, ser.buffer());
     sendToClient(fullPacket.data(), fullPacket.size());
 }
 
@@ -1173,14 +1079,8 @@ void IntegratedServer::sendBlockUpdate(i32 x, i32 y, i32 z, u32 blockStateId) {
     network::PacketSerializer ser;
     packet.serialize(ser);
 
-    network::PacketSerializer fullPacket;
-    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
-    fullPacket.writeU16(static_cast<u16>(network::PacketType::BlockUpdate));
-    fullPacket.writeU16(0);
-    fullPacket.writeU16(0);
-    fullPacket.writeU16(0);
-    fullPacket.writeBytes(ser.buffer());
-
+    auto fullPacket = core::ConnectionManager::encapsulatePacket(
+        network::PacketType::BlockUpdate, ser.buffer());
     sendToClient(fullPacket.data(), fullPacket.size());
 }
 
@@ -1189,14 +1089,8 @@ void IntegratedServer::sendPlayerInventory() {
     network::PacketSerializer ser;
     packet.serialize(ser);
 
-    network::PacketSerializer fullPacket;
-    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
-    fullPacket.writeU16(static_cast<u16>(network::PacketType::PlayerInventory));
-    fullPacket.writeU16(0);
-    fullPacket.writeU16(0);
-    fullPacket.writeU16(0);
-    fullPacket.writeBytes(ser.buffer());
-
+    auto fullPacket = core::ConnectionManager::encapsulatePacket(
+        network::PacketType::PlayerInventory, ser.buffer());
     sendToClient(fullPacket.data(), fullPacket.size());
 }
 
@@ -1226,14 +1120,8 @@ void IntegratedServer::sendChunkData(ChunkCoord x, ChunkCoord z, const std::vect
     network::PacketSerializer ser;
     packet.serialize(ser);
 
-    network::PacketSerializer fullPacket;
-    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
-    fullPacket.writeU16(static_cast<u16>(network::PacketType::ChunkData));
-    fullPacket.writeU16(0);
-    fullPacket.writeU16(0);
-    fullPacket.writeU16(0);
-    fullPacket.writeBytes(ser.buffer());
-
+    auto fullPacket = core::ConnectionManager::encapsulatePacket(
+        network::PacketType::ChunkData, ser.buffer());
     sendToClient(fullPacket.data(), fullPacket.size());
 }
 
@@ -1242,14 +1130,8 @@ void IntegratedServer::sendUnloadChunk(ChunkCoord x, ChunkCoord z) {
     network::PacketSerializer ser;
     packet.serialize(ser);
 
-    network::PacketSerializer fullPacket;
-    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
-    fullPacket.writeU16(static_cast<u16>(network::PacketType::UnloadChunk));
-    fullPacket.writeU16(0);
-    fullPacket.writeU16(0);
-    fullPacket.writeU16(0);
-    fullPacket.writeBytes(ser.buffer());
-
+    auto fullPacket = core::ConnectionManager::encapsulatePacket(
+        network::PacketType::UnloadChunk, ser.buffer());
     sendToClient(fullPacket.data(), fullPacket.size());
 }
 
