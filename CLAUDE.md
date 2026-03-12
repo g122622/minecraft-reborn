@@ -425,6 +425,37 @@ enum class Operation : u8 {
 
 ```
 
+## 代码复用与质量规范
+
+### 使用现有工具类
+
+1. **Vulkan工具类**: 优先使用 `VulkanBuffer`, `VertexBuffer`, `IndexBuffer`, `StagingBuffer` 而非直接调用 Vulkan API
+2. **数学工具**: 使用 `math::toRadians()`, `math::toDegrees()`, `math::clamp()`, `math::lerp()` 等，避免内联魔法数如 `3.14159265f / 180.0f`
+3. **Result API**: 使用 `Error(ErrorCode, message)` 返回错误，使用隐式转换 `return value` 返回成功值，而非 `Result<T>::ok(value)` 或 `Result<T>::error(...)`
+
+### 避免重复代码
+
+- 如果类似功能在多处出现（如 `beginSingleTimeCommands`/`endSingleTimeCommands`），考虑提取到共享工具类
+- 如果同一模式重复（如缓冲区创建），使用模板或辅助函数
+
+### 参数设计
+
+- 函数参数超过5个时，考虑使用配置结构体
+- 使用枚举或类型安全的标识符替代原始字符串比较
+
+### Vulkan单次命令模式
+
+当需要在多个地方执行单次Vulkan命令时，使用以下模式：
+```cpp
+VkCommandBuffer beginSingleTimeCommands();
+void endSingleTimeCommands(VkCommandBuffer cmd);
+```
+这两个方法应该在需要时添加到各自的类中，或考虑提取到共享的Vulkan工具类。
+
+### stb_image 使用
+
+整个项目只需在一处定义 `STB_IMAGE_IMPLEMENTATION`（目前已在 `TextureAtlasBuilder.cpp`），其他文件只需 `#include <stb_image.h>`。
+
 ## Current Status
 
 - **Core**: Complete (types, math, error handling)

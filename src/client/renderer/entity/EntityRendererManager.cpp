@@ -2,6 +2,7 @@
 #include "AnimalRenderers.hpp"
 #include "../../world/entity/ClientEntity.hpp"
 #include "../../../common/entity/Entity.hpp"
+#include "../../../common/math/MathUtils.hpp"
 #include <spdlog/spdlog.h>
 
 namespace mr::client::renderer {
@@ -65,7 +66,7 @@ void EntityRendererManager::renderWithPipeline(VkCommandBuffer cmd, ClientEntity
 
     // 应用实体旋转（yaw）
     f32 yaw = entity.getInterpolatedYaw(partialTicks);
-    f32 yawRad = yaw * 3.14159265f / 180.0f;
+    f32 yawRad = math::toRadians(yaw);
     f32 cosYaw = std::cos(yawRad);
     f32 sinYaw = std::sin(yawRad);
 
@@ -81,8 +82,6 @@ void EntityRendererManager::renderWithPipeline(VkCommandBuffer cmd, ClientEntity
 
     // 绘制网格
     m_pipeline->drawMesh(cmd, *mesh, modelMatrix, pos);
-
-    (void)partialTicks;
 }
 
 EntityMesh* EntityRendererManager::getOrCreateMesh(ClientEntity& entity) {
@@ -137,7 +136,7 @@ void EntityRendererManager::updateMesh(ClientEntity& entity) {
         return;
     }
 
-    m_pipeline->updateMesh(it->second, vertices, indices);
+    (void)m_pipeline->updateMesh(it->second, vertices, indices);
 }
 
 void EntityRendererManager::removeMesh(EntityId entityId) {
