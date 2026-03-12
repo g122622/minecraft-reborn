@@ -308,7 +308,8 @@ void ServerApplication::onClientDisconnect(TcpSession* session, const String& re
                  session->address(), session->port(), reason);
 
     // 使用 ServerCore 移除玩家
-    PlayerId playerId = m_serverCore->playerManager().getPlayerIdBySession(session->id());
+    PlayerId playerId = m_serverCore->playerManager().getPlayerIdBySession(
+        static_cast<u32>(session->id()));
     if (playerId != 0) {
         m_serverCore->removePlayer(playerId);
 
