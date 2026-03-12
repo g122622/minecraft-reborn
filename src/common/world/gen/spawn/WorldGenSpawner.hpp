@@ -32,13 +32,13 @@ struct SpawnedEntityData {
     String entityTypeId;
 
     /// 生成位置 X
-    f64 x = 0.0;
+    f32 x = 0.0f;
 
     /// 生成位置 Y
-    f64 y = 0.0;
+    f32 y = 0.0f;
 
     /// 生成位置 Z
-    f64 z = 0.0;
+    f32 z = 0.0f;
 
     /// 生成原因（区块生成）
     static constexpr i32 SPAWN_REASON_CHUNK_GENERATION = 1;
@@ -48,7 +48,7 @@ struct SpawnedEntityData {
 
     SpawnedEntityData() = default;
 
-    SpawnedEntityData(String typeId, f64 px, f64 py, f64 pz)
+    SpawnedEntityData(String typeId, f32 px, f32 py, f32 pz)
         : entityTypeId(std::move(typeId)), x(px), y(py), z(pz) {}
 };
 
@@ -130,9 +130,9 @@ private:
     i32 spawnGroup(
         WorldGenRegion& region,
         const entity::EntityType& entityType,
-        f64 x,
-        i32 y,
-        f64 z,
+        f32 x,
+        f32 y,
+        f32 z,
         i32 count,
         math::Random& random,
         std::vector<SpawnedEntityData>& outEntities

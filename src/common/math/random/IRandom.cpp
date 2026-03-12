@@ -16,6 +16,7 @@ i32 IRandom::nextInt() {
 }
 
 i32 IRandom::nextInt(i32 bound) {
+    // TODO 改为assert
     if (bound <= 0) {
         return 0;
     }
@@ -40,6 +41,7 @@ i32 IRandom::nextInt(i32 bound) {
 }
 
 i32 IRandom::nextInt(i32 min, i32 max) {
+    // TODO 改为assert
     if (min >= max) {
         return min;
     }
@@ -93,6 +95,7 @@ f32 IRandom::nextGaussian(f32 mean, f32 stddev) {
 }
 
 i64 IRandom::nextLong(i64 bound) {
+    // TODO 改为assert
     if (bound <= 0) {
         return 0;
     }

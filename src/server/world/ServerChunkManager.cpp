@@ -221,6 +221,8 @@ void ServerChunkManager::startWorkers(i32 count)
                 chunk.addSpawnedEntity(std::move(entityData));
             }
         }
+
+        // 注意：实体数据将在 finalizeChunkGeneration 中提取并添加到世界
     });
 
     m_workerPool.start();
@@ -352,26 +354,7 @@ std::future<ChunkData*> ServerChunkManager::getChunkAsync(ChunkCoord x, ChunkCoo
     m_workerPool.submitGenerate(x, z, target,
         [this, promise, x, z](bool success, ChunkPrimer* primer) {
             if (success && primer) {
-                // 提取生成的实体数据（在 toChunkData 之前）
-                std::vector<SpawnedEntityData> spawnedEntities;
-                if (primer->spawnedEntityCount() > 0) {
-                    spawnedEntities = std::move(primer->spawnedEntities());
-                }
-
-                // 完成生成
-                auto data = primer->toChunkData();
-                if (!data) {
-                    promise->set_value(nullptr);
-                    return;
-                }
-
-                ChunkData* stored = storeGeneratedChunk(x, z, std::move(data));
-
-                // 将生成的实体添加到世界
-                if (stored && m_world && !spawnedEntities.empty()) {
-                    m_world->spawnEntitiesFromChunkGeneration(spawnedEntities);
-                }
-
+                ChunkData* stored = finalizeChunkGeneration(x, z, *primer);
                 promise->set_value(stored);
             } else {
                 promise->set_value(nullptr);
@@ -404,28 +387,8 @@ void ServerChunkManager::getChunkAsync(ChunkCoord x, ChunkCoord z, ChunkCallback
     m_workerPool.submitGenerate(x, z, target,
         [this, callback, x, z](bool success, ChunkPrimer* primer) {
             if (success && primer) {
-                // 提取生成的实体数据（在 toChunkData 之前）
-                std::vector<SpawnedEntityData> spawnedEntities;
-                if (primer->spawnedEntityCount() > 0) {
-                    spawnedEntities = std::move(primer->spawnedEntities());
-                }
-
-                // 完成生成
-                auto data = primer->toChunkData();
-                if (!data) {
-                    if (callback) callback(false, nullptr);
-                    return;
-                }
-
-                (void)storeGeneratedChunk(x, z, std::move(data));
-                const auto pinned = getChunkShared(x, z);
-
-                // 将生成的实体添加到世界
-                if (pinned && m_world && !spawnedEntities.empty()) {
-                    m_world->spawnEntitiesFromChunkGeneration(spawnedEntities);
-                }
-
-                if (callback) callback(pinned != nullptr, pinned.get());
+                ChunkData* stored = finalizeChunkGeneration(x, z, *primer);
+                if (callback) callback(stored != nullptr, stored);
             } else {
                 if (callback) callback(false, nullptr);
             }
@@ -549,26 +512,8 @@ void ServerChunkManager::scheduleGeneration(ChunkHolder& holder, const ChunkStat
         holder.z(),
         targetStatus,
         [this, x = holder.x(), z = holder.z()](bool success, ChunkPrimer* primer) {
-            if (!success || !primer) {
-                return;
-            }
-
-            // 提取生成的实体数据（在 toChunkData 之前）
-            std::vector<SpawnedEntityData> spawnedEntities;
-            if (primer->spawnedEntityCount() > 0) {
-                spawnedEntities = std::move(primer->spawnedEntities());
-            }
-
-            auto data = primer->toChunkData();
-            if (!data) {
-                return;
-            }
-
-            (void)storeGeneratedChunk(x, z, std::move(data));
-
-            // 将生成的实体添加到世界
-            if (m_world && !spawnedEntities.empty()) {
-                m_world->spawnEntitiesFromChunkGeneration(spawnedEntities);
+            if (success && primer) {
+                finalizeChunkGeneration(x, z, *primer);
             }
         },
         holder.getLevel()
@@ -633,21 +578,22 @@ void ServerChunkManager::executeGenerationTask(ChunkHolder& holder, const ChunkS
         }
     }
 
-    // 提取生成的实体数据（在 toChunkData 之前）
+    // 提取生成的实体数据（在 completeGeneration 之前）
     std::vector<SpawnedEntityData> spawnedEntities;
     if (primer->spawnedEntityCount() > 0) {
         spawnedEntities = std::move(primer->spawnedEntities());
     }
 
-    // 完成生成并存入缓存
+    // 完成生成
     auto data = holder.completeGeneration();
     if (data) {
-        (void)storeGeneratedChunk(holder.x(), holder.z(), std::move(data));
-    }
+        // 存储到缓存
+        ChunkData* stored = storeGeneratedChunk(holder.x(), holder.z(), std::move(data));
 
-    // 将生成的实体添加到世界
-    if (m_world && !spawnedEntities.empty()) {
-        m_world->spawnEntitiesFromChunkGeneration(spawnedEntities);
+        // 将生成的实体添加到世界
+        if (stored && m_world && !spawnedEntities.empty()) {
+            m_world->spawnEntitiesFromChunkGeneration(spawnedEntities);
+        }
     }
 }
 
@@ -771,6 +717,30 @@ void ServerChunkManager::checkChunkUnloading()
             static_cast<ChunkCoord>(static_cast<i64>(key & 0xFFFFFFFF))
         );
     }
+}
+
+ChunkData* ServerChunkManager::finalizeChunkGeneration(ChunkCoord x, ChunkCoord z, ChunkPrimer& primer)
+{
+    // 提取生成的实体数据（在 toChunkData 之前）
+    std::vector<SpawnedEntityData> spawnedEntities;
+    if (primer.spawnedEntityCount() > 0) {
+        spawnedEntities = std::move(primer.spawnedEntities());
+    }
+
+    // 完成生成
+    auto data = primer.toChunkData();
+    if (!data) {
+        return nullptr;
+    }
+
+    ChunkData* stored = storeGeneratedChunk(x, z, std::move(data));
+
+    // 将生成的实体添加到世界
+    if (stored && m_world && !spawnedEntities.empty()) {
+        m_world->spawnEntitiesFromChunkGeneration(spawnedEntities);
+    }
+
+    return stored;
 }
 
 // ============================================================================

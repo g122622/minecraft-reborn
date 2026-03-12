@@ -760,11 +760,7 @@ i32 ServerWorld::spawnEntitiesFromChunkGeneration(const std::vector<SpawnedEntit
         }
 
         // 设置实体位置
-        entity->setPosition(Vector3(
-            static_cast<f32>(entityData.x),
-            static_cast<f32>(entityData.y),
-            static_cast<f32>(entityData.z)
-        ));
+        entity->setPosition(Vector3(entityData.x, entityData.y, entityData.z));
 
         // 设置生成原因标记（可选，用于后续处理）
         // entity->setSpawnReason(entityData.spawnReason);
@@ -774,10 +770,10 @@ i32 ServerWorld::spawnEntitiesFromChunkGeneration(const std::vector<SpawnedEntit
         if (entityId != 0) {
             ++spawnedCount;
 
-            spdlog::trace("ServerWorld: Spawned {} at ({:.1f}, {:.1f}, {:.1f}) with ID {}",
-                          entityData.entityTypeId,
-                          entityData.x, entityData.y, entityData.z,
-                          entityId);
+            SPDLOG_TRACE("ServerWorld: Spawned {} at ({:.1f}, {:.1f}, {:.1f}) with ID {}",
+                         entityData.entityTypeId,
+                         entityData.x, entityData.y, entityData.z,
+                         entityId);
         }
     }
 

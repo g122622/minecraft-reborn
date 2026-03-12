@@ -6,10 +6,18 @@
 #include "../../../common/entity/Entity.hpp"
 #include "../../../common/world/IWorld.hpp"
 #include "../../../common/world/spawn/MobSpawnInfo.hpp"
+#include "../../../common/world/WorldConstants.hpp"
 #include "../../../common/math/random/Random.hpp"
 #include <spdlog/spdlog.h>
 
 namespace mr::world::spawn {
+
+// ============================================================================
+// 常量定义
+// ============================================================================
+
+/// 最大生成尝试次数
+static constexpr i32 MAX_SPAWN_ATTEMPTS = 4;
 
 NaturalSpawner::NaturalSpawner()
 {
@@ -18,15 +26,15 @@ NaturalSpawner::NaturalSpawner()
 
 void NaturalSpawner::spawnInChunk(mr::server::ServerWorld& world, i32 chunkX, i32 chunkZ,
                                    const MobSpawnInfo& spawnInfo, math::Random& random) {
-    // 获取区块的世界坐标范围
-    i32 minX = chunkX * 16;
-    i32 minZ = chunkZ * 16;
+    // 获取区块的世界坐标范围（使用工具函数）
+    i32 minX = world::toWorldCoord(chunkX);
+    i32 minZ = world::toWorldCoord(chunkZ);
 
     // 生成怪物（夜间或黑暗环境）
     const auto& monsters = spawnInfo.getMonsterSpawns();
     if (!monsters.empty()) {
-        // 随机选择生成位置（最多4次尝试）
-        for (i32 attempt = 0; attempt < 4; ++attempt) {
+        // 随机选择生成位置
+        for (i32 attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; ++attempt) {
             i32 x = minX + random.nextInt(16);
             i32 z = minZ + random.nextInt(16);
 
@@ -119,10 +127,10 @@ i32 NaturalSpawner::trySpawnAt(mr::server::ServerWorld& world, i32 x, i32 y, i32
         return 0;
     }
 
-    // 确定生成数量
+    // 确定生成数量（使用 nextInt(min, max) 包含两端）
     i32 count = entry.minCount;
     if (entry.maxCount > entry.minCount) {
-        count = entry.minCount + random.nextInt(entry.maxCount - entry.minCount + 1);
+        count = random.nextInt(entry.minCount, entry.maxCount);
     }
 
     i32 spawned = 0;
@@ -205,8 +213,8 @@ bool NaturalSpawner::canSpawnAt(mr::server::ServerWorld& world, i32 x, i32 y, i3
         return false;
     }
 
-    // 边界检查
-    if (y < 0 || y >= 256) {
+    // 边界检查（使用工具函数）
+    if (!world::isValidY(y)) {
         return false;
     }
 

@@ -89,12 +89,12 @@ protected:
 
 // 测试 SpawnedEntityData 结构
 TEST_F(ChunkSpawnIntegrationTest, SpawnedEntityDataStructure) {
-    SpawnedEntityData data("minecraft:pig", 100.5, 64.0, 200.3);
+    SpawnedEntityData data("minecraft:pig", 100.5f, 64.0f, 200.3f);
 
     EXPECT_EQ(data.entityTypeId, "minecraft:pig");
-    EXPECT_DOUBLE_EQ(data.x, 100.5);
-    EXPECT_DOUBLE_EQ(data.y, 64.0);
-    EXPECT_DOUBLE_EQ(data.z, 200.3);
+    EXPECT_FLOAT_EQ(data.x, 100.5f);
+    EXPECT_FLOAT_EQ(data.y, 64.0f);
+    EXPECT_FLOAT_EQ(data.z, 200.3f);
     EXPECT_EQ(data.spawnReason, SpawnedEntityData::SPAWN_REASON_CHUNK_GENERATION);
 }
 
@@ -103,9 +103,9 @@ TEST_F(ChunkSpawnIntegrationTest, SpawnedEntityDataDefaultConstructor) {
     SpawnedEntityData data;
 
     EXPECT_TRUE(data.entityTypeId.empty());
-    EXPECT_DOUBLE_EQ(data.x, 0.0);
-    EXPECT_DOUBLE_EQ(data.y, 0.0);
-    EXPECT_DOUBLE_EQ(data.z, 0.0);
+    EXPECT_FLOAT_EQ(data.x, 0.0f);
+    EXPECT_FLOAT_EQ(data.y, 0.0f);
+    EXPECT_FLOAT_EQ(data.z, 0.0f);
     EXPECT_EQ(data.spawnReason, SpawnedEntityData::SPAWN_REASON_CHUNK_GENERATION);
 }
 
@@ -457,19 +457,19 @@ TEST_F(ChunkSpawnIntegrationTest, SpawnCoordinatesInChunkRange) {
 
     // 添加在区块范围内的实体
     primer.addSpawnedEntity(SpawnedEntityData("minecraft:pig",
-        static_cast<f64>(startX + 8.5), 64.0, static_cast<f64>(startZ + 8.5)));
+        static_cast<f32>(startX + 8.5), 64.0f, static_cast<f32>(startZ + 8.5)));
 
     primer.addSpawnedEntity(SpawnedEntityData("minecraft:cow",
-        static_cast<f64>(startX + 15.0), 65.0, static_cast<f64>(startZ + 0.0)));
+        static_cast<f32>(startX + 15.0), 65.0f, static_cast<f32>(startZ + 0.0)));
 
     const auto& entities = primer.spawnedEntities();
     EXPECT_EQ(entities.size(), 2);
 
     // 验证坐标
-    EXPECT_GE(entities[0].x, static_cast<f64>(startX));
-    EXPECT_LT(entities[0].x, static_cast<f64>(startX + 16));
-    EXPECT_GE(entities[0].z, static_cast<f64>(startZ));
-    EXPECT_LT(entities[0].z, static_cast<f64>(startZ + 16));
+    EXPECT_GE(entities[0].x, static_cast<f32>(startX));
+    EXPECT_LT(entities[0].x, static_cast<f32>(startX + 16));
+    EXPECT_GE(entities[0].z, static_cast<f32>(startZ));
+    EXPECT_LT(entities[0].z, static_cast<f32>(startZ + 16));
 }
 
 // 测试批量添加实体
@@ -480,9 +480,9 @@ TEST_F(ChunkSpawnIntegrationTest, BatchAddEntities) {
     for (int i = 0; i < 10; ++i) {
         SpawnedEntityData data(
             "minecraft:pig",
-            static_cast<f64>(i * 1.5),
-            static_cast<f64>(64 + i),
-            static_cast<f64>(i * 2.0)
+            static_cast<f32>(i * 1.5),
+            static_cast<f32>(64 + i),
+            static_cast<f32>(i * 2.0)
         );
         primer.addSpawnedEntity(std::move(data));
     }
@@ -492,8 +492,8 @@ TEST_F(ChunkSpawnIntegrationTest, BatchAddEntities) {
     // 验证顺序保持
     const auto& entities = primer.spawnedEntities();
     for (int i = 0; i < 10; ++i) {
-        EXPECT_DOUBLE_EQ(entities[i].x, static_cast<f64>(i * 1.5));
-        EXPECT_DOUBLE_EQ(entities[i].y, static_cast<f64>(64 + i));
-        EXPECT_DOUBLE_EQ(entities[i].z, static_cast<f64>(i * 2.0));
+        EXPECT_FLOAT_EQ(entities[i].x, static_cast<f32>(i * 1.5));
+        EXPECT_FLOAT_EQ(entities[i].y, static_cast<f32>(64 + i));
+        EXPECT_FLOAT_EQ(entities[i].z, static_cast<f32>(i * 2.0));
     }
 }

@@ -301,6 +301,19 @@ private:
     void checkChunkUnloading();
 
     /**
+     * @brief 完成区块生成后的处理
+     *
+     * 提取 ChunkPrimer 中的实体数据，转换为 ChunkData，
+     * 存入缓存，并将实体添加到世界。
+     *
+     * @param x 区块 X 坐标
+     * @param z 区块 Z 坐标
+     * @param primer 已完成的区块生成器
+     * @return 缓存中的区块指针，失败返回 nullptr
+     */
+    ChunkData* finalizeChunkGeneration(ChunkCoord x, ChunkCoord z, ChunkPrimer& primer);
+
+    /**
      * @brief 区块坐标转键
      */
     [[nodiscard]] static u64 posToKey(ChunkCoord x, ChunkCoord z) {

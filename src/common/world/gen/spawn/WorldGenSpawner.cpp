@@ -1,12 +1,23 @@
 #include "WorldGenSpawner.hpp"
 #include "../chunk/IChunkGenerator.hpp"
 #include "../../block/BlockRegistry.hpp"
+#include "../../WorldConstants.hpp"
 #include "../../../entity/EntityRegistry.hpp"
 #include "../../../entity/EntityClassification.hpp"
 #include "../../../entity/mob/MobEntity.hpp"
 #include <spdlog/spdlog.h>
 
 namespace mr {
+
+// ============================================================================
+// 常量定义
+// ============================================================================
+
+/// 最大生成尝试次数
+static constexpr i32 MAX_SPAWN_ATTEMPTS = 4;
+
+/// 生成位置搜索半径
+static constexpr f64 SPAWN_SPREAD_RADIUS = 8.0;
 
 WorldGenSpawner::WorldGenSpawner() = default;
 WorldGenSpawner::~WorldGenSpawner() = default;
@@ -36,29 +47,29 @@ i32 WorldGenSpawner::spawnInitialMobs(
         return 0;
     }
 
-    // 区块世界坐标起点
-    const i32 startX = chunkX << 4;
-    const i32 startZ = chunkZ << 4;
+    // 区块世界坐标起点（使用工具函数）
+    const i32 startX = world::toWorldCoord(chunkX);
+    const i32 startZ = world::toWorldCoord(chunkZ);
 
     // 参考 MC 1.16.5 performWorldGenSpawning
     // 使用生物群系的生成概率 (creatureSpawnProbability)
     // 默认概率是 10/128 或者从 biome.getSpawningChance() 获取
     const f32 spawnProbability = biome.creatureSpawnProbability();
 
+    // 预计算总权重（creatures 列表不会改变，可以提前计算）
+    i32 totalWeight = 0;
+    for (const auto& entry : creatures) {
+        totalWeight += entry.weight;
+    }
+
+    if (totalWeight <= 0) {
+        return 0;
+    }
+
     // 尝试生成多组动物
     // 每组有 spawnProbability 概率生成
     while (random.nextFloat() < spawnProbability) {
-        // 随机选择一种动物类型
-        i32 totalWeight = 0;
-        for (const auto& entry : creatures) {
-            totalWeight += entry.weight;
-        }
-
-        if (totalWeight <= 0) {
-            break;
-        }
-
-        // 加权随机选择
+        // 随机选择一种动物类型（加权随机选择）
         i32 weightValue = random.nextInt(totalWeight);
         const world::spawn::SpawnEntry* selectedEntry = nullptr;
         i32 currentWeight = 0;
@@ -83,11 +94,10 @@ i32 WorldGenSpawner::spawnInitialMobs(
             continue;
         }
 
-        // 确定生成数量（minCount 到 maxCount）
+        // 确定生成数量（使用 nextInt(min, max) 包含两端）
         i32 count = selectedEntry->minCount;
         if (selectedEntry->maxCount > selectedEntry->minCount) {
-            count = selectedEntry->minCount + random.nextInt(
-                selectedEntry->maxCount - selectedEntry->minCount + 1);
+            count = random.nextInt(selectedEntry->minCount, selectedEntry->maxCount);
         }
 
         // 随机生成位置
@@ -96,7 +106,7 @@ i32 WorldGenSpawner::spawnInitialMobs(
 
         // 尝试多次找到合适的生成位置
         bool spawnedAny = false;
-        for (i32 attempt = 0; attempt < 4; ++attempt) {
+        for (i32 attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; ++attempt) {
             // 获取生成高度
             i32 spawnY = getSpawnHeight(region, *entityType, groupX, groupZ);
             if (spawnY < 0) {
@@ -113,9 +123,9 @@ i32 WorldGenSpawner::spawnInitialMobs(
 
             // 在组内生成多个实体
             i32 spawned = spawnGroup(region, *entityType,
-                static_cast<f64>(groupX) + 0.5,
-                static_cast<f64>(spawnY),
-                static_cast<f64>(groupZ) + 0.5,
+                static_cast<f32>(groupX) + 0.5f,
+                static_cast<f32>(spawnY),
+                static_cast<f32>(groupZ) + 0.5f,
                 count, random, outEntities);
 
             if (spawned > 0) {
@@ -136,9 +146,9 @@ i32 WorldGenSpawner::spawnInitialMobs(
 i32 WorldGenSpawner::spawnGroup(
     WorldGenRegion& region,
     const entity::EntityType& entityType,
-    f64 x,
-    [[maybe_unused]] i32 y,
-    f64 z,
+    f32 x,
+    [[maybe_unused]] f32 y,
+    f32 z,
     i32 count,
     math::Random& random,
     std::vector<SpawnedEntityData>& outEntities)
@@ -152,12 +162,12 @@ i32 WorldGenSpawner::spawnGroup(
     for (i32 i = 0; i < count; ++i) {
         // 添加随机偏移使群体分散
         // 参考 MC 的群体分散逻辑
-        f64 spawnX = x + (random.nextDouble() - 0.5) * static_cast<f64>(width) * 2.0;
-        f64 spawnZ = z + (random.nextDouble() - 0.5) * static_cast<f64>(width) * 2.0;
+        f32 spawnX = x + (random.nextFloat() - 0.5f) * width * 2.0f;
+        f32 spawnZ = z + (random.nextFloat() - 0.5f) * width * 2.0f;
 
-        // 确保 X 和 Z 在区块内
-        spawnX = std::clamp(spawnX, x - 8.0, x + 8.0);
-        spawnZ = std::clamp(spawnZ, z - 8.0, z + 8.0);
+        // 确保 X 和 Z 在区块内（限制扩散范围）
+        spawnX = std::clamp(spawnX, x - static_cast<f32>(SPAWN_SPREAD_RADIUS), x + static_cast<f32>(SPAWN_SPREAD_RADIUS));
+        spawnZ = std::clamp(spawnZ, z - static_cast<f32>(SPAWN_SPREAD_RADIUS), z + static_cast<f32>(SPAWN_SPREAD_RADIUS));
 
         // 检查碰撞空间
         i32 spawnY = getSpawnHeight(region, entityType,
@@ -175,7 +185,7 @@ i32 WorldGenSpawner::spawnGroup(
         outEntities.emplace_back(
             entityType.name(),
             spawnX,
-            static_cast<f64>(spawnY),
+            static_cast<f32>(spawnY),
             spawnZ
         );
 
@@ -231,8 +241,8 @@ bool WorldGenSpawner::canSpawnAt(
 {
     // 参考 MC EntitySpawnPlacementRegistry.canSpawnEntity
 
-    // 检查基本位置规则
-    if (y < 0 || y >= 256) {
+    // 检查基本位置规则（使用工具函数）
+    if (!world::isValidY(y)) {
         return false;
     }
 
