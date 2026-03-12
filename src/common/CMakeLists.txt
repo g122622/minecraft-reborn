@@ -29,6 +29,7 @@ add_library(mr_common STATIC
     network/PacketSerializer.cpp
     network/ChunkSync.cpp
     network/LocalConnection.cpp
+    network/LocalServerConnection.cpp
     network/InventoryPackets.cpp
     network/ContainerPacketHandler.cpp
     network/EntityPackets.cpp

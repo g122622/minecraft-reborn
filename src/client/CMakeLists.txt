@@ -63,15 +63,28 @@ add_executable(minecraft-client
     resource/EntityTextureLoader.cpp
     # 内置服务端支持
     ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/core/ServerCore.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/core/PlayerManager.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/core/ConnectionManager.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/core/TimeManager.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/core/TeleportManager.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/core/KeepAliveManager.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/core/PositionTracker.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/core/PacketHandler.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ChunkWorkerPool.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ServerChunkManager.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/spawn/SpawnConditions.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/world/spawn/NaturalSpawner.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/world/entity/EntityTracker.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/player/ServerPlayer.cpp
     ${CMAKE_SOURCE_DIR}/src/server/menu/CraftingMenu.cpp
     ${CMAKE_SOURCE_DIR}/src/server/command/ServerCommandSource.cpp
     ${CMAKE_SOURCE_DIR}/src/server/command/CommandRegistry.cpp
     ${CMAKE_SOURCE_DIR}/src/server/command/commands/GameModeCommand.cpp
     ${CMAKE_SOURCE_DIR}/src/server/command/commands/TimeCommand.cpp
     ${CMAKE_SOURCE_DIR}/src/server/command/commands/KillCommand.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/command/commands/ListCommand.cpp
     ${CMAKE_SOURCE_DIR}/src/server/command/commands/HelpCommand.cpp
     ${CMAKE_SOURCE_DIR}/src/server/command/commands/SeedCommand.cpp
     ${CMAKE_SOURCE_DIR}/src/server/command/commands/TeleportCommand.cpp

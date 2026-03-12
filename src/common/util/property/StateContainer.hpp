@@ -46,9 +46,27 @@ public:
         explicit Builder(Owner& owner) : m_owner(owner) {}
 
         /**
-         * @brief 添加属性（指针版本）
+         * @brief 添加属性（拥有所有权）
+         */
+        Builder& add(std::unique_ptr<IProperty> prop) {
+            if (!prop) {
+                throw std::invalid_argument("Property cannot be null");
+            }
+            validateProperty(*prop);
+            const String name = prop->name();
+            const IProperty* rawProp = prop.get();
+            m_ownedProperties.push_back(std::move(prop));
+            m_properties[name] = rawProp;
+            return *this;
+        }
+
+        /**
+         * @brief 添加属性（借用引用，不转移所有权）
          */
         Builder& add(const IProperty* prop) {
+            if (!prop) {
+                throw std::invalid_argument("Property cannot be null");
+            }
             validateProperty(*prop);
             m_properties[prop->name()] = prop;
             return *this;
@@ -66,40 +84,35 @@ public:
          * @brief 添加布尔属性
          */
         Builder& addBoolean(const String& name) {
-            auto prop = BooleanProperty::create(name);
-            return add(prop.release());
+            return add(BooleanProperty::create(name));
         }
 
         /**
          * @brief 添加整数属性
          */
         Builder& addInteger(const String& name, i32 min, i32 max) {
-            auto prop = IntegerProperty::create(name, min, max);
-            return add(prop.release());
+            return add(IntegerProperty::create(name, min, max));
         }
 
         /**
          * @brief 添加方向属性（所有方向）
          */
         Builder& addDirection(const String& name) {
-            auto prop = DirectionProperty::create(name);
-            return add(prop.release());
+            return add(DirectionProperty::create(name));
         }
 
         /**
          * @brief 添加方向属性（仅水平方向）
          */
         Builder& addHorizontalDirection(const String& name) {
-            auto prop = DirectionProperty::createHorizontal(name);
-            return add(prop.release());
+            return add(DirectionProperty::createHorizontal(name));
         }
 
         /**
          * @brief 添加坐标轴属性
          */
         Builder& addAxis(const String& name) {
-            auto prop = AxisProperty::create(name);
-            return add(prop.release());
+            return add(AxisProperty::create(name));
         }
 
         /**
@@ -107,13 +120,14 @@ public:
          */
         std::unique_ptr<StateContainer> create(StateFactory factory) {
             return std::unique_ptr<StateContainer>(new StateContainer(
-                m_owner, std::move(m_properties), factory
+                m_owner, std::move(m_properties), std::move(m_ownedProperties), factory
             ));
         }
 
     private:
         Owner& m_owner;
         std::unordered_map<String, const IProperty*> m_properties;
+        std::vector<std::unique_ptr<IProperty>> m_ownedProperties;
 
         void validateProperty(const IProperty& prop) {
             static const std::regex NAME_PATTERN("^[a-z0-9_]+$");
@@ -142,11 +156,11 @@ public:
     [[nodiscard]] const std::vector<std::unique_ptr<State>>& validStates() const { return m_states; }
     [[nodiscard]] size_t stateCount() const { return m_states.size(); }
     [[nodiscard]] const Owner& owner() const { return m_owner; }
-    [[nodiscard]] const std::unordered_map<String, std::unique_ptr<IProperty>>& properties() const { return m_properties; }
+    [[nodiscard]] const std::unordered_map<String, const IProperty*>& properties() const { return m_properties; }
 
     [[nodiscard]] const IProperty* getProperty(StringView name) const {
         auto it = m_properties.find(String(name));
-        return it != m_properties.end() ? it->second.get() : nullptr;
+        return it != m_properties.end() ? it->second : nullptr;
     }
 
     [[nodiscard]] const State* getStateById(u32 id) const {
@@ -174,14 +188,14 @@ public:
 private:
     StateContainer(Owner& owner,
                    std::unordered_map<String, const IProperty*> propertiesToTransfer,
+                   std::vector<std::unique_ptr<IProperty>> ownedProperties,
                    StateFactory factory)
-        : m_owner(owner) {
-        for (auto& [name, prop] : propertiesToTransfer) {
-            m_properties[name] = std::unique_ptr<IProperty>(const_cast<IProperty*>(prop));
-        }
+        : m_owner(owner)
+        , m_properties(std::move(propertiesToTransfer))
+        , m_ownedProperties(std::move(ownedProperties)) {
         std::vector<const IProperty*> props;
         for (const auto& [name, prop] : m_properties) {
-            props.push_back(prop.get());
+            props.push_back(prop);
         }
         generateStates(props, factory);
     }
@@ -251,7 +265,8 @@ private:
     }
 
     Owner& m_owner;
-    std::unordered_map<String, std::unique_ptr<IProperty>> m_properties;
+    std::unordered_map<String, const IProperty*> m_properties;
+    std::vector<std::unique_ptr<IProperty>> m_ownedProperties;
     std::vector<std::unique_ptr<State>> m_states;
     std::unordered_map<u32, State*> m_stateIdMap;
 };

@@ -3,7 +3,9 @@
 #include "common/world/gen/chunk/NoiseChunkGenerator.hpp"
 #include "common/entity/Entity.hpp"
 #include "common/entity/EntityRegistry.hpp"
-#include "server/network/TcpSession.hpp"
+#include "common/network/IServerConnection.hpp"
+#include "common/network/Packet.hpp"
+#include "common/network/PacketSerializer.hpp"
 #include <chrono>
 #include <spdlog/spdlog.h>
 
@@ -145,13 +147,13 @@ void ServerWorld::unloadChunk(ChunkCoord x, ChunkCoord z) {
 // 玩家管理
 // ============================================================================
 
-void ServerWorld::addPlayer(PlayerId playerId, const String& username, std::shared_ptr<TcpSession> session) {
+void ServerWorld::addPlayer(PlayerId playerId, const String& username, network::ConnectionPtr connection) {
     std::lock_guard<std::mutex> lock(m_playerMutex);
 
     auto& player = m_players[playerId];
     player.playerId = playerId;
     player.username = username;
-    player.session = session;
+    player.connection = connection;
     player.chunkTracker = std::make_shared<network::PlayerChunkTracker>(playerId);
     player.chunkTracker->setViewDistance(m_config.viewDistance);
 
@@ -183,10 +185,7 @@ void ServerWorld::removePlayer(PlayerId playerId) {
 
     for (auto& [pid, pdata] : m_players) {
         if (pid != playerId) {
-            auto session = pdata.session.lock();
-            if (session) {
-                // session->send(fullPacket.data(), fullPacket.size());
-            }
+            pdata.send(fullPacket.data(), fullPacket.size());
         }
     }
 
@@ -344,10 +343,7 @@ void ServerWorld::teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw
     fullPacket.writeU16(0);
     fullPacket.writeBytes(ser.buffer());
 
-    auto session = player.session.lock();
-    if (session) {
-        (void)session;
-    }
+    player.send(fullPacket.data(), fullPacket.size());
 
     spdlog::debug("Teleporting player {} to ({}, {}, {}), teleportId={}",
                   playerId, x, y, z, teleportId);
@@ -421,10 +417,7 @@ void ServerWorld::sendChunkToPlayer(PlayerId playerId, ChunkCoord x, ChunkCoord 
             std::lock_guard<std::mutex> lock(m_playerMutex);
             auto it = m_players.find(playerId);
             if (it != m_players.end()) {
-                auto session = it->second.session.lock();
-                if (session) {
-                    // session->send(fullPacket.data(), fullPacket.size());
-                }
+                it->second.send(fullPacket.data(), fullPacket.size());
             }
 
             spdlog::debug("Sent chunk ({}, {}) to player {}", x, z, playerId);
@@ -449,10 +442,7 @@ void ServerWorld::sendUnloadChunkToPlayer(PlayerId playerId, ChunkCoord x, Chunk
     std::lock_guard<std::mutex> lock(m_playerMutex);
     auto it = m_players.find(playerId);
     if (it != m_players.end()) {
-        auto session = it->second.session.lock();
-        if (session) {
-            // session->send(fullPacket.data(), fullPacket.size());
-        }
+        it->second.send(fullPacket.data(), fullPacket.size());
     }
 }
 
@@ -480,39 +470,29 @@ void ServerWorld::broadcastBlockUpdate(i32 x, i32 y, i32 z, u32 blockStateId) {
 // 发送数据包
 // ============================================================================
 
-void ServerWorld::sendPacket(PlayerId playerId, const std::vector<u8>& /*data*/) {
+void ServerWorld::sendPacket(PlayerId playerId, const std::vector<u8>& data) {
     std::lock_guard<std::mutex> lock(m_playerMutex);
 
     auto it = m_players.find(playerId);
     if (it == m_players.end()) return;
 
-    auto session = it->second.session.lock();
-    if (session) {
-        // session->send(data.data(), data.size());
-    }
+    it->second.send(data.data(), data.size());
 }
 
-void ServerWorld::broadcastPacket(const std::vector<u8>& /*data*/) {
+void ServerWorld::broadcastPacket(const std::vector<u8>& data) {
     std::lock_guard<std::mutex> lock(m_playerMutex);
 
     for (const auto& [playerId, player] : m_players) {
-        auto session = player.session.lock();
-        if (session) {
-            // session->send(data.data(), data.size());
-        }
+        player.send(data.data(), data.size());
     }
 }
 
-void ServerWorld::broadcastPacketExcept(PlayerId excludePlayerId, const std::vector<u8>& /*data*/) {
+void ServerWorld::broadcastPacketExcept(PlayerId excludePlayerId, const std::vector<u8>& data) {
     std::lock_guard<std::mutex> lock(m_playerMutex);
 
     for (const auto& [playerId, player] : m_players) {
         if (playerId == excludePlayerId) continue;
-
-        auto session = player.session.lock();
-        if (session) {
-            // session->send(data.data(), data.size());
-        }
+        player.send(data.data(), data.size());
     }
 }
 

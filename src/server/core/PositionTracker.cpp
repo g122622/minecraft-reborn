@@ -1,0 +1,134 @@
+#include "PositionTracker.hpp"
+#include "PlayerManager.hpp"
+#include <spdlog/spdlog.h>
+
+namespace mr::server::core {
+
+PositionTracker::PositionTracker(PlayerManager& playerManager, const ServerCoreConfig& config)
+    : m_playerManager(playerManager)
+    , m_defaultViewDistance(config.viewDistance)
+{
+}
+
+bool PositionTracker::updatePosition(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch, bool onGround) {
+    auto* player = m_playerManager.getPlayer(playerId);
+    if (!player) {
+        return false;
+    }
+
+    player->x = static_cast<f32>(x);
+    player->y = static_cast<f32>(y);
+    player->z = static_cast<f32>(z);
+    player->yaw = yaw;
+    player->pitch = pitch;
+    player->onGround = onGround;
+
+    // 更新区块同步管理器
+    m_playerManager.chunkSyncManager().updatePlayerPosition(playerId, x, z);
+
+    return true;
+}
+
+bool PositionTracker::updatePosition(PlayerId playerId, f64 x, f64 y, f64 z) {
+    auto* player = m_playerManager.getPlayer(playerId);
+    if (!player) {
+        return false;
+    }
+
+    player->x = static_cast<f32>(x);
+    player->y = static_cast<f32>(y);
+    player->z = static_cast<f32>(z);
+
+    // 更新区块同步管理器
+    m_playerManager.chunkSyncManager().updatePlayerPosition(playerId, x, z);
+
+    return true;
+}
+
+bool PositionTracker::updateRotation(PlayerId playerId, f32 yaw, f32 pitch) {
+    auto* player = m_playerManager.getPlayer(playerId);
+    if (!player) {
+        return false;
+    }
+
+    player->yaw = yaw;
+    player->pitch = pitch;
+    return true;
+}
+
+void PositionTracker::calculateChunkUpdates(PlayerId playerId,
+                                             std::vector<ChunkPos>& chunksToLoad,
+                                             std::vector<ChunkPos>& chunksToUnload) {
+    auto* player = m_playerManager.getPlayer(playerId);
+    if (!player || !player->chunkTracker) {
+        return;
+    }
+
+    player->chunkTracker->calculateChunkUpdates(chunksToLoad, chunksToUnload);
+}
+
+void PositionTracker::markChunkSent(PlayerId playerId, ChunkCoord x, ChunkCoord z) {
+    auto* player = m_playerManager.getPlayer(playerId);
+    if (!player || !player->chunkTracker) {
+        return;
+    }
+
+    player->chunkTracker->addLoadedChunk(x, z);
+    m_playerManager.chunkSyncManager().markChunkSent(playerId, x, z);
+}
+
+void PositionTracker::markChunkUnloaded(PlayerId playerId, ChunkCoord x, ChunkCoord z) {
+    auto* player = m_playerManager.getPlayer(playerId);
+    if (!player || !player->chunkTracker) {
+        return;
+    }
+
+    player->chunkTracker->removeLoadedChunk(x, z);
+    m_playerManager.chunkSyncManager().markChunkUnloaded(playerId, x, z);
+}
+
+std::vector<PlayerId> PositionTracker::getChunkSubscribers(ChunkCoord x, ChunkCoord z) const {
+    return m_playerManager.chunkSyncManager().getChunkSubscribers(x, z);
+}
+
+Vector3f PositionTracker::getPosition(PlayerId playerId) const {
+    auto* player = m_playerManager.getPlayer(playerId);
+    return player ? Vector3f(player->x, player->y, player->z) : Vector3f(0.0f, 64.0f, 0.0f);
+}
+
+Vector2f PositionTracker::getRotation(PlayerId playerId) const {
+    auto* player = m_playerManager.getPlayer(playerId);
+    return player ? Vector2f(player->yaw, player->pitch) : Vector2f(0.0f, 0.0f);
+}
+
+ChunkPos PositionTracker::getChunkPosition(PlayerId playerId) const {
+    auto* player = m_playerManager.getPlayer(playerId);
+    if (!player) {
+        return ChunkPos(0, 0);
+    }
+    return ChunkPos(player->chunkX(), player->chunkZ());
+}
+
+bool PositionTracker::isOnGround(PlayerId playerId) const {
+    auto* player = m_playerManager.getPlayer(playerId);
+    return player ? player->onGround : true;
+}
+
+void PositionTracker::setViewDistance(PlayerId playerId, i32 viewDistance) {
+    auto* player = m_playerManager.getPlayer(playerId);
+    if (!player || !player->chunkTracker) {
+        return;
+    }
+
+    player->chunkTracker->setViewDistance(viewDistance);
+}
+
+i32 PositionTracker::getViewDistance(PlayerId playerId) const {
+    auto* player = m_playerManager.getPlayer(playerId);
+    if (!player || !player->chunkTracker) {
+        return m_defaultViewDistance;
+    }
+    return player->chunkTracker->viewDistance();
+}
+
+} // namespace mr::server::core

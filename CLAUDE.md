@@ -46,18 +46,20 @@ src/
 ├── common/          # Shared code between client and server
 │   ├── core/        # Types, Result, Constants
 │   ├── math/        # Vector3, MathUtils, PerlinNoise, SimplexNoise
-│   ├── network/     # Packet, PacketSerializer
+│   ├── network/     # Packet, PacketSerializer, IServerConnection
 │   ├── world/       # World generation and chunk management
 │   │   ├── block/   # Block system (Block, BlockState, BlockRegistry)
 │   │   ├── chunk/   # Chunk data structures
 │   │   │   ├── ChunkData.hpp       # Final chunk data
 │   │   │   ├── ChunkPos.hpp        # Chunk position
-│   │   │   ├── ChunkStatus.hpp     # Generation stages (NEW)
-│   │   │   ├── ChunkPrimer.hpp     # Intermediate chunk state (NEW)
-│   │   │   ├── ChunkHolder.hpp     # Chunk state management (NEW)
-│   │   │   ├── IChunk.hpp          # Chunk interface (NEW)
+│   │   │   ├── ChunkStatus.hpp     # Generation stages
+│   │   │   ├── ChunkPrimer.hpp     # Intermediate chunk state
+│   │   │   ├── ChunkHolder.hpp     # Chunk state management
+│   │   │   ├── IChunk.hpp          # Chunk interface
 │   │   │   └── ChunkLoadTicketManager.hpp
-│   │   └── gen/     # World generation (NEW)
+│   │   ├── time/    # Game time system
+│   │   │   └── GameTime.hpp        # Day/night cycle
+│   │   └── gen/     # World generation
 │   │       ├── ImprovedNoiseGenerator.hpp  # MC-style Perlin noise
 │   │       ├── OctavesNoiseGenerator.hpp   # Multi-octave noise
 │   │       ├── NoiseSettings.hpp           # Noise configuration
@@ -72,12 +74,35 @@ src/
 │   │   └── PackMetadata.hpp       # pack.mcmeta parsing
 │   └── renderer/    # MeshTypes, ChunkMesher (shared rendering data)
 ├── server/          # Server application
-│   ├── application/ # ServerApplication, ServerLoop
-│   ├── network/     # TcpServer, TcpSession
+│   ├── application/ # ServerApplication, IntegratedServer
+│   ├── core/        # ServerCore module (NEW)
+│   │   ├── ServerCore.hpp/cpp        # Facade class coordinating all managers
+│   │   ├── ServerCoreConfig.hpp      # Configuration struct
+│   │   ├── ServerPlayerData.hpp      # Player data structure
+│   │   ├── PlayerManager.hpp/cpp     # Player lifecycle management
+│   │   ├── ConnectionManager.hpp/cpp # Network communication
+│   │   ├── TimeManager.hpp/cpp       # Game time, tick count, day cycle
+│   │   ├── TeleportManager.hpp/cpp   # Teleport request/confirmation
+│   │   ├── KeepAliveManager.hpp/cpp  # Heartbeat, ping, timeout
+│   │   ├── PositionTracker.hpp/cpp   # Player position, chunk subscription
+│   │   └── PacketHandler.hpp/cpp     # Unified packet handling
+│   ├── network/     # TcpServer, TcpSession, TcpConnection
+│   ├── command/     # Command system
+│   │   ├── CommandRegistry.hpp       # Command registration
+│   │   ├── ServerCommandSource.hpp   # Command execution context
+│   │   └── commands/                 # Command implementations
+│   ├── menu/        # Container menu system
+│   │   └── CraftingMenu.hpp/cpp
+│   ├── player/      # Server player
+│   │   └── ServerPlayer.hpp/cpp
 │   └── world/       # ServerWorld
 │       ├── ServerWorld.hpp
-│       ├── ServerChunkManager.hpp  # Chunk manager (NEW)
-│       └── ChunkWorkerPool.hpp     # Async generation (NEW)
+│       ├── ServerChunkManager.hpp  # Chunk manager
+│       ├── ChunkWorkerPool.hpp     # Async generation
+│       ├── spawn/                  # Mob spawning
+│       │   ├── NaturalSpawner.hpp
+│       │   └── SpawnConditions.hpp
+│       └── entity/EntityTracker.hpp
 ├── client/          # Client application
 │   ├── application/ # ClientApplication, GameLoop
 │   ├── window/      # Window (GLFW wrapper)
@@ -404,6 +429,10 @@ All random implementations provide MC-style methods:
 
 ## 编译过程中遇到的warning你也要一并解决
 
+## 当单测不通过的时候，首先应该反思待测代码的问题，而不是急于修改测试代码；测试覆盖率必须95%以上，并坚持“测试即契约”
+
+## 注意：你必须完整实现所有任务，不允许暂时跳过或留任何todo。你被给予了充足时间做全部任务，放心。
+
 ## 需要使用命名空间隔离各个子系统的标识符。下面是最佳实践：
 
 ```cpp
@@ -459,9 +488,17 @@ void endSingleTimeCommands(VkCommandBuffer cmd);
 ## Current Status
 
 - **Core**: Complete (types, math, error handling)
-- **Network**: Basic implementation (TCP server, packet serialization)
+- **Network**: Complete (TCP server, packet serialization, LocalConnection for integrated server)
+- **Server Core Module**: Complete (NEW - Modular refactoring)
+  - ServerCore: Facade class coordinating all managers
+  - PlayerManager: Player lifecycle, session mapping, chunk sync
+  - ConnectionManager: Packet sending, broadcasting, disconnection
+  - TimeManager: Game time, tick count, day cycle
+  - TeleportManager: Teleport request/confirmation
+  - KeepAliveManager: Heartbeat, ping calculation, timeout detection
+  - PositionTracker: Position updates, chunk subscription
+  - PacketHandler: Unified packet handling with callbacks
 - **World**: Complete (chunk storage, terrain generation)
-- **Chunk Generation**: Complete (NEW)
   - ChunkStatus: Generation stages (EMPTY → BIOMES → NOISE → SURFACE → CARVERS → FEATURES → HEIGHTMAPS → FULL)
   - ChunkPrimer: Intermediate chunk state during generation
   - ChunkHolder: Future-based chunk state management
@@ -474,7 +511,7 @@ void endSingleTimeCommands(VkCommandBuffer cmd);
 - **Renderer**: In progress (Vulkan context, basic mesh generation, texture atlas with MC 1.12/1.13+ compatibility)
 - **Resource Pack System**: Complete (model/blockstate parsing, texture atlas, MC version compatibility)
 - **Block Properties**: Complete (property encoding, variant mapping)
-- **Tests**: 250+ tests (163 common + 27 resource + 60+ chunk generation)
+- **Tests**: 1126+ tests passing (including 96 new ServerCore module tests)
 
 ## Self-Maintenance Rule
 

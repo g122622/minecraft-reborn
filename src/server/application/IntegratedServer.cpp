@@ -19,6 +19,13 @@
 #include "server/application/MinecraftServer.hpp"
 #include "server/command/CommandRegistry.hpp"
 #include "server/command/ServerCommandSource.hpp"
+#include "server/core/PlayerManager.hpp"
+#include "server/core/ConnectionManager.hpp"
+#include "server/core/TimeManager.hpp"
+#include "server/core/TeleportManager.hpp"
+#include "server/core/KeepAliveManager.hpp"
+#include "server/core/PositionTracker.hpp"
+#include "server/core/PacketHandler.hpp"
 
 #include <spdlog/spdlog.h>
 #include <chrono>
@@ -165,6 +172,16 @@ Result<void> IntegratedServer::initialize(const IntegratedServerConfig& config) 
     }
 
     m_config = config;
+
+    // 初始化 ServerCore
+    ServerCoreConfig coreConfig;
+    coreConfig.viewDistance = config.viewDistance;
+    coreConfig.defaultGameMode = config.defaultGameMode;
+    coreConfig.seed = static_cast<u64>(config.seed);
+    coreConfig.maxPlayers = 1;  // 内置服务器只支持单人
+    coreConfig.tickRate = config.tickRate;
+    m_serverCore = std::make_unique<ServerCore>(coreConfig);
+
     // 初始化方块注册表（必须在创建地形生成器之前）
     VanillaBlocks::initialize();
     spdlog::info("Vanilla blocks initialized");
@@ -271,6 +288,18 @@ network::LocalEndpoint* IntegratedServer::getClientEndpoint() {
     return nullptr;
 }
 
+u64 IntegratedServer::tickCount() const noexcept {
+    return m_serverCore ? m_serverCore->currentTick() : 0;
+}
+
+i64 IntegratedServer::dayTime() const noexcept {
+    return m_serverCore ? m_serverCore->gameTime().dayTime() : 0;
+}
+
+i64 IntegratedServer::gameTime() const noexcept {
+    return m_serverCore ? m_serverCore->gameTime().gameTime() : 0;
+}
+
 void IntegratedServer::mainLoop() {
     using clock = std::chrono::steady_clock;
     const auto tickDuration = std::chrono::milliseconds(1000 / m_config.tickRate);
@@ -288,8 +317,6 @@ void IntegratedServer::mainLoop() {
             std::this_thread::sleep_for(sleepTime);
         }
     }
-
-    // 注意：不要在这里调用 shutdown()，stop() 方法会处理清理
 }
 
 void IntegratedServer::tick() {
@@ -297,6 +324,9 @@ void IntegratedServer::tick() {
     if (!m_running.load()) {
         return;
     }
+
+    // 使用 ServerCore 的 tick
+    m_serverCore->tick();
 
     // 处理网络数据包
     std::vector<u8> packetData;
@@ -323,21 +353,26 @@ void IntegratedServer::tick() {
     }
 
     // 心跳（每 15 秒）
-    m_tickCount++;
-    if (m_daylightCycleEnabled) {
-        ++m_dayTime;
-    }
-    if (m_tickCount % (static_cast<u64>(m_config.tickRate) * 15) == 0) {
+    u64 tick = m_serverCore->currentTick();
+    if (tick % (static_cast<u64>(m_config.tickRate) * 15) == 0) {
         auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now().time_since_epoch()
         ).count();
         sendKeepAlive(static_cast<u64>(timestamp));
+    }
+
+    // 日光周期
+    if (m_daylightCycleEnabled) {
+        m_serverCore->timeManager().addDayTime(1);
     }
 }
 
 void IntegratedServer::shutdown() {
     // 清理区块管理器
     m_chunkManager.reset();
+
+    // 清理 ServerCore
+    m_serverCore.reset();
 
     if (m_connectionPair) {
         m_connectionPair->disconnect();
@@ -351,11 +386,11 @@ void IntegratedServer::shutdown() {
 void IntegratedServer::requestChunkAsync(ChunkCoord x, ChunkCoord z) {
     if (!m_running.load()) return;
 
+    auto* player = getPlayerData();
+    if (!player) return;
+
     ChunkId id(x, z);
-    {
-        std::lock_guard<std::mutex> lock(m_clientMutex);
-        if (m_client.loadedChunks.count(id)) return;  // 已发送
-    }
+    if (player->loadedChunks.count(id)) return;  // 已发送
 
     if (!m_chunkManager) return;
 
@@ -366,10 +401,8 @@ void IntegratedServer::requestChunkAsync(ChunkCoord x, ChunkCoord z) {
             if (!m_running.load() || !success || !chunk) return;
 
             // 检查是否已发送
-            {
-                std::lock_guard<std::mutex> lock(m_clientMutex);
-                if (m_client.loadedChunks.count(id)) return;
-            }
+            auto* p = getPlayerData();
+            if (!p || p->loadedChunks.count(id)) return;
 
             // 序列化区块数据
             auto result = network::ChunkSerializer::serializeChunk(*chunk);
@@ -400,19 +433,13 @@ void IntegratedServer::processPendingChunkSends() {
         if (!m_running.load()) return;
 
         // 检查客户端是否仍然登录
-        bool loggedIn;
-        {
-            std::lock_guard<std::mutex> lock(m_clientMutex);
-            loggedIn = m_client.loggedIn;
-        }
-        if (!loggedIn) return;
+        auto* player = getPlayerData();
+        if (!player || !player->loggedIn) return;
 
         ChunkId id(send.x, send.z);
-        {
-            std::lock_guard<std::mutex> lock(m_clientMutex);
-            if (m_client.loadedChunks.count(id)) continue;  // 已发送
-            m_client.loadedChunks.insert(id);
-        }
+        if (player->loadedChunks.count(id)) continue;  // 已发送
+
+        player->loadedChunks.insert(id);
 
         spdlog::debug("Sending chunk ({}, {}) to client, size: {} bytes",
                       send.x, send.z, send.serializedData.size());
@@ -426,14 +453,14 @@ void IntegratedServer::sendChunkToClient(ChunkCoord x, ChunkCoord z) {
         return;
     }
 
+    auto* player = getPlayerData();
+    if (!player) return;
+
     ChunkId id(x, z);
 
     // 检查是否已发送
-    {
-        std::lock_guard<std::mutex> lock(m_clientMutex);
-        if (m_client.loadedChunks.find(id) != m_client.loadedChunks.end()) {
-            return;
-        }
+    if (player->loadedChunks.find(id) != player->loadedChunks.end()) {
+        return;
     }
 
     // 异步请求区块
@@ -520,54 +547,62 @@ void IntegratedServer::handleLoginRequest(const u8* data, size_t size) {
 
     spdlog::info("Player '{}' attempting to join", username);
 
-    // 分配玩家ID
-    m_client.playerId = m_nextPlayerId++;
-    m_client.username = username;
-    m_client.loggedIn = true;
-    m_client.gameMode = m_config.defaultGameMode;
-    m_client.inventory.clear();
-    m_client.inventory.setSelectedSlot(0);
-    if (m_client.gameMode == GameMode::Creative) {
+    // 创建本地连接
+    auto connection = std::make_shared<network::LocalServerConnection>(&m_connectionPair->serverEndpoint());
+
+    // 使用 ServerCore 添加玩家
+    m_clientPlayerId = m_serverCore->nextPlayerId();
+    auto* player = m_serverCore->addPlayer(m_clientPlayerId, username, connection);
+
+    if (!player) {
+        sendLoginResponse(false, 0, username, "Failed to add player");
+        return;
+    }
+
+    player->loggedIn = true;
+    player->gameMode = m_config.defaultGameMode;
+    m_clientData.inventory.clear();
+    m_clientData.inventory.setSelectedSlot(0);
+
+    if (player->gameMode == GameMode::Creative) {
         i32 slot = 0;
-        BlockItemRegistry::instance().forEachBlockItem([this, &slot](const BlockItem& item) {
+        BlockItemRegistry::instance().forEachBlockItem([this, player, &slot](const BlockItem& item) {
             if (slot >= PlayerInventory::TOTAL_SIZE) {
                 return;
             }
-            m_client.inventory.setItem(slot, ItemStack(item, 64));
+            m_clientData.inventory.setItem(slot, ItemStack(item, 64));
             ++slot;
         });
     }
 
     // 设置初始位置（出生点）
-    m_client.x = 0.0;
-    m_client.y = 90.0;
-    m_client.z = 0.0;
+    player->x = 0.0f;
+    player->y = 90.0f;
+    player->z = 0.0f;
 
     // 发送登录成功响应
-    sendLoginResponse(true, m_client.playerId, username, "Welcome to singleplayer world!");
+    sendLoginResponse(true, m_clientPlayerId, username, "Welcome to singleplayer world!");
 
-    // 发送初始传送（将玩家传送到出生点）
-    u32 teleportId = static_cast<u32>(m_tickCount);
-    m_client.pendingTeleportId = teleportId;
-    m_client.waitingTeleportConfirm = true;
-    sendTeleport(m_client.x, m_client.y, m_client.z, m_client.yaw, m_client.pitch, teleportId);
+    // 发送初始传送
+    u32 teleportId = m_serverCore->teleportPlayer(m_clientPlayerId, player->x, player->y, player->z, player->yaw, player->pitch);
     sendPlayerInventory();
 
     // 初始化玩家票据位置
-    ChunkCoord spawnChunkX = static_cast<ChunkCoord>(std::floor(m_client.x / 16.0));
-    ChunkCoord spawnChunkZ = static_cast<ChunkCoord>(std::floor(m_client.z / 16.0));
+    ChunkCoord spawnChunkX = static_cast<ChunkCoord>(std::floor(player->x / 16.0f));
+    ChunkCoord spawnChunkZ = static_cast<ChunkCoord>(std::floor(player->z / 16.0f));
     m_lastPlayerChunkX = spawnChunkX;
     m_lastPlayerChunkZ = spawnChunkZ;
 
     // 在票据管理器中注册玩家位置
-    m_ticketManager->updatePlayerPosition(m_client.playerId, spawnChunkX, spawnChunkZ);
+    m_ticketManager->updatePlayerPosition(m_clientPlayerId, spawnChunkX, spawnChunkZ);
 
     spdlog::info("Player '{}' (ID: {}) joined the game at chunk ({}, {})",
-                 username, m_client.playerId, spawnChunkX, spawnChunkZ);
+                 username, m_clientPlayerId, spawnChunkX, spawnChunkZ);
 }
 
 void IntegratedServer::handlePlayerMove(const u8* data, size_t size) {
-    if (!m_client.loggedIn) {
+    auto* player = getPlayerData();
+    if (!player || !player->loggedIn) {
         return;
     }
 
@@ -584,28 +619,29 @@ void IntegratedServer::handlePlayerMove(const u8* data, size_t size) {
 
     switch (packet.type()) {
         case network::PlayerMovePacket::MoveType::Full:
-            m_client.x = pos.x;
-            m_client.y = pos.y;
-            m_client.z = pos.z;
-            m_client.yaw = pos.yaw;
-            m_client.pitch = pos.pitch;
+            player->x = static_cast<f32>(pos.x);
+            player->y = static_cast<f32>(pos.y);
+            player->z = static_cast<f32>(pos.z);
+            player->yaw = pos.yaw;
+            player->pitch = pos.pitch;
             break;
         case network::PlayerMovePacket::MoveType::Position:
-            m_client.x = pos.x;
-            m_client.y = pos.y;
-            m_client.z = pos.z;
+            player->x = static_cast<f32>(pos.x);
+            player->y = static_cast<f32>(pos.y);
+            player->z = static_cast<f32>(pos.z);
             break;
         case network::PlayerMovePacket::MoveType::Rotation:
-            m_client.yaw = pos.yaw;
-            m_client.pitch = pos.pitch;
+            player->yaw = pos.yaw;
+            player->pitch = pos.pitch;
             break;
         case network::PlayerMovePacket::MoveType::GroundOnly:
+            player->onGround = pos.onGround;
             break;
     }
 
     // 检查是否跨越区块边界
-    ChunkCoord newChunkX = static_cast<ChunkCoord>(std::floor(m_client.x / 16.0));
-    ChunkCoord newChunkZ = static_cast<ChunkCoord>(std::floor(m_client.z / 16.0));
+    ChunkCoord newChunkX = static_cast<ChunkCoord>(std::floor(player->x / 16.0f));
+    ChunkCoord newChunkZ = static_cast<ChunkCoord>(std::floor(player->z / 16.0f));
 
     if (newChunkX != m_lastPlayerChunkX || newChunkZ != m_lastPlayerChunkZ) {
         handlePlayerChunkMove(newChunkX, newChunkZ);
@@ -615,7 +651,8 @@ void IntegratedServer::handlePlayerMove(const u8* data, size_t size) {
 }
 
 void IntegratedServer::handleBlockInteraction(const u8* data, size_t size) {
-    if (!m_client.loggedIn || !m_chunkManager) {
+    auto* player = getPlayerData();
+    if (!player || !player->loggedIn || !m_chunkManager) {
         return;
     }
 
@@ -633,9 +670,9 @@ void IntegratedServer::handleBlockInteraction(const u8* data, size_t size) {
                  packet.y(),
                  packet.z(),
                  static_cast<i32>(packet.face()),
-                 m_client.x,
-                 m_client.y,
-                 m_client.z);
+                 player->x,
+                 player->y,
+                 player->z);
 
     if (packet.action() != network::BlockInteractionAction::StopDestroyBlock) {
         return;
@@ -645,9 +682,9 @@ void IntegratedServer::handleBlockInteraction(const u8* data, size_t size) {
         return;
     }
 
-    const f64 eyeX = m_client.x;
-    const f64 eyeY = m_client.y + Player::PLAYER_EYE_HEIGHT;
-    const f64 eyeZ = m_client.z;
+    const f64 eyeX = player->x;
+    const f64 eyeY = player->y + Player::PLAYER_EYE_HEIGHT;
+    const f64 eyeZ = player->z;
     const f64 targetX = static_cast<f64>(packet.x()) + 0.5;
     const f64 targetY = static_cast<f64>(packet.y()) + 0.5;
     const f64 targetZ = static_cast<f64>(packet.z()) + 0.5;
@@ -697,7 +734,8 @@ void IntegratedServer::handleBlockInteraction(const u8* data, size_t size) {
 
 void IntegratedServer::handleBlockPlacement(const u8* data, size_t size)
 {
-    if (!m_client.loggedIn || !m_chunkManager) {
+    auto* player = getPlayerData();
+    if (!player || !player->loggedIn || !m_chunkManager) {
         return;
     }
 
@@ -715,9 +753,9 @@ void IntegratedServer::handleBlockPlacement(const u8* data, size_t size)
                  packet.hitX(), packet.hitY(), packet.hitZ());
 
     // 验证距离（最大6格）
-    const f64 eyeX = m_client.x;
-    const f64 eyeY = m_client.y + Player::PLAYER_EYE_HEIGHT;
-    const f64 eyeZ = m_client.z;
+    const f64 eyeX = player->x;
+    const f64 eyeY = player->y + Player::PLAYER_EYE_HEIGHT;
+    const f64 eyeZ = player->z;
     const f64 targetX = static_cast<f64>(packet.x()) + 0.5;
     const f64 targetY = static_cast<f64>(packet.y()) + 0.5;
     const f64 targetZ = static_cast<f64>(packet.z()) + 0.5;
@@ -731,7 +769,7 @@ void IntegratedServer::handleBlockPlacement(const u8* data, size_t size)
         return;
     }
 
-    if (m_client.gameMode == GameMode::Spectator) {
+    if (player->gameMode == GameMode::Spectator) {
         return;
     }
 
@@ -763,7 +801,7 @@ void IntegratedServer::handleBlockPlacement(const u8* data, size_t size)
         return;
     }
 
-    ItemStack heldStack = m_client.inventory.getSelectedStack();
+    ItemStack heldStack = m_clientData.inventory.getSelectedStack();
     if (heldStack.isEmpty()) {
         spdlog::debug("[Place] Selected stack is empty");
         return;
@@ -787,7 +825,7 @@ void IntegratedServer::handleBlockPlacement(const u8* data, size_t size)
                                 packet.hitPosition(),
                                 clickedPos,
                                 face,
-                                m_client.yaw);
+                                player->yaw);
 
     if (!blockItem->tryPlace(context)) {
         spdlog::debug("[Place] Block item placement validation failed");
@@ -817,11 +855,11 @@ void IntegratedServer::handleBlockPlacement(const u8* data, size_t size)
     placeChunk->setBlock(placeLocalX, placePos.y, placeLocalZ, newState);
     placeChunk->setDirty(true);
 
-    if (m_client.gameMode != GameMode::Creative) {
-        const i32 selectedSlot = m_client.inventory.getSelectedSlot();
-        ItemStack updatedStack = m_client.inventory.getItem(selectedSlot);
+    if (player->gameMode != GameMode::Creative) {
+        const i32 selectedSlot = m_clientData.inventory.getSelectedSlot();
+        ItemStack updatedStack = m_clientData.inventory.getItem(selectedSlot);
         updatedStack.shrink(1);
-        m_client.inventory.setItem(selectedSlot, updatedStack);
+        m_clientData.inventory.setItem(selectedSlot, updatedStack);
         sendPlayerInventory();
     }
 
@@ -835,7 +873,8 @@ void IntegratedServer::handleBlockPlacement(const u8* data, size_t size)
 
 void IntegratedServer::handleHotbarSelect(const u8* data, size_t size)
 {
-    if (!m_client.loggedIn) {
+    auto* player = getPlayerData();
+    if (!player || !player->loggedIn) {
         return;
     }
 
@@ -846,12 +885,23 @@ void IntegratedServer::handleHotbarSelect(const u8* data, size_t size)
         return;
     }
 
-    m_client.inventory.setSelectedSlot(result.value().slot());
+    m_clientData.inventory.setSelectedSlot(result.value().slot());
 }
 
 void IntegratedServer::handleContainerClick(const u8* data, size_t size)
 {
-    if (!m_client.loggedIn || !m_client.openMenu) {
+    auto* player = getPlayerData();
+    if (!player || !player->loggedIn) {
+        return;
+    }
+
+    std::unique_ptr<AbstractContainerMenu> openMenu;
+    {
+        std::lock_guard<std::mutex> lock(m_clientDataMutex);
+        openMenu = m_clientData.openMenu ? std::unique_ptr<AbstractContainerMenu>(m_clientData.openMenu.get()) : nullptr;
+    }
+
+    if (!openMenu) {
         return;
     }
 
@@ -863,7 +913,7 @@ void IntegratedServer::handleContainerClick(const u8* data, size_t size)
     }
 
     const auto& packet = result.value();
-    if (packet.containerId() != m_client.openMenu->getId()) {
+    if (packet.containerId() != openMenu->getId()) {
         return;
     }
 
@@ -873,15 +923,27 @@ void IntegratedServer::handleContainerClick(const u8* data, size_t size)
     }
 
     Player& menuPlayer = getMenuPlayer();
-    m_client.openMenu->clicked(packet.slotIndex(), packet.button(), clickType, menuPlayer);
+    openMenu->clicked(packet.slotIndex(), packet.button(), clickType, menuPlayer);
 
-    sendContainerContent(*m_client.openMenu);
+    sendContainerContent(*openMenu);
     sendPlayerInventory();
 }
 
 void IntegratedServer::handleCloseContainer(const u8* data, size_t size)
 {
-    if (!m_client.loggedIn || !m_client.openMenu) {
+    auto* player = getPlayerData();
+    if (!player || !player->loggedIn) {
+        return;
+    }
+
+    std::unique_ptr<AbstractContainerMenu> openMenu;
+    {
+        std::lock_guard<std::mutex> lock(m_clientDataMutex);
+        openMenu = std::move(m_clientData.openMenu);
+        m_clientData.openContainerType = ContainerType::Player;
+    }
+
+    if (!openMenu) {
         return;
     }
 
@@ -892,14 +954,12 @@ void IntegratedServer::handleCloseContainer(const u8* data, size_t size)
         return;
     }
 
-    if (result.value().containerId() != m_client.openMenu->getId()) {
+    if (result.value().containerId() != openMenu->getId()) {
         return;
     }
 
     Player& menuPlayer = getMenuPlayer();
-    m_client.openMenu->removed(menuPlayer);
-    m_client.openMenu.reset();
-    m_client.openContainerType = ContainerType::Player;
+    openMenu->removed(menuPlayer);
     sendPlayerInventory();
 }
 
@@ -909,7 +969,7 @@ void IntegratedServer::handlePlayerChunkMove(ChunkCoord newChunkX, ChunkCoord ne
 
     // 更新票据管理器中的玩家位置
     // 这会自动触发区块加载/卸载的计算
-    m_ticketManager->updatePlayerPosition(m_client.playerId, newChunkX, newChunkZ);
+    m_ticketManager->updatePlayerPosition(m_clientPlayerId, newChunkX, newChunkZ);
 }
 
 void IntegratedServer::onChunkLevelChanged(ChunkCoord x, ChunkCoord z, i32 oldLevel, i32 newLevel) {
@@ -917,6 +977,9 @@ void IntegratedServer::onChunkLevelChanged(ChunkCoord x, ChunkCoord z, i32 oldLe
     if (!m_running.load()) {
         return;
     }
+
+    auto* player = getPlayerData();
+    if (!player) return;
 
     ChunkId id(x, z);
     bool wasLoaded = world::shouldChunkLoad(oldLevel);
@@ -929,17 +992,16 @@ void IntegratedServer::onChunkLevelChanged(ChunkCoord x, ChunkCoord z, i32 oldLe
     } else if (wasLoaded && !isLoaded) {
         // 区块从加载变为卸载
         spdlog::debug("Chunk ({}, {}) unloading: level {} -> {}", x, z, oldLevel, newLevel);
-        std::lock_guard<std::mutex> lock(m_clientMutex);
-        if (m_client.loadedChunks.count(id) > 0) {
+        if (player->loadedChunks.count(id) > 0) {
             sendUnloadChunk(x, z);
-            m_client.loadedChunks.erase(id);
+            player->loadedChunks.erase(id);
         }
     }
-    // 其他情况：区块级别变化但仍在加载范围内，不需要操作
 }
 
 void IntegratedServer::handleTeleportConfirm(const u8* data, size_t size) {
-    if (!m_client.loggedIn) {
+    auto* player = getPlayerData();
+    if (!player || !player->loggedIn) {
         spdlog::warn("Teleport confirm received but client not logged in");
         return;
     }
@@ -954,18 +1016,14 @@ void IntegratedServer::handleTeleportConfirm(const u8* data, size_t size) {
 
     auto& packet = result.value();
     spdlog::debug("Teleport confirm received: id={}, expected={}",
-                 packet.teleportId(), m_client.pendingTeleportId);
+                 packet.teleportId(), player->pendingTeleportId);
 
-    if (m_client.waitingTeleportConfirm && packet.teleportId() == m_client.pendingTeleportId) {
-        m_client.waitingTeleportConfirm = false;
-
+    if (m_serverCore->confirmTeleport(m_clientPlayerId, packet.teleportId())) {
         // 传送确认后，触发区块加载
-        // 票据系统已经通过 handlePlayerChunkMove 设置了玩家位置
-        // 这里只需要处理更新，确保区块被发送
         m_ticketManager->processUpdates();
     } else {
         spdlog::warn("Unexpected teleport confirm: id={}, expected={}",
-                     packet.teleportId(), m_client.pendingTeleportId);
+                     packet.teleportId(), player->pendingTeleportId);
     }
 }
 
@@ -974,12 +1032,19 @@ void IntegratedServer::handleKeepAlive(const u8* data, size_t size) {
     auto result = packet.deserialize(data, size);
 
     if (result.success()) {
+        auto currentTimeMs = static_cast<u64>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now().time_since_epoch()
+            ).count()
+        );
+        m_serverCore->keepAliveManager().handleKeepAliveResponse(m_clientPlayerId, packet.timestamp(), currentTimeMs);
         spdlog::trace("KeepAlive received: {}", packet.timestamp());
     }
 }
 
 void IntegratedServer::handleChatMessage(const u8* data, size_t size) {
-    if (!m_client.loggedIn) {
+    auto* player = getPlayerData();
+    if (!player || !player->loggedIn) {
         return;
     }
 
@@ -996,33 +1061,25 @@ void IntegratedServer::handleChatMessage(const u8* data, size_t size) {
         auto& registry = command::CommandRegistry::getGlobal();
         IntegratedServerCommandBridge bridge(
             m_config.seed,
-            [this]() { return static_cast<i64>(m_tickCount); },
-            [this]() { return m_dayTime / 24000; },
-            [this]() { return m_dayTime; },
-            [this]() { return static_cast<i64>(m_tickCount); },
+            [this]() { return static_cast<i64>(tickCount()); },
+            [this]() { return dayTime() / 24000; },
+            [this]() { return dayTime(); },
+            [this]() { return gameTime(); },
             [this](i64 time) {
-                m_dayTime = time;
+                m_serverCore->timeManager().setDayTime(time);
                 return true;
             },
             [this](i64 delta) {
-                m_dayTime += delta;
+                m_serverCore->timeManager().addDayTime(delta);
                 return true;
             },
             [this](PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch) {
-                if (!m_client.loggedIn || m_client.playerId != playerId) {
+                auto* p = m_serverCore->getPlayer(playerId);
+                if (!p || !p->loggedIn) {
                     return false;
                 }
 
-                m_client.x = x;
-                m_client.y = y;
-                m_client.z = z;
-                m_client.yaw = yaw;
-                m_client.pitch = pitch;
-
-                const u32 teleportId = static_cast<u32>(m_tickCount + 1);
-                m_client.pendingTeleportId = teleportId;
-                m_client.waitingTeleportConfirm = true;
-                sendTeleport(x, y, z, yaw, pitch, teleportId);
+                m_serverCore->teleportPlayer(playerId, x, y, z, yaw, pitch);
 
                 const ChunkCoord chunkX = static_cast<ChunkCoord>(std::floor(x / 16.0));
                 const ChunkCoord chunkZ = static_cast<ChunkCoord>(std::floor(z / 16.0));
@@ -1030,21 +1087,22 @@ void IntegratedServer::handleChatMessage(const u8* data, size_t size) {
                 return true;
             },
             [this](PlayerId playerId, GameMode mode) {
-                if (!m_client.loggedIn || m_client.playerId != playerId) {
+                auto* p = m_serverCore->getPlayer(playerId);
+                if (!p || !p->loggedIn) {
                     return false;
                 }
-                m_client.gameMode = mode;
+                p->gameMode = mode;
                 return true;
             });
         command::ServerCommandSource source(
             &bridge,
             nullptr,
             nullptr,
-            Vector3d(m_client.x, m_client.y, m_client.z),
-            Vector2f(m_client.yaw, m_client.pitch),
+            Vector3d(player->x, player->y, player->z),
+            Vector2f(player->yaw, player->pitch),
             4,
-            m_client.playerId,
-            m_client.username
+            m_clientPlayerId,
+            player->username
         );
 
         auto commandResult = registry.execute(packet.message(), source);
@@ -1058,7 +1116,7 @@ void IntegratedServer::handleChatMessage(const u8* data, size_t size) {
         return;
     }
 
-    spdlog::info("[Chat] {}: {}", m_client.username, packet.message());
+    spdlog::info("[Chat] {}: {}", player->username, packet.message());
 }
 
 void IntegratedServer::sendLoginResponse(bool success, PlayerId playerId,
@@ -1071,9 +1129,9 @@ void IntegratedServer::sendLoginResponse(bool success, PlayerId playerId,
     network::PacketSerializer fullPacket;
     fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
     fullPacket.writeU16(static_cast<u16>(network::PacketType::LoginResponse));
-    fullPacket.writeU16(0); // flags
-    fullPacket.writeU16(0); // reserved
-    fullPacket.writeU16(0); // padding
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
     fullPacket.writeBytes(ser.buffer());
 
     sendToClient(fullPacket.data(), fullPacket.size());
@@ -1086,6 +1144,11 @@ void IntegratedServer::sendKeepAlive(u64 timestamp) {
     auto result = packet.serialize();
     if (result.success()) {
         sendToClient(result.value().data(), result.value().size());
+    }
+
+    // 记录心跳发送
+    if (m_serverCore) {
+        m_serverCore->recordKeepAliveSent(m_clientPlayerId, timestamp);
     }
 }
 
@@ -1122,7 +1185,7 @@ void IntegratedServer::sendBlockUpdate(i32 x, i32 y, i32 z, u32 blockStateId) {
 }
 
 void IntegratedServer::sendPlayerInventory() {
-    PlayerInventoryPacket packet(m_client.inventory);
+    PlayerInventoryPacket packet(m_clientData.inventory);
     network::PacketSerializer ser;
     packet.serialize(ser);
 
@@ -1197,16 +1260,32 @@ void IntegratedServer::sendToClient(const u8* data, size_t size) {
 }
 
 void IntegratedServer::openCraftingTableMenu() {
-    if (m_client.openMenu) {
+    auto* player = getPlayerData();
+    if (!player) return;
+
+    std::unique_ptr<AbstractContainerMenu> existingMenu;
+    ContainerId previousId = 0;
+    {
+        std::lock_guard<std::mutex> lock(m_clientDataMutex);
+        if (m_clientData.openMenu) {
+            existingMenu = std::move(m_clientData.openMenu);
+            previousId = existingMenu->getId();
+        }
+    }
+
+    if (existingMenu) {
         Player& menuPlayer = getMenuPlayer();
-        const ContainerId previousId = m_client.openMenu->getId();
-        m_client.openMenu->removed(menuPlayer);
-        m_client.openMenu.reset();
+        existingMenu->removed(menuPlayer);
         sendCloseContainer(previousId);
     }
 
-    const ContainerId containerId = m_client.nextContainerId++;
-    auto menu = std::make_unique<CraftingMenu>(containerId, &m_client.inventory, nullptr);
+    ContainerId containerId;
+    {
+        std::lock_guard<std::mutex> lock(m_clientDataMutex);
+        containerId = m_clientData.nextContainerId++;
+    }
+
+    auto menu = std::make_unique<CraftingMenu>(containerId, &m_clientData.inventory, nullptr);
     menu->updateResult();
 
     sendOpenContainer(containerId,
@@ -1215,8 +1294,11 @@ void IntegratedServer::openCraftingTableMenu() {
                       menu->getSlotCount());
     sendContainerContent(*menu);
 
-    m_client.openContainerType = ContainerType::CraftingTable;
-    m_client.openMenu = std::move(menu);
+    {
+        std::lock_guard<std::mutex> lock(m_clientDataMutex);
+        m_clientData.openContainerType = ContainerType::CraftingTable;
+        m_clientData.openMenu = std::move(menu);
+    }
 }
 
 } // namespace mr::server

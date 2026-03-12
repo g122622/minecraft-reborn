@@ -5,17 +5,18 @@
 #include "common/entity/inventory/PlayerInventory.hpp"
 #include "common/network/InventoryPackets.hpp"
 #include "common/network/LocalConnection.hpp"
+#include "common/network/LocalServerConnection.hpp"
 #include "common/network/ProtocolPackets.hpp"
 #include "common/network/ChunkSync.hpp"
 #include "common/world/chunk/ChunkStatus.hpp"
 #include "common/world/chunk/ChunkLoadTicketManager.hpp"
 #include "common/entity/Player.hpp"
 #include "server/world/ServerChunkManager.hpp"
+#include "server/core/ServerCore.hpp"
 #include <memory>
 #include <thread>
 #include <atomic>
 #include <functional>
-#include <unordered_map>
 #include <unordered_set>
 #include <mutex>
 #include <vector>
@@ -55,6 +56,7 @@ struct PendingChunkSend {
  * - 运行在独立线程
  * - 20 TPS 固定时间步进
  * - 通过 LocalConnection 与客户端通信
+ * - 使用 ServerCore 进行核心逻辑管理
  */
 class IntegratedServer {
 public:
@@ -95,9 +97,23 @@ public:
     /**
      * @brief 获取当前 tick 数
      */
-    [[nodiscard]] u64 tickCount() const noexcept { return m_tickCount; }
-    [[nodiscard]] i64 dayTime() const noexcept { return m_dayTime; }
-    [[nodiscard]] i64 gameTime() const noexcept { return static_cast<i64>(m_tickCount); }
+    [[nodiscard]] u64 tickCount() const noexcept;
+
+    /**
+     * @brief 获取日光时间
+     */
+    [[nodiscard]] i64 dayTime() const noexcept;
+
+    /**
+     * @brief 获取游戏时间
+     */
+    [[nodiscard]] i64 gameTime() const noexcept;
+
+    /**
+     * @brief 获取 ServerCore
+     */
+    [[nodiscard]] ServerCore& serverCore() { return *m_serverCore; }
+    [[nodiscard]] const ServerCore& serverCore() const { return *m_serverCore; }
 
 private:
     void mainLoop();
@@ -142,9 +158,20 @@ private:
     void sendToClient(const u8* data, size_t size);
     void openCraftingTableMenu();
 
+    /**
+     * @brief 获取玩家数据（便捷方法）
+     */
+    ServerPlayerData* getPlayerData() {
+        return m_serverCore ? m_serverCore->getPlayer(m_clientPlayerId) : nullptr;
+    }
+
     IntegratedServerConfig m_config;
     std::atomic<bool> m_running{false};
     std::atomic<bool> m_initialized{false};
+
+    // 核心逻辑管理器
+    std::unique_ptr<ServerCore> m_serverCore;
+    PlayerId m_clientPlayerId = 0;  ///< 客户端玩家ID
 
     // 区块管理器（异步生成）
     std::unique_ptr<ServerChunkManager> m_chunkManager;
@@ -160,34 +187,15 @@ private:
     std::unique_ptr<network::LocalConnectionPair> m_connectionPair;
     network::LocalEndpoint* m_serverEndpoint = nullptr;
 
-    // 玩家信息
-    struct ClientInfo {
-        PlayerId playerId = 0;
-        String username;
-        bool loggedIn = false;
-        f64 x = 0.0;
-        f64 y = 64.0;
-        f64 z = 0.0;
-        f32 yaw = 0.0f;
-        f32 pitch = 0.0f;
-        u32 pendingTeleportId = 0;
-        bool waitingTeleportConfirm = false;
-        GameMode gameMode = GameMode::Survival;
-        PlayerInventory inventory;
+    // 客户端特有数据（容器、物品栏等）
+    struct ClientGameData {
+        mr::PlayerInventory inventory;  ///< 玩家物品栏
         std::unique_ptr<mr::AbstractContainerMenu> openMenu;
         ContainerType openContainerType = ContainerType::Player;
         ContainerId nextContainerId = 1;
-
-        // 已加载的区块
-        std::unordered_set<ChunkId> loadedChunks;
     };
-    ClientInfo m_client;
-
-    // 客户端状态保护（用于跨线程访问）
-    mutable std::mutex m_clientMutex;
-
-    // 玩家ID生成
-    PlayerId m_nextPlayerId = 1;
+    ClientGameData m_clientData;
+    mutable std::mutex m_clientDataMutex;
 
     // 区块加载票据管理器
     std::unique_ptr<world::ChunkLoadTicketManager> m_ticketManager;
@@ -196,10 +204,7 @@ private:
     ChunkCoord m_lastPlayerChunkX = std::numeric_limits<ChunkCoord>::max();
     ChunkCoord m_lastPlayerChunkZ = std::numeric_limits<ChunkCoord>::max();
 
-    // 统计
-    u64 m_tickCount = 0;
-    u64 m_lastKeepAliveTime = 0;
-    i64 m_dayTime = 0;
+    // 日光周期
     bool m_daylightCycleEnabled = true;
 };
 

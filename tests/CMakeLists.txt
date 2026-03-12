@@ -50,9 +50,18 @@ add_executable(mr_tests
     server/test_integrated_server.cpp
     server/test_chunk_worker_pool.cpp
     server/test_server_chunk_manager.cpp
+    # ServerCore 模块测试
+    server/core/TimeManagerTest.cpp
+    server/core/PlayerManagerTest.cpp
+    server/core/ConnectionManagerTest.cpp
+    server/core/TeleportManagerTest.cpp
+    server/core/KeepAliveManagerTest.cpp
+    server/core/PositionTrackerTest.cpp
+    server/core/ServerCoreTest.cpp
     client/test_mesh_worker_pool.cpp
     client/renderer/test_renderer.cpp
     network/EntityPacketsTest.cpp
+    network/LocalServerConnectionTest.cpp
     common/entity/loot/LootTest.cpp
     common/world/gen/WorldGenSpawnerTest.cpp
     common/world/gen/ChunkSpawnIntegrationTest.cpp
@@ -61,6 +70,14 @@ add_executable(mr_tests
 # 添加服务端源文件
 target_sources(mr_tests
     PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/server/core/ServerCore.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/core/PlayerManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/core/ConnectionManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/core/TimeManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/core/TeleportManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/core/KeepAliveManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/core/PositionTracker.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/core/PacketHandler.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/ChunkWorkerPool.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/ServerChunkManager.cpp
@@ -70,6 +87,7 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/server/player/ServerPlayer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpServer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpSession.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/network/TcpConnection.cpp
         ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/menu/CraftingMenu.cpp
         ${CMAKE_SOURCE_DIR}/src/server/settings/ServerSettings.cpp
@@ -85,6 +103,7 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/server/command/commands/GiveCommand.cpp
         ${CMAKE_SOURCE_DIR}/src/server/command/commands/ClearCommand.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/LocalConnection.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/network/LocalServerConnection.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/ChunkSync.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/PacketSerializer.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/Packet.cpp

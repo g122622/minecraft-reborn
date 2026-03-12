@@ -9,6 +9,41 @@ using namespace mr;
 using namespace mr::server;
 
 // ============================================================================
+// Mock 连接用于测试
+// ============================================================================
+
+class MockConnection : public network::IServerConnection {
+public:
+    MockConnection() : m_connected(true) {}
+
+    void send(const u8* data, size_t size) override {
+        (void)data;
+        (void)size;
+        m_sentData.insert(m_sentData.end(), data, data + size);
+    }
+
+    void disconnect(const String& reason = "") override {
+        (void)reason;
+        m_connected = false;
+    }
+
+    [[nodiscard]] bool isConnected() const override {
+        return m_connected;
+    }
+
+    [[nodiscard]] String identifier() const override {
+        return "MockConnection";
+    }
+
+    [[nodiscard]] network::ConnectionType type() const override {
+        return network::ConnectionType::Local;
+    }
+
+    std::vector<u8> m_sentData;
+    bool m_connected;
+};
+
+// ============================================================================
 // ServerWorld 测试固件
 // ============================================================================
 
@@ -199,8 +234,8 @@ TEST_F(ServerWorldTest, SetBlock_MultipleBlocks) {
 // ============================================================================
 
 TEST_F(ServerWorldTest, AddPlayer) {
-    auto session = std::shared_ptr<TcpSession>(nullptr);
-    world->addPlayer(1, "TestPlayer", session);
+    auto conn = std::make_shared<MockConnection>();
+    world->addPlayer(1, "TestPlayer", conn);
 
     EXPECT_TRUE(world->hasPlayer(1));
     EXPECT_EQ(world->playerCount(), 1);
@@ -212,8 +247,8 @@ TEST_F(ServerWorldTest, AddPlayer) {
 }
 
 TEST_F(ServerWorldTest, RemovePlayer) {
-    auto session = std::shared_ptr<TcpSession>(nullptr);
-    world->addPlayer(1, "TestPlayer", session);
+    auto conn = std::make_shared<MockConnection>();
+    world->addPlayer(1, "TestPlayer", conn);
     EXPECT_EQ(world->playerCount(), 1);
 
     world->removePlayer(1);
@@ -233,10 +268,9 @@ TEST_F(ServerWorldTest, GetPlayer_NotExists) {
 }
 
 TEST_F(ServerWorldTest, MultiplePlayers) {
-    auto session = std::shared_ptr<TcpSession>(nullptr);
-
     for (int i = 1; i <= 5; ++i) {
-        world->addPlayer(i, "Player" + std::to_string(i), session);
+        auto conn = std::make_shared<MockConnection>();
+        world->addPlayer(i, "Player" + std::to_string(i), conn);
     }
 
     EXPECT_EQ(world->playerCount(), 5);
@@ -251,8 +285,8 @@ TEST_F(ServerWorldTest, MultiplePlayers) {
 // ============================================================================
 
 TEST_F(ServerWorldTest, UpdatePlayerPosition) {
-    auto session = std::shared_ptr<TcpSession>(nullptr);
-    world->addPlayer(1, "TestPlayer", session);
+    auto conn = std::make_shared<MockConnection>();
+    world->addPlayer(1, "TestPlayer", conn);
 
     world->updatePlayerPosition(1, 100.0, 64.0, 200.0, 45.0f, 30.0f, true);
 
@@ -272,8 +306,8 @@ TEST_F(ServerWorldTest, UpdatePlayerPosition_NonExistentPlayer) {
 }
 
 TEST_F(ServerWorldTest, UpdatePlayerPosition_ChunkCrossing) {
-    auto session = std::shared_ptr<TcpSession>(nullptr);
-    world->addPlayer(1, "TestPlayer", session);
+    auto conn = std::make_shared<MockConnection>();
+    world->addPlayer(1, "TestPlayer", conn);
     world->initialize();
 
     // 初始位置 (0, 0) 在区块 (0, 0)
@@ -293,8 +327,8 @@ TEST_F(ServerWorldTest, UpdatePlayerPosition_ChunkCrossing) {
 // ============================================================================
 
 TEST_F(ServerWorldTest, TeleportPlayer) {
-    auto session = std::shared_ptr<TcpSession>(nullptr);
-    world->addPlayer(1, "TestPlayer", session);
+    auto conn = std::make_shared<MockConnection>();
+    world->addPlayer(1, "TestPlayer", conn);
 
     world->teleportPlayer(1, 100.0, 70.0, 200.0, 90.0f, 45.0f);
 
@@ -305,8 +339,8 @@ TEST_F(ServerWorldTest, TeleportPlayer) {
 }
 
 TEST_F(ServerWorldTest, ConfirmTeleport) {
-    auto session = std::shared_ptr<TcpSession>(nullptr);
-    world->addPlayer(1, "TestPlayer", session);
+    auto conn = std::make_shared<MockConnection>();
+    world->addPlayer(1, "TestPlayer", conn);
 
     world->teleportPlayer(1, 100.0, 70.0, 200.0, 0.0f, 0.0f);
 
@@ -320,8 +354,8 @@ TEST_F(ServerWorldTest, ConfirmTeleport) {
 }
 
 TEST_F(ServerWorldTest, TeleportIncrementingIds) {
-    auto session = std::shared_ptr<TcpSession>(nullptr);
-    world->addPlayer(1, "TestPlayer", session);
+    auto conn = std::make_shared<MockConnection>();
+    world->addPlayer(1, "TestPlayer", conn);
 
     world->teleportPlayer(1, 0.0, 0.0, 0.0, 0.0f, 0.0f);
     u32 firstId = world->getPlayer(1)->pendingTeleportId;
@@ -430,8 +464,8 @@ TEST_F(ServerWorldTest, ConcurrentPlayerAccess) {
         threads.emplace_back([this, &successCount, i]() {
             for (int j = 0; j < 10; ++j) {
                 PlayerId id = i * 10 + j;
-                auto session = std::shared_ptr<TcpSession>(nullptr);
-                world->addPlayer(id, "Player" + std::to_string(id), session);
+                auto conn = std::make_shared<MockConnection>();
+                world->addPlayer(id, "Player" + std::to_string(id), conn);
 
                 if (world->hasPlayer(id)) {
                     successCount++;

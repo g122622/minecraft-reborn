@@ -10,7 +10,7 @@
 #include "common/network/ProtocolPackets.hpp"
 #include "common/world/time/GameTime.hpp"
 #include "common/world/gen/spawn/WorldGenSpawner.hpp"
-#include "server/network/TcpSession.hpp"
+#include "server/core/ServerPlayerData.hpp"
 #include "server/world/entity/EntityTracker.hpp"
 #include <unordered_map>
 #include <memory>
@@ -21,39 +21,6 @@ namespace mr::server {
 
 // 前向声明
 class ServerChunkManager;
-
-// ============================================================================
-// 服务端玩家数据
-// ============================================================================
-
-struct ServerPlayerData {
-    PlayerId playerId = 0;
-    String username;
-    std::shared_ptr<network::PlayerChunkTracker> chunkTracker;
-    std::weak_ptr<TcpSession> session;
-
-    // 位置（内部使用 f32，网络边界使用 f64）
-    f32 x = 0.0f;
-    f32 y = 64.0f;
-    f32 z = 0.0f;
-    f32 yaw = 0.0f;
-    f32 pitch = 0.0f;
-    bool onGround = true;
-    GameMode gameMode = GameMode::Survival;
-
-    // 传送确认
-    u32 pendingTeleportId = 0;
-    bool waitingTeleportConfirm = false;
-
-    // 统计
-    u64 lastKeepAliveSent = 0;
-    u64 lastKeepAliveReceived = 0;
-    u32 ping = 0;
-
-    ServerPlayerData() = default;
-    explicit ServerPlayerData(PlayerId id, const String& name)
-        : playerId(id), username(name) {}
-};
 
 // ============================================================================
 // 区块缓存条目
@@ -107,7 +74,7 @@ public:
     void unloadChunk(ChunkCoord x, ChunkCoord z);
 
     // 玩家管理
-    void addPlayer(PlayerId playerId, const String& username, std::shared_ptr<TcpSession> session);
+    void addPlayer(PlayerId playerId, const String& username, network::ConnectionPtr connection);
     void removePlayer(PlayerId playerId);
     [[nodiscard]] ServerPlayerData* getPlayer(PlayerId playerId);
     [[nodiscard]] const ServerPlayerData* getPlayer(PlayerId playerId) const;

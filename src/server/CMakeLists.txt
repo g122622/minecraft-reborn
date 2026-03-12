@@ -8,6 +8,16 @@ add_executable(minecraft-server
     settings/ServerSettings.cpp
     network/TcpServer.cpp
     network/TcpSession.cpp
+    network/TcpConnection.cpp
+    # 核心模块
+    core/ServerCore.cpp
+    core/PlayerManager.cpp
+    core/ConnectionManager.cpp
+    core/TimeManager.cpp
+    core/TeleportManager.cpp
+    core/KeepAliveManager.cpp
+    core/PositionTracker.cpp
+    core/PacketHandler.cpp
     world/ServerWorld.cpp
     world/ChunkWorkerPool.cpp
     world/ServerChunkManager.cpp

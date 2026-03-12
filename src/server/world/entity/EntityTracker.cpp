@@ -1,9 +1,10 @@
 #include "EntityTracker.hpp"
 #include "../ServerWorld.hpp"
-#include "../../../common/network/EntityPackets.hpp"
-#include "../../../common/network/PacketSerializer.hpp"
-#include "../../../common/entity/Entity.hpp"
-#include "../../../common/entity/mob/MobEntity.hpp"
+#include "common/network/EntityPackets.hpp"
+#include "common/network/PacketSerializer.hpp"
+#include "common/entity/Entity.hpp"
+#include "common/entity/mob/MobEntity.hpp"
+#include "server/core/ServerPlayerData.hpp"
 #include <spdlog/spdlog.h>
 #include <cmath>
 
@@ -201,12 +202,9 @@ bool EntityTracker::shouldTrack(const Vector3& playerPos, const Vector3& entityP
 void EntityTracker::sendSpawnPacket(ServerWorld& world, PlayerId playerId, Entity* entity) {
     if (!entity) return;
 
-    // 获取玩家会话
+    // 获取玩家数据
     ServerPlayerData* player = world.getPlayer(playerId);
-    if (!player || player->session.expired()) return;
-
-    auto session = player->session.lock();
-    if (!session) return;
+    if (!player || !player->hasConnection()) return;
 
     // 判断是 Mob 还是普通实体
     // 目前简化处理：所有实体都用 SpawnEntityPacket
@@ -246,17 +244,14 @@ void EntityTracker::sendSpawnPacket(ServerWorld& world, PlayerId playerId, Entit
         fullPacket.writeU16(0);
         fullPacket.writeBytes(result.value());
 
-        session->send(fullPacket.data(), fullPacket.size());
+        player->send(fullPacket.data(), fullPacket.size());
         spdlog::debug("Sent SpawnEntity packet for entity {} to player {}", entity->id(), playerId);
     }
 }
 
 void EntityTracker::sendDestroyPacket(ServerWorld& world, PlayerId playerId, EntityId entityId) {
     ServerPlayerData* player = world.getPlayer(playerId);
-    if (!player || player->session.expired()) return;
-
-    auto session = player->session.lock();
-    if (!session) return;
+    if (!player || !player->hasConnection()) return;
 
     network::EntityDestroyPacket packet;
     packet.addEntityId(entityId);
@@ -271,7 +266,7 @@ void EntityTracker::sendDestroyPacket(ServerWorld& world, PlayerId playerId, Ent
         fullPacket.writeU16(0);
         fullPacket.writeBytes(result.value());
 
-        session->send(fullPacket.data(), fullPacket.size());
+        player->send(fullPacket.data(), fullPacket.size());
         spdlog::debug("Sent EntityDestroy packet for entity {} to player {}", entityId, playerId);
     }
 }
@@ -280,10 +275,7 @@ void EntityTracker::sendMovePacket(ServerWorld& world, PlayerId playerId, Entity
     if (!entity) return;
 
     ServerPlayerData* player = world.getPlayer(playerId);
-    if (!player || player->session.expired()) return;
-
-    auto session = player->session.lock();
-    if (!session) return;
+    if (!player || !player->hasConnection()) return;
 
     // 发送传送包（完整位置）
     network::EntityTeleportPacket packet;
@@ -302,7 +294,7 @@ void EntityTracker::sendMovePacket(ServerWorld& world, PlayerId playerId, Entity
         fullPacket.writeU16(0);
         fullPacket.writeBytes(result.value());
 
-        session->send(fullPacket.data(), fullPacket.size());
+        player->send(fullPacket.data(), fullPacket.size());
     }
 }
 

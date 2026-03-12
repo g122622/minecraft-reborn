@@ -1,0 +1,150 @@
+#pragma once
+
+#include "common/core/Types.hpp"
+#include "common/network/IServerConnection.hpp"
+#include "common/network/ChunkSync.hpp"
+#include "common/entity/inventory/ContainerTypes.hpp"
+#include <memory>
+#include <unordered_set>
+
+namespace mr {
+class AbstractContainerMenu;  // 前向声明
+class PlayerInventory;         // 前向声明
+}
+
+namespace mr::server {
+
+/**
+ * @brief 服务端玩家数据
+ *
+ * 存储服务端维护的玩家状态信息，使用连接接口而非具体会话类型。
+ * 这使得代码可以用于 TCP 远程连接和本地连接两种场景。
+ *
+ * 使用示例：
+ * @code
+ * ServerPlayerData player(1, "Steve");
+ * player.x = 100.0f;
+ * player.y = 64.0f;
+ * player.z = 200.0f;
+ * @endcode
+ */
+struct ServerPlayerData {
+    /// 玩家ID
+    PlayerId playerId = 0;
+
+    /// 用户名
+    String username;
+
+    /// 连接接口（可以是 TcpConnection 或 LocalServerConnection）
+    network::ConnectionWeakPtr connection;
+
+    /// 会话ID（用于 TCP 连接标识）
+    u32 sessionId = 0;
+
+    /// 登录状态
+    bool loggedIn = false;
+
+    /// 区块追踪器
+    std::shared_ptr<network::PlayerChunkTracker> chunkTracker;
+
+    // 位置（内部使用 f32，网络边界使用 f64）
+    f32 x = 0.0f;
+    f32 y = 64.0f;
+    f32 z = 0.0f;
+    f32 yaw = 0.0f;
+    f32 pitch = 0.0f;
+    bool onGround = true;
+
+    /// 游戏模式
+    GameMode gameMode = GameMode::Survival;
+
+    // 传送确认
+    u32 pendingTeleportId = 0;
+    bool waitingTeleportConfirm = false;
+
+    // 心跳统计
+    u64 lastKeepAliveSent = 0;
+    u64 lastKeepAliveReceived = 0;
+    u64 lastKeepAliveSentTick = 0;  // 发送心跳时的 tick
+    u32 ping = 0;  // 延迟（毫秒）
+
+    // 已加载的区块
+    std::unordered_set<ChunkId> loadedChunks;
+
+    // 容器相关（使用原始指针避免 incomplete type 问题）
+    mr::AbstractContainerMenu* openMenu = nullptr;
+    ContainerType openContainerType = ContainerType::Player;
+    ContainerId nextContainerId = 1;
+
+    ServerPlayerData() = default;
+
+    /**
+     * @brief 构造玩家数据
+     * @param id 玩家ID
+     * @param name 用户名
+     */
+    explicit ServerPlayerData(PlayerId id, const String& name)
+        : playerId(id), username(name) {}
+
+    /**
+     * @brief 获取连接（如果有效）
+     * @return 连接共享指针，如果已断开则返回 nullptr
+     */
+    [[nodiscard]] network::ConnectionPtr getConnection() const {
+        return connection.lock();
+    }
+
+    /**
+     * @brief 检查连接是否有效
+     * @return true 如果连接有效
+     */
+    [[nodiscard]] bool hasConnection() const {
+        auto conn = connection.lock();
+        return conn && conn->isConnected();
+    }
+
+    /**
+     * @brief 发送数据到玩家
+     * @param data 数据指针
+     * @param size 数据大小
+     * @return true 如果发送成功
+     */
+    bool send(const u8* data, size_t size) const {
+        auto conn = connection.lock();
+        if (conn && conn->isConnected()) {
+            conn->send(data, size);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @brief 获取区块坐标 X
+     */
+    [[nodiscard]] ChunkCoord chunkX() const {
+        return static_cast<ChunkCoord>(std::floor(x / 16.0f));
+    }
+
+    /**
+     * @brief 获取区块坐标 Z
+     */
+    [[nodiscard]] ChunkCoord chunkZ() const {
+        return static_cast<ChunkCoord>(std::floor(z / 16.0f));
+    }
+
+    /**
+     * @brief 获取位置向量
+     */
+    [[nodiscard]] Vector3f position() const {
+        return Vector3f(x, y, z);
+    }
+
+    /**
+     * @brief 获取旋转向量
+     */
+    [[nodiscard]] Vector2f rotation() const {
+        return Vector2f(yaw, pitch);
+    }
+};
+
+} // namespace mr::server

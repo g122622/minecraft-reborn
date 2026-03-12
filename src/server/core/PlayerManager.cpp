@@ -1,0 +1,184 @@
+#include "PlayerManager.hpp"
+#include <spdlog/spdlog.h>
+
+namespace mr::server::core {
+
+PlayerManager::PlayerManager(const ServerCoreConfig& config)
+    : m_maxPlayers(config.maxPlayers)
+    , m_config(&config)
+{
+    m_chunkSyncManager.setDefaultViewDistance(config.viewDistance);
+}
+
+ServerPlayerData* PlayerManager::addPlayer(PlayerId playerId,
+                                            const String& username,
+                                            network::ConnectionPtr connection) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    // 检查是否已存在
+    if (m_players.find(playerId) != m_players.end()) {
+        spdlog::warn("PlayerManager: Player {} already exists", playerId);
+        return nullptr;
+    }
+
+    // 检查是否已满
+    if (static_cast<i32>(m_players.size()) >= m_maxPlayers) {
+        spdlog::warn("PlayerManager: Server is full ({} players)", m_maxPlayers);
+        return nullptr;
+    }
+
+    auto& player = m_players[playerId];
+    player.playerId = playerId;
+    player.username = username;
+    player.connection = connection;
+    player.loggedIn = true;
+    player.chunkTracker = std::make_shared<network::PlayerChunkTracker>(playerId);
+
+    // 设置视距
+    i32 viewDistance = m_config ? m_config->viewDistance : 10;
+    player.chunkTracker->setViewDistance(viewDistance);
+
+    // 更新区块同步管理器
+    (void)m_chunkSyncManager.getTracker(playerId);
+    m_chunkSyncManager.updatePlayerPosition(playerId, player.x, player.z);
+
+    spdlog::debug("PlayerManager: Player {} ({}) added", username, playerId);
+    return &player;
+}
+
+void PlayerManager::removePlayer(PlayerId playerId) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    auto it = m_players.find(playerId);
+    if (it == m_players.end()) return;
+
+    String username = it->second.username;
+    u32 sessionId = it->second.sessionId;
+
+    // 移除会话映射
+    m_sessionToPlayer.erase(sessionId);
+    m_playerToSession.erase(playerId);
+
+    // 移除玩家
+    m_players.erase(it);
+    m_chunkSyncManager.removeTracker(playerId);
+
+    spdlog::debug("PlayerManager: Player {} ({}) removed", username, playerId);
+}
+
+void PlayerManager::removePlayerBySessionId(u32 sessionId) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    auto it = m_sessionToPlayer.find(sessionId);
+    if (it == m_sessionToPlayer.end()) return;
+
+    PlayerId playerId = it->second;
+    auto playerIt = m_players.find(playerId);
+    if (playerIt == m_players.end()) return;
+
+    String username = playerIt->second.username;
+
+    // 移除会话映射
+    m_sessionToPlayer.erase(sessionId);
+    m_playerToSession.erase(playerId);
+
+    // 移除玩家
+    m_players.erase(playerIt);
+    m_chunkSyncManager.removeTracker(playerId);
+
+    spdlog::debug("PlayerManager: Player {} ({}) removed by session {}",
+                  username, playerId, sessionId);
+}
+
+ServerPlayerData* PlayerManager::findBySessionId(u32 sessionId) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    auto it = m_sessionToPlayer.find(sessionId);
+    if (it == m_sessionToPlayer.end()) return nullptr;
+
+    auto playerIt = m_players.find(it->second);
+    return playerIt != m_players.end() ? &playerIt->second : nullptr;
+}
+
+const ServerPlayerData* PlayerManager::findBySessionId(u32 sessionId) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    auto it = m_sessionToPlayer.find(sessionId);
+    if (it == m_sessionToPlayer.end()) return nullptr;
+
+    auto playerIt = m_players.find(it->second);
+    return playerIt != m_players.end() ? &playerIt->second : nullptr;
+}
+
+ServerPlayerData* PlayerManager::getPlayer(PlayerId playerId) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto it = m_players.find(playerId);
+    return it != m_players.end() ? &it->second : nullptr;
+}
+
+const ServerPlayerData* PlayerManager::getPlayer(PlayerId playerId) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto it = m_players.find(playerId);
+    return it != m_players.end() ? &it->second : nullptr;
+}
+
+bool PlayerManager::hasPlayer(PlayerId playerId) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_players.find(playerId) != m_players.end();
+}
+
+size_t PlayerManager::playerCount() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_players.size();
+}
+
+bool PlayerManager::isFull() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return static_cast<i32>(m_players.size()) >= m_maxPlayers;
+}
+
+std::vector<PlayerId> PlayerManager::getPlayerIds() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    std::vector<PlayerId> ids;
+    ids.reserve(m_players.size());
+    for (const auto& [id, player] : m_players) {
+        ids.push_back(id);
+    }
+    return ids;
+}
+
+void PlayerManager::mapSessionToPlayer(u32 sessionId, PlayerId playerId) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_sessionToPlayer[sessionId] = playerId;
+    m_playerToSession[playerId] = sessionId;
+
+    auto it = m_players.find(playerId);
+    if (it != m_players.end()) {
+        it->second.sessionId = sessionId;
+    }
+}
+
+void PlayerManager::unmapSession(u32 sessionId) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    auto it = m_sessionToPlayer.find(sessionId);
+    if (it == m_sessionToPlayer.end()) return;
+
+    PlayerId playerId = it->second;
+
+    m_sessionToPlayer.erase(sessionId);
+    m_playerToSession.erase(playerId);
+
+    auto playerIt = m_players.find(playerId);
+    if (playerIt != m_players.end()) {
+        playerIt->second.sessionId = 0;
+    }
+}
+
+PlayerId PlayerManager::getPlayerIdBySession(u32 sessionId) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto it = m_sessionToPlayer.find(sessionId);
+    return it != m_sessionToPlayer.end() ? it->second : 0;
+}
+
+} // namespace mr::server::core

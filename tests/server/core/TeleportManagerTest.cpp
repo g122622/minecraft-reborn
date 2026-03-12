@@ -1,0 +1,140 @@
+#include <gtest/gtest.h>
+#include "server/core/TeleportManager.hpp"
+#include "server/core/PlayerManager.hpp"
+#include "server/core/ConnectionManager.hpp"
+#include "common/network/LocalServerConnection.hpp"
+#include "common/network/LocalConnection.hpp"
+#include "common/core/Types.hpp"
+
+using namespace mr::server::core;
+using namespace mr::network;
+
+/**
+ * @brief TeleportManager 单元测试
+ */
+class TeleportManagerTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        m_connectionPair = std::make_unique<LocalConnectionPair>();
+        m_connectionPair->connect();
+        m_playerManager = std::make_unique<PlayerManager>();
+        m_connectionManager = std::make_unique<ConnectionManager>(*m_playerManager);
+        m_teleportManager = std::make_unique<TeleportManager>(*m_playerManager);
+    }
+
+    void TearDown() override {
+        m_teleportManager.reset();
+        m_connectionManager.reset();
+        m_playerManager.reset();
+        m_connectionPair.reset();
+    }
+
+    ConnectionPtr createConnection() {
+        return std::make_shared<LocalServerConnection>(&m_connectionPair->serverEndpoint());
+    }
+
+    std::unique_ptr<LocalConnectionPair> m_connectionPair;
+    std::unique_ptr<PlayerManager> m_playerManager;
+    std::unique_ptr<ConnectionManager> m_connectionManager;
+    std::unique_ptr<TeleportManager> m_teleportManager;
+};
+
+TEST_F(TeleportManagerTest, RequestTeleport) {
+    auto conn = createConnection();
+    m_playerManager->addPlayer(1, "Steve", conn);
+
+    mr::u32 teleportId = m_teleportManager->requestTeleport(1, 100.0, 64.0, 200.0, 90.0f, 45.0f);
+    EXPECT_NE(teleportId, 0u);
+
+    // 验证玩家位置已更新
+    auto* player = m_playerManager->getPlayer(1);
+    ASSERT_NE(player, nullptr);
+    EXPECT_FLOAT_EQ(player->x, 100.0f);
+    EXPECT_FLOAT_EQ(player->y, 64.0f);
+    EXPECT_FLOAT_EQ(player->z, 200.0f);
+    EXPECT_FLOAT_EQ(player->yaw, 90.0f);
+    EXPECT_FLOAT_EQ(player->pitch, 45.0f);
+
+    // 验证玩家正在等待传送确认
+    EXPECT_TRUE(m_teleportManager->isWaitingForConfirm(1));
+    EXPECT_EQ(m_teleportManager->getPendingTeleportId(1), teleportId);
+}
+
+TEST_F(TeleportManagerTest, RequestTeleportNonexistentPlayer) {
+    mr::u32 teleportId = m_teleportManager->requestTeleport(999, 100.0, 64.0, 200.0);
+    EXPECT_EQ(teleportId, 0u);
+}
+
+TEST_F(TeleportManagerTest, ConfirmTeleport) {
+    auto conn = createConnection();
+    m_playerManager->addPlayer(1, "Steve", conn);
+
+    mr::u32 teleportId = m_teleportManager->requestTeleport(1, 100.0, 64.0, 200.0);
+
+    // 确认传送
+    bool result = m_teleportManager->confirmTeleport(1, teleportId);
+    EXPECT_TRUE(result);
+    EXPECT_FALSE(m_teleportManager->isWaitingForConfirm(1));
+}
+
+TEST_F(TeleportManagerTest, ConfirmTeleportWrongId) {
+    auto conn = createConnection();
+    m_playerManager->addPlayer(1, "Steve", conn);
+
+    m_teleportManager->requestTeleport(1, 100.0, 64.0, 200.0);
+
+    // 使用错误的ID确认
+    bool result = m_teleportManager->confirmTeleport(1, 999);
+    EXPECT_FALSE(result);
+    EXPECT_TRUE(m_teleportManager->isWaitingForConfirm(1));
+}
+
+TEST_F(TeleportManagerTest, ConfirmTeleportWithoutRequest) {
+    auto conn = createConnection();
+    m_playerManager->addPlayer(1, "Steve", conn);
+
+    // 没有传送请求时确认
+    bool result = m_teleportManager->confirmTeleport(1, 1);
+    EXPECT_FALSE(result);
+}
+
+TEST_F(TeleportManagerTest, ConfirmTeleportNonexistentPlayer) {
+    bool result = m_teleportManager->confirmTeleport(999, 1);
+    EXPECT_FALSE(result);
+}
+
+TEST_F(TeleportManagerTest, MultipleTeleports) {
+    auto conn = createConnection();
+    m_playerManager->addPlayer(1, "Steve", conn);
+
+    mr::u32 id1 = m_teleportManager->requestTeleport(1, 100.0, 64.0, 200.0);
+    mr::u32 id2 = m_teleportManager->requestTeleport(1, 200.0, 64.0, 300.0);
+
+    EXPECT_NE(id1, id2);
+
+    // 只有最后一次传送有效
+    EXPECT_EQ(m_teleportManager->getPendingTeleportId(1), id2);
+
+    // 确认第一次传送应该失败
+    EXPECT_FALSE(m_teleportManager->confirmTeleport(1, id1));
+
+    // 确认第二次传送应该成功
+    EXPECT_TRUE(m_teleportManager->confirmTeleport(1, id2));
+}
+
+TEST_F(TeleportManagerTest, NextTeleportId) {
+    mr::u32 id1 = m_teleportManager->nextTeleportId();
+    mr::u32 id2 = m_teleportManager->nextTeleportId();
+    mr::u32 id3 = m_teleportManager->nextTeleportId();
+
+    EXPECT_NE(id1, id2);
+    EXPECT_NE(id2, id3);
+}
+
+TEST_F(TeleportManagerTest, IsWaitingForConfirmNonexistentPlayer) {
+    EXPECT_FALSE(m_teleportManager->isWaitingForConfirm(999));
+}
+
+TEST_F(TeleportManagerTest, GetPendingTeleportIdNonexistentPlayer) {
+    EXPECT_EQ(m_teleportManager->getPendingTeleportId(999), 0u);
+}
