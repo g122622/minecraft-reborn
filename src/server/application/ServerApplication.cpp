@@ -412,8 +412,8 @@ void ServerApplication::handleLoginRequest(TcpSession* session, const u8* data, 
     }
 
     // 设置会话ID并建立映射
-    player->sessionId = session->id();
-    m_serverCore->playerManager().mapSessionToPlayer(session->id(), playerId);
+    player->sessionId = static_cast<u32>(session->id());
+    m_serverCore->playerManager().mapSessionToPlayer(static_cast<u32>(session->id()), playerId);
 
     // 添加到世界
     if (m_world) {
@@ -431,7 +431,8 @@ void ServerApplication::handleLoginRequest(TcpSession* session, const u8* data, 
 
 void ServerApplication::handlePlayerMove(TcpSession* session, const u8* data, size_t size)
 {
-    PlayerId playerId = m_serverCore->playerManager().getPlayerIdBySession(session->id());
+    PlayerId playerId = m_serverCore->playerManager().getPlayerIdBySession(
+        static_cast<u32>(session->id()));
     if (playerId == 0) {
         return;
     }
@@ -453,7 +454,8 @@ void ServerApplication::handlePlayerMove(TcpSession* session, const u8* data, si
 
 void ServerApplication::handleTeleportConfirm(TcpSession* session, const u8* data, size_t size)
 {
-    PlayerId playerId = m_serverCore->playerManager().getPlayerIdBySession(session->id());
+    PlayerId playerId = m_serverCore->playerManager().getPlayerIdBySession(
+        static_cast<u32>(session->id()));
     if (playerId == 0) {
         return;
     }
@@ -473,7 +475,8 @@ void ServerApplication::handleTeleportConfirm(TcpSession* session, const u8* dat
 
 void ServerApplication::handleKeepAlive(TcpSession* session, const u8* data, size_t size)
 {
-    PlayerId playerId = m_serverCore->playerManager().getPlayerIdBySession(session->id());
+    PlayerId playerId = m_serverCore->playerManager().getPlayerIdBySession(
+        static_cast<u32>(session->id()));
     if (playerId == 0) {
         return;
     }
@@ -494,7 +497,8 @@ void ServerApplication::handleKeepAlive(TcpSession* session, const u8* data, siz
 
 void ServerApplication::handleChatMessage(TcpSession* session, const u8* data, size_t size)
 {
-    PlayerId playerId = m_serverCore->playerManager().getPlayerIdBySession(session->id());
+    PlayerId playerId = m_serverCore->playerManager().getPlayerIdBySession(
+        static_cast<u32>(session->id()));
     if (playerId == 0) {
         return;
     }
