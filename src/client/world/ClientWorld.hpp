@@ -94,6 +94,24 @@ public:
     [[nodiscard]] const Biome* getBiomeAtBlock(i32 x, i32 y, i32 z) const;
 
     /**
+     * @brief 获取天空光照值 (0-15)
+     * @param x 方块X坐标
+     * @param y 方块Y坐标
+     * @param z 方块Z坐标
+     * @return 天空光照值，如果区块未加载返回15
+     */
+    [[nodiscard]] u8 getSkyLight(i32 x, i32 y, i32 z) const;
+
+    /**
+     * @brief 获取方块光照值 (0-15)
+     * @param x 方块X坐标
+     * @param y 方块Y坐标
+     * @param z 方块Z坐标
+     * @return 方块光照值，如果区块未加载返回0
+     */
+    [[nodiscard]] u8 getBlockLight(i32 x, i32 y, i32 z) const;
+
+    /**
      * @brief 设置方块
      */
     void setBlock(i32 x, i32 y, i32 z, const BlockState* state);

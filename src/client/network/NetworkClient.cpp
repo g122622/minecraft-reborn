@@ -1,5 +1,6 @@
 #include "NetworkClient.hpp"
 #include "common/network/Packet.hpp"
+#include "common/network/EntityPackets.hpp"
 #include <chrono>
 #include <spdlog/spdlog.h>
 
@@ -541,6 +542,58 @@ void NetworkClient::processPacket(const u8* data, size_t size) {
             break;
         }
 
+        // ========== 实体包 ==========
+
+        case network::PacketType::SpawnEntity: {
+            handleSpawnEntity(bodyDeser);
+            break;
+        }
+
+        case network::PacketType::SpawnMob: {
+            handleSpawnMob(bodyDeser);
+            break;
+        }
+
+        case network::PacketType::EntityDestroy: {
+            handleEntityDestroy(bodyDeser);
+            break;
+        }
+
+        case network::PacketType::EntityMove: {
+            handleEntityMove(bodyDeser);
+            break;
+        }
+
+        case network::PacketType::EntityTeleport: {
+            handleEntityTeleport(bodyDeser);
+            break;
+        }
+
+        case network::PacketType::EntityVelocity: {
+            handleEntityVelocity(bodyDeser);
+            break;
+        }
+
+        case network::PacketType::EntityMetadata: {
+            handleEntityMetadata(bodyDeser);
+            break;
+        }
+
+        case network::PacketType::EntityAnimation: {
+            handleEntityAnimation(bodyDeser);
+            break;
+        }
+
+        case network::PacketType::EntityHeadLook: {
+            handleEntityHeadLook(bodyDeser);
+            break;
+        }
+
+        case network::PacketType::EntityStatus: {
+            handleEntityStatus(bodyDeser);
+            break;
+        }
+
         default:
             spdlog::debug("Unhandled packet type: {}", static_cast<int>(packetType));
             break;
@@ -809,6 +862,215 @@ void NetworkClient::handleCloseContainer(network::PacketDeserializer& deser) {
 
     if (m_callbacks.onCloseContainer) {
         m_callbacks.onCloseContainer(result.value().containerId());
+    }
+}
+
+// ============================================================================
+// 实体包处理
+// ============================================================================
+
+void NetworkClient::handleSpawnEntity(network::PacketDeserializer& deser) {
+    // 获取原始数据指针
+    const u8* data = deser.data();
+    size_t size = deser.size();
+
+    network::SpawnEntityPacket packet;
+    auto result = packet.deserialize(data, size);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize SpawnEntity packet: {}", result.error().message());
+        return;
+    }
+
+    spdlog::debug("Received SpawnEntity: id={}, type={}, pos=({:.1f}, {:.1f}, {:.1f})",
+                  packet.entityId(), packet.entityTypeId().c_str(),
+                  packet.x(), packet.y(), packet.z());
+
+    if (m_callbacks.onSpawnEntity) {
+        m_callbacks.onSpawnEntity(
+            packet.entityId(),
+            packet.entityTypeId(),
+            packet.x(), packet.y(), packet.z(),
+            packet.yaw(), packet.pitch()
+        );
+    }
+}
+
+void NetworkClient::handleSpawnMob(network::PacketDeserializer& deser) {
+    const u8* data = deser.data();
+    size_t size = deser.size();
+
+    network::SpawnMobPacket packet;
+    auto result = packet.deserialize(data, size);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize SpawnMob packet: {}", result.error().message());
+        return;
+    }
+
+    spdlog::debug("Received SpawnMob: id={}, type={}, pos=({:.1f}, {:.1f}, {:.1f})",
+                  packet.entityId(), packet.entityTypeId().c_str(),
+                  packet.x(), packet.y(), packet.z());
+
+    if (m_callbacks.onSpawnMob) {
+        m_callbacks.onSpawnMob(
+            packet.entityId(),
+            packet.entityTypeId(),
+            packet.x(), packet.y(), packet.z(),
+            packet.yaw(), packet.pitch(), packet.headYaw()
+        );
+    }
+}
+
+void NetworkClient::handleEntityDestroy(network::PacketDeserializer& deser) {
+    const u8* data = deser.data();
+    size_t size = deser.size();
+
+    network::EntityDestroyPacket packet;
+    auto result = packet.deserialize(data, size);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize EntityDestroy packet: {}", result.error().message());
+        return;
+    }
+
+    spdlog::debug("Received EntityDestroy: {} entities", packet.entityIds().size());
+
+    if (m_callbacks.onEntityDestroy) {
+        m_callbacks.onEntityDestroy(packet.entityIds());
+    }
+}
+
+void NetworkClient::handleEntityMove(network::PacketDeserializer& deser) {
+    const u8* data = deser.data();
+    size_t size = deser.size();
+
+    network::EntityMovePacket packet;
+    auto result = packet.deserialize(data, size);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize EntityMove packet: {}", result.error().message());
+        return;
+    }
+
+    if (m_callbacks.onEntityMove) {
+        // 相对移动转换为绝对位置需要客户端缓存
+        // 这里简化处理，发送相对移动信息
+        m_callbacks.onEntityMove(
+            packet.entityId(),
+            packet.deltaX() / 32.0f,  // 转换为方块单位
+            packet.deltaY() / 32.0f,
+            packet.deltaZ() / 32.0f
+        );
+    }
+}
+
+void NetworkClient::handleEntityTeleport(network::PacketDeserializer& deser) {
+    const u8* data = deser.data();
+    size_t size = deser.size();
+
+    network::EntityTeleportPacket packet;
+    auto result = packet.deserialize(data, size);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize EntityTeleport packet: {}", result.error().message());
+        return;
+    }
+
+    if (m_callbacks.onEntityTeleport) {
+        m_callbacks.onEntityTeleport(
+            packet.entityId(),
+            packet.x(), packet.y(), packet.z(),
+            packet.yaw(), packet.pitch()
+        );
+    }
+}
+
+void NetworkClient::handleEntityVelocity(network::PacketDeserializer& deser) {
+    const u8* data = deser.data();
+    size_t size = deser.size();
+
+    network::EntityVelocityPacket packet;
+    auto result = packet.deserialize(data, size);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize EntityVelocity packet: {}", result.error().message());
+        return;
+    }
+
+    if (m_callbacks.onEntityVelocity) {
+        m_callbacks.onEntityVelocity(
+            packet.entityId(),
+            packet.velocityX(),
+            packet.velocityY(),
+            packet.velocityZ()
+        );
+    }
+}
+
+void NetworkClient::handleEntityMetadata(network::PacketDeserializer& deser) {
+    const u8* data = deser.data();
+    size_t size = deser.size();
+
+    network::EntityMetadataPacket packet;
+    auto result = packet.deserialize(data, size);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize EntityMetadata packet: {}", result.error().message());
+        return;
+    }
+
+    // TODO: 处理实体元数据
+    spdlog::debug("Received EntityMetadata for entity {}", packet.entityId());
+}
+
+void NetworkClient::handleEntityAnimation(network::PacketDeserializer& deser) {
+    const u8* data = deser.data();
+    size_t size = deser.size();
+
+    network::EntityAnimationPacket packet;
+    auto result = packet.deserialize(data, size);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize EntityAnimation packet: {}", result.error().message());
+        return;
+    }
+
+    if (m_callbacks.onEntityAnimation) {
+        m_callbacks.onEntityAnimation(
+            packet.entityId(),
+            static_cast<u8>(packet.animation())
+        );
+    }
+}
+
+void NetworkClient::handleEntityHeadLook(network::PacketDeserializer& deser) {
+    const u8* data = deser.data();
+    size_t size = deser.size();
+
+    network::EntityHeadLookPacket packet;
+    auto result = packet.deserialize(data, size);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize EntityHeadLook packet: {}", result.error().message());
+        return;
+    }
+
+    if (m_callbacks.onEntityHeadLook) {
+        m_callbacks.onEntityHeadLook(
+            packet.entityId(),
+            packet.headYaw()
+        );
+    }
+}
+
+void NetworkClient::handleEntityStatus(network::PacketDeserializer& deser) {
+    const u8* data = deser.data();
+    size_t size = deser.size();
+
+    network::EntityStatusPacket packet;
+    auto result = packet.deserialize(data, size);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize EntityStatus packet: {}", result.error().message());
+        return;
+    }
+
+    if (m_callbacks.onEntityStatus) {
+        m_callbacks.onEntityStatus(
+            packet.entityId(),
+            static_cast<u8>(packet.status())
+        );
     }
 }
 

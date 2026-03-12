@@ -145,6 +145,7 @@ public:
     [[nodiscard]] Result<u64> readVarULong();
 
     // 状态查询
+    const u8* data() const { return m_data; }
     size_t size() const { return m_size; }
     size_t remaining() const { return m_size - m_readPos; }
     bool hasRemaining(size_t bytes) const { return remaining() >= bytes; }

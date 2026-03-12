@@ -4,6 +4,9 @@
 
 namespace mr {
 
+// 前向声明
+class IWorld;
+
 /**
  * @brief 猪实体
  *
@@ -15,6 +18,15 @@ class PigEntity : public AnimalEntity {
 public:
     PigEntity(LegacyEntityType type, EntityId id);
     ~PigEntity() override = default;
+
+    /**
+     * @brief 实体工厂方法
+     *
+     * 用于 EntityRegistry 注册
+     * @param world 世界实例
+     * @return 新创建的实体实例
+     */
+    static std::unique_ptr<Entity> create(IWorld* world);
 
     // ========== 繁殖 ==========
 

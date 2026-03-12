@@ -105,6 +105,70 @@ const Biome* ClientWorld::getBiomeAtBlock(i32 x, i32 y, i32 z) const {
     return &BiomeRegistry::instance().get(biomeId);
 }
 
+u8 ClientWorld::getSkyLight(i32 x, i32 y, i32 z) const {
+    // 检查Y范围
+    if (!isValidY(y)) {
+        return 15;  // 世界范围外返回最大天空光照
+    }
+
+    // 获取区块
+    i32 chunkX = toChunkCoord(x);
+    i32 chunkZ = toChunkCoord(z);
+    ChunkId id(chunkX, chunkZ);
+
+    const ClientChunk* chunk = getChunk(id);
+    if (!chunk || !chunk->data) {
+        return 15;  // 区块未加载返回最大天空光照
+    }
+
+    // 转换为本地坐标
+    i32 localX = toLocalCoord(x);
+    i32 localZ = toLocalCoord(z);
+
+    // 计算区块段索引
+    i32 sectionIndex = (y - m_minBuildHeight) / ChunkSection::SIZE;
+    const ChunkSection* section = chunk->data->getSection(sectionIndex);
+    if (!section) {
+        return 15;  // 区块段不存在返回最大天空光照
+    }
+
+    // 计算段内Y坐标
+    i32 localY = y - m_minBuildHeight - sectionIndex * ChunkSection::SIZE;
+    return section->getSkyLight(localX, localY, localZ);
+}
+
+u8 ClientWorld::getBlockLight(i32 x, i32 y, i32 z) const {
+    // 检查Y范围
+    if (!isValidY(y)) {
+        return 0;  // 世界范围外返回无方块光照
+    }
+
+    // 获取区块
+    i32 chunkX = toChunkCoord(x);
+    i32 chunkZ = toChunkCoord(z);
+    ChunkId id(chunkX, chunkZ);
+
+    const ClientChunk* chunk = getChunk(id);
+    if (!chunk || !chunk->data) {
+        return 0;  // 区块未加载返回无方块光照
+    }
+
+    // 转换为本地坐标
+    i32 localX = toLocalCoord(x);
+    i32 localZ = toLocalCoord(z);
+
+    // 计算区块段索引
+    i32 sectionIndex = (y - m_minBuildHeight) / ChunkSection::SIZE;
+    const ChunkSection* section = chunk->data->getSection(sectionIndex);
+    if (!section) {
+        return 0;  // 区块段不存在返回无方块光照
+    }
+
+    // 计算段内Y坐标
+    i32 localY = y - m_minBuildHeight - sectionIndex * ChunkSection::SIZE;
+    return section->getBlockLight(localX, localY, localZ);
+}
+
 void ClientWorld::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {
     // 检查Y范围
     if (!isValidY(y)) {

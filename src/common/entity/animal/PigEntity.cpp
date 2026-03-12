@@ -1,7 +1,14 @@
 #include "PigEntity.hpp"
 #include "../../item/ItemStack.hpp"
+#include <memory>
 
 namespace mr {
+
+std::unique_ptr<Entity> PigEntity::create(IWorld* /*world*/) {
+    // 创建一个临时ID，实际ID由实体管理器分配
+    static EntityId nextId = 1;
+    return std::make_unique<PigEntity>(LegacyEntityType::Unknown, nextId++);
+}
 
 PigEntity::PigEntity(LegacyEntityType type, EntityId id)
     : AnimalEntity(type, id)

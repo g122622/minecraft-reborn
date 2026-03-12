@@ -1,8 +1,15 @@
 #include "ChickenEntity.hpp"
 #include "../../item/ItemStack.hpp"
 #include "../../math/random/Random.hpp"
+#include <memory>
 
 namespace mr {
+
+std::unique_ptr<Entity> ChickenEntity::create(IWorld* /*world*/) {
+    // 创建一个临时ID，实际ID由实体管理器分配
+    static EntityId nextId = 1;
+    return std::make_unique<ChickenEntity>(LegacyEntityType::Unknown, nextId++);
+}
 
 ChickenEntity::ChickenEntity(LegacyEntityType type, EntityId id)
     : AnimalEntity(type, id)

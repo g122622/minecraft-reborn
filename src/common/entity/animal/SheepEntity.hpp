@@ -17,6 +17,15 @@ public:
     SheepEntity(LegacyEntityType type, EntityId id);
     ~SheepEntity() override = default;
 
+    /**
+     * @brief 实体工厂方法
+     *
+     * 用于 EntityRegistry 注册
+     * @param world 世界实例
+     * @return 新创建的实体实例
+     */
+    static std::unique_ptr<Entity> create(IWorld* world);
+
     // ========== 羊毛颜色 ==========
 
     /**

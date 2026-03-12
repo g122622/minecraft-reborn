@@ -1,7 +1,14 @@
 #include "SheepEntity.hpp"
 #include "../../item/ItemStack.hpp"
+#include <memory>
 
 namespace mr {
+
+std::unique_ptr<Entity> SheepEntity::create(IWorld* /*world*/) {
+    // 创建一个临时ID，实际ID由实体管理器分配
+    static EntityId nextId = 1;
+    return std::make_unique<SheepEntity>(LegacyEntityType::Unknown, nextId++);
+}
 
 SheepEntity::SheepEntity(LegacyEntityType type, EntityId id)
     : AnimalEntity(type, id)

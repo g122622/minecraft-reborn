@@ -5,6 +5,7 @@
 #include "common/world/drop/DropTables.hpp"
 #include "common/math/ray/Raycast.hpp"
 #include "common/resource/VanillaResources.hpp"
+#include "common/entity/VanillaEntities.hpp"
 #include "common/entity/inventory/Slot.hpp"
 #include "client/renderer/ChunkMesher.hpp"
 #include "client/ui/hud/HudRenderer.hpp"
@@ -178,6 +179,10 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
     Items::initialize();
     DropTableRegistry::instance().initializeVanillaDrops();
     spdlog::info("Vanilla items and drop tables initialized");
+
+    // 注册实体类型
+    entity::VanillaEntities::registerAll();
+    spdlog::info("Entity types registered");
 
     // 初始化方块物品注册表
     BlockItemRegistry::instance().initializeVanillaBlockItems();

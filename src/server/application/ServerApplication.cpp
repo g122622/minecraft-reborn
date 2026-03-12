@@ -1,6 +1,7 @@
 #include "ServerApplication.hpp"
 #include "minecraft-reborn/version.h"
 #include "common/network/ProtocolPackets.hpp"
+#include "common/entity/VanillaEntities.hpp"
 #include "server/application/MinecraftServer.hpp"
 #include "server/command/CommandRegistry.hpp"
 #include "server/command/ServerCommandSource.hpp"
@@ -125,6 +126,9 @@ Result<void> ServerApplication::initialize(const ServerLaunchParams& params)
     spdlog::info("=== Minecraft Reborn Server ===");
     spdlog::info("Version: {}.{}.{}", MR_VERSION_MAJOR, MR_VERSION_MINOR, MR_VERSION_PATCH);
     spdlog::info("Initializing server...");
+
+    // 注册实体类型
+    entity::VanillaEntities::registerAll();
 
     // 初始化世界
     ServerWorldConfig worldConfig;
