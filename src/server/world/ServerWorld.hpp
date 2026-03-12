@@ -9,6 +9,7 @@
 #include "common/network/ChunkSync.hpp"
 #include "common/network/ProtocolPackets.hpp"
 #include "common/world/time/GameTime.hpp"
+#include "common/world/gen/spawn/WorldGenSpawner.hpp"
 #include "server/network/TcpSession.hpp"
 #include "server/world/entity/EntityTracker.hpp"
 #include <unordered_map>
@@ -240,6 +241,19 @@ public:
      */
     [[nodiscard]] EntityTracker& entityTracker() { return m_entityTracker; }
     [[nodiscard]] const EntityTracker& entityTracker() const { return m_entityTracker; }
+
+    // ========== 区块生成实体 ==========
+
+    /**
+     * @brief 处理区块生成时产生的实体
+     *
+     * 当区块生成完成后，调用此方法将 WorldGenSpawner 生成的
+     * 被动动物实体真正创建到世界中。
+     *
+     * @param entities 生成的实体数据列表
+     * @return 实际创建的实体数量
+     */
+    i32 spawnEntitiesFromChunkGeneration(const std::vector<SpawnedEntityData>& entities);
 
 private:
     // 内部方法

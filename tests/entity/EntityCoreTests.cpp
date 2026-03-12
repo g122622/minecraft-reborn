@@ -172,7 +172,7 @@ public:
 };
 
 TEST(EntityType, Builder) {
-    auto factory = [](World*) -> std::unique_ptr<Entity> {
+    auto factory = [](IWorld*) -> std::unique_ptr<Entity> {
         return nullptr;  // 测试用
     };
 
@@ -194,7 +194,7 @@ TEST(EntityType, Builder) {
 }
 
 TEST(EntityType, FixedSize) {
-    auto factory = [](World*) -> std::unique_ptr<Entity> {
+    auto factory = [](IWorld*) -> std::unique_ptr<Entity> {
         return nullptr;
     };
 
@@ -206,7 +206,7 @@ TEST(EntityType, FixedSize) {
 }
 
 TEST(EntityType, Flags) {
-    auto factory = [](World*) -> std::unique_ptr<Entity> {
+    auto factory = [](IWorld*) -> std::unique_ptr<Entity> {
         return nullptr;
     };
 
@@ -246,7 +246,7 @@ TEST(EntityRegistry, RegisterType) {
     EntityRegistry& registry = EntityRegistry::instance();
     registry.clear();  // 清空以便测试
 
-    auto factory = [](World*) -> std::unique_ptr<Entity> {
+    auto factory = [](IWorld*) -> std::unique_ptr<Entity> {
         return nullptr;  // 测试用
     };
 
@@ -270,7 +270,7 @@ TEST(EntityRegistry, GetTypeById) {
     EntityRegistry& registry = EntityRegistry::instance();
     registry.clear();
 
-    auto factory = [](World*) -> std::unique_ptr<Entity> {
+    auto factory = [](IWorld*) -> std::unique_ptr<Entity> {
         return nullptr;
     };
 
@@ -296,7 +296,7 @@ TEST(EntityRegistry, GetTypeByName) {
     EntityRegistry& registry = EntityRegistry::instance();
     registry.clear();
 
-    auto factory = [](World*) -> std::unique_ptr<Entity> {
+    auto factory = [](IWorld*) -> std::unique_ptr<Entity> {
         return nullptr;
     };
 
@@ -321,7 +321,7 @@ TEST(EntityRegistry, HasType) {
     EntityRegistry& registry = EntityRegistry::instance();
     registry.clear();
 
-    auto factory = [](World*) -> std::unique_ptr<Entity> {
+    auto factory = [](IWorld*) -> std::unique_ptr<Entity> {
         return nullptr;
     };
 
@@ -340,7 +340,7 @@ TEST(EntityRegistry, Size) {
     EntityRegistry& registry = EntityRegistry::instance();
     registry.clear();
 
-    auto factory = [](World*) -> std::unique_ptr<Entity> {
+    auto factory = [](IWorld*) -> std::unique_ptr<Entity> {
         return nullptr;
     };
 

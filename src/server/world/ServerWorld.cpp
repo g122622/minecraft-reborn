@@ -2,6 +2,7 @@
 #include "ServerChunkManager.hpp"
 #include "common/world/gen/chunk/NoiseChunkGenerator.hpp"
 #include "common/entity/Entity.hpp"
+#include "common/entity/EntityRegistry.hpp"
 #include "server/network/TcpSession.hpp"
 #include <chrono>
 #include <spdlog/spdlog.h>
@@ -720,6 +721,71 @@ bool ServerWorld::hasEntity(EntityId id) const {
 
 size_t ServerWorld::entityCount() const {
     return m_entityManager.entityCount();
+}
+
+// ============================================================================
+// 区块生成实体
+// ============================================================================
+
+i32 ServerWorld::spawnEntitiesFromChunkGeneration(const std::vector<SpawnedEntityData>& entities) {
+    if (entities.empty()) {
+        return 0;
+    }
+
+    i32 spawnedCount = 0;
+    auto& registry = entity::EntityRegistry::instance();
+
+    for (const auto& entityData : entities) {
+        // 获取实体类型
+        const entity::EntityType* entityType = registry.getType(entityData.entityTypeId);
+        if (!entityType) {
+            spdlog::debug("ServerWorld: Unknown entity type '{}' during chunk generation spawn",
+                          entityData.entityTypeId);
+            continue;
+        }
+
+        // 检查实体类型是否可以生成
+        if (!entityType->canSummon()) {
+            spdlog::trace("ServerWorld: Entity type '{}' cannot be summoned",
+                          entityData.entityTypeId);
+            continue;
+        }
+
+        // 创建实体实例
+        std::unique_ptr<Entity> entity = entityType->create(this);
+        if (!entity) {
+            spdlog::debug("ServerWorld: Failed to create entity of type '{}'",
+                          entityData.entityTypeId);
+            continue;
+        }
+
+        // 设置实体位置
+        entity->setPosition(Vector3(
+            static_cast<f32>(entityData.x),
+            static_cast<f32>(entityData.y),
+            static_cast<f32>(entityData.z)
+        ));
+
+        // 设置生成原因标记（可选，用于后续处理）
+        // entity->setSpawnReason(entityData.spawnReason);
+
+        // 添加到实体管理器
+        EntityId entityId = m_entityManager.addEntity(std::move(entity));
+        if (entityId != 0) {
+            ++spawnedCount;
+
+            spdlog::trace("ServerWorld: Spawned {} at ({:.1f}, {:.1f}, {:.1f}) with ID {}",
+                          entityData.entityTypeId,
+                          entityData.x, entityData.y, entityData.z,
+                          entityId);
+        }
+    }
+
+    if (spawnedCount > 0) {
+        spdlog::debug("ServerWorld: Spawned {} entities from chunk generation", spawnedCount);
+    }
+
+    return spawnedCount;
 }
 
 } // namespace mr::server

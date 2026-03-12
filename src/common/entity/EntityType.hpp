@@ -13,7 +13,7 @@ namespace mr {
 
 // 前向声明
 class Entity;
-class World;
+class IWorld;
 
 namespace entity {
 
@@ -65,7 +65,7 @@ inline bool hasEntityFlag(EntityFlags flags, EntityFlags flag) {
  * 用于创建实体实例的函数指针。
  * 返回 std::unique_ptr<Entity> 以支持多态。
  */
-using EntityFactory = std::function<std::unique_ptr<Entity>(World*)>;
+using EntityFactory = std::function<std::unique_ptr<Entity>(IWorld*)>;
 
 /**
  * @brief 实体类型基类
@@ -249,7 +249,7 @@ public:
      * @param world 世界实例
      * @return 实体实例，如果工厂无效则返回nullptr
      */
-    std::unique_ptr<Entity> create(World* world) const {
+    std::unique_ptr<Entity> create(IWorld* world) const {
         if (m_factory) {
             return m_factory(world);
         }

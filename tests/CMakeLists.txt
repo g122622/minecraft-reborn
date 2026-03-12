@@ -54,6 +54,8 @@ add_executable(mr_tests
     client/renderer/test_renderer.cpp
     network/EntityPacketsTest.cpp
     common/entity/loot/LootTest.cpp
+    common/world/gen/WorldGenSpawnerTest.cpp
+    common/world/gen/ChunkSpawnIntegrationTest.cpp
 )
 
 # 添加服务端源文件
@@ -120,6 +122,8 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/tree/foliage/FoliagePlacer.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/tree/foliage/BlobFoliagePlacer.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/placement/Placement.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/spawn/WorldGenSpawner.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/spawn/MobSpawnInfo.cpp
         # ${CMAKE_SOURCE_DIR}/src/common/world/BlockID.cpp  # 已移除 - 使用新的方块系统
         ${CMAKE_SOURCE_DIR}/src/common/entity/Player.cpp
         ${CMAKE_SOURCE_DIR}/src/common/entity/Entity.cpp

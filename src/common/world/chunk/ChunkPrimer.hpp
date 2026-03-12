@@ -4,9 +4,11 @@
 #include "ChunkStatus.hpp"
 #include "ChunkData.hpp"
 #include "../block/Block.hpp"
+#include "../gen/spawn/WorldGenSpawner.hpp"
 #include <array>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 
 namespace mr {
 
@@ -175,6 +177,38 @@ public:
     void updateAllHeightmaps();
 
     // ============================================================================
+    // 生成的实体
+    // ============================================================================
+
+    /**
+     * @brief 获取区块生成时生成的实体列表
+     *
+     * 区块生成过程中调用 WorldGenSpawner 生成的被动动物会存储在这里。
+     * 在区块生成完成后，由 ServerWorld 将这些实体真正创建到世界中。
+     */
+    [[nodiscard]] std::vector<SpawnedEntityData>& spawnedEntities() { return m_spawnedEntities; }
+    [[nodiscard]] const std::vector<SpawnedEntityData>& spawnedEntities() const { return m_spawnedEntities; }
+
+    /**
+     * @brief 添加生成的实体数据
+     */
+    void addSpawnedEntity(SpawnedEntityData data) {
+        m_spawnedEntities.push_back(std::move(data));
+    }
+
+    /**
+     * @brief 清空生成的实体列表
+     */
+    void clearSpawnedEntities() {
+        m_spawnedEntities.clear();
+    }
+
+    /**
+     * @brief 获取生成的实体数量
+     */
+    [[nodiscard]] size_t spawnedEntityCount() const { return m_spawnedEntities.size(); }
+
+    // ============================================================================
     // 转换方法
     // ============================================================================
 
@@ -229,6 +263,9 @@ private:
     // 雕刻掩码（用于追踪哪些位置被雕刻过）
     std::vector<bool> m_carvingMaskAir;
     std::vector<bool> m_carvingMaskLiquid;
+
+    // 区块生成时生成的实体
+    std::vector<SpawnedEntityData> m_spawnedEntities;
 
     // 辅助方法
     [[nodiscard]] static bool isValidBlockCoord(BlockCoord x, BlockCoord y, BlockCoord z);

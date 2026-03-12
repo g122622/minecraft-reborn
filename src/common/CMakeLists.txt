@@ -178,6 +178,9 @@ add_library(mr_common STATIC
     # World - Generation - Placement
     world/gen/placement/Placement.cpp
 
+    # World - Generation - Spawn
+    world/gen/spawn/WorldGenSpawner.cpp
+
     # World - Time
     world/time/GameTime.cpp
 

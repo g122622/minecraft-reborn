@@ -3,6 +3,7 @@
 #include "../../core/Types.hpp"
 #include "../block/Block.hpp"
 #include "BiomeGenerationSettings.hpp"
+#include "../spawn/MobSpawnInfo.hpp"
 #include <string>
 #include <memory>
 
@@ -117,6 +118,23 @@ public:
     [[nodiscard]] BiomeGenerationSettings& generationSettings() { return m_generationSettings; }
     void setGenerationSettings(const BiomeGenerationSettings& settings) { m_generationSettings = settings; }
 
+    // === 生物生成设置 ===
+    [[nodiscard]] const world::spawn::MobSpawnInfo& spawnInfo() const { return m_spawnInfo; }
+    [[nodiscard]] world::spawn::MobSpawnInfo& spawnInfo() { return m_spawnInfo; }
+    void setSpawnInfo(const world::spawn::MobSpawnInfo& info) { m_spawnInfo = info; }
+
+    /**
+     * @brief 获取动物生成概率
+     *
+     * 参考 MC Biome.getSpawningChance()
+     * 返回每次尝试生成动物的基础概率。
+     * 默认值为 10.0f / 128.0f ≈ 0.078
+     *
+     * @return 生成概率 (0.0 - 1.0)
+     */
+    [[nodiscard]] f32 creatureSpawnProbability() const { return m_creatureSpawnProbability; }
+    void setCreatureSpawnProbability(f32 prob) { m_creatureSpawnProbability = prob; }
+
 private:
     BiomeId m_id;
     String m_name;
@@ -140,6 +158,10 @@ private:
 
     // 生成设置
     BiomeGenerationSettings m_generationSettings;
+
+    // 生物生成设置
+    world::spawn::MobSpawnInfo m_spawnInfo;
+    f32 m_creatureSpawnProbability = 10.0f / 128.0f;  ///< 动物生成概率，默认 ~7.8%
 };
 
 // ============================================================================

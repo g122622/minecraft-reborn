@@ -836,27 +836,9 @@ private:
 
 ## 9. 性能相关规范
 
-### 9.1 性能关键代码标记
+### 9.1 尽可能使用f32而非f64以提升处理速度
 
-```cpp
-// ✅ 推荐：标记性能关键代码
-// PERFORMANCE_CRITICAL: 此函数每帧调用，需要优化
-void renderChunk(const Chunk& chunk) {
-    // ...
-}
-
-// ✅ 推荐：使用性能分析宏
-#ifdef ENABLE_PROFILING
-    #define PROFILE_SCOPE(name) Profiler::Scope _scope(name)
-#else
-    #define PROFILE_SCOPE(name)
-#endif
-
-void update() {
-    PROFILE_SCOPE("World::update");
-    // ...
-}
-```
+f32精度已经足够，非必要不允许使用f64。
 
 ### 9.2 避免的性能陷阱
 
