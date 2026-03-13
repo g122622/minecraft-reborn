@@ -2,6 +2,7 @@
 #include "../world/ClientWorld.hpp"
 #include "../world/entity/ClientEntityManager.hpp"
 #include "../network/NetworkClient.hpp"
+#include "../renderer/sky/CelestialCalculations.hpp"
 #include "../../common/world/block/Block.hpp"
 #include "../../common/world/biome/BiomeRegistry.hpp"
 #include "../../common/resource/ResourceLocation.hpp"
@@ -196,11 +197,16 @@ void DebugScreen::buildLeftDebugText() {
         if (m_gameTime != nullptr) {
             // MC格式: "Local Difficulty: X.XX // X.XX (Day XXXX)"
             i64 dayCount = m_gameTime->dayCount();
-            f32 localDifficulty = 0.0f; // TODO: 计算实际难度
+            i32 moonPhase = CelestialCalculations::calculateMoonPhase(m_gameTime->gameTime());
+            f32 moonFactor = CelestialCalculations::getMoonPhaseFactor(moonPhase);
+            // 本地难度 = 基础难度 + (dayCount * 因子) + (月相因子)
+            // 注：完整实现需要 DifficultyManager 和区块占用时间
+            // 这里使用简化公式展示概念
+            f32 localDifficulty = 0.0f; // TODO: 需要 DifficultyManager 实现
             oss.str("");
             oss << "Local Difficulty: " << std::fixed << std::setprecision(2)
                 << localDifficulty << " // " << localDifficulty
-                << " (Day " << dayCount << ")";
+                << " (Day " << dayCount << ", Moon " << moonPhase << ")";
             m_leftLines.push_back(oss.str());
         }
     } else {
@@ -223,9 +229,9 @@ void DebugScreen::buildRightDebugText() {
 
     // ========== 内存信息 ==========
     // MC格式: "Mem: XX% XXX/XXXMB"
-    // 获取内存信息
-    // 注意：C++没有直接的方法获取进程内存，这里用估算
-    // TODO: 使用平台特定API获取更准确的内存信息
+    // 注意：C++标准库不提供进程内存API，需要平台特定实现
+    // Windows: GlobalMemoryStatusEx / Linux: /proc/self/status
+    // 当前使用占位符，未来可集成平台API
     oss.str("");
     oss << "Mem: " << std::setw(3) << "?" << "% " << std::setw(3) << "?/" << std::setw(3) << "?MB";
     m_rightLines.push_back(oss.str());
@@ -279,18 +285,29 @@ void DebugScreen::buildRightDebugText() {
                 oss << loc.toString();
                 m_rightLines.push_back(oss.str());
 
-                // TODO: 显示方块属性
-                // for (const auto& prop : state->properties()) {
-                //     oss.str("");
-                //     oss << "  " << prop.name() << ": " << prop.valueString();
-                //     m_rightLines.push_back(oss.str());
-                // }
+                // 显示方块属性
+                String stateStr = state->toString();
+                // toString() 格式为 "namespace:block[property1=value1,property2=value2]"
+                // 如果有属性，显示属性信息
+                size_t bracketPos = stateStr.find('[');
+                if (bracketPos != String::npos && stateStr.back() == ']') {
+                    String props = stateStr.substr(bracketPos + 1, stateStr.length() - bracketPos - 2);
+                    if (!props.empty()) {
+                        // 解析并显示每个属性
+                        std::istringstream propStream(props);
+                        String prop;
+                        while (std::getline(propStream, prop, ',')) {
+                            m_rightLines.push_back("  " + prop);
+                        }
+                    }
+                }
             }
         }
     }
 
     // ========== 目标流体信息 ==========
-    // TODO: 添加流体射线检测
+    // 注：流体系统尚未实现，待 FluidState 和流体射线检测完成后添加
+    // 参考 MC: "Targeted Fluid: minecraft:water[level=0]"
 
     // ========== 目标实体信息 ==========
     if (m_entityManager != nullptr && m_camera != nullptr) {

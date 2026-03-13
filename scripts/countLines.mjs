@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, "..");
 
-const DIR_IGNORE_SET = new Set(["node_modules", ".vs", "assets", "build", ".idea", ".vscode", ".git"]);
+const DIR_IGNORE_SET = new Set(["node_modules", ".vs", "assets", "build", ".idea", ".vscode", ".git", "third_party"]);
 
 const FILE_NAME_IGNORE = new Set([".DS_Store", ".env.local", "synthos_config.json"]);
 
