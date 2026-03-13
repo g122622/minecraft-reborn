@@ -130,26 +130,22 @@ void PerfettoManager::startTracing() {
 
     ds_cfg->set_track_event_config_raw(te_cfg.SerializeAsString());
 
-    // 配置文件输出
-    if (m_config.outputToFile && !m_config.outputPath.empty()) {
-        cfg.set_write_into_file(true);
-        cfg.set_output_path(m_config.outputPath);
-        cfg.set_file_write_period_ms(5000);  // 每 5 秒写入一次
-    }
-
-    // 创建并启动追踪会话
+    // 创建并启动追踪会话（不使用 Perfetto 内置文件写入，改为手动写入）
     m_impl->tracingSession = ::perfetto::Tracing::NewTrace();
     m_impl->tracingSession->Setup(cfg);
     m_impl->tracingSession->StartBlocking();
 
     m_tracing = true;
-    spdlog::info("[Perfetto] Tracing started");
+    spdlog::info("[Perfetto] Tracing started, buffer size: {} KB", m_config.bufferSizeKb);
+    spdlog::info("[Perfetto] Output will be written to: {}", m_config.outputPath);
 }
 
 void PerfettoManager::stopTracing() {
     if (!m_initialized || !m_tracing) {
         return;
     }
+
+    spdlog::info("[Perfetto] Stopping tracing and writing to file...");
 
     // 刷新 TrackEvent 数据源
     ::perfetto::TrackEvent::Flush();
@@ -158,18 +154,22 @@ void PerfettoManager::stopTracing() {
     if (m_impl->tracingSession) {
         m_impl->tracingSession->StopBlocking();
 
-        // 如果没有配置直接写入文件，则手动读取并写入
-        if (!m_config.outputToFile || m_config.outputPath.empty()) {
-            std::vector<char> trace_data = m_impl->tracingSession->ReadTraceBlocking();
-            if (!trace_data.empty()) {
-                std::ofstream output(m_config.outputPath, std::ios::binary);
-                if (output.is_open()) {
-                    output.write(trace_data.data(), trace_data.size());
-                    spdlog::info("[Perfetto] Trace written to: {}", m_config.outputPath);
-                } else {
-                    spdlog::error("[Perfetto] Failed to open output file: {}", m_config.outputPath);
-                }
+        // 手动读取追踪数据并写入文件
+        std::vector<char> trace_data = m_impl->tracingSession->ReadTraceBlocking();
+        spdlog::info("[Perfetto] Read {} bytes of trace data", trace_data.size());
+
+        if (!trace_data.empty() && !m_config.outputPath.empty()) {
+            std::ofstream output(m_config.outputPath, std::ios::binary);
+            if (output.is_open()) {
+                output.write(trace_data.data(), trace_data.size());
+                output.close();
+                spdlog::info("[Perfetto] Trace written to: {} ({} bytes)",
+                             m_config.outputPath, trace_data.size());
+            } else {
+                spdlog::error("[Perfetto] Failed to open output file: {}", m_config.outputPath);
             }
+        } else if (trace_data.empty()) {
+            spdlog::warn("[Perfetto] No trace data captured");
         }
 
         m_impl->tracingSession.reset();
