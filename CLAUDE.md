@@ -38,6 +38,7 @@ cmake --build build --config Release
 | `MC_BUILD_TESTS` | ON | Build unit tests |
 | `MC_ENABLE_SANITIZERS` | OFF | Enable sanitizers for debug |
 | `MC_ENABLE_VULKAN_VALIDATION` | ON | Enable Vulkan validation layers |
+| `MC_ENABLE_TRACING` | OFF | Enable Perfetto performance tracing |
 
 ## Architecture
 
@@ -120,6 +121,14 @@ src/
 │       ├── BlockStateLoader.hpp    # Block state JSON parsing
 │       ├── TextureAtlasBuilder.hpp # Texture atlas construction
 │       └── ResourceManager.hpp     # Resource manager facade
+├── common/
+│   └── perfetto/      # Perfetto 性能追踪
+│       ├── PerfettoConfig.hpp      # 编译时配置开关
+│       ├── TraceCategories.hpp     # 追踪分类定义
+│       ├── TraceCategories.cpp     # 分类静态存储
+│       ├── PerfettoManager.hpp     # 单例管理器
+│       ├── PerfettoManager.cpp     # 管理器实现
+│       └── TraceEvents.hpp         # 便捷追踪宏
 └── modding/         # JavaScript mod system (future)
 ```
 
@@ -511,7 +520,13 @@ void endSingleTimeCommands(VkCommandBuffer cmd);
 - **Renderer**: In progress (Vulkan context, basic mesh generation, texture atlas with MC 1.12/1.13+ compatibility)
 - **Resource Pack System**: Complete (model/blockstate parsing, texture atlas, MC version compatibility)
 - **Block Properties**: Complete (property encoding, variant mapping)
-- **Tests**: 1126+ tests passing (including 96 new ServerCore module tests)
+- **Performance Tracing**: Complete (NEW - Perfetto integration)
+  - PerfettoConfig.hpp: Compile-time configuration switches
+  - TraceCategories.hpp/cpp: Category definitions for organized filtering
+  - PerfettoManager: Singleton manager for tracing lifecycle
+  - TraceEvents.hpp: Convenient macros (MC_TRACE_EVENT, MC_TRACE_COUNTER, etc.)
+  - Tests: 2 tests (disabled mode) / 29 tests (enabled mode)
+- **Tests**: 1251+ tests passing
 
 ## Self-Maintenance Rule
 

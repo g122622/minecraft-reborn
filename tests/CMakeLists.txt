@@ -65,6 +65,8 @@ add_executable(mc_tests
     common/entity/loot/LootTest.cpp
     common/world/gen/WorldGenSpawnerTest.cpp
     common/world/gen/ChunkSpawnIntegrationTest.cpp
+    # Perfetto 测试（集成到主测试套件）
+    common/perfetto/PerfettoTest.cpp
 )
 
 # 添加服务端源文件

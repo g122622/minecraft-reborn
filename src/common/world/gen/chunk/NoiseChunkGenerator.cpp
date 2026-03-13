@@ -7,6 +7,7 @@
 #include "../feature/ore/OreFeature.hpp"
 #include "../../../math/MathUtils.hpp"
 #include "../../../math/random/Random.hpp"
+#include "common/perfetto/TraceEvents.hpp"
 #include <algorithm>
 #include <cmath>
 #include <spdlog/spdlog.h>
@@ -129,6 +130,7 @@ void NoiseChunkGenerator::initBiomeWeights()
 
 void NoiseChunkGenerator::generateBiomes(WorldGenRegion& region, ChunkPrimer& chunk)
 {
+    MC_TRACE_EVENT("world.chunk_gen", "GenerateBiomes", "x", chunk.x(), "z", chunk.z());
     (void)region;
 
     BiomeContainer& biomes = chunk.getBiomes();
@@ -147,6 +149,7 @@ void NoiseChunkGenerator::generateBiomes(WorldGenRegion& region, ChunkPrimer& ch
 
 void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chunk)
 {
+    MC_TRACE_EVENT("world.chunk_gen", "GenerateNoise", "x", chunk.x(), "z", chunk.z());
     (void)region;
 
     const ChunkCoord chunkX = chunk.x();
@@ -522,6 +525,7 @@ BlockId NoiseChunkGenerator::getBlockForDensity(f32 density, i32 y) const
 
 void NoiseChunkGenerator::buildSurface(WorldGenRegion& /*region*/, ChunkPrimer& chunk)
 {
+    MC_TRACE_EVENT("world.chunk_gen", "BuildSurface", "x", chunk.x(), "z", chunk.z());
     const ChunkCoord chunkX = chunk.x();
     const ChunkCoord chunkZ = chunk.z();
     const i32 startX = chunkX << 4;
@@ -639,6 +643,7 @@ void NoiseChunkGenerator::buildSurfaceForColumn(ChunkPrimer& chunk, i32 x, i32 z
 
 void NoiseChunkGenerator::applyCarvers(WorldGenRegion& /*region*/, ChunkPrimer& chunk, bool isLiquid)
 {
+    MC_TRACE_EVENT("world.chunk_gen", "ApplyCarvers", "x", chunk.x(), "z", chunk.z());
     const ChunkCoord chunkX = chunk.x();
     const ChunkCoord chunkZ = chunk.z();
 
@@ -660,6 +665,7 @@ void NoiseChunkGenerator::applyCarvers(WorldGenRegion& /*region*/, ChunkPrimer& 
 
 void NoiseChunkGenerator::placeFeatures(WorldGenRegion& region, ChunkPrimer& chunk)
 {
+    MC_TRACE_EVENT("world.chunk_gen", "PlaceFeatures", "x", chunk.x(), "z", chunk.z());
     // 初始化特征注册表（首次调用时）
     static bool s_featuresInitialized = false;
     if (!s_featuresInitialized) {

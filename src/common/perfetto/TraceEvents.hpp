@@ -1,0 +1,236 @@
+/**
+ * @file TraceEvents.hpp
+ * @brief Perfetto 追踪事件便捷宏
+ *
+ * 此文件提供了统一的追踪事件宏，当追踪禁用时展开为空操作。
+ *
+ * 使用方法：
+ * @code
+ * // 作用域事件（推荐）
+ * void myFunction() {
+ *     MC_TRACE_EVENT("rendering.frame", "MyFunction");
+ *     // 函数结束时自动结束事件
+ * }
+ *
+ * // 带参数的事件
+ * void processChunk(int x, int z) {
+ *     MC_TRACE_EVENT("world.chunk_gen", "ProcessChunk",
+ *                    "x", x, "z", z);
+ * }
+ *
+ * // 计数器
+ * void updateFPS(double fps) {
+ *     MC_TRACE_COUNTER("rendering.frame", "FPS", static_cast<int64_t>(fps));
+ * }
+ *
+ * // 手动开始/结束事件（跨函数场景）
+ * void startAsync() {
+ *     MC_TRACE_EVENT_BEGIN("network", "AsyncOp", "id", 123);
+ * }
+ * void endAsync() {
+ *     MC_TRACE_EVENT_END("network");
+ * }
+ *
+ * // 瞬时事件（零持续时间）
+ * void onEvent() {
+ *     MC_TRACE_INSTANT("game.tick", "SomethingHappened");
+ * }
+ * @endcode
+ *
+ * 注意事项：
+ * - 所有宏在 MC_ENABLE_TRACING=0 时展开为空操作，无性能开销
+ * - category 参数必须是在 TraceCategories.hpp 中定义的分类
+ * - 避免在热路径中使用复杂的参数计算
+ */
+
+#pragma once
+
+#include "PerfettoConfig.hpp"
+
+#if MC_ENABLE_TRACING
+
+#include <perfetto.h>
+
+// ============================================================================
+// 追踪事件宏
+// ============================================================================
+
+/**
+ * @brief 记录作用域事件
+ *
+ * 事件在作用域开始时自动开始，作用域结束时自动结束。
+ * 这是最常用的追踪宏，推荐在大多数场景使用。
+ *
+ * @param category 分类名称（字符串字面量）
+ * @param name 事件名称（字符串字面量）
+ * @param ... 可选的键值对参数（"key", value, ...）
+ *
+ * 示例：
+ * @code
+ * MC_TRACE_EVENT("rendering.frame", "RenderFrame");
+ * MC_TRACE_EVENT("world.chunk_gen", "GenerateBiomes", "x", chunkX, "z", chunkZ);
+ * @endcode
+ */
+#define MC_TRACE_EVENT(category, name, ...) \
+    TRACE_EVENT(category, name, ##__VA_ARGS__)
+
+/**
+ * @brief 记录计数器值
+ *
+ * 用于记录随时间变化的数值，如 FPS、内存使用等。
+ *
+ * @param category 分类名称
+ * @param name 计数器名称
+ * @param value 计数器值（必须是 int64_t 类型）
+ *
+ * 示例：
+ * @code
+ * MC_TRACE_COUNTER("rendering.frame", "FPS", 60);
+ * MC_TRACE_COUNTER("memory", "AllocatedMB", static_cast<int64_t>(mb));
+ * @endcode
+ */
+#define MC_TRACE_COUNTER(category, name, value) \
+    TRACE_COUNTER(category, name, value)
+
+/**
+ * @brief 手动开始一个事件
+ *
+ * 用于跨多个函数的事件追踪。必须与 MC_TRACE_EVENT_END 配对使用。
+ *
+ * @param category 分类名称
+ * @param name 事件名称
+ * @param ... 可选的键值对参数
+ *
+ * 示例：
+ * @code
+ * void startRequest(int id) {
+ *     MC_TRACE_EVENT_BEGIN("network", "HttpRequest", "id", id);
+ * }
+ * void endRequest() {
+ *     MC_TRACE_EVENT_END("network");
+ * }
+ * @endcode
+ */
+#define MC_TRACE_EVENT_BEGIN(category, name, ...) \
+    TRACE_EVENT_BEGIN(category, name, ##__VA_ARGS__)
+
+/**
+ * @brief 手动结束一个事件
+ *
+ * 结束由 MC_TRACE_EVENT_BEGIN 开始的事件。
+ *
+ * @param category 分类名称（必须与 BEGIN 匹配）
+ */
+#define MC_TRACE_EVENT_END(category) \
+    TRACE_EVENT_END(category)
+
+/**
+ * @brief 记录瞬时事件
+ *
+ * 瞬时事件没有持续时间，用于标记某个时刻发生的事情。
+ *
+ * @param category 分类名称
+ * @param name 事件名称
+ */
+#define MC_TRACE_INSTANT(category, name) \
+    TRACE_EVENT_INSTANT(category, name)
+
+/**
+ * @brief 检查分类是否启用
+ *
+ * 用于在执行昂贵追踪操作前检查分类是否启用。
+ *
+ * @param category 分类名称
+ * @return 如果分类启用返回 true
+ *
+ * 示例：
+ * @code
+ * if (MC_TRACE_CATEGORY_ENABLED("rendering.frame")) {
+ *     // 执行昂贵的追踪数据收集
+ * }
+ * @endcode
+ */
+#define MC_TRACE_CATEGORY_ENABLED(category) \
+    TRACE_EVENT_CATEGORY_ENABLED(category)
+
+// ============================================================================
+// 条件追踪宏
+// ============================================================================
+
+/**
+ * @brief 条件作用域事件
+ *
+ * 仅当条件为真时记录事件。
+ *
+ * @param condition 条件表达式
+ * @param category 分类名称
+ * @param name 事件名称
+ */
+#define MC_TRACE_EVENT_IF(condition, category, name, ...) \
+    do { \
+        if (condition) { \
+            MC_TRACE_EVENT(category, name, ##__VA_ARGS__); \
+        } \
+    } while (0)
+
+#else // MC_ENABLE_TRACING == 0
+
+// ============================================================================
+// 禁用追踪时，所有宏展开为空操作
+// ============================================================================
+
+#define MC_TRACE_EVENT(category, name, ...)              ((void)0)
+#define MC_TRACE_COUNTER(category, name, value)          ((void)0)
+#define MC_TRACE_EVENT_BEGIN(category, name, ...)        ((void)0)
+#define MC_TRACE_EVENT_END(category)                     ((void)0)
+#define MC_TRACE_INSTANT(category, name)                 ((void)0)
+#define MC_TRACE_CATEGORY_ENABLED(category)              (false)
+#define MC_TRACE_EVENT_IF(condition, category, name, ...) ((void)0)
+
+#endif // MC_ENABLE_TRACING
+
+// ============================================================================
+// 子系统特定的追踪宏
+// ============================================================================
+
+#if MC_TRACE_RENDERING
+#define MC_TRACE_RENDERING_EVENT(name, ...) MC_TRACE_EVENT("rendering.frame", name, ##__VA_ARGS__)
+#define MC_TRACE_RENDERING_COUNTER(name, value) MC_TRACE_COUNTER("rendering.frame", name, value)
+#define MC_TRACE_VULKAN_EVENT(name, ...) MC_TRACE_EVENT("rendering.vulkan", name, ##__VA_ARGS__)
+#define MC_TRACE_CHUNK_MESH_EVENT(name, ...) MC_TRACE_EVENT("rendering.chunk_mesh", name, ##__VA_ARGS__)
+#else
+#define MC_TRACE_RENDERING_EVENT(name, ...) ((void)0)
+#define MC_TRACE_RENDERING_COUNTER(name, value) ((void)0)
+#define MC_TRACE_VULKAN_EVENT(name, ...) ((void)0)
+#define MC_TRACE_CHUNK_MESH_EVENT(name, ...) ((void)0)
+#endif
+
+#if MC_TRACE_GAME_TICK
+#define MC_TRACE_TICK_EVENT(name, ...) MC_TRACE_EVENT("game.tick", name, ##__VA_ARGS__)
+#define MC_TRACE_TICK_COUNTER(name, value) MC_TRACE_COUNTER("game.tick", name, value)
+#define MC_TRACE_ENTITY_EVENT(name, ...) MC_TRACE_EVENT("game.entity", name, ##__VA_ARGS__)
+#define MC_TRACE_AI_EVENT(name, ...) MC_TRACE_EVENT("game.ai", name, ##__VA_ARGS__)
+#else
+#define MC_TRACE_TICK_EVENT(name, ...) ((void)0)
+#define MC_TRACE_TICK_COUNTER(name, value) ((void)0)
+#define MC_TRACE_ENTITY_EVENT(name, ...) ((void)0)
+#define MC_TRACE_AI_EVENT(name, ...) ((void)0)
+#endif
+
+#if MC_TRACE_CHUNK_GENERATION
+#define MC_TRACE_CHUNK_GEN_EVENT(name, ...) MC_TRACE_EVENT("world.chunk_gen", name, ##__VA_ARGS__)
+#else
+#define MC_TRACE_CHUNK_GEN_EVENT(name, ...) ((void)0)
+#endif
+
+#if MC_TRACE_CHUNK_LOAD
+#define MC_TRACE_CHUNK_LOAD_EVENT(name, ...) MC_TRACE_EVENT("world.chunk_load", name, ##__VA_ARGS__)
+#else
+#define MC_TRACE_CHUNK_LOAD_EVENT(name, ...) ((void)0)
+#endif
+
+#if MC_TRACE_NETWORK
+#define MC_TRACE_NETWORK_EVENT(name, ...) MC_TRACE_EVENT("network.packet", name, ##__VA_ARGS__)
+#else
+#define MC_TRACE_NETWORK_EVENT(name, ...) ((void)0)
+#endif

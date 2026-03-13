@@ -3,6 +3,8 @@
 #include "minecraft-reborn/version.h"
 #include "common/network/ProtocolPackets.hpp"
 #include "common/entity/VanillaEntities.hpp"
+#include "common/perfetto/PerfettoManager.hpp"
+#include "common/perfetto/TraceEvents.hpp"
 #include "server/application/MinecraftServer.hpp"
 #include "server/command/CommandRegistry.hpp"
 #include "server/command/ServerCommandSource.hpp"
@@ -84,6 +86,14 @@ Result<void> ServerApplication::initialize(const ServerLaunchParams& params)
     spdlog::info("=== Minecraft Reborn Server ===");
     spdlog::info("Version: {}.{}.{}", MC_VERSION_MAJOR, MC_VERSION_MINOR, MC_VERSION_PATCH);
     spdlog::info("Initializing server...");
+
+    // 初始化性能追踪
+    mc::perfetto::TraceConfig traceConfig;
+    traceConfig.outputPath = "server_trace.perfetto-trace";
+    traceConfig.bufferSizeKb = 65536; // 64MB
+    mc::perfetto::PerfettoManager::instance().initialize(traceConfig);
+    mc::perfetto::PerfettoManager::instance().startTracing();
+    spdlog::info("Perfetto tracing initialized");
 
     // 注册实体类型
     entity::VanillaEntities::registerAll();
@@ -195,6 +205,8 @@ void ServerApplication::mainLoop()
     spdlog::info("Connect with port: {}", m_settings.serverPort.get());
 
     while (m_running) {
+        MC_TRACE_EVENT("game.tick", "ServerLoop");
+
         const auto currentTime = clock::now();
         const auto deltaTime = currentTime - lastTickTime;
 
@@ -204,10 +216,13 @@ void ServerApplication::mainLoop()
 
             lastTickTime = currentTime;
 
+            // 追踪 TPS
+            const f64 tps = 1.0 / (std::chrono::duration<f64>(deltaTime).count());
+            MC_TRACE_COUNTER("game.tick", "TPS", static_cast<i64>(tps));
+
             // 每秒输出一次统计信息
             u64 tickCount = m_serverCore->currentTick();
             if (tickCount % 20 == 0) {
-                const auto tps = 1.0 / (std::chrono::duration<f64>(deltaTime).count());
                 (void)tps;  // Avoid unused variable warning when SPDLOG_TRACE is disabled
                 SPDLOG_TRACE("TPS: {:.1f}, Tick: {}", tps, tickCount);
             }
@@ -222,17 +237,25 @@ void ServerApplication::mainLoop()
 
 void ServerApplication::tick()
 {
+    MC_TRACE_EVENT("game.tick", "ServerTick");
+
     // 处理网络事件
-    if (m_server) {
-        m_server->poll();
+    {
+        MC_TRACE_EVENT("network.packet", "PollNetwork");
+        if (m_server) {
+            m_server->poll();
+        }
     }
 
     // 使用 ServerCore 的 tick
     m_serverCore->tick();
 
     // 更新世界
-    if (m_world) {
-        m_world->tick();
+    {
+        MC_TRACE_EVENT("game.tick", "WorldUpdate");
+        if (m_world) {
+            m_world->tick();
+        }
     }
 
     // 每 15 秒发送一次心跳
@@ -292,6 +315,11 @@ void ServerApplication::shutdown()
 
     // 清理 ServerCore
     m_serverCore.reset();
+
+    // 关闭性能追踪
+    mc::perfetto::PerfettoManager::instance().stopTracing();
+    mc::perfetto::PerfettoManager::instance().shutdown();
+    spdlog::info("Perfetto tracing stopped");
 
     spdlog::info("Server stopped.");
 }

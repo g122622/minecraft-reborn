@@ -3,6 +3,9 @@
 
 find_package(LibArchive REQUIRED)
 
+# Perfetto 性能追踪子模块
+add_subdirectory(perfetto)
+
 add_library(mc_common STATIC
     # Core
     core/Result.cpp
@@ -214,6 +217,7 @@ target_link_libraries(mc_common
         glm::glm
         spdlog::spdlog
         nlohmann_json::nlohmann_json
+        mc::perfetto
     PRIVATE
         LibArchive::LibArchive
 )
