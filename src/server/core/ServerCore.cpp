@@ -27,7 +27,7 @@ ServerCore::ServerCore()
           *m_timeManager,
           m_config))
 {
-    m_playerManager->setConfig(&m_config);
+    m_playerManager->setConfig(m_config);
 }
 
 ServerCore::ServerCore(const ServerCoreConfig& config)
@@ -47,16 +47,14 @@ ServerCore::ServerCore(const ServerCoreConfig& config)
           *m_timeManager,
           m_config))
 {
-    m_playerManager->setConfig(&m_config);
+    m_playerManager->setConfig(m_config);
 }
 
 ServerCore::~ServerCore() = default;
 
 void ServerCore::setConfig(const ServerCoreConfig& config) {
     m_config = config;
-    m_playerManager->setConfig(&m_config);
-    m_playerManager->setMaxPlayers(config.maxPlayers);
-    m_playerManager->chunkSyncManager().setDefaultViewDistance(config.viewDistance);
+    m_playerManager->setConfig(config);
 }
 
 // ============================================================================
@@ -206,7 +204,7 @@ void ServerCore::updateKeepAlive(PlayerId playerId, u64 timestamp) {
 
 bool ServerCore::needsKeepAlive(PlayerId playerId, u64 currentTick) const {
     // 将 tick 转换为毫秒
-    u64 currentTickMs = currentTick * 50;
+    u64 currentTickMs = currentTick * TICK_DURATION_MS;
     return m_keepAliveManager->needsKeepAlive(playerId, currentTickMs);
 }
 
@@ -222,16 +220,22 @@ void ServerCore::tick() {
     // 更新时间
     tickTime();
 
-    // 清理断开连接的玩家
-    cleanupDisconnectedPlayers();
-
-    // 检查心跳超时
-    u64 currentTickMs = currentTick() * 50;
-    auto timedOutPlayers = m_keepAliveManager->getTimedOutPlayers(currentTickMs);
-    for (PlayerId playerId : timedOutPlayers) {
-        spdlog::info("ServerCore: Player {} timed out", playerId);
-        disconnectPlayer(playerId, "Connection timed out");
+    // 清理断开连接的玩家（每 CLEANUP_INTERVAL_TICKS tick 执行一次）
+    if (m_currentCleanupTick % CLEANUP_INTERVAL_TICKS == 0) {
+        cleanupDisconnectedPlayers();
     }
+    m_currentCleanupTick++;
+
+    // 检查心跳超时（每 KEEPALIVE_CHECK_INTERVAL_TICKS tick 执行一次）
+    if (m_currentKeepAliveCheckTick % KEEPALIVE_CHECK_INTERVAL_TICKS == 0) {
+        u64 currentTickMs = currentTick() * TICK_DURATION_MS;
+        auto timedOutPlayers = m_keepAliveManager->getTimedOutPlayers(currentTickMs);
+        for (PlayerId playerId : timedOutPlayers) {
+            spdlog::info("ServerCore: Player {} timed out", playerId);
+            disconnectPlayer(playerId, "Connection timed out");
+        }
+    }
+    m_currentKeepAliveCheckTick++;
 }
 
 } // namespace mc::server

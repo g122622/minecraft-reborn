@@ -9,6 +9,7 @@
 #include <mutex>
 #include <functional>
 #include <vector>
+#include <atomic>
 
 namespace mc::server::core {
 
@@ -157,16 +158,16 @@ public:
     // ========== ID 生成 ==========
 
     /**
-     * @brief 获取下一个玩家ID
+     * @brief 获取下一个玩家ID（线程安全）
      * @return 新的玩家ID
      */
-    [[nodiscard]] PlayerId nextPlayerId() { return m_nextPlayerId++; }
+    [[nodiscard]] PlayerId nextPlayerId() { return m_nextPlayerId.fetch_add(1); }
 
     /**
-     * @brief 获取下一个会话ID
+     * @brief 获取下一个会话ID（线程安全）
      * @return 新的会话ID
      */
-    [[nodiscard]] u32 nextSessionId() { return m_nextSessionId++; }
+    [[nodiscard]] u32 nextSessionId() { return m_nextSessionId.fetch_add(1); }
 
     // ========== 配置 ==========
 
@@ -174,7 +175,10 @@ public:
      * @brief 设置配置
      * @param config 配置引用
      */
-    void setConfig(const ServerCoreConfig* config) { m_config = config; }
+    void setConfig(const ServerCoreConfig& config) {
+        m_maxPlayers = config.maxPlayers;
+        m_chunkSyncManager.setDefaultViewDistance(config.viewDistance);
+    }
 
     /**
      * @brief 设置最大玩家数
@@ -224,12 +228,10 @@ private:
     mutable std::mutex m_mutex;
     std::unordered_map<PlayerId, ServerPlayerData> m_players;
     std::unordered_map<u32, PlayerId> m_sessionToPlayer;  ///< 会话ID -> 玩家ID
-    std::unordered_map<PlayerId, u32> m_playerToSession;  ///< 玩家ID -> 会话ID
 
-    PlayerId m_nextPlayerId = 1;
-    u32 m_nextSessionId = 1;
+    std::atomic<PlayerId> m_nextPlayerId{1};
+    std::atomic<u32> m_nextSessionId{1};
     i32 m_maxPlayers = 20;
-    const ServerCoreConfig* m_config = nullptr;
 
     network::ChunkSyncManager m_chunkSyncManager;
 };

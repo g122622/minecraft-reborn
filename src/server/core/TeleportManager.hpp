@@ -3,6 +3,7 @@
 #include "common/core/Types.hpp"
 #include "common/network/Packet.hpp"
 #include <vector>
+#include <atomic>
 
 namespace mc::server::core {
 
@@ -73,14 +74,14 @@ public:
     // ========== ID 生成 ==========
 
     /**
-     * @brief 获取下一个传送ID
+     * @brief 获取下一个传送ID（线程安全）
      * @return 新的传送ID
      */
-    [[nodiscard]] u32 nextTeleportId() { return m_nextTeleportId++; }
+    [[nodiscard]] u32 nextTeleportId() { return m_nextTeleportId.fetch_add(1); }
 
 private:
     PlayerManager& m_playerManager;
-    u32 m_nextTeleportId = 1;
+    std::atomic<u32> m_nextTeleportId{1};
 };
 
 } // namespace mc::server::core

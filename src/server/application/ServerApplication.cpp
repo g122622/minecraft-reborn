@@ -5,6 +5,7 @@
 #include "common/entity/VanillaEntities.hpp"
 #include "common/perfetto/PerfettoManager.hpp"
 #include "common/perfetto/TraceEvents.hpp"
+#include "common/util/TimeUtils.hpp"
 #include "server/application/MinecraftServer.hpp"
 #include "server/command/CommandRegistry.hpp"
 #include "server/command/ServerCommandSource.hpp"
@@ -18,7 +19,6 @@
 #include "server/core/PacketHandler.hpp"
 
 #include <spdlog/spdlog.h>
-#include <chrono>
 #include <thread>
 
 namespace mc::server {
@@ -263,16 +263,14 @@ void ServerApplication::tick()
     if (tickCount - m_lastKeepAliveTime >= 300) { // 300 ticks = 15 seconds
         m_lastKeepAliveTime = tickCount;
 
-        auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::steady_clock::now().time_since_epoch()
-        ).count();
+        u64 timestamp = util::TimeUtils::getCurrentTimeMs();
 
         // 向所有连接的玩家发送心跳
         m_serverCore->forEachPlayer([this, timestamp, tickCount](ServerPlayerData& player) {
             if (player.loggedIn && player.hasConnection()) {
                 // 使用 KeepAlivePacket 发送心跳
                 network::KeepAlivePacket packet;
-                packet.setTimestamp(static_cast<u64>(timestamp));
+                packet.setTimestamp(timestamp);
 
                 auto result = packet.serialize();
                 if (result.success()) {
@@ -280,7 +278,7 @@ void ServerApplication::tick()
                 }
 
                 m_serverCore->keepAliveManager().recordKeepAliveSent(
-                    player.playerId, static_cast<u64>(timestamp), tickCount);
+                    player.playerId, timestamp, tickCount);
             }
         });
     }
@@ -513,11 +511,7 @@ void ServerApplication::handleKeepAlive(TcpSession* session, const u8* data, siz
     auto result = packet.deserialize(data, size);
 
     if (result.success()) {
-        auto currentTimeMs = static_cast<u64>(
-            std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::steady_clock::now().time_since_epoch()
-            ).count()
-        );
+        u64 currentTimeMs = util::TimeUtils::getCurrentTimeMs();
         m_serverCore->keepAliveManager().handleKeepAliveResponse(playerId, packet.timestamp(), currentTimeMs);
         spdlog::trace("KeepAlive from session {}", session->id());
     }

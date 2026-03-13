@@ -5,7 +5,6 @@ namespace mc::server::core {
 
 PlayerManager::PlayerManager(const ServerCoreConfig& config)
     : m_maxPlayers(config.maxPlayers)
-    , m_config(&config)
 {
     m_chunkSyncManager.setDefaultViewDistance(config.viewDistance);
 }
@@ -34,10 +33,6 @@ ServerPlayerData* PlayerManager::addPlayer(PlayerId playerId,
     player.loggedIn = true;
     player.chunkTracker = std::make_shared<network::PlayerChunkTracker>(playerId);
 
-    // 设置视距
-    i32 viewDistance = m_config ? m_config->viewDistance : 10;
-    player.chunkTracker->setViewDistance(viewDistance);
-
     // 更新区块同步管理器
     (void)m_chunkSyncManager.getTracker(playerId);
     m_chunkSyncManager.updatePlayerPosition(playerId, player.x, player.z);
@@ -56,8 +51,9 @@ void PlayerManager::removePlayer(PlayerId playerId) {
     u32 sessionId = it->second.sessionId;
 
     // 移除会话映射
-    m_sessionToPlayer.erase(sessionId);
-    m_playerToSession.erase(playerId);
+    if (sessionId != 0) {
+        m_sessionToPlayer.erase(sessionId);
+    }
 
     // 移除玩家
     m_players.erase(it);
@@ -80,7 +76,6 @@ void PlayerManager::removePlayerBySessionId(u32 sessionId) {
 
     // 移除会话映射
     m_sessionToPlayer.erase(sessionId);
-    m_playerToSession.erase(playerId);
 
     // 移除玩家
     m_players.erase(playerIt);
@@ -150,7 +145,6 @@ std::vector<PlayerId> PlayerManager::getPlayerIds() const {
 void PlayerManager::mapSessionToPlayer(u32 sessionId, PlayerId playerId) {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_sessionToPlayer[sessionId] = playerId;
-    m_playerToSession[playerId] = sessionId;
 
     auto it = m_players.find(playerId);
     if (it != m_players.end()) {
@@ -165,9 +159,7 @@ void PlayerManager::unmapSession(u32 sessionId) {
     if (it == m_sessionToPlayer.end()) return;
 
     PlayerId playerId = it->second;
-
     m_sessionToPlayer.erase(sessionId);
-    m_playerToSession.erase(playerId);
 
     auto playerIt = m_players.find(playerId);
     if (playerIt != m_players.end()) {

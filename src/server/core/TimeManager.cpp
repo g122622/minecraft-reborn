@@ -4,7 +4,6 @@ namespace mc::server::core {
 
 TimeManager::TimeManager(i64 initialGameTime, i64 initialDayTime)
     : m_gameTime()
-    , m_currentTick(static_cast<u64>(initialGameTime))
     , m_daylightCycleEnabled(true)
 {
     m_gameTime.setGameTime(initialGameTime);
@@ -12,7 +11,6 @@ TimeManager::TimeManager(i64 initialGameTime, i64 initialDayTime)
 }
 
 void TimeManager::tick() {
-    m_currentTick++;
     if (m_daylightCycleEnabled) {
         m_gameTime.tick();
     } else {
@@ -27,7 +25,6 @@ i64 TimeManager::gameTime() const {
 
 void TimeManager::setGameTime(i64 time) {
     m_gameTime.setGameTime(time);
-    m_currentTick = static_cast<u64>(time);
 }
 
 i64 TimeManager::dayTime() const {

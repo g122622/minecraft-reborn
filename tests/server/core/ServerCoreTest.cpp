@@ -230,14 +230,14 @@ TEST_F(ServerCoreTest, Tick) {
 
 TEST_F(ServerCoreTest, ManagerAccess) {
     // 测试管理器访问器
-    EXPECT_NO_THROW(m_core->playerManager());
-    EXPECT_NO_THROW(m_core->connectionManager());
-    EXPECT_NO_THROW(m_core->timeManager());
-    EXPECT_NO_THROW(m_core->teleportManager());
-    EXPECT_NO_THROW(m_core->keepAliveManager());
-    EXPECT_NO_THROW(m_core->positionTracker());
-    EXPECT_NO_THROW(m_core->packetHandler());
-    EXPECT_NO_THROW(m_core->chunkSyncManager());
+    (void)m_core->playerManager();
+    (void)m_core->connectionManager();
+    (void)m_core->timeManager();
+    (void)m_core->teleportManager();
+    (void)m_core->keepAliveManager();
+    (void)m_core->positionTracker();
+    (void)m_core->packetHandler();
+    (void)m_core->chunkSyncManager();
 }
 
 TEST_F(ServerCoreTest, SetWorld) {

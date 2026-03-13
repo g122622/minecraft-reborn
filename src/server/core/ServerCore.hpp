@@ -313,6 +313,10 @@ private:
     std::unique_ptr<core::KeepAliveManager> m_keepAliveManager;
     std::unique_ptr<core::PositionTracker> m_positionTracker;
     std::unique_ptr<core::PacketHandler> m_packetHandler;
+
+    // Tick 计数器（用于间隔执行清理和心跳检查）
+    u64 m_currentCleanupTick = 0;
+    u64 m_currentKeepAliveCheckTick = 0;
 };
 
 // ============================================================================

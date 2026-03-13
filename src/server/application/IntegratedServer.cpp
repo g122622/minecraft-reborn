@@ -16,6 +16,7 @@
 #include "common/world/WorldConstants.hpp"
 #include "common/world/chunk/ChunkLoadTicket.hpp"
 #include "common/util/Direction.hpp"
+#include "common/util/TimeUtils.hpp"
 #include "server/menu/CraftingMenu.hpp"
 #include "server/application/MinecraftServer.hpp"
 #include "server/command/CommandRegistry.hpp"
@@ -29,7 +30,6 @@
 #include "server/core/PacketHandler.hpp"
 
 #include <spdlog/spdlog.h>
-#include <chrono>
 #include <cmath>
 
 namespace mc::server {
@@ -308,10 +308,8 @@ void IntegratedServer::tick() {
     // 心跳（每 15 秒）
     u64 tick = m_serverCore->currentTick();
     if (tick % (static_cast<u64>(m_config.tickRate) * 15) == 0) {
-        auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::steady_clock::now().time_since_epoch()
-        ).count();
-        sendKeepAlive(static_cast<u64>(timestamp));
+        u64 timestamp = util::TimeUtils::getCurrentTimeMs();
+        sendKeepAlive(timestamp);
     }
 
     // 日光周期
@@ -985,11 +983,7 @@ void IntegratedServer::handleKeepAlive(const u8* data, size_t size) {
     auto result = packet.deserialize(data, size);
 
     if (result.success()) {
-        auto currentTimeMs = static_cast<u64>(
-            std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::steady_clock::now().time_since_epoch()
-            ).count()
-        );
+        u64 currentTimeMs = util::TimeUtils::getCurrentTimeMs();
         m_serverCore->keepAliveManager().handleKeepAliveResponse(m_clientPlayerId, packet.timestamp(), currentTimeMs);
         spdlog::trace("KeepAlive received: {}", packet.timestamp());
     }

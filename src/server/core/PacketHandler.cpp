@@ -7,6 +7,7 @@
 #include "TimeManager.hpp"
 #include "common/network/PacketSerializer.hpp"
 #include "common/network/ProtocolPackets.hpp"
+#include "common/util/TimeUtils.hpp"
 #include <spdlog/spdlog.h>
 
 namespace mc::server::core {
@@ -62,11 +63,7 @@ PacketHandleResult PacketHandler::handlePacket(u32 sessionId, const u8* data, si
             return handleTeleportConfirm(sessionId, payload, payloadSize);
 
         case network::PacketType::KeepAlive: {
-            auto currentTimeMs = static_cast<u64>(
-                std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::steady_clock::now().time_since_epoch()
-                ).count()
-            );
+            u64 currentTimeMs = util::TimeUtils::getCurrentTimeMs();
             return handleKeepAlive(sessionId, payload, payloadSize, currentTimeMs);
         }
 

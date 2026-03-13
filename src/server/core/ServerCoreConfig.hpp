@@ -4,6 +4,15 @@
 
 namespace mc::server {
 
+/// Tick 持续时间（毫秒）- 20 TPS 对应 50ms
+constexpr u64 TICK_DURATION_MS = 50;
+
+/// 心跳检查间隔（tick 数）- 每 300 tick (15秒) 检查一次
+constexpr u64 KEEPALIVE_CHECK_INTERVAL_TICKS = 300;
+
+/// 清理断开连接玩家的间隔（tick 数）- 每 20 tick (1秒) 清理一次
+constexpr u64 CLEANUP_INTERVAL_TICKS = 20;
+
 /**
  * @brief 服务端核心配置
  *

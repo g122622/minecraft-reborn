@@ -52,7 +52,7 @@ public:
     /**
      * @brief 获取当前 tick（与 gameTime 相同）
      */
-    [[nodiscard]] u64 currentTick() const { return m_currentTick; }
+    [[nodiscard]] u64 currentTick() const { return static_cast<u64>(m_gameTime.gameTime()); }
 
     /**
      * @brief 设置游戏时间
@@ -112,7 +112,6 @@ public:
 
 private:
     time::GameTime m_gameTime;
-    u64 m_currentTick = 0;
     bool m_daylightCycleEnabled = true;
 };
 
