@@ -3,6 +3,7 @@
 #include "../VulkanBuffer.hpp"
 #include "../../../common/core/Constants.hpp"
 #include "../../../common/math/random/Random.hpp"
+#include "../../../common/perfetto/TraceEvents.hpp"
 #include <spdlog/spdlog.h>
 #include <cmath>
 #include <filesystem>
@@ -259,34 +260,54 @@ void SkyRenderer::render(VkCommandBuffer cmd, const glm::mat4& viewProjection, c
 
     m_currentFrame = frameIndex % MAX_FRAMES_IN_FLIGHT;
     m_lastViewProjection = viewProjection;
-    updateUniformBuffer(m_currentFrame);
+
+    {
+        MC_TRACE_SKY("UpdateUBO");
+        updateUniformBuffer(m_currentFrame);
+    }
 
     if (m_descriptorSets[m_currentFrame] == VK_NULL_HANDLE) {
         return;
     }
 
     // 绑定描述符集
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                           m_pipelineLayout, 0, 1, &m_descriptorSets[m_currentFrame], 0, nullptr);
+    {
+        MC_TRACE_DESCRIPTOR_BIND("SkyDescriptor");
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                               m_pipelineLayout, 0, 1, &m_descriptorSets[m_currentFrame], 0, nullptr);
+    }
 
-    // 现有 sky/sun/moon/star 着色器在顶点阶段使用“线性裁剪映射”而非标准透视除法，
+    // 现有 sky/sun/moon/star 着色器在顶点阶段使用"线性裁剪映射"而非标准透视除法，
     // 需要对传入矩阵做统一缩放，避免天体落在远超 [-1, 1] 的 NDC 外。
-    SkyPushConstants pushConstants{};
-    pushConstants.viewProjection = viewProjection * SKY_CLIP_SCALE;
-    vkCmdPushConstants(cmd, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
-                       0, sizeof(SkyPushConstants), &pushConstants);
+    {
+        MC_TRACE_PUSH_CONSTANTS("SkyViewProjection");
+        SkyPushConstants pushConstants{};
+        pushConstants.viewProjection = viewProjection * SKY_CLIP_SCALE;
+        vkCmdPushConstants(cmd, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
+                           0, sizeof(SkyPushConstants), &pushConstants);
+    }
 
     // 渲染天空穹顶 (最优先，写入深度为远平面)
-    renderSkyDome(cmd);
+    {
+        MC_TRACE_SKY("SkyDome");
+        renderSkyDome(cmd);
+    }
 
     // 渲染太阳
-    renderSun(cmd);
+    {
+        MC_TRACE_SKY("Sun");
+        renderSun(cmd);
+    }
 
     // 渲染月亮
-    renderMoon(cmd);
+    {
+        MC_TRACE_SKY("Moon");
+        renderMoon(cmd);
+    }
 
     // 渲染星星 (夜晚可见)
     if (m_starBrightness > 0.005f) {
+        MC_TRACE_SKY("Stars");
         renderStars(cmd);
     }
 }
@@ -498,10 +519,10 @@ Result<void> SkyRenderer::createStarVBO() {
 }
 
 Result<void> SkyRenderer::createSunMoonVBO() {
-    // 太阳和月亮顶点使用“单位四边形”[-1, 1]。
+    // 太阳和月亮顶点使用"单位四边形"[-1, 1]。
     // 具体实际尺寸由顶点着色器中的常量控制（sun: 30, moon: 20）。
     // 注意：如果这里直接传入世界尺寸（例如 ±30），片元着色器会因为 UV 超范围
-    // 导致圆盘被完全 discard，从而出现“白天看不到太阳”的问题。
+    // 导致圆盘被完全 discard，从而出现"白天看不到太阳"的问题。
     std::vector<SkyVertex> vertices = {
         // 太阳 (4 个顶点)
         {-1.0f, -1.0f, 0.0f},

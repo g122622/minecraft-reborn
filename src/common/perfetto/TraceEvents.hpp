@@ -208,11 +208,32 @@
 #define MC_TRACE_RENDERING_COUNTER(name, value) MC_TRACE_COUNTER("rendering.frame", name, value)
 #define MC_TRACE_VULKAN_EVENT(name, ...) MC_TRACE_EVENT("rendering.vulkan", name, ##__VA_ARGS__)
 #define MC_TRACE_CHUNK_MESH_EVENT(name, ...) MC_TRACE_EVENT("rendering.chunk_mesh", name, ##__VA_ARGS__)
+// 细粒度渲染追踪
+#define MC_TRACE_BEGIN_FRAME(name, ...) MC_TRACE_EVENT("rendering.begin_frame", name, ##__VA_ARGS__)
+#define MC_TRACE_UNIFORM_UPDATE(name, ...) MC_TRACE_EVENT("rendering.uniform_update", name, ##__VA_ARGS__)
+#define MC_TRACE_SKY(name, ...) MC_TRACE_EVENT("rendering.sky", name, ##__VA_ARGS__)
+#define MC_TRACE_CHUNK_DRAW(name, ...) MC_TRACE_EVENT("rendering.chunk_draw", name, ##__VA_ARGS__)
+#define MC_TRACE_GUI(name, ...) MC_TRACE_EVENT("rendering.gui", name, ##__VA_ARGS__)
+#define MC_TRACE_END_FRAME(name, ...) MC_TRACE_EVENT("rendering.end_frame", name, ##__VA_ARGS__)
+#define MC_TRACE_VIEWPORT(name, ...) MC_TRACE_EVENT("rendering.viewport", name, ##__VA_ARGS__)
+#define MC_TRACE_DESCRIPTOR_BIND(name, ...) MC_TRACE_EVENT("rendering.descriptor_bind", name, ##__VA_ARGS__)
+#define MC_TRACE_PUSH_CONSTANTS(name, ...) MC_TRACE_EVENT("rendering.push_constants", name, ##__VA_ARGS__)
+#define MC_TRACE_CMD_BUFFER(name, ...) MC_TRACE_EVENT("rendering.command_buffer", name, ##__VA_ARGS__)
 #else
 #define MC_TRACE_RENDERING_EVENT(name, ...) ((void)0)
 #define MC_TRACE_RENDERING_COUNTER(name, value) ((void)0)
 #define MC_TRACE_VULKAN_EVENT(name, ...) ((void)0)
 #define MC_TRACE_CHUNK_MESH_EVENT(name, ...) ((void)0)
+#define MC_TRACE_BEGIN_FRAME(name, ...) ((void)0)
+#define MC_TRACE_UNIFORM_UPDATE(name, ...) ((void)0)
+#define MC_TRACE_SKY(name, ...) ((void)0)
+#define MC_TRACE_CHUNK_DRAW(name, ...) ((void)0)
+#define MC_TRACE_GUI(name, ...) ((void)0)
+#define MC_TRACE_END_FRAME(name, ...) ((void)0)
+#define MC_TRACE_VIEWPORT(name, ...) ((void)0)
+#define MC_TRACE_DESCRIPTOR_BIND(name, ...) ((void)0)
+#define MC_TRACE_PUSH_CONSTANTS(name, ...) ((void)0)
+#define MC_TRACE_CMD_BUFFER(name, ...) ((void)0)
 #endif
 
 #if MC_TRACE_GAME_TICK

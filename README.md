@@ -13,6 +13,9 @@ $env:VCPKG_ROOT = "D:\tools\vcpkg"
 # 配置项目
 cmake -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=D:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake
 
+# 若想启用perfetto性能分析：
+cmake -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=D:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake -DMC_ENABLE_TRACING=ON
+
 # 编译
 chcp 65001 # 务必记得先执行这一行，避免中文乱码
 

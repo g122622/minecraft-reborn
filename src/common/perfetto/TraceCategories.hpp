@@ -34,6 +34,28 @@ PERFETTO_DEFINE_CATEGORIES(
     perfetto::Category("rendering.entity")
         .SetDescription("实体渲染"),
 
+    // === 渲染子分类（细粒度分析）===
+    perfetto::Category("rendering.begin_frame")
+        .SetDescription("帧开始阶段（等待同步、获取图像）"),
+    perfetto::Category("rendering.uniform_update")
+        .SetDescription("Uniform缓冲区更新"),
+    perfetto::Category("rendering.sky")
+        .SetDescription("天空渲染（穹顶、太阳、月亮、星星）"),
+    perfetto::Category("rendering.chunk_draw")
+        .SetDescription("区块绘制（绑定管线、描述符、绘制调用）"),
+    perfetto::Category("rendering.gui")
+        .SetDescription("GUI渲染（HUD、聊天、菜单）"),
+    perfetto::Category("rendering.end_frame")
+        .SetDescription("帧结束阶段（提交命令、呈现）"),
+    perfetto::Category("rendering.viewport")
+        .SetDescription("视口和裁剪设置"),
+    perfetto::Category("rendering.descriptor_bind")
+        .SetDescription("描述符集绑定"),
+    perfetto::Category("rendering.push_constants")
+        .SetDescription("推送常量更新"),
+    perfetto::Category("rendering.command_buffer")
+        .SetDescription("命令缓冲区操作"),
+
     // === 游戏逻辑分类 ===
     perfetto::Category("game.tick")
         .SetDescription("游戏刻处理"),

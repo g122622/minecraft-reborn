@@ -6,6 +6,7 @@
 #include "../ui/DefaultAsciiFont.hpp"
 #include "MeshTypes.hpp"
 #include "../../common/world/WorldConstants.hpp"
+#include "../../common/perfetto/TraceEvents.hpp"
 #include <spdlog/spdlog.h>
 #include <array>
 #include <cstring>
@@ -202,6 +203,8 @@ void VulkanRenderer::destroy() {
 }
 
 Result<void> VulkanRenderer::beginFrame() {
+    MC_TRACE_BEGIN_FRAME("BeginFrame");
+
     if (!m_initialized || m_minimized) {
         return Error(ErrorCode::InvalidState, "Renderer not ready");
     }
@@ -211,89 +214,111 @@ Result<void> VulkanRenderer::beginFrame() {
     }
 
     // 等待当前帧的fence（限制同时进行的帧数）
-    vkWaitForFences(m_context->device(), 1, &m_inFlightFences[m_currentFrame],
-                    VK_TRUE, UINT64_MAX);
+    {
+        MC_TRACE_BEGIN_FRAME("WaitForFence");
+        vkWaitForFences(m_context->device(), 1, &m_inFlightFences[m_currentFrame],
+                        VK_TRUE, UINT64_MAX);
+    }
 
     // 获取下一帧图像，使用当前帧索引对应的信号量
-    auto acquireResult = m_swapchain->acquireNextImage(
-        m_imageAvailableSemaphores[m_currentFrame]);
+    {
+        MC_TRACE_BEGIN_FRAME("AcquireNextImage");
+        auto acquireResult = m_swapchain->acquireNextImage(
+            m_imageAvailableSemaphores[m_currentFrame]);
 
-    if (acquireResult.failed()) {
-        if (acquireResult.error().code() == ErrorCode::InvalidState) {
-            auto recreateResult = recreateSwapchain();
-            if (recreateResult.failed()) {
-                return recreateResult.error();
+        if (acquireResult.failed()) {
+            if (acquireResult.error().code() == ErrorCode::InvalidState) {
+                auto recreateResult = recreateSwapchain();
+                if (recreateResult.failed()) {
+                    return recreateResult.error();
+                }
+                return beginFrame();
             }
-            return beginFrame();
+            return acquireResult.error();
         }
-        return acquireResult.error();
-    }
 
-    m_imageIndex = acquireResult.value();
+        m_imageIndex = acquireResult.value();
+    }
 
     // 检查是否有其他帧正在使用此图像
-    if (m_imageFences[m_imageIndex] != VK_NULL_HANDLE) {
-        vkWaitForFences(m_context->device(), 1, &m_imageFences[m_imageIndex], VK_TRUE, UINT64_MAX);
+    {
+        MC_TRACE_BEGIN_FRAME("WaitForImageFence");
+        if (m_imageFences[m_imageIndex] != VK_NULL_HANDLE) {
+            vkWaitForFences(m_context->device(), 1, &m_imageFences[m_imageIndex], VK_TRUE, UINT64_MAX);
+        }
+        // 标记此图像正在被当前帧使用
+        m_imageFences[m_imageIndex] = m_inFlightFences[m_currentFrame];
     }
-    // 标记此图像正在被当前帧使用
-    m_imageFences[m_imageIndex] = m_inFlightFences[m_currentFrame];
 
     // 重置fence
-    vkResetFences(m_context->device(), 1, &m_inFlightFences[m_currentFrame]);
+    {
+        MC_TRACE_BEGIN_FRAME("ResetFence");
+        vkResetFences(m_context->device(), 1, &m_inFlightFences[m_currentFrame]);
+    }
 
     // 处理 ChunkRenderer 的延迟销毁队列
     // 此时上一帧的 GPU 命令已完成，可以安全销毁缓冲区
     if (m_chunkRendererInitialized) {
+        MC_TRACE_BEGIN_FRAME("ProcessPendingDestroys");
         m_chunkRenderer.processPendingDestroys();
     }
 
     // 开始命令缓冲区
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    beginInfo.pInheritanceInfo = nullptr;
+    {
+        MC_TRACE_CMD_BUFFER("BeginCommandBuffer");
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        beginInfo.pInheritanceInfo = nullptr;
 
-    VkCommandBuffer cmd = m_commandBuffers[m_imageIndex];
-    vkResetCommandBuffer(cmd, 0);
+        VkCommandBuffer cmd = m_commandBuffers[m_imageIndex];
+        vkResetCommandBuffer(cmd, 0);
 
-    VkResult result = vkBeginCommandBuffer(cmd, &beginInfo);
-    if (result != VK_SUCCESS) {
-        return Error(ErrorCode::Unknown, "Failed to begin command buffer: " + std::to_string(result));
+        VkResult result = vkBeginCommandBuffer(cmd, &beginInfo);
+        if (result != VK_SUCCESS) {
+            return Error(ErrorCode::Unknown, "Failed to begin command buffer: " + std::to_string(result));
+        }
     }
 
     // 开始渲染通道
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = m_renderPass;
-    renderPassInfo.framebuffer = m_framebuffers[m_imageIndex];
-    renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent = m_swapchain->extent();
+    {
+        MC_TRACE_CMD_BUFFER("BeginRenderPass");
+        VkRenderPassBeginInfo renderPassInfo{};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassInfo.renderPass = m_renderPass;
+        renderPassInfo.framebuffer = m_framebuffers[m_imageIndex];
+        renderPassInfo.renderArea.offset = {0, 0};
+        renderPassInfo.renderArea.extent = m_swapchain->extent();
 
-    // 清除值：颜色 + 深度
-    std::array<VkClearValue, 2> clearValues{};
-    if (m_skyRendererInitialized) {
-        const glm::vec4& skyColor = m_skyRenderer.skyColor();
-        clearValues[0].color = {{skyColor.r, skyColor.g, skyColor.b, skyColor.a}};
-    } else {
-        clearValues[0].color = {{0.0f, 0.0f, 0.2f, 1.0f}};
+        // 清除值：颜色 + 深度
+        std::array<VkClearValue, 2> clearValues{};
+        if (m_skyRendererInitialized) {
+            const glm::vec4& skyColor = m_skyRenderer.skyColor();
+            clearValues[0].color = {{skyColor.r, skyColor.g, skyColor.b, skyColor.a}};
+        } else {
+            clearValues[0].color = {{0.0f, 0.0f, 0.2f, 1.0f}};
+        }
+        clearValues[1].depthStencil.depth = 1.0f;
+        clearValues[1].depthStencil.stencil = 0;
+        renderPassInfo.clearValueCount = static_cast<u32>(clearValues.size());
+        renderPassInfo.pClearValues = clearValues.data();
+
+        // 在渲染通道开始前准备GUI帧数据（更新字体纹理等）
+        if (m_guiRendererInitialized && m_guiRenderer) {
+            MC_TRACE_GUI("PrepareFrame");
+            m_guiRenderer->prepareFrame(m_commandBuffers[m_imageIndex]);
+        }
+
+        vkCmdBeginRenderPass(m_commandBuffers[m_imageIndex], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     }
-    clearValues[1].depthStencil.depth = 1.0f;
-    clearValues[1].depthStencil.stencil = 0;
-    renderPassInfo.clearValueCount = static_cast<u32>(clearValues.size());
-    renderPassInfo.pClearValues = clearValues.data();
-
-    // 在渲染通道开始前准备GUI帧数据（更新字体纹理等）
-    if (m_guiRendererInitialized && m_guiRenderer) {
-        m_guiRenderer->prepareFrame(cmd);
-    }
-
-    vkCmdBeginRenderPass(cmd, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     m_frameStarted = true;
     return Result<void>::ok();
 }
 
 Result<void> VulkanRenderer::endFrame() {
+    MC_TRACE_END_FRAME("EndFrame");
+
     if (!m_frameStarted) {
         return Error(ErrorCode::InvalidState, "Frame not started");
     }
@@ -301,50 +326,62 @@ Result<void> VulkanRenderer::endFrame() {
     VkCommandBuffer cmd = m_commandBuffers[m_imageIndex];
 
     // 结束渲染通道
-    vkCmdEndRenderPass(cmd);
+    {
+        MC_TRACE_CMD_BUFFER("EndRenderPass");
+        vkCmdEndRenderPass(cmd);
+    }
 
     // 结束命令缓冲区
-    VkResult result = vkEndCommandBuffer(cmd);
-    if (result != VK_SUCCESS) {
-        return Error(ErrorCode::Unknown, "Failed to end command buffer: " + std::to_string(result));
+    {
+        MC_TRACE_CMD_BUFFER("EndCommandBuffer");
+        VkResult result = vkEndCommandBuffer(cmd);
+        if (result != VK_SUCCESS) {
+            return Error(ErrorCode::Unknown, "Failed to end command buffer: " + std::to_string(result));
+        }
     }
 
     // 提交命令缓冲区
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    {
+        MC_TRACE_END_FRAME("QueueSubmit");
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    // 使用当前帧的imageAvailableSemaphore等待
-    VkSemaphore waitSemaphores[] = {m_imageAvailableSemaphores[m_currentFrame]};
-    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = waitSemaphores;
-    submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &cmd;
+        // 使用当前帧的imageAvailableSemaphore等待
+        VkSemaphore waitSemaphores[] = {m_imageAvailableSemaphores[m_currentFrame]};
+        VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = waitSemaphores;
+        submitInfo.pWaitDstStageMask = waitStages;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &cmd;
 
-    // 使用当前图像的renderFinishedSemaphore发信号
-    VkSemaphore signalSemaphores[] = {m_renderFinishedSemaphores[m_imageIndex]};
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = signalSemaphores;
+        // 使用当前图像的renderFinishedSemaphore发信号
+        VkSemaphore signalSemaphores[] = {m_renderFinishedSemaphores[m_imageIndex]};
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = signalSemaphores;
 
-    result = vkQueueSubmit(m_context->graphicsQueue(), 1, &submitInfo,
-                           m_inFlightFences[m_currentFrame]);
-    if (result != VK_SUCCESS) {
-        return Error(ErrorCode::Unknown, "Failed to submit draw command buffer: " + std::to_string(result));
+        VkResult result = vkQueueSubmit(m_context->graphicsQueue(), 1, &submitInfo,
+                               m_inFlightFences[m_currentFrame]);
+        if (result != VK_SUCCESS) {
+            return Error(ErrorCode::Unknown, "Failed to submit draw command buffer: " + std::to_string(result));
+        }
     }
 
     // 呈现，使用当前图像的renderFinishedSemaphore
-    auto presentResult = m_swapchain->present(m_imageIndex,
-                                               m_renderFinishedSemaphores[m_imageIndex]);
+    {
+        MC_TRACE_END_FRAME("Present");
+        auto presentResult = m_swapchain->present(m_imageIndex,
+                                                   m_renderFinishedSemaphores[m_imageIndex]);
 
-    if (presentResult.failed()) {
-        if (presentResult.error().code() == ErrorCode::InvalidState) {
-            auto recreateResult = recreateSwapchain();
-            if (recreateResult.failed()) {
-                return recreateResult.error();
+        if (presentResult.failed()) {
+            if (presentResult.error().code() == ErrorCode::InvalidState) {
+                auto recreateResult = recreateSwapchain();
+                if (recreateResult.failed()) {
+                    return recreateResult.error();
+                }
+            } else {
+                return presentResult.error();
             }
-        } else {
-            return presentResult.error();
         }
     }
 
@@ -362,28 +399,35 @@ Result<void> VulkanRenderer::render() {
     }
 
     // 更新Uniform缓冲区
-    updateUniformBuffers();
+    {
+        MC_TRACE_UNIFORM_UPDATE("UpdateUniformBuffers");
+        updateUniformBuffers();
+    }
 
     VkCommandBuffer cmd = m_commandBuffers[m_imageIndex];
     assert(cmd != VK_NULL_HANDLE && "Command buffer must be valid");
 
     // 设置视口和裁剪
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = static_cast<float>(m_swapchain->extent().width);
-    viewport.height = static_cast<float>(m_swapchain->extent().height);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(cmd, 0, 1, &viewport);
+    {
+        MC_TRACE_VIEWPORT("SetViewportScissor");
+        VkViewport viewport{};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = static_cast<float>(m_swapchain->extent().width);
+        viewport.height = static_cast<float>(m_swapchain->extent().height);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(cmd, 0, 1, &viewport);
 
-    VkRect2D scissor{};
-    scissor.offset = {0, 0};
-    scissor.extent = m_swapchain->extent();
-    vkCmdSetScissor(cmd, 0, 1, &scissor);
+        VkRect2D scissor{};
+        scissor.offset = {0, 0};
+        scissor.extent = m_swapchain->extent();
+        vkCmdSetScissor(cmd, 0, 1, &scissor);
+    }
 
     // 渲染天空（先绘制背景）
     if (m_skyRendererInitialized) {
+        MC_TRACE_SKY("SkyRender");
         glm::mat4 viewProjection(1.0f);
         glm::vec3 cameraPos(0.0f);
 
@@ -398,11 +442,13 @@ Result<void> VulkanRenderer::render() {
 
     // 渲染区块
     if (m_chunkRendererInitialized && m_chunkRenderer.chunkCount() > 0) {
+        MC_TRACE_CHUNK_DRAW("ChunkRender");
         renderChunks(cmd);
     }
 
     // 渲染GUI
     if (m_guiRendererInitialized) {
+        MC_TRACE_GUI("GuiRender");
         renderGui(cmd);
     }
 
@@ -419,42 +465,56 @@ void VulkanRenderer::renderChunks(VkCommandBuffer cmd) {
     }
 
     // 绑定区块管线
-    m_chunkPipeline->bind(cmd);
+    {
+        MC_TRACE_CHUNK_DRAW("BindPipeline");
+        m_chunkPipeline->bind(cmd);
+    }
 
     // 绑定相机描述符集 (set = 0)
-    if (!m_chunkDescriptorSets.empty() && m_chunkDescriptorSets[m_currentFrame] != VK_NULL_HANDLE) {
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                m_chunkPipeline->pipelineLayout(), 0, 1,
-                                &m_chunkDescriptorSets[m_currentFrame], 0, nullptr);
+    {
+        MC_TRACE_DESCRIPTOR_BIND("BindCameraDescriptor");
+        if (!m_chunkDescriptorSets.empty() && m_chunkDescriptorSets[m_currentFrame] != VK_NULL_HANDLE) {
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    m_chunkPipeline->pipelineLayout(), 0, 1,
+                                    &m_chunkDescriptorSets[m_currentFrame], 0, nullptr);
+        }
     }
 
     // 绑定纹理描述符集 (set = 1)
-    if (m_chunkTextureDescriptorSet != VK_NULL_HANDLE) {
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                m_chunkPipeline->pipelineLayout(), 1, 1,
-                                &m_chunkTextureDescriptorSet, 0, nullptr);
+    {
+        MC_TRACE_DESCRIPTOR_BIND("BindTextureDescriptor");
+        if (m_chunkTextureDescriptorSet != VK_NULL_HANDLE) {
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    m_chunkPipeline->pipelineLayout(), 1, 1,
+                                    &m_chunkTextureDescriptorSet, 0, nullptr);
+        }
     }
 
     // 渲染所有区块，为每个区块设置正确的世界偏移
-    m_chunkRenderer.render(cmd, m_chunkPipeline->pipelineLayout(),
-        [this, cmd](const ChunkId& chunkId) {
-            // 设置推送常量 - 区块世界偏移
-            ModelPushConstants pushConstants{};
-            std::memset(&pushConstants, 0, sizeof(pushConstants));
-            // 单位矩阵
-            pushConstants.model[0] = 1.0f;
-            pushConstants.model[5] = 1.0f;
-            pushConstants.model[10] = 1.0f;
-            pushConstants.model[15] = 1.0f;
-            // 区块世界偏移（区块坐标 * 区块大小）
-            pushConstants.chunkOffset[0] = static_cast<f32>(chunkId.x * world::CHUNK_WIDTH);
-            pushConstants.chunkOffset[1] = 0.0f;
-            pushConstants.chunkOffset[2] = static_cast<f32>(chunkId.z * world::CHUNK_WIDTH);
-            pushConstants.padding = 0.0f;
+    {
+        MC_TRACE_CHUNK_DRAW("DrawChunks");
+        m_chunkRenderer.render(cmd, m_chunkPipeline->pipelineLayout(),
+            [this, cmd](const ChunkId& chunkId) {
+                // 设置推送常量 - 区块世界偏移
+                // TODO: 下面一行代码必须注释才能编译通过，否则会导致编译器死循环。疑似MSVC编译器bug。
+                // MC_TRACE_PUSH_CONSTANTS("ChunkOffset");
+                ModelPushConstants pushConstants{};
+                std::memset(&pushConstants, 0, sizeof(pushConstants));
+                // 单位矩阵
+                pushConstants.model[0] = 1.0f;
+                pushConstants.model[5] = 1.0f;
+                pushConstants.model[10] = 1.0f;
+                pushConstants.model[15] = 1.0f;
+                // 区块世界偏移（区块坐标 * 区块大小）
+                pushConstants.chunkOffset[0] = static_cast<f32>(chunkId.x * world::CHUNK_WIDTH);
+                pushConstants.chunkOffset[1] = 0.0f;
+                pushConstants.chunkOffset[2] = static_cast<f32>(chunkId.z * world::CHUNK_WIDTH);
+                pushConstants.padding = 0.0f;
 
-            vkCmdPushConstants(cmd, m_chunkPipeline->pipelineLayout(),
-                               VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pushConstants), &pushConstants);
-        });
+                vkCmdPushConstants(cmd, m_chunkPipeline->pipelineLayout(),
+                                   VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pushConstants), &pushConstants);
+            });
+    }
 }
 
 Result<void> VulkanRenderer::onResize(u32 width, u32 height) {
@@ -1047,93 +1107,100 @@ void VulkanRenderer::destroyDescriptors() {
 }
 
 void VulkanRenderer::updateUniformBuffers() {
-    CameraUBO cameraUBO{};
+    // 更新相机 UBO
+    {
+        MC_TRACE_UNIFORM_UPDATE("CameraUBO");
+        CameraUBO cameraUBO{};
 
-    if (m_camera) {
-        // 使用相机的矩阵
-        const auto& view = m_camera->viewMatrix();
-        const auto& proj = m_camera->projectionMatrix();
-        const auto& viewProj = m_camera->viewProjectionMatrix();
+        if (m_camera) {
+            // 使用相机的矩阵
+            const auto& view = m_camera->viewMatrix();
+            const auto& proj = m_camera->projectionMatrix();
+            const auto& viewProj = m_camera->viewProjectionMatrix();
 
-        std::memcpy(cameraUBO.view, glm::value_ptr(view), sizeof(glm::mat4));
-        std::memcpy(cameraUBO.projection, glm::value_ptr(proj), sizeof(glm::mat4));
-        std::memcpy(cameraUBO.viewProjection, glm::value_ptr(viewProj), sizeof(glm::mat4));
-    } else {
-        // 默认矩阵（用于测试）
-        // 相机在较高位置，俯视区块
-        // 区块范围大约是 (0,0,0) 到 (16, 50, 16)
-        // 将相机放在 (8, 80, 80) 看向区块中心
-        glm::mat4 view = glm::lookAt(
-            glm::vec3(8.0f, 50.0f, 64.0f),   // 相机位置
-            glm::vec3(8.0f, 20.0f, 8.0f),    // 看向区块中心
-            glm::vec3(0.0f, 1.0f, 0.0f)      // 上方向
-        );
-        // 投影矩阵：透视投影
-        glm::mat4 proj = glm::perspective(glm::radians(70.0f),
-                                          static_cast<float>(m_swapchain->extent().width) / m_swapchain->extent().height,
-                                          0.1f, 500.0f);
-        // 翻转Y轴（GLM默认用于OpenGL，Vulkan需要翻转）
-        proj[1][1] *= -1.0f;
+            std::memcpy(cameraUBO.view, glm::value_ptr(view), sizeof(glm::mat4));
+            std::memcpy(cameraUBO.projection, glm::value_ptr(proj), sizeof(glm::mat4));
+            std::memcpy(cameraUBO.viewProjection, glm::value_ptr(viewProj), sizeof(glm::mat4));
+        } else {
+            // 默认矩阵（用于测试）
+            // 相机在较高位置，俯视区块
+            // 区块范围大约是 (0,0,0) 到 (16, 50, 16)
+            // 将相机放在 (8, 80, 80) 看向区块中心
+            glm::mat4 view = glm::lookAt(
+                glm::vec3(8.0f, 50.0f, 64.0f),   // 相机位置
+                glm::vec3(8.0f, 20.0f, 8.0f),    // 看向区块中心
+                glm::vec3(0.0f, 1.0f, 0.0f)      // 上方向
+            );
+            // 投影矩阵：透视投影
+            glm::mat4 proj = glm::perspective(glm::radians(70.0f),
+                                              static_cast<float>(m_swapchain->extent().width) / m_swapchain->extent().height,
+                                              0.1f, 500.0f);
+            // 翻转Y轴（GLM默认用于OpenGL，Vulkan需要翻转）
+            proj[1][1] *= -1.0f;
 
-        glm::mat4 viewProj = proj * view;
+            glm::mat4 viewProj = proj * view;
 
-        std::memcpy(cameraUBO.view, glm::value_ptr(view), sizeof(glm::mat4));
-        std::memcpy(cameraUBO.projection, glm::value_ptr(proj), sizeof(glm::mat4));
-        std::memcpy(cameraUBO.viewProjection, glm::value_ptr(viewProj), sizeof(glm::mat4));
+            std::memcpy(cameraUBO.view, glm::value_ptr(view), sizeof(glm::mat4));
+            std::memcpy(cameraUBO.projection, glm::value_ptr(proj), sizeof(glm::mat4));
+            std::memcpy(cameraUBO.viewProjection, glm::value_ptr(viewProj), sizeof(glm::mat4));
+        }
+
+        m_cameraUBO.update(&cameraUBO, sizeof(cameraUBO), m_currentFrame);
     }
 
-    m_cameraUBO.update(&cameraUBO, sizeof(cameraUBO), m_currentFrame);
+    // 更新光照 UBO (根据时间动态更新)
+    {
+        MC_TRACE_UNIFORM_UPDATE("LightingUBO");
+        LightingUBO lighting{};
 
-    // 更新光照UBO (根据时间动态更新)
-    LightingUBO lighting{};
+        // 计算天体角度和太阳方向
+        f32 celestialAngle = CelestialCalculations::calculateCelestialAngle(m_dayTime);
+        glm::vec3 sunDir = CelestialCalculations::calculateSunDirection(celestialAngle);
+        f32 sunIntensity = CelestialCalculations::calculateSunIntensity(celestialAngle);
 
-    // 计算天体角度和太阳方向
-    f32 celestialAngle = CelestialCalculations::calculateCelestialAngle(m_dayTime);
-    glm::vec3 sunDir = CelestialCalculations::calculateSunDirection(celestialAngle);
-    f32 sunIntensity = CelestialCalculations::calculateSunIntensity(celestialAngle);
+        lighting.sunDirection[0] = sunDir.x;
+        lighting.sunDirection[1] = sunDir.y;
+        lighting.sunDirection[2] = sunDir.z;
+        lighting.sunIntensity = sunIntensity;
 
-    lighting.sunDirection[0] = sunDir.x;
-    lighting.sunDirection[1] = sunDir.y;
-    lighting.sunDirection[2] = sunDir.z;
-    lighting.sunIntensity = sunIntensity;
+        // 环境光 (夜晚较暗)
+        f32 ambientBase = 0.3f + sunIntensity * 0.4f;
+        lighting.ambientColor[0] = 0.4f;
+        lighting.ambientColor[1] = 0.4f;
+        lighting.ambientColor[2] = 0.5f;
+        lighting.ambientIntensity = ambientBase;
 
-    // 环境光 (夜晚较暗)
-    f32 ambientBase = 0.3f + sunIntensity * 0.4f;
-    lighting.ambientColor[0] = 0.4f;
-    lighting.ambientColor[1] = 0.4f;
-    lighting.ambientColor[2] = 0.5f;
-    lighting.ambientIntensity = ambientBase;
+        if (m_camera) {
+            const auto& camPos = m_camera->position();
+            lighting.cameraPosition[0] = camPos.x;
+            lighting.cameraPosition[1] = camPos.y;
+            lighting.cameraPosition[2] = camPos.z;
+        } else {
+            lighting.cameraPosition[0] = 0.0f;
+            lighting.cameraPosition[1] = 0.0f;
+            lighting.cameraPosition[2] = 2.0f;
+        }
 
-    if (m_camera) {
-        const auto& camPos = m_camera->position();
-        lighting.cameraPosition[0] = camPos.x;
-        lighting.cameraPosition[1] = camPos.y;
-        lighting.cameraPosition[2] = camPos.z;
-    } else {
-        lighting.cameraPosition[0] = 0.0f;
-        lighting.cameraPosition[1] = 0.0f;
-        lighting.cameraPosition[2] = 2.0f;
+        // 根据时间计算天空/雾颜色
+        glm::vec4 skyColor = CelestialCalculations::calculateSkyColor(celestialAngle);
+        glm::vec4 fogColor = CelestialCalculations::calculateFogColor(celestialAngle);
+
+        lighting.fogColor[0] = fogColor.r;
+        lighting.fogColor[1] = fogColor.g;
+        lighting.fogColor[2] = fogColor.b;
+        lighting.fogStart = 100.0f;
+        lighting.fogEnd = 500.0f;
+        lighting.fogDensity = 0.002f;
+        lighting.fogMode = 1;
+
+        // 时间相关字段
+        lighting.celestialAngle = celestialAngle;
+        lighting.skyBrightness = sunIntensity;
+        lighting.moonPhase = CelestialCalculations::calculateMoonPhase(m_gameTime);
+        lighting.starBrightness = CelestialCalculations::calculateStarBrightness(celestialAngle);
+
+        m_lightingUBO.update(&lighting, sizeof(lighting), m_currentFrame);
     }
-
-    // 根据时间计算天空/雾颜色
-    glm::vec4 skyColor = CelestialCalculations::calculateSkyColor(celestialAngle);
-    glm::vec4 fogColor = CelestialCalculations::calculateFogColor(celestialAngle);
-
-    lighting.fogColor[0] = fogColor.r;
-    lighting.fogColor[1] = fogColor.g;
-    lighting.fogColor[2] = fogColor.b;
-    lighting.fogStart = 100.0f;
-    lighting.fogEnd = 500.0f;
-    lighting.fogDensity = 0.002f;
-    lighting.fogMode = 1;
-
-    // 时间相关字段
-    lighting.celestialAngle = celestialAngle;
-    lighting.skyBrightness = sunIntensity;
-    lighting.moonPhase = CelestialCalculations::calculateMoonPhase(m_gameTime);
-    lighting.starBrightness = CelestialCalculations::calculateStarBrightness(celestialAngle);
-
-    m_lightingUBO.update(&lighting, sizeof(lighting), m_currentFrame);
 }
 
 void VulkanRenderer::updateTime(i64 dayTime, i64 gameTime, f32 partialTick) {
@@ -1477,15 +1544,24 @@ void VulkanRenderer::renderGui(VkCommandBuffer cmd) {
     f32 screenH = static_cast<f32>(m_swapchain->extent().height);
 
     // 开始GUI帧
-    m_guiRenderer->beginFrame(screenW, screenH);
+    {
+        MC_TRACE_GUI("BeginFrame");
+        m_guiRenderer->beginFrame(screenW, screenH);
+    }
 
     // 调用GUI渲染回调，让外部绘制GUI内容
-    if (m_guiRenderCallback) {
-        m_guiRenderCallback();
+    {
+        MC_TRACE_GUI("RenderCallback");
+        if (m_guiRenderCallback) {
+            m_guiRenderCallback();
+        }
     }
 
     // 渲染GUI（顶点数据使用HOST_VISIBLE内存直接上传）
-    m_guiRenderer->render(cmd);
+    {
+        MC_TRACE_GUI("DrawCall");
+        m_guiRenderer->render(cmd);
+    }
 }
 
 Result<void> VulkanRenderer::updateTextureAtlas(const AtlasBuildResult& atlasResult) {
