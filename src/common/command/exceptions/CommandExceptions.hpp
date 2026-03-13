@@ -5,7 +5,7 @@
 #include <string>
 #include <stdexcept>
 
-namespace mr::command {
+namespace mc::command {
 
 /**
  * @brief 命令语法异常类型
@@ -156,4 +156,4 @@ private:
     String m_format;
 };
 
-} // namespace mr::command
+} // namespace mc::command

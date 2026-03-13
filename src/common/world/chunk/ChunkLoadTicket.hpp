@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace mr::world {
+namespace mc::world {
 
 // ============================================================================
 // 票据类型 - 定义不同来源的区块加载请求
@@ -422,4 +422,4 @@ inline bool shouldChunkLoad(i32 level) {
     return level <= static_cast<i32>(ChunkLoadLevel::Border);
 }
 
-} // namespace mr::world
+} // namespace mc::world

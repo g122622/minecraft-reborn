@@ -1,7 +1,7 @@
 #include "entity/inventory/CraftingInventory.hpp"
 #include "network/PacketSerializer.hpp"
 
-namespace mr {
+namespace mc {
 
 // ========== CraftingInventory ==========
 
@@ -140,12 +140,7 @@ void CraftingInventory::setItems(const std::vector<ItemStack>& items) {
 }
 
 bool CraftingInventory::isAllEmpty() const {
-    for (const ItemStack& stack : m_items) {
-        if (!stack.isEmpty()) {
-            return false;
-        }
-    }
-    return true;
+    return isEmpty();
 }
 
 bool CraftingInventory::getContentBounds(i32& outMinX, i32& outMinY,
@@ -226,4 +221,4 @@ void CraftResultInventory::serialize(network::PacketSerializer& ser) const {
     m_result.serialize(ser);
 }
 
-} // namespace mr
+} // namespace mc

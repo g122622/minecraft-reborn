@@ -3,7 +3,7 @@
 
 #include <spdlog/spdlog.h>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 初始化和重建
@@ -236,4 +236,4 @@ void BlockModelCache::createMissingAppearance()
                  missingRegion.u0, missingRegion.v0, missingRegion.u1, missingRegion.v1);
 }
 
-} // namespace mr
+} // namespace mc

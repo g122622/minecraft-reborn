@@ -2,7 +2,7 @@
 #include "../block/BlockRegistry.hpp"
 #include "../WorldConstants.hpp"
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 构造函数
@@ -210,6 +210,9 @@ std::unique_ptr<ChunkData> ChunkPrimer::toChunkData()
     m_status = ChunkLoadStatus::Generated;
     m_chunkStatus = &ChunkStatus::FULL;
 
+    // 清空生成的实体数据（调用者应该在调用此方法之前提取）
+    m_spawnedEntities.clear();
+
     return std::move(m_data);
 }
 
@@ -249,4 +252,4 @@ void ChunkPrimer::initializeCarvingMasks()
     m_carvingMaskLiquid.resize(carvingMaskSize, false);
 }
 
-} // namespace mr
+} // namespace mc

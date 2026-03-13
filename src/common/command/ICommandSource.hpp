@@ -7,7 +7,7 @@
 #include <optional>
 #include <array>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class Entity;
@@ -82,4 +82,4 @@ public:
 };
 
 } // namespace command
-} // namespace mr
+} // namespace mc

@@ -3,7 +3,7 @@
 #include "../core/Types.hpp"
 #include "../core/Constants.hpp"
 
-namespace mr::world {
+namespace mc::world {
 
 // ============================================================================
 // 区块加载优先级
@@ -113,4 +113,4 @@ inline bool isValidChunkCoord(i32 chunkX, i32 chunkZ) {
            chunkZ >= MIN_CHUNK && chunkZ <= MAX_CHUNK;
 }
 
-} // namespace mr::world
+} // namespace mc::world

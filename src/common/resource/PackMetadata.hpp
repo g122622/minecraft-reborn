@@ -4,7 +4,7 @@
 #include "../core/Result.hpp"
 #include <string>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 资源包元数据
@@ -42,4 +42,4 @@ private:
     String m_description;
 };
 
-} // namespace mr
+} // namespace mc

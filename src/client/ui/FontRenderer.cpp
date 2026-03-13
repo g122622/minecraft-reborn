@@ -1,7 +1,7 @@
 #include "FontRenderer.hpp"
 #include <algorithm>
 
-namespace mr::client {
+namespace mc::client {
 
 FontRenderer::FontRenderer() = default;
 
@@ -350,4 +350,4 @@ u32 FontRenderer::decodeCodepoint(const std::string& text, size_t& pos) const {
     }
 }
 
-} // namespace mr::client
+} // namespace mc::client

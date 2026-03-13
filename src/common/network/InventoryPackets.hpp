@@ -8,7 +8,7 @@
 #include <vector>
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class PlayerInventory;
@@ -532,4 +532,4 @@ private:
     i32 m_slot = 0;
 };
 
-} // namespace mr
+} // namespace mc

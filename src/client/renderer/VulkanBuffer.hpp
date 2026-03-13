@@ -5,7 +5,7 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
-namespace mr::client {
+namespace mc::client {
 
 // Vulkan缓冲区
 class VulkanBuffer {
@@ -102,4 +102,4 @@ private:
     VkDeviceSize m_indexCount = 0;
 };
 
-} // namespace mr::client
+} // namespace mc::client

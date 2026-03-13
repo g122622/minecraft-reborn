@@ -9,7 +9,7 @@
 #include <set>
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class WorldGenRegion;
@@ -136,4 +136,4 @@ protected:
     FeatureSpread m_offset;
 };
 
-} // namespace mr
+} // namespace mc

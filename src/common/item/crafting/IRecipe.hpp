@@ -7,7 +7,7 @@
 #include <vector>
 #include <nlohmann/json_fwd.hpp>
 
-namespace mr {
+namespace mc {
 namespace crafting {
 
 /**
@@ -216,4 +216,4 @@ public:
 };
 
 } // namespace crafting
-} // namespace mr
+} // namespace mc

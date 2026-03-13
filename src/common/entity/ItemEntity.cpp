@@ -4,14 +4,25 @@
 #include <cmath>
 #include <chrono>
 
-namespace mr {
+namespace mc {
+
+// ============================================================================
+// 静态工厂方法
+// ============================================================================
+
+std::unique_ptr<Entity> ItemEntity::create(IWorld* /*world*/) {
+    // 创建一个空的物品实体，实际物品稍后设置
+    static EntityId nextId = 1;
+    ItemStack emptyStack;
+    return std::make_unique<ItemEntity>(nextId++, emptyStack, 0.0f, 0.0f, 0.0f);
+}
 
 // ============================================================================
 // 构造函数
 // ============================================================================
 
 ItemEntity::ItemEntity(EntityId id, const ItemStack& stack, f32 x, f32 y, f32 z)
-    : Entity(EntityType::Item, id)
+    : Entity(LegacyEntityType::Item, id)
     , m_itemStack(stack)
 {
     setPosition(x, y, z);
@@ -28,7 +39,7 @@ ItemEntity::ItemEntity(EntityId id, const ItemStack& stack, f32 x, f32 y, f32 z)
 ItemEntity::ItemEntity(EntityId id, const ItemStack& stack,
                        f32 x, f32 y, f32 z,
                        f32 vx, f32 vy, f32 vz)
-    : Entity(EntityType::Item, id)
+    : Entity(LegacyEntityType::Item, id)
     , m_itemStack(stack)
 {
     setPosition(x, y, z);
@@ -264,7 +275,7 @@ void ItemEntity::applyLavaPhysics() {
 
 void ItemEntity::serialize(network::PacketSerializer& ser) const {
     // 实体类型和ID
-    ser.writeU32(static_cast<u32>(m_type));
+    ser.writeU32(static_cast<u32>(m_legacyType));
     ser.writeU32(static_cast<u32>(m_id));
 
     // 位置（网络协议使用 f64）
@@ -355,4 +366,4 @@ Result<std::unique_ptr<ItemEntity>> ItemEntity::deserialize(
     return entity;
 }
 
-} // namespace mr
+} // namespace mc

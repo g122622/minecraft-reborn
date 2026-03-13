@@ -3,7 +3,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 PhysicsEngine::PhysicsEngine(ICollisionWorld& world)
     : m_world(&world)
@@ -355,4 +355,4 @@ f32 PhysicsEngine::resolveInitialOverlaps(AxisAlignedBB& entityBox,
     return 0.0f;
 }
 
-} // namespace mr
+} // namespace mc

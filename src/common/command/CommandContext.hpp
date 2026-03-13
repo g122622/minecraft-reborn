@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <any>
 
-namespace mr::command {
+namespace mc::command {
 
 /**
  * @brief 命令上下文
@@ -224,4 +224,4 @@ private:
     i32 m_errorCursor = -1;
 };
 
-} // namespace mr::command
+} // namespace mc::command

@@ -1,7 +1,7 @@
 #include "CrosshairRenderer.hpp"
 #include "../GuiRenderer.hpp"
 
-namespace mr::client {
+namespace mc::client {
 
 CrosshairRenderer::CrosshairRenderer() = default;
 
@@ -59,4 +59,4 @@ void CrosshairRenderer::render()
     );
 }
 
-} // namespace mr::client
+} // namespace mc::client

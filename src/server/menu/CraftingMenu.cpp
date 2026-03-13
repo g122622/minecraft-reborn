@@ -8,7 +8,7 @@
 
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 namespace {
 
@@ -116,7 +116,7 @@ void CraftingMenu::slotsChanged(IInventory* inventory) {
 
 ItemStack CraftingMenu::clicked(i32 slotIndex, i32 button, ClickType clickType, Player& player) {
     if (slotIndex == RESULT_SLOT && clickType != ClickType::QuickMove) {
-        if (handleResultSlotClick()) {
+        if (handleResultSlotClick() != nullptr) {
             broadcastChanges();
         }
         return getCarriedItem();
@@ -158,7 +158,7 @@ ItemStack CraftingMenu::quickMoveStack(i32 slotIndex, Player& player) {
             return ItemStack();
         }
 
-        consumeIngredients();
+        consumeIngredients(recipe);
         updateResult();
         return crafted;
     }
@@ -219,16 +219,16 @@ void CraftingMenu::updateResult() {
     broadcastChanges();
 }
 
-bool CraftingMenu::handleResultSlotClick() {
+const crafting::CraftingRecipe* CraftingMenu::handleResultSlotClick() {
     const crafting::CraftingRecipe* recipe =
         crafting::RecipeManager::instance().findMatchingRecipe(m_craftingGrid);
     if (recipe == nullptr) {
-        return false;
+        return nullptr;
     }
 
     ItemStack result = recipe->assemble(m_craftingGrid);
     if (!canStackResultWithCarried(m_carried, result)) {
-        return false;
+        return nullptr;
     }
 
     if (m_carried.isEmpty()) {
@@ -237,14 +237,14 @@ bool CraftingMenu::handleResultSlotClick() {
         m_carried.grow(result.getCount());
     }
 
-    consumeIngredients();
+    consumeIngredients(recipe);
+
+    // 更新结果（需要重新查找配方，因为原料已变化）
     updateResult();
-    return true;
+    return recipe;
 }
 
-void CraftingMenu::consumeIngredients() {
-    const crafting::CraftingRecipe* recipe =
-        crafting::RecipeManager::instance().findMatchingRecipe(m_craftingGrid);
+void CraftingMenu::consumeIngredients(const crafting::CraftingRecipe* recipe) {
     shrinkCraftingGrid(m_craftingGrid, recipe);
 }
 
@@ -280,7 +280,7 @@ void InventoryCraftingMenu::slotsChanged(IInventory* inventory) {
 
 ItemStack InventoryCraftingMenu::clicked(i32 slotIndex, i32 button, ClickType clickType, Player& player) {
     if (slotIndex == RESULT_SLOT && clickType != ClickType::QuickMove) {
-        if (handleResultSlotClick()) {
+        if (handleResultSlotClick() != nullptr) {
             broadcastChanges();
         }
         return getCarriedItem();
@@ -313,7 +313,7 @@ ItemStack InventoryCraftingMenu::quickMoveStack(i32 slotIndex, Player& player) {
             return ItemStack();
         }
 
-        consumeIngredients();
+        consumeIngredients(recipe);
         updateResult();
         return crafted;
     }
@@ -349,16 +349,16 @@ void InventoryCraftingMenu::updateResult() {
     broadcastChanges();
 }
 
-bool InventoryCraftingMenu::handleResultSlotClick() {
+const crafting::CraftingRecipe* InventoryCraftingMenu::handleResultSlotClick() {
     const crafting::CraftingRecipe* recipe =
         crafting::RecipeManager::instance().findMatchingRecipe(m_craftingGrid);
     if (recipe == nullptr) {
-        return false;
+        return nullptr;
     }
 
     ItemStack result = recipe->assemble(m_craftingGrid);
     if (!canStackResultWithCarried(m_carried, result)) {
-        return false;
+        return nullptr;
     }
 
     if (m_carried.isEmpty()) {
@@ -367,15 +367,13 @@ bool InventoryCraftingMenu::handleResultSlotClick() {
         m_carried.grow(result.getCount());
     }
 
-    consumeIngredients();
+    consumeIngredients(recipe);
     updateResult();
-    return true;
+    return recipe;
 }
 
-void InventoryCraftingMenu::consumeIngredients() {
-    const crafting::CraftingRecipe* recipe =
-        crafting::RecipeManager::instance().findMatchingRecipe(m_craftingGrid);
+void InventoryCraftingMenu::consumeIngredients(const crafting::CraftingRecipe* recipe) {
     shrinkCraftingGrid(m_craftingGrid, recipe);
 }
 
-} // namespace mr
+} // namespace mc

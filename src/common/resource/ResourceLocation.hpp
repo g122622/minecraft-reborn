@@ -3,7 +3,7 @@
 #include "../core/Types.hpp"
 #include <string>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 资源位置标识符
@@ -49,13 +49,13 @@ private:
     String m_path;
 };
 
-} // namespace mr
+} // namespace mc
 
 // std::hash特化
 namespace std {
 template<>
-struct hash<mr::ResourceLocation> {
-    size_t operator()(const mr::ResourceLocation& loc) const noexcept {
+struct hash<mc::ResourceLocation> {
+    size_t operator()(const mc::ResourceLocation& loc) const noexcept {
         return loc.hash();
     }
 };

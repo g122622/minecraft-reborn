@@ -7,7 +7,7 @@
 #include <cstring>
 #include <type_traits>
 
-namespace mr::network {
+namespace mc::network {
 
 // 网络字节序转换
 class NetworkEndian {
@@ -145,6 +145,7 @@ public:
     [[nodiscard]] Result<u64> readVarULong();
 
     // 状态查询
+    const u8* data() const { return m_data; }
     size_t size() const { return m_size; }
     size_t remaining() const { return m_size - m_readPos; }
     bool hasRemaining(size_t bytes) const { return remaining() >= bytes; }
@@ -156,4 +157,4 @@ private:
     size_t m_readPos = 0;
 };
 
-} // namespace mr::network
+} // namespace mc::network

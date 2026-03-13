@@ -9,9 +9,9 @@
 #include "common/world/time/GameTime.hpp"
 #include "client/renderer/sky/CelestialCalculations.hpp"
 
-using namespace mr;
-using namespace mr::time;
-using namespace mr::client;
+using namespace mc;
+using namespace mc::time;
+using namespace mc::client;
 
 // ============================================================================
 // GameTime 测试

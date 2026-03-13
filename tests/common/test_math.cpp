@@ -5,8 +5,8 @@
 #include "common/math/Vector3.hpp"
 #include "common/world/chunk/ChunkPos.hpp"
 
-using namespace mr;
-using namespace mr::math;
+using namespace mc;
+using namespace mc::math;
 
 // 辅助函数
 Result<int> divide(int a, int b) {

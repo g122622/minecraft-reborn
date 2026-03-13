@@ -3,7 +3,10 @@
 
 find_package(LibArchive REQUIRED)
 
-add_library(mr_common STATIC
+# Perfetto 性能追踪子模块
+add_subdirectory(perfetto)
+
+add_library(mc_common STATIC
     # Core
     core/Result.cpp
     core/settings/SettingsBase.cpp
@@ -29,14 +32,54 @@ add_library(mr_common STATIC
     network/PacketSerializer.cpp
     network/ChunkSync.cpp
     network/LocalConnection.cpp
+    network/LocalServerConnection.cpp
     network/InventoryPackets.cpp
     network/ContainerPacketHandler.cpp
+    network/EntityPackets.cpp
+    network/EntityMetadataSerializer.cpp
 
     # Entity
     entity/Entity.cpp
+    entity/EntityType.cpp
+    entity/EntityClassification.cpp
     entity/Player.cpp
     entity/PlayerManager.cpp
     entity/ItemEntity.cpp
+    entity/living/LivingEntity.cpp
+    entity/mob/MobEntity.cpp
+    entity/mob/CreatureEntity.cpp
+    entity/mob/AgeableEntity.cpp
+    entity/animal/AnimalEntity.cpp
+    entity/animal/PigEntity.cpp
+    entity/animal/CowEntity.cpp
+    entity/animal/SheepEntity.cpp
+    entity/animal/ChickenEntity.cpp
+    # Entity - Loot System
+    entity/loot/LootContext.cpp
+    entity/loot/RandomRanges.cpp
+    entity/loot/LootEntry.cpp
+    entity/loot/LootPool.cpp
+    entity/loot/LootTable.cpp
+    entity/combat/AttackContext.cpp
+    entity/combat/PlayerAttackHelper.cpp
+    entity/damage/CombatEntry.cpp
+    entity/damage/CombatTracker.cpp
+    entity/ai/controller/LookController.cpp
+    entity/ai/controller/MovementController.cpp
+    entity/ai/controller/JumpController.cpp
+    entity/ai/goal/goals/SwimGoal.cpp
+    entity/ai/goal/goals/RandomWalkingGoal.cpp
+    entity/ai/goal/goals/LookAtGoal.cpp
+    entity/ai/goal/goals/PanicGoal.cpp
+    entity/ai/goal/goals/BreedGoal.cpp
+    entity/ai/goal/goals/TemptGoal.cpp
+    entity/ai/goal/goals/FollowParentGoal.cpp
+    entity/ai/goal/goals/MeleeAttackGoal.cpp
+    entity/ai/goal/goals/AvoidEntityGoal.cpp
+    entity/ai/pathfinding/PathPoint.cpp
+    entity/ai/pathfinding/WalkNodeProcessor.cpp
+    entity/ai/pathfinding/PathFinder.cpp
+    entity/ai/pathfinding/PathNavigator.cpp
     entity/inventory/Slot.cpp
     entity/inventory/PlayerInventory.cpp
     entity/inventory/Container.cpp
@@ -64,6 +107,12 @@ add_library(mr_common STATIC
 
     # World - Drop Tables
     world/drop/DropTables.cpp
+
+    # World - Entity
+    world/entity/EntityManager.cpp
+
+    # World - Spawn
+    world/spawn/MobSpawnInfo.cpp
 
     # World - Block Entity
     world/blockentity/BlockEntityType.cpp
@@ -133,6 +182,9 @@ add_library(mr_common STATIC
     # World - Generation - Placement
     world/gen/placement/Placement.cpp
 
+    # World - Generation - Spawn
+    world/gen/spawn/WorldGenSpawner.cpp
+
     # World - Time
     world/time/GameTime.cpp
 
@@ -149,29 +201,33 @@ add_library(mr_common STATIC
     resource/ResourcePackList.cpp
     resource/InMemoryResourcePack.cpp
     resource/VanillaResources.cpp
+
+    # NBT (Named Binary Tag) Library
+    util/nbt/Nbt.cpp
 )
 
-target_include_directories(mr_common
+target_include_directories(mc_common
     PUBLIC
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/src
 )
 
-target_link_libraries(mr_common
+target_link_libraries(mc_common
     PUBLIC
         glm::glm
         spdlog::spdlog
         nlohmann_json::nlohmann_json
+        mc::perfetto
     PRIVATE
         LibArchive::LibArchive
 )
 
-mr_set_compiler_warnings(mr_common)
+mc_set_compiler_warnings(mc_common)
 
-target_compile_features(mr_common PUBLIC cxx_std_17)
+target_compile_features(mc_common PUBLIC cxx_std_17)
 
 # 导出头文件
-target_include_directories(mr_common
+target_include_directories(mc_common
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )

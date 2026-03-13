@@ -5,7 +5,7 @@
 #include <functional>
 #include <memory>
 
-namespace mr::client {
+namespace mc::client {
 
 class GuiRenderer;
 class Font;
@@ -269,4 +269,4 @@ private:
     f64 m_dragStartY = 0;
 };
 
-} // namespace mr::client
+} // namespace mc::client

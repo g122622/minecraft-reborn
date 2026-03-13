@@ -10,7 +10,7 @@
 
 // 前向声明 GLFW 按键常量
 // 这些值与 GLFW 按键常量一致，避免直接依赖 GLFW 头文件
-namespace mr {
+namespace mc {
 
 /**
  * @brief 按键常量
@@ -386,4 +386,4 @@ private:
     void unregisterBinding();
 };
 
-} // namespace mr
+} // namespace mc

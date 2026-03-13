@@ -3,7 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // 静态成员初始化
 std::map<String, KeyBinding*> KeyBinding::s_bindings;
@@ -218,4 +218,4 @@ void KeyBinding::unregisterBinding()
     spdlog::trace("Unregistered key binding '{}'", m_id);
 }
 
-} // namespace mr
+} // namespace mc

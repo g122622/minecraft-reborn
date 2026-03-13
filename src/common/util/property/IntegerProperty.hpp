@@ -3,7 +3,7 @@
 #include "Property.hpp"
 #include <sstream>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 整数属性
@@ -138,4 +138,4 @@ private:
     }
 };
 
-} // namespace mr
+} // namespace mc

@@ -3,7 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <algorithm>
 
-namespace mr::client {
+namespace mc::client {
 
 // ============================================================================
 // 构造与析构
@@ -248,4 +248,4 @@ void MeshWorkerPool::executeTask(const ClientMeshTask& task)
     }
 }
 
-} // namespace mr::client
+} // namespace mc::client

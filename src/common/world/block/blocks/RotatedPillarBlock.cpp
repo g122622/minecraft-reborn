@@ -1,6 +1,6 @@
 #include "RotatedPillarBlock.hpp"
 
-namespace mr {
+namespace mc {
 
 namespace {
     // 静态属性实例
@@ -33,4 +33,4 @@ const BlockState& RotatedPillarBlock::withAxis(const BlockState& state, Axis axi
     return state.with(AXIS(), axis);
 }
 
-} // namespace mr
+} // namespace mc

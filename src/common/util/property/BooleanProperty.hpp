@@ -3,7 +3,7 @@
 #include "Property.hpp"
 #include <unordered_set>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 布尔属性
@@ -80,4 +80,4 @@ private:
     }
 };
 
-} // namespace mr
+} // namespace mc

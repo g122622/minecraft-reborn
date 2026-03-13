@@ -322,12 +322,12 @@ void UpdatePlayer();     // ❌ (应使用camelCase)
 
 ```cpp
 // ✅ 推荐：小写命名空间
-namespace mr {
+namespace mc {
 namespace client {
 namespace renderer {
 
 // ✅ 推荐：嵌套不超过3层
-namespace mr::client::renderer {
+namespace mc::client::renderer {
 
 // ✅ 推荐：命名空间别名（长命名空间）
 namespace fs = std::filesystem;
@@ -363,7 +363,7 @@ using namespace std;  // ❌
 class World;
 struct ChunkPos;
 
-namespace mr::world {
+namespace mc::world {
 
 /**
  * @brief 区块管理器
@@ -375,7 +375,7 @@ public:
     // 公共接口
 };
 
-} // namespace mr::world
+} // namespace mc::world
 ```
 
 ### 4.2 源文件结构
@@ -397,11 +397,11 @@ public:
 // 4. 第三方库
 #include <spdlog/spdlog.h>
 
-namespace mr::world {
+namespace mc::world {
 
 // 实现代码...
 
-} // namespace mr::world
+} // namespace mc::world
 ```
 
 ### 4.3 包含顺序规则
@@ -836,27 +836,9 @@ private:
 
 ## 9. 性能相关规范
 
-### 9.1 性能关键代码标记
+### 9.1 尽可能使用f32而非f64以提升处理速度
 
-```cpp
-// ✅ 推荐：标记性能关键代码
-// PERFORMANCE_CRITICAL: 此函数每帧调用，需要优化
-void renderChunk(const Chunk& chunk) {
-    // ...
-}
-
-// ✅ 推荐：使用性能分析宏
-#ifdef ENABLE_PROFILING
-    #define PROFILE_SCOPE(name) Profiler::Scope _scope(name)
-#else
-    #define PROFILE_SCOPE(name)
-#endif
-
-void update() {
-    PROFILE_SCOPE("World::update");
-    // ...
-}
-```
+f32精度已经足够，非必要不允许使用f64。
 
 ### 9.2 避免的性能陷阱
 

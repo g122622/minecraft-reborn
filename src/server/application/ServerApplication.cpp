@@ -1,79 +1,27 @@
 #include "ServerApplication.hpp"
+#include "CoreCommandBridge.hpp"
 #include "minecraft-reborn/version.h"
 #include "common/network/ProtocolPackets.hpp"
+#include "common/entity/VanillaEntities.hpp"
+#include "common/perfetto/PerfettoManager.hpp"
+#include "common/perfetto/TraceEvents.hpp"
+#include "common/util/TimeUtils.hpp"
 #include "server/application/MinecraftServer.hpp"
 #include "server/command/CommandRegistry.hpp"
 #include "server/command/ServerCommandSource.hpp"
+#include "server/network/TcpConnection.hpp"
+#include "server/core/PlayerManager.hpp"
+#include "server/core/ConnectionManager.hpp"
+#include "server/core/TimeManager.hpp"
+#include "server/core/TeleportManager.hpp"
+#include "server/core/KeepAliveManager.hpp"
+#include "server/core/PositionTracker.hpp"
+#include "server/core/PacketHandler.hpp"
 
 #include <spdlog/spdlog.h>
-#include <chrono>
 #include <thread>
 
-namespace mr::server {
-
-namespace {
-
-class ServerApplicationCommandBridge final : public MinecraftServer {
-public:
-    ServerApplicationCommandBridge(mr::server::ServerWorld* world, command::CommandRegistry& registry)
-        : m_world(world)
-        , m_registry(registry)
-    {
-    }
-
-    [[nodiscard]] mr::server::ServerWorld* getWorld() override { return m_world; }
-    [[nodiscard]] i64 getSeed() const override { return m_world ? static_cast<i64>(m_world->config().seed) : 0; }
-    [[nodiscard]] i64 getTicks() const override { return 0; }
-    [[nodiscard]] i64 getDay() const override { return m_world ? m_world->gameTime().dayCount() : 0; }
-    [[nodiscard]] i64 getDayTime() const override { return m_world ? m_world->gameTime().dayTime() : 0; }
-    [[nodiscard]] i64 getGameTime() const override { return m_world ? m_world->gameTime().gameTime() : 0; }
-    [[nodiscard]] std::vector<ServerPlayer*> getPlayers() override { return {}; }
-    [[nodiscard]] ServerPlayer* getPlayer(const String& /*name*/) override { return nullptr; }
-    void broadcast(const String& message) override { spdlog::info("[Broadcast] {}", message); }
-    bool setDayTime(i64 time) override {
-        if (!m_world) {
-            return false;
-        }
-        m_world->setDayTime(time);
-        return true;
-    }
-    bool addDayTime(i64 ticks) override {
-        if (!m_world) {
-            return false;
-        }
-        m_world->addDayTime(ticks);
-        return true;
-    }
-    bool teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch) override {
-        if (!m_world) {
-            return false;
-        }
-        m_world->teleportPlayer(playerId, x, y, z, yaw, pitch);
-        return true;
-    }
-    bool setPlayerGameMode(PlayerId playerId, GameMode mode) override {
-        return m_world ? m_world->setPlayerGameMode(playerId, mode) : false;
-    }
-    [[nodiscard]] command::CommandRegistry& getCommandRegistry() override { return m_registry; }
-    bool isCommandAllowed(const command::ICommandSource& /*source*/, const String& /*command*/) override { return true; }
-
-private:
-    mr::server::ServerWorld* m_world;
-    command::CommandRegistry& m_registry;
-};
-
-command::CommandRegistry& getCommandRegistryInstance()
-{
-    static command::CommandRegistry registry;
-    static const bool initialized = [] {
-        registry.registerDefaults();
-        return true;
-    }();
-    (void)initialized;
-    return registry;
-}
-
-}
+namespace mc::server {
 
 ServerApplication::ServerApplication() = default;
 
@@ -136,8 +84,27 @@ Result<void> ServerApplication::initialize(const ServerLaunchParams& params)
     }
 
     spdlog::info("=== Minecraft Reborn Server ===");
-    spdlog::info("Version: {}.{}.{}", MR_VERSION_MAJOR, MR_VERSION_MINOR, MR_VERSION_PATCH);
+    spdlog::info("Version: {}.{}.{}", MC_VERSION_MAJOR, MC_VERSION_MINOR, MC_VERSION_PATCH);
     spdlog::info("Initializing server...");
+
+    // 初始化性能追踪
+    mc::perfetto::TraceConfig traceConfig;
+    traceConfig.outputPath = "server_trace.perfetto-trace";
+    traceConfig.bufferSizeKb = 65536; // 64MB
+    mc::perfetto::PerfettoManager::instance().initialize(traceConfig);
+    mc::perfetto::PerfettoManager::instance().startTracing();
+    spdlog::info("Perfetto tracing initialized");
+
+    // 注册实体类型
+    entity::VanillaEntities::registerAll();
+
+    // 初始化 ServerCore
+    ServerCoreConfig coreConfig;
+    coreConfig.viewDistance = m_settings.viewDistance.get();
+    coreConfig.maxPlayers = m_settings.maxPlayers.get();
+    coreConfig.seed = static_cast<u64>(std::stoll(m_settings.levelSeed.get()));
+    coreConfig.tickRate = 20;
+    m_serverCore = std::make_unique<ServerCore>(coreConfig);
 
     // 初始化世界
     ServerWorldConfig worldConfig;
@@ -150,6 +117,7 @@ Result<void> ServerApplication::initialize(const ServerLaunchParams& params)
         return Error(ErrorCode::InitializationFailed,
                      "Failed to initialize world: " + worldResult.error().message());
     }
+    m_serverCore->setWorld(m_world.get());
     spdlog::info("World initialized");
 
     // 初始化网络服务器
@@ -232,12 +200,13 @@ void ServerApplication::mainLoop()
         std::chrono::duration<f64>(targetTickTime));
 
     auto lastTickTime = clock::now();
-    m_tickCount = 0;
 
     spdlog::info("Server is now running!");
     spdlog::info("Connect with port: {}", m_settings.serverPort.get());
 
     while (m_running) {
+        MC_TRACE_EVENT("game.tick", "ServerLoop");
+
         const auto currentTime = clock::now();
         const auto deltaTime = currentTime - lastTickTime;
 
@@ -246,12 +215,16 @@ void ServerApplication::mainLoop()
             tick();
 
             lastTickTime = currentTime;
-            ++m_tickCount;
+
+            // 追踪 TPS
+            const f64 tps = 1.0 / (std::chrono::duration<f64>(deltaTime).count());
+            MC_TRACE_COUNTER("game.tick", "TPS", static_cast<i64>(tps));
 
             // 每秒输出一次统计信息
-            if (m_tickCount % 20 == 0) {
-                const auto tps = 1.0 / (std::chrono::duration<f64>(deltaTime).count());
-                SPDLOG_TRACE("TPS: {:.1f}, Tick: {}", tps, m_tickCount);
+            u64 tickCount = m_serverCore->currentTick();
+            if (tickCount % 20 == 0) {
+                (void)tps;  // Avoid unused variable warning when SPDLOG_TRACE is disabled
+                SPDLOG_TRACE("TPS: {:.1f}, Tick: {}", tps, tickCount);
             }
         } else {
             // 等待下一刻
@@ -264,32 +237,50 @@ void ServerApplication::mainLoop()
 
 void ServerApplication::tick()
 {
+    MC_TRACE_EVENT("game.tick", "ServerTick");
+
     // 处理网络事件
-    if (m_server) {
-        m_server->poll();
+    {
+        MC_TRACE_EVENT("network.packet", "PollNetwork");
+        if (m_server) {
+            m_server->poll();
+        }
     }
 
+    // 使用 ServerCore 的 tick
+    m_serverCore->tick();
+
     // 更新世界
-    if (m_world) {
-        m_world->tick();
+    {
+        MC_TRACE_EVENT("game.tick", "WorldUpdate");
+        if (m_world) {
+            m_world->tick();
+        }
     }
 
     // 每 15 秒发送一次心跳
-    if (m_tickCount - m_lastKeepAliveTime >= 300) { // 300 ticks = 15 seconds
-        m_lastKeepAliveTime = m_tickCount;
+    const u64 tickCount = m_serverCore->currentTick();
+    if (tickCount - m_lastKeepAliveTime >= 300) { // 300 ticks = 15 seconds
+        m_lastKeepAliveTime = tickCount;
 
-        auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::steady_clock::now().time_since_epoch()
-        ).count();
+        u64 timestamp = util::TimeUtils::getCurrentTimeMs();
 
         // 向所有连接的玩家发送心跳
-        std::lock_guard<std::mutex> lock(m_playerMapMutex);
-        for (const auto& [sessionId, playerId] : m_sessionToPlayer) {
-            auto session = m_server->getSession(sessionId);
-            if (session && session->state() == SessionState::Playing) {
-                sendKeepAlive(session.get(), static_cast<u64>(timestamp));
+        m_serverCore->forEachPlayer([this, timestamp, tickCount](ServerPlayerData& player) {
+            if (player.loggedIn && player.hasConnection()) {
+                // 使用 KeepAlivePacket 发送心跳
+                network::KeepAlivePacket packet;
+                packet.setTimestamp(timestamp);
+
+                auto result = packet.serialize();
+                if (result.success()) {
+                    player.send(result.value().data(), result.value().size());
+                }
+
+                m_serverCore->keepAliveManager().recordKeepAliveSent(
+                    player.playerId, timestamp, tickCount);
             }
-        }
+        });
     }
 }
 
@@ -303,6 +294,11 @@ void ServerApplication::shutdown()
         spdlog::warn("Failed to save settings: {}", saveResult.error().toString());
     }
 
+    // 断开所有玩家
+    if (m_serverCore) {
+        m_serverCore->connectionManager().disconnectAll("Server shutting down");
+    }
+
     // 关闭网络服务器
     if (m_server) {
         m_server->stop();
@@ -314,6 +310,14 @@ void ServerApplication::shutdown()
         m_world->shutdown();
         m_world.reset();
     }
+
+    // 清理 ServerCore
+    m_serverCore.reset();
+
+    // 关闭性能追踪
+    mc::perfetto::PerfettoManager::instance().stopTracing();
+    mc::perfetto::PerfettoManager::instance().shutdown();
+    spdlog::info("Perfetto tracing stopped");
 
     spdlog::info("Server stopped.");
 }
@@ -329,21 +333,16 @@ void ServerApplication::onClientDisconnect(TcpSession* session, const String& re
     spdlog::info("Client disconnected: {}:{} - {}",
                  session->address(), session->port(), reason);
 
-    // 查找并移除玩家
-    std::lock_guard<std::mutex> lock(m_playerMapMutex);
-
-    auto it = m_sessionToPlayer.find(session->id());
-    if (it != m_sessionToPlayer.end()) {
-        PlayerId playerId = it->second;
+    // 使用 ServerCore 移除玩家
+    PlayerId playerId = m_serverCore->playerManager().getPlayerIdBySession(
+        static_cast<u32>(session->id()));
+    if (playerId != 0) {
+        m_serverCore->removePlayer(playerId);
 
         // 从世界移除玩家
         if (m_world) {
             m_world->removePlayer(playerId);
         }
-
-        // 清理映射
-        m_playerToSession.erase(playerId);
-        m_sessionToPlayer.erase(it);
     }
 }
 
@@ -419,31 +418,32 @@ void ServerApplication::handleLoginRequest(TcpSession* session, const u8* data, 
                  username, session->address(), session->port());
 
     // 检查玩家数量限制
-    size_t currentPlayerCount;
-    {
-        std::lock_guard<std::mutex> lock(m_playerMapMutex);
-        currentPlayerCount = m_sessionToPlayer.size();
-    }
-
-    if (currentPlayerCount >= static_cast<size_t>(m_settings.maxPlayers.get())) {
+    if (m_serverCore->playerManager().isFull()) {
         sendLoginResponse(session, false, 0, username, "Server is full");
         session->disconnect("Server is full");
         return;
     }
 
-    // 分配玩家ID
-    PlayerId playerId = m_nextPlayerId++;
+    // 创建连接
+    auto connection = std::make_shared<TcpConnection>(session->shared_from_this());
 
-    // 注册玩家
-    {
-        std::lock_guard<std::mutex> lock(m_playerMapMutex);
-        m_sessionToPlayer[session->id()] = playerId;
-        m_playerToSession[playerId] = session->id();
+    // 分配玩家ID并添加到 ServerCore
+    PlayerId playerId = m_serverCore->nextPlayerId();
+    auto* player = m_serverCore->addPlayer(playerId, username, connection);
+
+    if (!player) {
+        sendLoginResponse(session, false, 0, username, "Failed to add player");
+        session->disconnect("Failed to add player");
+        return;
     }
+
+    // 设置会话ID并建立映射
+    player->sessionId = static_cast<u32>(session->id());
+    m_serverCore->playerManager().mapSessionToPlayer(static_cast<u32>(session->id()), playerId);
 
     // 添加到世界
     if (m_world) {
-        m_world->addPlayer(playerId, username, session->shared_from_this());
+        m_world->addPlayer(playerId, username, connection);
     }
 
     // 更新会话状态
@@ -457,14 +457,10 @@ void ServerApplication::handleLoginRequest(TcpSession* session, const u8* data, 
 
 void ServerApplication::handlePlayerMove(TcpSession* session, const u8* data, size_t size)
 {
-    PlayerId playerId;
-    {
-        std::lock_guard<std::mutex> lock(m_playerMapMutex);
-        auto it = m_sessionToPlayer.find(session->id());
-        if (it == m_sessionToPlayer.end()) {
-            return;
-        }
-        playerId = it->second;
+    PlayerId playerId = m_serverCore->playerManager().getPlayerIdBySession(
+        static_cast<u32>(session->id()));
+    if (playerId == 0) {
+        return;
     }
 
     network::PacketDeserializer deser(data, size);
@@ -478,22 +474,16 @@ void ServerApplication::handlePlayerMove(TcpSession* session, const u8* data, si
     auto& packet = result.value();
     const auto& pos = packet.position();
 
-    if (m_world) {
-        m_world->updatePlayerPosition(playerId, pos.x, pos.y, pos.z,
-                                      pos.yaw, pos.pitch, pos.onGround);
-    }
+    m_serverCore->updatePlayerPosition(playerId, pos.x, pos.y, pos.z,
+                                        pos.yaw, pos.pitch, pos.onGround);
 }
 
 void ServerApplication::handleTeleportConfirm(TcpSession* session, const u8* data, size_t size)
 {
-    PlayerId playerId;
-    {
-        std::lock_guard<std::mutex> lock(m_playerMapMutex);
-        auto it = m_sessionToPlayer.find(session->id());
-        if (it == m_sessionToPlayer.end()) {
-            return;
-        }
-        playerId = it->second;
+    PlayerId playerId = m_serverCore->playerManager().getPlayerIdBySession(
+        static_cast<u32>(session->id()));
+    if (playerId == 0) {
+        return;
     }
 
     network::PacketDeserializer deser(data, size);
@@ -506,45 +496,37 @@ void ServerApplication::handleTeleportConfirm(TcpSession* session, const u8* dat
 
     auto& packet = result.value();
 
-    if (m_world) {
-        m_world->confirmTeleport(playerId, packet.teleportId());
-    }
+    m_serverCore->confirmTeleport(playerId, packet.teleportId());
 }
 
 void ServerApplication::handleKeepAlive(TcpSession* session, const u8* data, size_t size)
 {
-    // 心跳响应 - 更新玩家活跃状态
+    PlayerId playerId = m_serverCore->playerManager().getPlayerIdBySession(
+        static_cast<u32>(session->id()));
+    if (playerId == 0) {
+        return;
+    }
+
     network::KeepAlivePacket packet;
     auto result = packet.deserialize(data, size);
 
     if (result.success()) {
+        u64 currentTimeMs = util::TimeUtils::getCurrentTimeMs();
+        m_serverCore->keepAliveManager().handleKeepAliveResponse(playerId, packet.timestamp(), currentTimeMs);
         spdlog::trace("KeepAlive from session {}", session->id());
     }
 }
 
 void ServerApplication::handleChatMessage(TcpSession* session, const u8* data, size_t size)
 {
-    PlayerId playerId;
-    String username;
-    Vector3d position(0.0, 64.0, 0.0);
-    Vector2f rotation(0.0f, 0.0f);
-    {
-        std::lock_guard<std::mutex> lock(m_playerMapMutex);
-        auto it = m_sessionToPlayer.find(session->id());
-        if (it == m_sessionToPlayer.end()) {
-            return;
-        }
-        playerId = it->second;
-
-        if (m_world) {
-            auto* player = m_world->getPlayer(playerId);
-            if (player) {
-                username = player->username;
-                position = Vector3d(player->x, player->y, player->z);
-                rotation = Vector2f(player->yaw, player->pitch);
-            }
-        }
+    PlayerId playerId = m_serverCore->playerManager().getPlayerIdBySession(
+        static_cast<u32>(session->id()));
+    if (playerId == 0) {
+        return;
     }
+
+    auto* player = m_serverCore->getPlayer(playerId);
+    if (!player) return;
 
     network::PacketDeserializer deser(data, size);
     auto result = network::ChatMessagePacket::deserialize(deser);
@@ -557,22 +539,25 @@ void ServerApplication::handleChatMessage(TcpSession* session, const u8* data, s
     String message = packet.message();
 
     if (!message.empty() && message[0] == '/') {
-        auto& registry = getCommandRegistryInstance();
-        ServerApplicationCommandBridge bridge(m_world.get(), registry);
-        command::ServerCommandSource source(&bridge, nullptr, m_world.get(), position, rotation, 4, playerId, username);
+        auto& registry = command::CommandRegistry::getGlobal();
+        CoreCommandBridge bridge(m_world.get(), m_serverCore.get());
+        command::ServerCommandSource source(&bridge, nullptr, m_world.get(),
+                                            Vector3d(player->x, player->y, player->z),
+                                            Vector2f(player->yaw, player->pitch),
+                                            4, playerId, player->username);
         auto commandResult = registry.execute(message, source);
 
         if (commandResult.failed()) {
             spdlog::warn("Command '{}' failed for {}: {}",
-                         message, username, commandResult.error().toString());
+                         message, player->username, commandResult.error().toString());
         } else {
             spdlog::info("Executed command '{}' for {} with result {}",
-                         message, username, commandResult.value());
+                         message, player->username, commandResult.value());
         }
         return;
     }
 
-    spdlog::info("[Chat] {}: {}", username, message);
+    spdlog::info("[Chat] {}: {}", player->username, message);
 
     // 广播聊天消息到所有玩家
     // TODO: 实现聊天消息广播
@@ -586,15 +571,8 @@ void ServerApplication::sendLoginResponse(TcpSession* session, bool success,
     network::PacketSerializer ser;
     response.serialize(ser);
 
-    // 封装完整数据包
-    network::PacketSerializer fullPacket;
-    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
-    fullPacket.writeU16(static_cast<u16>(network::PacketType::LoginResponse));
-    fullPacket.writeU16(0); // flags
-    fullPacket.writeU16(0); // reserved
-    fullPacket.writeU16(0); // padding
-    fullPacket.writeBytes(ser.buffer());
-
+    auto fullPacket = core::ConnectionManager::encapsulatePacket(
+        network::PacketType::LoginResponse, ser.buffer());
     session->send(fullPacket.data(), fullPacket.size());
 }
 
@@ -619,7 +597,7 @@ Result<void> ServerApplication::loadSettings(const String& path)
     }
 
     // 确保设置目录存在
-    SettingsBase::ensureSettingsDir("minecraft-server");
+    (void)SettingsBase::ensureSettingsDir("minecraft-server");
 
     // 启用自动保存
     m_settings.enableAutoSave(path);
@@ -637,6 +615,9 @@ void ServerApplication::applySettings()
 
     m_settings.maxPlayers.onChange([this](i32 value) {
         spdlog::info("Max players changed to: {}", value);
+        if (m_serverCore) {
+            m_serverCore->playerManager().setMaxPlayers(value);
+        }
     });
 
     m_settings.viewDistance.onChange([this](i32 value) {
@@ -664,4 +645,4 @@ void ServerApplication::applySettings()
     });
 }
 
-} // namespace mr::server
+} // namespace mc::server

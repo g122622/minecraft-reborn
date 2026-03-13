@@ -2,7 +2,7 @@
 
 #include "WorldCarver.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 峡谷雕刻器
@@ -130,4 +130,4 @@ private:
         i32 index) const;
 };
 
-} // namespace mr
+} // namespace mc

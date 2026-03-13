@@ -9,7 +9,7 @@
 // 前向声明
 struct GLFWwindow;
 
-namespace mr::client {
+namespace mc::client {
 
 /**
  * @brief 窗口配置
@@ -176,4 +176,4 @@ private:
     void* m_scrollUserData = nullptr;
 };
 
-} // namespace mr::client
+} // namespace mc::client

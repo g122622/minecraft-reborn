@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <set>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 资源包管理
@@ -487,4 +487,4 @@ bool ResourcePackList::isResourcePackDir(const std::filesystem::path& path)
     return std::filesystem::exists(mcmetaPath);
 }
 
-} // namespace mr
+} // namespace mc

@@ -5,11 +5,11 @@
 #include "server/application/MinecraftServer.hpp"
 #include <sstream>
 
-namespace mr {
+namespace mc {
 namespace command {
 
 void TeleportCommand::registerTo(CommandDispatcher<ServerCommandSource>& dispatcher) {
-    using namespace mr::command;
+    using namespace mc::command;
 
     auto tpNode = std::make_shared<LiteralCommandNode<ServerCommandSource>>("tp");
     tpNode->setRequirement([](const ServerCommandSource& source) {
@@ -116,4 +116,4 @@ i32 TeleportCommand::teleportTargetToPosition(CommandContext<ServerCommandSource
 }
 
 } // namespace command
-} // namespace mr
+} // namespace mc

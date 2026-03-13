@@ -7,7 +7,7 @@
 #include <vector>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 资源包条目
@@ -380,4 +380,4 @@ private:
     }
 };
 
-} // namespace mr
+} // namespace mc

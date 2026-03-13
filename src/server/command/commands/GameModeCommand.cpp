@@ -4,11 +4,11 @@
 #include "server/player/ServerPlayer.hpp"
 #include <sstream>
 
-namespace mr {
+namespace mc {
 namespace command {
 
 void GameModeCommand::registerTo(CommandDispatcher<ServerCommandSource>& dispatcher) {
-    using namespace mr::command;
+    using namespace mc::command;
 
     // /gamemode <mode> - 设置自己的游戏模式
     auto modeArg = std::make_shared<ArgumentCommandNode<ServerCommandSource, GameMode>>(
@@ -112,4 +112,4 @@ const char* GameModeCommand::getGameModeName(GameMode mode) {
 }
 
 } // namespace command
-} // namespace mr
+} // namespace mc

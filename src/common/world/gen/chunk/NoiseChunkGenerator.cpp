@@ -1,4 +1,5 @@
 #include "NoiseChunkGenerator.hpp"
+#include "../spawn/WorldGenSpawner.hpp"
 #include "../../block/BlockRegistry.hpp"
 #include "../../biome/BiomeRegistry.hpp"
 #include "../../biome/BiomeGenerationSettings.hpp"
@@ -6,11 +7,12 @@
 #include "../feature/ore/OreFeature.hpp"
 #include "../../../math/MathUtils.hpp"
 #include "../../../math/random/Random.hpp"
+#include "common/perfetto/TraceEvents.hpp"
 #include <algorithm>
 #include <cmath>
 #include <spdlog/spdlog.h>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 常量
@@ -128,6 +130,7 @@ void NoiseChunkGenerator::initBiomeWeights()
 
 void NoiseChunkGenerator::generateBiomes(WorldGenRegion& region, ChunkPrimer& chunk)
 {
+    MC_TRACE_EVENT("world.chunk_gen", "GenerateBiomes", "x", chunk.x(), "z", chunk.z());
     (void)region;
 
     BiomeContainer& biomes = chunk.getBiomes();
@@ -146,6 +149,7 @@ void NoiseChunkGenerator::generateBiomes(WorldGenRegion& region, ChunkPrimer& ch
 
 void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chunk)
 {
+    MC_TRACE_EVENT("world.chunk_gen", "GenerateNoise", "x", chunk.x(), "z", chunk.z());
     (void)region;
 
     const ChunkCoord chunkX = chunk.x();
@@ -153,113 +157,123 @@ void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chu
     const i32 startX = chunkX << 4;
     const i32 startZ = chunkZ << 4;
 
+    // === 阶段 1: 计算地形目标 ===
     std::array<std::array<f32, 16>, 16> terrainTargets{};
-    for (i32 localX = 0; localX < 16; ++localX) {
-        for (i32 localZ = 0; localZ < 16; ++localZ) {
-            const i32 worldX = startX + localX;
-            const i32 worldZ = startZ + localZ;
-            const BiomeId biomeId = m_biomeProvider->getBiome(worldX, 64, worldZ);
-            const Biome& biomeDef = m_biomeProvider->getBiomeDefinition(biomeId);
+    {
+        MC_TRACE_EVENT("world.chunk_gen", "GenerateNoise_TerrainTargets");
+        for (i32 localX = 0; localX < 16; ++localX) {
+            for (i32 localZ = 0; localZ < 16; ++localZ) {
+                const i32 worldX = startX + localX;
+                const i32 worldZ = startZ + localZ;
+                const BiomeId biomeId = m_biomeProvider->getBiome(worldX, 64, worldZ);
+                const Biome& biomeDef = m_biomeProvider->getBiomeDefinition(biomeId);
 
-            const f32 macroNoise = m_surfaceDepthNoise
-                ? m_surfaceDepthNoise->noise2D(static_cast<f32>(worldX) * 0.0075f, static_cast<f32>(worldZ) * 0.0075f)
-                : 0.0f;
-            const f32 detailNoise = m_surfaceDepthNoise
-                ? m_surfaceDepthNoise->noise2D(static_cast<f32>(worldX) * 0.035f + 137.0f, static_cast<f32>(worldZ) * 0.035f - 91.0f)
-                : 0.0f;
-            const f32 regionalNoise = m_surfaceDepthNoise
-                ? m_surfaceDepthNoise->noise2D(static_cast<f32>(worldX) * 0.09f - 47.0f, static_cast<f32>(worldZ) * 0.09f + 83.0f)
-                : 0.0f;
+                const f32 macroNoise = m_surfaceDepthNoise
+                    ? m_surfaceDepthNoise->noise2D(static_cast<f32>(worldX) * 0.0075f, static_cast<f32>(worldZ) * 0.0075f)
+                    : 0.0f;
+                const f32 detailNoise = m_surfaceDepthNoise
+                    ? m_surfaceDepthNoise->noise2D(static_cast<f32>(worldX) * 0.035f + 137.0f, static_cast<f32>(worldZ) * 0.035f - 91.0f)
+                    : 0.0f;
+                const f32 regionalNoise = m_surfaceDepthNoise
+                    ? m_surfaceDepthNoise->noise2D(static_cast<f32>(worldX) * 0.09f - 47.0f, static_cast<f32>(worldZ) * 0.09f + 83.0f)
+                    : 0.0f;
 
-            terrainTargets[localX][localZ] = static_cast<f32>(m_settings.seaLevel) + 1.0f
-                + static_cast<f32>(biomeDef.depth()) * 18.0f
-                + static_cast<f32>(biomeDef.scale()) * 24.0f
-                + macroNoise * 28.0f
-                + detailNoise * 14.0f
-                + regionalNoise * 36.0f;
+                terrainTargets[localX][localZ] = static_cast<f32>(m_settings.seaLevel) + 1.0f
+                    + static_cast<f32>(biomeDef.depth()) * 18.0f
+                    + static_cast<f32>(biomeDef.scale()) * 24.0f
+                    + macroNoise * 28.0f
+                    + detailNoise * 14.0f
+                    + regionalNoise * 36.0f;
+            }
         }
     }
 
-    // === 参考 MC NoiseChunkGenerator.func_230352_b_ ===
-    // 使用双缓冲噪声缓存，只需要两列 X 的数据
-    // 缓存结构：float[2][noiseSizeZ+1][noiseSizeY+1]
+    // === 阶段 2: 噪声缓存初始化 ===
     std::vector<std::vector<f32>> noiseCache[2];
-    noiseCache[0].resize(m_noiseSizeZ + 1, std::vector<f32>(m_noiseSizeY + 1));
-    noiseCache[1].resize(m_noiseSizeZ + 1, std::vector<f32>(m_noiseSizeY + 1));
+    {
+        MC_TRACE_EVENT("world.chunk_gen", "GenerateNoise_InitCache");
+        noiseCache[0].resize(m_noiseSizeZ + 1, std::vector<f32>(m_noiseSizeY + 1));
+        noiseCache[1].resize(m_noiseSizeZ + 1, std::vector<f32>(m_noiseSizeY + 1));
 
-    // 初始化第一列噪声数据
-    for (i32 noiseZ = 0; noiseZ <= m_noiseSizeZ; ++noiseZ) {
-        const i32 globalNoiseZ = chunkZ * m_noiseSizeZ + noiseZ;
-        fillNoiseColumn(noiseCache[0][noiseZ], chunkX * m_noiseSizeX, globalNoiseZ);
+        // 初始化第一列噪声数据
+        for (i32 noiseZ = 0; noiseZ <= m_noiseSizeZ; ++noiseZ) {
+            const i32 globalNoiseZ = chunkZ * m_noiseSizeZ + noiseZ;
+            fillNoiseColumn(noiseCache[0][noiseZ], chunkX * m_noiseSizeX, globalNoiseZ);
+        }
     }
 
-    // 遍历每个噪声单元
-    for (i32 noiseX = 0; noiseX < m_noiseSizeX; ++noiseX) {
-        // 预计算下一列 X 的噪声数据
-        for (i32 noiseZ = 0; noiseZ <= m_noiseSizeZ; ++noiseZ) {
-            const i32 globalNoiseX = chunkX * m_noiseSizeX + noiseX + 1;
-            const i32 globalNoiseZ = chunkZ * m_noiseSizeZ + noiseZ;
-            fillNoiseColumn(noiseCache[1][noiseZ], globalNoiseX, globalNoiseZ);
-        }
+    // === 阶段 3: 噪声填充与方块放置 ===
+    // TODO：根据perfetto分析结果，这一阶段是关键性能瓶颈，优化重点
+    {
+        MC_TRACE_EVENT("world.chunk_gen", "GenerateNoise_FillBlocks");
+        // 遍历每个噪声单元
+        for (i32 noiseX = 0; noiseX < m_noiseSizeX; ++noiseX) {
+            // 预计算下一列 X 的噪声数据
+            for (i32 noiseZ = 0; noiseZ <= m_noiseSizeZ; ++noiseZ) {
+                const i32 globalNoiseX = chunkX * m_noiseSizeX + noiseX + 1;
+                const i32 globalNoiseZ = chunkZ * m_noiseSizeZ + noiseZ;
+                fillNoiseColumn(noiseCache[1][noiseZ], globalNoiseX, globalNoiseZ);
+            }
 
-        // 处理当前噪声单元
-        for (i32 noiseZ = 0; noiseZ < m_noiseSizeZ; ++noiseZ) {
-            // 获取三线性插值所需的 8 个角点
-            for (i32 noiseY = m_noiseSizeY - 1; noiseY >= 0; --noiseY) {
-                // 从当前列和下一列获取密度值
-                const f32 d0 = noiseCache[0][noiseZ][noiseY];           // (x0, z0, y0)
-                const f32 d1 = noiseCache[0][noiseZ + 1][noiseY];       // (x0, z1, y0)
-                const f32 d2 = noiseCache[1][noiseZ][noiseY];           // (x1, z0, y0)
-                const f32 d3 = noiseCache[1][noiseZ + 1][noiseY];       // (x1, z1, y0)
-                const f32 d4 = noiseCache[0][noiseZ][noiseY + 1];       // (x0, z0, y1)
-                const f32 d5 = noiseCache[0][noiseZ + 1][noiseY + 1];   // (x0, z1, y1)
-                const f32 d6 = noiseCache[1][noiseZ][noiseY + 1];       // (x1, z0, y1)
-                const f32 d7 = noiseCache[1][noiseZ + 1][noiseY + 1];   // (x1, z1, y1)
+            // 处理当前噪声单元
+            for (i32 noiseZ = 0; noiseZ < m_noiseSizeZ; ++noiseZ) {
+                // 获取三线性插值所需的 8 个角点
+                for (i32 noiseY = m_noiseSizeY - 1; noiseY >= 0; --noiseY) {
+                    // 从当前列和下一列获取密度值
+                    const f32 d0 = noiseCache[0][noiseZ][noiseY];           // (x0, z0, y0)
+                    const f32 d1 = noiseCache[0][noiseZ + 1][noiseY];       // (x0, z1, y0)
+                    const f32 d2 = noiseCache[1][noiseZ][noiseY];           // (x1, z0, y0)
+                    const f32 d3 = noiseCache[1][noiseZ + 1][noiseY];       // (x1, z1, y0)
+                    const f32 d4 = noiseCache[0][noiseZ][noiseY + 1];       // (x0, z0, y1)
+                    const f32 d5 = noiseCache[0][noiseZ + 1][noiseY + 1];   // (x0, z1, y1)
+                    const f32 d6 = noiseCache[1][noiseZ][noiseY + 1];       // (x1, z0, y1)
+                    const f32 d7 = noiseCache[1][noiseZ + 1][noiseY + 1];   // (x1, z1, y1)
 
-                // Y 轴细分
-                for (i32 localY = m_verticalNoiseGranularity - 1; localY >= 0; --localY) {
-                    const i32 worldY = noiseY * m_verticalNoiseGranularity + localY;
-                    const f32 yLerp = static_cast<f32>(localY) / static_cast<f32>(m_verticalNoiseGranularity);
+                    // Y 轴细分
+                    for (i32 localY = m_verticalNoiseGranularity - 1; localY >= 0; --localY) {
+                        const i32 worldY = noiseY * m_verticalNoiseGranularity + localY;
+                        const f32 yLerp = static_cast<f32>(localY) / static_cast<f32>(m_verticalNoiseGranularity);
 
-                    // Y 轴插值
-                    const f32 y0 = math::lerp(d0, d4, yLerp); // (x0, z0)
-                    const f32 y1 = math::lerp(d1, d5, yLerp); // (x0, z1)
-                    const f32 y2 = math::lerp(d2, d6, yLerp); // (x1, z0)
-                    const f32 y3 = math::lerp(d3, d7, yLerp); // (x1, z1)
+                        // Y 轴插值
+                        const f32 y0 = math::lerp(d0, d4, yLerp); // (x0, z0)
+                        const f32 y1 = math::lerp(d1, d5, yLerp); // (x0, z1)
+                        const f32 y2 = math::lerp(d2, d6, yLerp); // (x1, z0)
+                        const f32 y3 = math::lerp(d3, d7, yLerp); // (x1, z1)
 
-                    // X 轴细分
-                    for (i32 localX = 0; localX < m_horizontalNoiseGranularity; ++localX) {
-                        const i32 worldX = startX + noiseX * m_horizontalNoiseGranularity + localX;
-                        const f32 xLerp = static_cast<f32>(localX) / static_cast<f32>(m_horizontalNoiseGranularity);
+                        // X 轴细分
+                        for (i32 localX = 0; localX < m_horizontalNoiseGranularity; ++localX) {
+                            const i32 worldX = startX + noiseX * m_horizontalNoiseGranularity + localX;
+                            const f32 xLerp = static_cast<f32>(localX) / static_cast<f32>(m_horizontalNoiseGranularity);
 
-                        // X 轴插值
-                        const f32 x0 = math::lerp(y0, y2, xLerp); // (z0)
-                        const f32 x1 = math::lerp(y1, y3, xLerp); // (z1)
+                            // X 轴插值
+                            const f32 x0 = math::lerp(y0, y2, xLerp); // (z0)
+                            const f32 x1 = math::lerp(y1, y3, xLerp); // (z1)
 
-                        // Z 轴细分
-                        for (i32 localZ = 0; localZ < m_horizontalNoiseGranularity; ++localZ) {
-                            const i32 worldZ = startZ + noiseZ * m_horizontalNoiseGranularity + localZ;
-                            const f32 zLerp = static_cast<f32>(localZ) / static_cast<f32>(m_horizontalNoiseGranularity);
+                            // Z 轴细分
+                            for (i32 localZ = 0; localZ < m_horizontalNoiseGranularity; ++localZ) {
+                                const i32 worldZ = startZ + noiseZ * m_horizontalNoiseGranularity + localZ;
+                                const f32 zLerp = static_cast<f32>(localZ) / static_cast<f32>(m_horizontalNoiseGranularity);
 
-                            // Z 轴插值 - 最终密度值
-                            const f32 density = math::lerp(x0, x1, zLerp);
-                            const i32 localBlockX = worldX & 15;
-                            const i32 localBlockZ = worldZ & 15;
-                            const f32 terrainBias = (terrainTargets[localBlockX][localBlockZ] - static_cast<f32>(worldY)) * 0.16f;
-                            const f32 finalDensity = density + terrainBias;
+                                // Z 轴插值 - 最终密度值
+                                const f32 density = math::lerp(x0, x1, zLerp);
+                                const i32 localBlockX = worldX & 15;
+                                const i32 localBlockZ = worldZ & 15;
+                                const f32 terrainBias = (terrainTargets[localBlockX][localBlockZ] - static_cast<f32>(worldY)) * 0.16f;
+                                const f32 finalDensity = density + terrainBias;
 
-                            // 确定方块
-                            const BlockId block = getBlockForDensity(finalDensity, worldY);
+                                // 确定方块
+                                const BlockId block = getBlockForDensity(finalDensity, worldY);
 
-                            if (block != BlockId::Air) {
-                                const BlockState* state = BlockRegistry::instance().get(block);
-                                if (state) {
-                                    chunk.setBlock(localBlockX, worldY, localBlockZ, state);
+                                if (block != BlockId::Air) {
+                                    const BlockState* state = BlockRegistry::instance().get(block);
+                                    if (state) {
+                                        chunk.setBlock(localBlockX, worldY, localBlockZ, state);
 
-                                    // 更新高度图
-                                    chunk.updateHeightmap(HeightmapType::WorldSurfaceWG, localBlockX, worldY, localBlockZ, state);
-                                    if (state->isSolid()) {
-                                        chunk.updateHeightmap(HeightmapType::OceanFloorWG, localBlockX, worldY, localBlockZ, state);
+                                        // 更新高度图
+                                        chunk.updateHeightmap(HeightmapType::WorldSurfaceWG, localBlockX, worldY, localBlockZ, state);
+                                        if (state->isSolid()) {
+                                            chunk.updateHeightmap(HeightmapType::OceanFloorWG, localBlockX, worldY, localBlockZ, state);
+                                        }
                                     }
                                 }
                             }
@@ -267,10 +281,10 @@ void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chu
                     }
                 }
             }
-        }
 
-        // 交换缓存（swap 比 copy 更高效）
-        std::swap(noiseCache[0], noiseCache[1]);
+            // 交换缓存（swap 比 copy 更高效）
+            std::swap(noiseCache[0], noiseCache[1]);
+        }
     }
 
     // 标记阶段完成
@@ -279,43 +293,46 @@ void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chu
 
 void NoiseChunkGenerator::fillNoiseColumn(std::vector<f32>& column, i32 noiseX, i32 noiseZ)
 {
+    MC_TRACE_EVENT("world.chunk_gen", "FillNoiseColumn", "x", noiseX, "z", noiseZ);
     column.resize(m_noiseSizeY + 1);
 
     const NoiseSettings& noise = m_settings.noise;
 
-    // === 计算生物群系权重（参考 MC NoiseChunkGenerator.fillNoiseColumn）===
+    // === 阶段 1: 计算生物群系权重 ===
     f32 totalScale = 0.0f;   // f - 累加比例
     f32 totalDepth = 0.0f;   // f1 - 累加深度
     f32 totalWeight = 0.0f;  // f2 - 累加权重
 
-    // 获取中心生物群系的深度（用于权重调整）
-    const BiomeId centerBiome = m_biomeProvider->getNoiseBiome(noiseX, 0, noiseZ);
-    const Biome& centerDef = m_biomeProvider->getBiomeDefinition(centerBiome);
-    const f32 centerDepth = centerDef.depth();
+    {
+        // 获取中心生物群系的深度（用于权重调整）
+        const BiomeId centerBiome = m_biomeProvider->getNoiseBiome(noiseX, 0, noiseZ);
+        const Biome& centerDef = m_biomeProvider->getBiomeDefinition(centerBiome);
+        const f32 centerDepth = centerDef.depth();
 
-    for (i32 dz = -2; dz <= 2; ++dz) {
-        for (i32 dx = -2; dx <= 2; ++dx) {
-            const BiomeId biome = m_biomeProvider->getNoiseBiome(noiseX + dx, 0, noiseZ + dz);
-            const Biome& def = m_biomeProvider->getBiomeDefinition(biome);
+        for (i32 dz = -2; dz <= 2; ++dz) {
+            for (i32 dx = -2; dx <= 2; ++dx) {
+                const BiomeId biome = m_biomeProvider->getNoiseBiome(noiseX + dx, 0, noiseZ + dz);
+                const Biome& def = m_biomeProvider->getBiomeDefinition(biome);
 
-            const f32 depth = def.depth();   // f4
-            const f32 scale = def.scale();   // f5
+                const f32 depth = def.depth();   // f4
+                const f32 scale = def.scale();   // f5
 
-            f32 weightedDepth = depth;  // f6
-            f32 weightedScale = scale;  // f7
+                f32 weightedDepth = depth;  // f6
+                f32 weightedScale = scale;  // f7
 
-            // 参考 MC：权重因子
-            const f32 depthFactor = (depth > centerDepth) ? 0.5f : 1.0f;  // f8
+                // 参考 MC：权重因子
+                const f32 depthFactor = (depth > centerDepth) ? 0.5f : 1.0f;  // f8
 
-            // 参考 MC：计算权重
-            const i32 weightIndex = (dx + 2) + (dz + 2) * 5;
-            const f32 baseWeight = m_biomeWeights[weightIndex];
-            const f32 weightFactor = depthFactor * baseWeight / (weightedDepth + 2.0f);  // f9
+                // 参考 MC：计算权重
+                const i32 weightIndex = (dx + 2) + (dz + 2) * 5;
+                const f32 baseWeight = m_biomeWeights[weightIndex];
+                const f32 weightFactor = depthFactor * baseWeight / (weightedDepth + 2.0f);  // f9
 
-            // 参考 MC：累加
-            totalScale += weightedScale * weightFactor;  // f += f7 * f9
-            totalDepth += weightedDepth * weightFactor;  // f1 += f6 * f9
-            totalWeight += weightFactor;                  // f2 += f9
+                // 参考 MC：累加
+                totalScale += weightedScale * weightFactor;  // f += f7 * f9
+                totalDepth += weightedDepth * weightFactor;  // f1 += f6 * f9
+                totalWeight += weightFactor;                  // f2 += f9
+            }
         }
     }
 
@@ -342,7 +359,7 @@ void NoiseChunkGenerator::fillNoiseColumn(std::vector<f32>& column, i32 noiseX, 
     const f32 densityFactor = noise.densityFactor;
     const f32 densityOffset = noise.densityOffset;
 
-    // === 填充噪声列 ===
+    // === 阶段 2: 填充噪声列 ===
     for (i32 y = 0; y <= m_noiseSizeY; ++y) {
         // 计算 3D 噪声密度
         f32 density = calculateNoiseDensity(noiseX, y, noiseZ, xzScale, yScale, xzFactor, yFactor);
@@ -521,6 +538,7 @@ BlockId NoiseChunkGenerator::getBlockForDensity(f32 density, i32 y) const
 
 void NoiseChunkGenerator::buildSurface(WorldGenRegion& /*region*/, ChunkPrimer& chunk)
 {
+    MC_TRACE_EVENT("world.chunk_gen", "BuildSurface", "x", chunk.x(), "z", chunk.z());
     const ChunkCoord chunkX = chunk.x();
     const ChunkCoord chunkZ = chunk.z();
     const i32 startX = chunkX << 4;
@@ -529,37 +547,44 @@ void NoiseChunkGenerator::buildSurface(WorldGenRegion& /*region*/, ChunkPrimer& 
     // 设置随机种子
     math::Random surfaceRng(static_cast<u64>(chunkX) * 341873128712ULL + static_cast<u64>(chunkZ) * 132897987541ULL);
 
-    // 遍历每个 XZ 列
-    for (i32 localX = 0; localX < 16; ++localX) {
-        for (i32 localZ = 0; localZ < 16; ++localZ) {
-            const i32 worldX = startX + localX;
-            const i32 worldZ = startZ + localZ;
+    // === 阶段 1: 遍历列生成地表 ===
+    {
+        MC_TRACE_EVENT("world.chunk_gen", "BuildSurface_Columns");
+        // 遍历每个 XZ 列
+        for (i32 localX = 0; localX < 16; ++localX) {
+            for (i32 localZ = 0; localZ < 16; ++localZ) {
+                const i32 worldX = startX + localX;
+                const i32 worldZ = startZ + localZ;
 
-            // 获取地表高度
-            const i32 surfaceHeight = chunk.getTopBlockY(HeightmapType::WorldSurfaceWG, localX, localZ);
+                // 获取地表高度
+                const i32 surfaceHeight = chunk.getTopBlockY(HeightmapType::WorldSurfaceWG, localX, localZ);
 
-            // 获取生物群系
-            const BiomeId biomeId = chunk.getBiomeAtBlock(localX, surfaceHeight, localZ);
+                // 获取生物群系
+                const BiomeId biomeId = chunk.getBiomeAtBlock(localX, surfaceHeight, localZ);
 
-            // 计算地表噪声
-            const f32 surfaceNoise = m_surfaceDepthNoise->noise2D(
-                static_cast<f32>(worldX) * 0.0625f,
-                static_cast<f32>(worldZ) * 0.0625f
-            ) * 15.0f;
+                // 计算地表噪声
+                const f32 surfaceNoise = m_surfaceDepthNoise->noise2D(
+                    static_cast<f32>(worldX) * 0.0625f,
+                    static_cast<f32>(worldZ) * 0.0625f
+                ) * 15.0f;
 
-            // 生成地表
-            buildSurfaceForColumn(chunk, localX, localZ, surfaceHeight, surfaceNoise + static_cast<f32>(surfaceRng.nextDouble(0.0, 0.25)) * 15.0f, biomeId);
+                // 生成地表
+                buildSurfaceForColumn(chunk, localX, localZ, surfaceHeight, surfaceNoise + static_cast<f32>(surfaceRng.nextDouble(0.0, 0.25)) * 15.0f, biomeId);
+            }
         }
     }
 
-    // 生成基岩
-    for (i32 localX = 0; localX < 16; ++localX) {
-        for (i32 localZ = 0; localZ < 16; ++localZ) {
-            for (i32 y = 0; y < 5; ++y) {
-                if (y <= surfaceRng.nextInt(5)) {
-                    const BlockState* bedrock = BlockRegistry::instance().get(BlockId::Bedrock);
-                    if (bedrock) {
-                        chunk.setBlock(localX, y, localZ, bedrock);
+    // === 阶段 2: 生成基岩 ===
+    {
+        MC_TRACE_EVENT("world.chunk_gen", "BuildSurface_Bedrock");
+        for (i32 localX = 0; localX < 16; ++localX) {
+            for (i32 localZ = 0; localZ < 16; ++localZ) {
+                for (i32 y = 0; y < 5; ++y) {
+                    if (y <= surfaceRng.nextInt(5)) {
+                        const BlockState* bedrock = BlockRegistry::instance().get(BlockId::Bedrock);
+                        if (bedrock) {
+                            chunk.setBlock(localX, y, localZ, bedrock);
+                        }
                     }
                 }
             }
@@ -638,6 +663,7 @@ void NoiseChunkGenerator::buildSurfaceForColumn(ChunkPrimer& chunk, i32 x, i32 z
 
 void NoiseChunkGenerator::applyCarvers(WorldGenRegion& /*region*/, ChunkPrimer& chunk, bool isLiquid)
 {
+    MC_TRACE_EVENT("world.chunk_gen", "ApplyCarvers", "x", chunk.x(), "z", chunk.z());
     const ChunkCoord chunkX = chunk.x();
     const ChunkCoord chunkZ = chunk.z();
 
@@ -659,6 +685,7 @@ void NoiseChunkGenerator::applyCarvers(WorldGenRegion& /*region*/, ChunkPrimer& 
 
 void NoiseChunkGenerator::placeFeatures(WorldGenRegion& region, ChunkPrimer& chunk)
 {
+    MC_TRACE_EVENT("world.chunk_gen", "PlaceFeatures", "x", chunk.x(), "z", chunk.z());
     // 初始化特征注册表（首次调用时）
     static bool s_featuresInitialized = false;
     if (!s_featuresInitialized) {
@@ -708,4 +735,26 @@ i32 NoiseChunkGenerator::getHeight(i32 x, i32 z, HeightmapType type) const
     return static_cast<i32>(baseHeight + variation);
 }
 
-} // namespace mr
+i32 NoiseChunkGenerator::spawnInitialMobs(WorldGenRegion& region, ChunkPrimer& chunk,
+                                          std::vector<SpawnedEntityData>& outEntities)
+{
+    // 使用 WorldGenSpawner 放置被动动物
+    if (!m_worldGenSpawner || !m_worldGenSpawner->isEnabled()) {
+        return 0;
+    }
+
+    // 获取区块中心位置的生物群系
+    const BiomeId biomeId = chunk.getBiomeAtBlock(8, 64, 8);
+    const Biome& biome = m_biomeProvider->getBiomeDefinition(biomeId);
+
+    // 使用种子创建随机数生成器
+    // 参考 MC: setDecorationSeed
+    math::Random rng;
+    rng.setSeed(static_cast<u64>(chunk.x()) * 341873128712ULL +
+                static_cast<u64>(chunk.z()) * 132897987541ULL +
+                m_seed);
+
+    return m_worldGenSpawner->spawnInitialMobs(region, biome, chunk.x(), chunk.z(), *this, rng, outEntities);
+}
+
+} // namespace mc

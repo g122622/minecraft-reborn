@@ -4,7 +4,7 @@
 #include <array>
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 顶点格式
@@ -146,4 +146,4 @@ private:
     f32 m_tileV;
 };
 
-} // namespace mr
+} // namespace mc

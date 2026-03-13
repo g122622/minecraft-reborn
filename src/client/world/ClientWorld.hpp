@@ -10,6 +10,7 @@
 #include "../../common/physics/PhysicsEngine.hpp"
 #include "../renderer/Camera.hpp"
 #include "../renderer/MeshWorkerPool.hpp"
+#include "entity/ClientEntityManager.hpp"
 #include <unordered_map>
 #include <unordered_set>
 #include <memory>
@@ -17,7 +18,7 @@
 #include <queue>
 #include <functional>
 
-namespace mr::client {
+namespace mc::client {
 
 /**
  * @brief 客户端区块数据
@@ -91,6 +92,24 @@ public:
      * @brief 获取方块所在生物群系
      */
     [[nodiscard]] const Biome* getBiomeAtBlock(i32 x, i32 y, i32 z) const;
+
+    /**
+     * @brief 获取天空光照值 (0-15)
+     * @param x 方块X坐标
+     * @param y 方块Y坐标
+     * @param z 方块Z坐标
+     * @return 天空光照值，如果区块未加载返回15
+     */
+    [[nodiscard]] u8 getSkyLight(i32 x, i32 y, i32 z) const;
+
+    /**
+     * @brief 获取方块光照值 (0-15)
+     * @param x 方块X坐标
+     * @param y 方块Y坐标
+     * @param z 方块Z坐标
+     * @return 方块光照值，如果区块未加载返回0
+     */
+    [[nodiscard]] u8 getBlockLight(i32 x, i32 y, i32 z) const;
 
     /**
      * @brief 设置方块
@@ -258,6 +277,14 @@ public:
      */
     [[nodiscard]] const MeshWorkerPool* meshWorkerPool() const { return m_meshWorkerPool.get(); }
 
+    // ========== 实体管理 ==========
+
+    /**
+     * @brief 获取实体管理器
+     */
+    [[nodiscard]] ClientEntityManager& entityManager() { return m_entityManager; }
+    [[nodiscard]] const ClientEntityManager& entityManager() const { return m_entityManager; }
+
 private:
     // 区块卸载回调
     std::function<void(const ChunkId&)> m_chunkUnloadCallback;
@@ -313,6 +340,9 @@ private:
     i64 m_prevDayTime = 0;       // 上一帧的 dayTime (用于插值)
     i64 m_targetDayTime = 0;     // 目标 dayTime (从服务端接收)
     bool m_daylightCycleEnabled = true;
+
+    // 实体管理器
+    ClientEntityManager m_entityManager;
 };
 
-} // namespace mr::client
+} // namespace mc::client

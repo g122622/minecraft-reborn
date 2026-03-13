@@ -1,6 +1,6 @@
 #include "client/ui/screen/ScreenManager.hpp"
 
-namespace mr::client {
+namespace mc::client {
 
 ScreenManager& ScreenManager::instance() {
     static ScreenManager instance;
@@ -130,4 +130,4 @@ bool ScreenManager::shouldPauseGame() const {
     return false;
 }
 
-} // namespace mr::client
+} // namespace mc::client

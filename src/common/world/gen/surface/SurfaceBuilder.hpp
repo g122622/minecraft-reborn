@@ -4,7 +4,7 @@
 #include "../../../math/random/Random.hpp"
 #include "../../block/Block.hpp"
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class BlockState;
@@ -111,4 +111,4 @@ public:
     [[nodiscard]] virtual const char* name() const = 0;
 };
 
-} // namespace mr
+} // namespace mc

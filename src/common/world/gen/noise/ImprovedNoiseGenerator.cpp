@@ -3,7 +3,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 构造函数
@@ -170,4 +170,4 @@ f32 ImprovedNoiseGenerator::lerp3(f32 t1, f32 t2, f32 t3,
     return lerp(j0, j1, t3);
 }
 
-} // namespace mr
+} // namespace mc

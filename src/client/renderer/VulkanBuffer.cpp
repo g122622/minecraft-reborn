@@ -2,7 +2,7 @@
 #include <cstring>
 #include <spdlog/spdlog.h>
 
-namespace mr::client {
+namespace mc::client {
 
 // ============================================================================
 // VulkanBuffer 实现
@@ -259,4 +259,4 @@ void IndexBuffer::bind(VkCommandBuffer commandBuffer) const {
     vkCmdBindIndexBuffer(commandBuffer, buffer(), 0, m_indexType);
 }
 
-} // namespace mr::client
+} // namespace mc::client

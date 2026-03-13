@@ -5,7 +5,7 @@
 #include "../../../common/item/ItemStack.hpp"
 #include "../../../common/item/Item.hpp"
 
-namespace mr {
+namespace mc {
 namespace client {
 
 // ============================================================================
@@ -283,4 +283,4 @@ void HudRenderer::drawArmor(GuiRenderer& gui, f32 x, f32 y, bool full) {
 }
 
 } // namespace client
-} // namespace mr
+} // namespace mc

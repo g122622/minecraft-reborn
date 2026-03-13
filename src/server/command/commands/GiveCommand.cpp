@@ -6,11 +6,11 @@
 #include "common/item/ItemStack.hpp"
 #include <sstream>
 
-namespace mr {
+namespace mc {
 namespace command {
 
 void GiveCommand::registerTo(CommandDispatcher<ServerCommandSource>& dispatcher) {
-    using namespace mr::command;
+    using namespace mc::command;
 
     auto giveNode = std::make_shared<LiteralCommandNode<ServerCommandSource>>("give");
     giveNode->setRequirement([](const ServerCommandSource& source) {
@@ -90,4 +90,4 @@ i32 GiveCommand::giveItem(CommandContext<ServerCommandSource>& context) {
 }
 
 } // namespace command
-} // namespace mr
+} // namespace mc

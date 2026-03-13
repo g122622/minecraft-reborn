@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class ResourceManager;
@@ -166,4 +166,4 @@ private:
     void createMissingAppearance();
 };
 
-} // namespace mr
+} // namespace mc

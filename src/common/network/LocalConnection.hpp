@@ -7,7 +7,7 @@
 #include <condition_variable>
 #include <atomic>
 
-namespace mr::network {
+namespace mc::network {
 
 /**
  * @brief 本地连接端点 - 线程安全的消息队列
@@ -113,4 +113,4 @@ private:
     LocalEndpoint m_serverEndpoint;
 };
 
-} // namespace mr::network
+} // namespace mc::network

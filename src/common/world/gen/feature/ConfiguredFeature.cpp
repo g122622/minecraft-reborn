@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <spdlog/spdlog.h>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // FeatureRegistry 实现
@@ -126,4 +126,4 @@ void FeatureGenerator::placeFeatures(
     }
 }
 
-} // namespace mr
+} // namespace mc

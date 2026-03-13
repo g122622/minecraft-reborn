@@ -5,7 +5,7 @@
 #include "entity/inventory/AbstractContainerMenu.hpp"
 #include "entity/inventory/ContainerTypes.hpp"
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // ContainerPacketHandler 实现
@@ -20,37 +20,37 @@ bool ContainerPacketHandler::handleContainerClick(Player& player, const Containe
     // }
 
     // 转换点击类型 - ClickAction (ContainerTypes.hpp) 到 ClickType (AbstractContainerMenu.hpp)
-    mr::ClickType clickType = mr::ClickType::Pick;
+    mc::ClickType clickType = mc::ClickType::Pick;
     i32 button = packet.button();
 
     switch (packet.action()) {
         case ClickAction::Pick:
-            clickType = mr::ClickType::Pick;
+            clickType = mc::ClickType::Pick;
             break;
         case ClickAction::PickAll:
-            clickType = mr::ClickType::PickAll;
+            clickType = mc::ClickType::PickAll;
             break;
         case ClickAction::Throw:
-            clickType = (button == 0) ? mr::ClickType::Throw : mr::ClickType::ThrowAll;
+            clickType = (button == 0) ? mc::ClickType::Throw : mc::ClickType::ThrowAll;
             break;
         case ClickAction::ThrowAll:
-            clickType = mr::ClickType::ThrowAll;
+            clickType = mc::ClickType::ThrowAll;
             break;
         case ClickAction::Pickup:
-            clickType = mr::ClickType::PickSome;
+            clickType = mc::ClickType::PickSome;
             break;
         case ClickAction::QuickMove:
-            clickType = mr::ClickType::QuickMove;
+            clickType = mc::ClickType::QuickMove;
             break;
         case ClickAction::Clone:
-            clickType = mr::ClickType::Clone;
+            clickType = mc::ClickType::Clone;
             break;
         case ClickAction::Spread:
-            clickType = mr::ClickType::QuickCraft;
+            clickType = mc::ClickType::QuickCraft;
             break;
         case ClickAction::Swap:
             // Swap 使用 HotbarSwap 或其他方式处理
-            clickType = mr::ClickType::Pick;
+            clickType = mc::ClickType::Pick;
             break;
     }
 
@@ -202,4 +202,4 @@ u8 toNetworkType(ContainerType type) {
 
 } // namespace ContainerTypes
 
-} // namespace mr
+} // namespace mc

@@ -8,14 +8,14 @@
 #include <cmath>
 #include <chrono>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // Player 实现
 // ============================================================================
 
 Player::Player(EntityId id, const String& username)
-    : Entity(EntityType::Player, id)
+    : Entity(LegacyEntityType::Player, id)
     , m_username(username)
 {
     // 生成随机XP seed
@@ -598,4 +598,4 @@ Result<std::unique_ptr<Player>> Player::deserialize(network::PacketDeserializer&
     return player;
 }
 
-} // namespace mr
+} // namespace mc

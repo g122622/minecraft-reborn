@@ -1,7 +1,7 @@
 #include "screen/ScreenType.hpp"
 #include <unordered_map>
 
-namespace mr {
+namespace mc {
 
 namespace {
     const std::unordered_map<ScreenType, String> typeToIdMap = {
@@ -85,4 +85,4 @@ ScreenType screenTypeFromId(const String& id) {
     return ScreenType::Unknown;
 }
 
-} // namespace mr
+} // namespace mc

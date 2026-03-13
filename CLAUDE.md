@@ -20,7 +20,7 @@ cmake --build build --config Debug
 cmake --build build --config Release
 
 # Run tests
-./build/bin/Debug/mr_tests.exe
+./build/bin/Debug/mc_tests.exe
 
 # Run server
 ./build/bin/Debug/minecraft-server.exe --help
@@ -33,11 +33,12 @@ cmake --build build --config Release
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `MR_BUILD_CLIENT` | ON | Build client application |
-| `MR_BUILD_SERVER` | ON | Build server application |
-| `MR_BUILD_TESTS` | ON | Build unit tests |
-| `MR_ENABLE_SANITIZERS` | OFF | Enable sanitizers for debug |
-| `MR_ENABLE_VULKAN_VALIDATION` | ON | Enable Vulkan validation layers |
+| `MC_BUILD_CLIENT` | ON | Build client application |
+| `MC_BUILD_SERVER` | ON | Build server application |
+| `MC_BUILD_TESTS` | ON | Build unit tests |
+| `MC_ENABLE_SANITIZERS` | OFF | Enable sanitizers for debug |
+| `MC_ENABLE_VULKAN_VALIDATION` | ON | Enable Vulkan validation layers |
+| `MC_ENABLE_TRACING` | OFF | Enable Perfetto performance tracing |
 
 ## Architecture
 
@@ -46,18 +47,20 @@ src/
 ├── common/          # Shared code between client and server
 │   ├── core/        # Types, Result, Constants
 │   ├── math/        # Vector3, MathUtils, PerlinNoise, SimplexNoise
-│   ├── network/     # Packet, PacketSerializer
+│   ├── network/     # Packet, PacketSerializer, IServerConnection
 │   ├── world/       # World generation and chunk management
 │   │   ├── block/   # Block system (Block, BlockState, BlockRegistry)
 │   │   ├── chunk/   # Chunk data structures
 │   │   │   ├── ChunkData.hpp       # Final chunk data
 │   │   │   ├── ChunkPos.hpp        # Chunk position
-│   │   │   ├── ChunkStatus.hpp     # Generation stages (NEW)
-│   │   │   ├── ChunkPrimer.hpp     # Intermediate chunk state (NEW)
-│   │   │   ├── ChunkHolder.hpp     # Chunk state management (NEW)
-│   │   │   ├── IChunk.hpp          # Chunk interface (NEW)
+│   │   │   ├── ChunkStatus.hpp     # Generation stages
+│   │   │   ├── ChunkPrimer.hpp     # Intermediate chunk state
+│   │   │   ├── ChunkHolder.hpp     # Chunk state management
+│   │   │   ├── IChunk.hpp          # Chunk interface
 │   │   │   └── ChunkLoadTicketManager.hpp
-│   │   └── gen/     # World generation (NEW)
+│   │   ├── time/    # Game time system
+│   │   │   └── GameTime.hpp        # Day/night cycle
+│   │   └── gen/     # World generation
 │   │       ├── ImprovedNoiseGenerator.hpp  # MC-style Perlin noise
 │   │       ├── OctavesNoiseGenerator.hpp   # Multi-octave noise
 │   │       ├── NoiseSettings.hpp           # Noise configuration
@@ -72,12 +75,35 @@ src/
 │   │   └── PackMetadata.hpp       # pack.mcmeta parsing
 │   └── renderer/    # MeshTypes, ChunkMesher (shared rendering data)
 ├── server/          # Server application
-│   ├── application/ # ServerApplication, ServerLoop
-│   ├── network/     # TcpServer, TcpSession
+│   ├── application/ # ServerApplication, IntegratedServer
+│   ├── core/        # ServerCore module (NEW)
+│   │   ├── ServerCore.hpp/cpp        # Facade class coordinating all managers
+│   │   ├── ServerCoreConfig.hpp      # Configuration struct
+│   │   ├── ServerPlayerData.hpp      # Player data structure
+│   │   ├── PlayerManager.hpp/cpp     # Player lifecycle management
+│   │   ├── ConnectionManager.hpp/cpp # Network communication
+│   │   ├── TimeManager.hpp/cpp       # Game time, tick count, day cycle
+│   │   ├── TeleportManager.hpp/cpp   # Teleport request/confirmation
+│   │   ├── KeepAliveManager.hpp/cpp  # Heartbeat, ping, timeout
+│   │   ├── PositionTracker.hpp/cpp   # Player position, chunk subscription
+│   │   └── PacketHandler.hpp/cpp     # Unified packet handling
+│   ├── network/     # TcpServer, TcpSession, TcpConnection
+│   ├── command/     # Command system
+│   │   ├── CommandRegistry.hpp       # Command registration
+│   │   ├── ServerCommandSource.hpp   # Command execution context
+│   │   └── commands/                 # Command implementations
+│   ├── menu/        # Container menu system
+│   │   └── CraftingMenu.hpp/cpp
+│   ├── player/      # Server player
+│   │   └── ServerPlayer.hpp/cpp
 │   └── world/       # ServerWorld
 │       ├── ServerWorld.hpp
-│       ├── ServerChunkManager.hpp  # Chunk manager (NEW)
-│       └── ChunkWorkerPool.hpp     # Async generation (NEW)
+│       ├── ServerChunkManager.hpp  # Chunk manager
+│       ├── ChunkWorkerPool.hpp     # Async generation
+│       ├── spawn/                  # Mob spawning
+│       │   ├── NaturalSpawner.hpp
+│       │   └── SpawnConditions.hpp
+│       └── entity/EntityTracker.hpp
 ├── client/          # Client application
 │   ├── application/ # ClientApplication, GameLoop
 │   ├── window/      # Window (GLFW wrapper)
@@ -95,12 +121,20 @@ src/
 │       ├── BlockStateLoader.hpp    # Block state JSON parsing
 │       ├── TextureAtlasBuilder.hpp # Texture atlas construction
 │       └── ResourceManager.hpp     # Resource manager facade
+├── common/
+│   └── perfetto/      # Perfetto 性能追踪
+│       ├── PerfettoConfig.hpp      # 编译时配置开关
+│       ├── TraceCategories.hpp     # 追踪分类定义
+│       ├── TraceCategories.cpp     # 分类静态存储
+│       ├── PerfettoManager.hpp     # 单例管理器
+│       ├── PerfettoManager.cpp     # 管理器实现
+│       └── TraceEvents.hpp         # 便捷追踪宏
 └── modding/         # JavaScript mod system (future)
 ```
 
 ## Key Types
 
-All types are in namespace `mr` (client types in `mr::client`, server types in `mr::server`):
+All types are in namespace `mc` (client types in `mc::client`, server types in `mc::server`):
 
 - **Primitive types**: `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32`, `f64` （浮点数尽量使用f32而非f64以提升性能。）
 - **String types**: `String` (std::string), `StringView` (std::string_view)
@@ -303,7 +337,7 @@ Key error codes in `ErrorCode` enum:
 
 From AGENTS.md:
 
-- **Namespaces**: lowercase (`mr`, `mr::client`, `mr::server`)
+- **Namespaces**: lowercase (`mc`, `mc::client`, `mc::server`)
 - **Classes/Structs**: PascalCase (`ChunkManager`, `Vector3`)
 - **Functions**: camelCase (`loadChunk`, `getPlayerName`)
 - **Member variables**: `m_` prefix + camelCase (`m_health`, `m_position`)
@@ -363,7 +397,7 @@ src/common/math/random/
 ```cpp
 #include "math/random/Random.hpp"
 
-mr::math::Random rng(seed);
+mc::math::Random rng(seed);
 i32 value = rng.nextInt(100);   // [0, 100)
 i32 range = rng.nextInt(10, 20); // [10, 20]
 f32 f = rng.nextFloat();         // [0.0, 1.0)
@@ -374,9 +408,9 @@ f32 g = rng.nextGaussian();      // Standard normal distribution
 
 ### Algorithm Selection
 Compile-time algorithm selection via macro in `Random.hpp`:
-- `MR_RANDOM_XOROSHIRO128PP` - xoroshiro128++ (small state, high performance)
-- `MR_RANDOM_XOSHIRO256PP` - xoshiro256++ (high quality)
-- `MR_RANDOM_LCG` - Linear Congruential (minimal state)
+- `MC_RANDOM_XOROSHIRO128PP` - xoroshiro128++ (small state, high performance)
+- `MC_RANDOM_XOSHIRO256PP` - xoshiro256++ (high quality)
+- `MC_RANDOM_LCG` - Linear Congruential (minimal state)
 - Default: Mersenne Twister (highest compatibility)
 
 ### Interface Methods
@@ -402,12 +436,78 @@ All random implementations provide MC-style methods:
 
 ## 务必要有清晰、优雅、能让人赏心悦目的目录结构，不要把很多文件全部堆在一个目录下，要划分好细分的子目录！
 
+## 编译过程中遇到的warning你也要一并解决
+
+## 当单测不通过的时候，首先应该反思待测代码的问题，而不是急于修改测试代码；测试覆盖率必须95%以上，并坚持“测试即契约”
+
+## 注意：你必须完整实现所有任务，不允许暂时跳过或留任何todo。你被给予了充足时间做全部任务，放心。
+
+## 需要使用命名空间隔离各个子系统的标识符。下面是最佳实践：
+
+```cpp
+
+namespace mc {
+namespace entity {
+namespace attribute {
+
+/**
+ * @brief 属性修改器操作类型
+ *
+ * 定义属性修改器如何影响基础值
+ *
+ * 参考 MC 1.16.5 Operation
+ */
+enum class Operation : u8 {
+    // ...
+}}}}
+
+```
+
+## 代码复用与质量规范
+
+### 使用现有工具类
+
+1. **Vulkan工具类**: 优先使用 `VulkanBuffer`, `VertexBuffer`, `IndexBuffer`, `StagingBuffer` 而非直接调用 Vulkan API
+2. **数学工具**: 使用 `math::toRadians()`, `math::toDegrees()`, `math::clamp()`, `math::lerp()` 等，避免内联魔法数如 `3.14159265f / 180.0f`
+3. **Result API**: 使用 `Error(ErrorCode, message)` 返回错误，使用隐式转换 `return value` 返回成功值，而非 `Result<T>::ok(value)` 或 `Result<T>::error(...)`
+
+### 避免重复代码
+
+- 如果类似功能在多处出现（如 `beginSingleTimeCommands`/`endSingleTimeCommands`），考虑提取到共享工具类
+- 如果同一模式重复（如缓冲区创建），使用模板或辅助函数
+
+### 参数设计
+
+- 函数参数超过5个时，考虑使用配置结构体
+- 使用枚举或类型安全的标识符替代原始字符串比较
+
+### Vulkan单次命令模式
+
+当需要在多个地方执行单次Vulkan命令时，使用以下模式：
+```cpp
+VkCommandBuffer beginSingleTimeCommands();
+void endSingleTimeCommands(VkCommandBuffer cmd);
+```
+这两个方法应该在需要时添加到各自的类中，或考虑提取到共享的Vulkan工具类。
+
+### stb_image 使用
+
+整个项目只需在一处定义 `STB_IMAGE_IMPLEMENTATION`（目前已在 `TextureAtlasBuilder.cpp`），其他文件只需 `#include <stb_image.h>`。
+
 ## Current Status
 
 - **Core**: Complete (types, math, error handling)
-- **Network**: Basic implementation (TCP server, packet serialization)
+- **Network**: Complete (TCP server, packet serialization, LocalConnection for integrated server)
+- **Server Core Module**: Complete (NEW - Modular refactoring)
+  - ServerCore: Facade class coordinating all managers
+  - PlayerManager: Player lifecycle, session mapping, chunk sync
+  - ConnectionManager: Packet sending, broadcasting, disconnection
+  - TimeManager: Game time, tick count, day cycle
+  - TeleportManager: Teleport request/confirmation
+  - KeepAliveManager: Heartbeat, ping calculation, timeout detection
+  - PositionTracker: Position updates, chunk subscription
+  - PacketHandler: Unified packet handling with callbacks
 - **World**: Complete (chunk storage, terrain generation)
-- **Chunk Generation**: Complete (NEW)
   - ChunkStatus: Generation stages (EMPTY → BIOMES → NOISE → SURFACE → CARVERS → FEATURES → HEIGHTMAPS → FULL)
   - ChunkPrimer: Intermediate chunk state during generation
   - ChunkHolder: Future-based chunk state management
@@ -420,7 +520,13 @@ All random implementations provide MC-style methods:
 - **Renderer**: In progress (Vulkan context, basic mesh generation, texture atlas with MC 1.12/1.13+ compatibility)
 - **Resource Pack System**: Complete (model/blockstate parsing, texture atlas, MC version compatibility)
 - **Block Properties**: Complete (property encoding, variant mapping)
-- **Tests**: 250+ tests (163 common + 27 resource + 60+ chunk generation)
+- **Performance Tracing**: Complete (NEW - Perfetto integration)
+  - PerfettoConfig.hpp: Compile-time configuration switches
+  - TraceCategories.hpp/cpp: Category definitions for organized filtering
+  - PerfettoManager: Singleton manager for tracing lifecycle
+  - TraceEvents.hpp: Convenient macros (MC_TRACE_EVENT, MC_TRACE_COUNTER, etc.)
+  - Tests: 2 tests (disabled mode) / 29 tests (enabled mode)
+- **Tests**: 1251+ tests passing
 
 ## Self-Maintenance Rule
 

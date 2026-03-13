@@ -9,7 +9,7 @@
 #include "../../placement/Placement.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr {
+namespace mc {
 
 namespace {
 
@@ -488,4 +488,4 @@ TreeFeatureConfig TreeFeatures::jungleConfig() {
     return config;
 }
 
-} // namespace mr
+} // namespace mc

@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <type_traits>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 状态持有者基类模板
@@ -204,4 +204,4 @@ protected:
     friend class BlockRegistry;
 };
 
-} // namespace mr
+} // namespace mc

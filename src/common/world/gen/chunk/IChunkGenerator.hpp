@@ -8,11 +8,20 @@
 #include <memory>
 #include <array>
 #include <functional>
+#include <vector>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class WorldGenRegion;
+class WorldGenSpawner;
+
+/**
+ * @brief 生成的实体数据（前向声明）
+ *
+ * 完整定义在 WorldGenSpawner.hpp
+ */
+struct SpawnedEntityData;
 
 /**
  * @brief 区块生成器接口
@@ -62,6 +71,21 @@ public:
      * @param chunk 区块生成器
      */
     virtual void placeFeatures(WorldGenRegion& region, ChunkPrimer& chunk) = 0;
+
+    /**
+     * @brief 生成初始生物（被动动物）
+     *
+     * 参考 MC 1.16.5 performWorldGenSpawning
+     * 在区块生成时放置被动动物（猪、牛、羊等）。
+     * 只放置 Creature 分类（被动动物），不生成怪物。
+     *
+     * @param region 世界生成区域
+     * @param chunk 区块生成器
+     * @param outEntities 输出：生成的实体数据列表
+     * @return 生成的实体数量
+     */
+    virtual i32 spawnInitialMobs(WorldGenRegion& region, ChunkPrimer& chunk,
+                                  std::vector<SpawnedEntityData>& outEntities) = 0;
 
     // === 生物群系 ===
 
@@ -196,6 +220,8 @@ public:
     void generateBiomes(WorldGenRegion& region, ChunkPrimer& chunk) override;
     void applyCarvers(WorldGenRegion& region, ChunkPrimer& chunk, bool isLiquid) override;
     void placeFeatures(WorldGenRegion& region, ChunkPrimer& chunk) override;
+    i32 spawnInitialMobs(WorldGenRegion& region, ChunkPrimer& chunk,
+                          std::vector<SpawnedEntityData>& outEntities) override;
 
     [[nodiscard]] u64 seed() const override { return m_seed; }
     [[nodiscard]] const DimensionSettings& settings() const override { return m_settings; }
@@ -207,6 +233,9 @@ protected:
 
     // 默认生物群系
     BiomeId m_defaultBiome = Biomes::Plains;
+
+    // 区块生成时的生物放置器
+    std::unique_ptr<WorldGenSpawner> m_worldGenSpawner;
 };
 
-} // namespace mr
+} // namespace mc

@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 轴对齐包围盒 (AABB)
@@ -274,4 +274,4 @@ public:
     }
 };
 
-} // namespace mr
+} // namespace mc

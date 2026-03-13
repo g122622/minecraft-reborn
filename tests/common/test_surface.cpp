@@ -8,7 +8,7 @@
 #include "common/world/block/VanillaBlocks.hpp"
 #include "common/math/random/Random.hpp"
 
-using namespace mr;
+using namespace mc;
 
 // ============================================================================
 // SurfaceBuilderConfig 测试

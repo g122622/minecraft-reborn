@@ -10,7 +10,7 @@
 #include <memory>
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class ItemStack;
@@ -145,4 +145,4 @@ public:
 };
 
 } // namespace command
-} // namespace mr
+} // namespace mc

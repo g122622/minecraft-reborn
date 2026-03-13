@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <cstring>
 
-namespace mr::client {
+namespace mc::client {
 
 FontTextureAtlas::FontTextureAtlas() = default;
 
@@ -187,4 +187,4 @@ bool FontTextureAtlas::hasGlyph(u32 codepoint) const {
     return m_glyphs.find(codepoint) != m_glyphs.end();
 }
 
-} // namespace mr::client
+} // namespace mc::client

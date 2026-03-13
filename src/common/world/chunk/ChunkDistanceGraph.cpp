@@ -3,7 +3,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace mr::world {
+namespace mc::world {
 
 // ============================================================================
 // ChunkDistanceGraph 实现
@@ -201,4 +201,4 @@ void PlayerChunkTracker::updateChunksInRange() {
     }
 }
 
-} // namespace mr::world
+} // namespace mc::world

@@ -1,7 +1,7 @@
 #include "item/crafting/RecipeManager.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 namespace crafting {
 
 RecipeManager& RecipeManager::instance() {
@@ -176,4 +176,4 @@ void RecipeManager::forEachRecipe(
 }
 
 } // namespace crafting
-} // namespace mr
+} // namespace mc

@@ -1,8 +1,9 @@
 #include "item/crafting/RecipeSerializers.hpp"
 #include "item/ItemRegistry.hpp"
 #include <algorithm>
+#include <limits>
 
-namespace mr {
+namespace mc {
 namespace crafting {
 
 Result<std::unique_ptr<CraftingRecipe>> RecipeSerializers::fromJson(
@@ -233,7 +234,7 @@ bool RecipeSerializers::parsePatternDimensions(const std::vector<String>& patter
     outHeight = static_cast<i32>(pattern.size());
 
     // 找到非空部分的宽度
-    i32 minWidth = INT_MAX;
+    i32 minWidth = std::numeric_limits<i32>::max();
     i32 maxWidth = 0;
 
     for (const String& row : pattern) {
@@ -253,7 +254,7 @@ bool RecipeSerializers::parsePatternDimensions(const std::vector<String>& patter
         }
     }
 
-    if (minWidth == INT_MAX) {
+    if (minWidth == std::numeric_limits<i32>::max()) {
         // 全空pattern
         outWidth = 0;
         return true;
@@ -282,7 +283,7 @@ Result<std::vector<Ingredient>> RecipeSerializers::parsePatternIngredients(
     }
 
     // 计算pattern的实际边界
-    i32 minCol = INT_MAX;
+    i32 minCol = std::numeric_limits<i32>::max();
     i32 maxCol = 0;
     i32 minRow = -1;
     i32 maxRow = -1;
@@ -332,4 +333,4 @@ Result<std::vector<Ingredient>> RecipeSerializers::parsePatternIngredients(
 }
 
 } // namespace crafting
-} // namespace mr
+} // namespace mc

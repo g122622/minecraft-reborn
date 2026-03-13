@@ -4,7 +4,7 @@
 #include "../../block/Block.hpp"
 #include <cmath>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // HeightRangePlacementConfig 实现
@@ -236,4 +236,4 @@ std::vector<BlockPos> SurfacePlacement::getPositions(
     return {};
 }
 
-} // namespace mr
+} // namespace mc

@@ -4,7 +4,7 @@
 #include "../Vector3.hpp"
 #include <cmath>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 射线数据结构
@@ -70,4 +70,4 @@ public:
     }
 };
 
-} // namespace mr
+} // namespace mc

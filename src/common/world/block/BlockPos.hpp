@@ -9,7 +9,7 @@
 #include <functional>
 #include <tuple>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 方块位置（整数坐标）
@@ -156,13 +156,13 @@ public:
     }
 };
 
-} // namespace mr
+} // namespace mc
 
 // 哈希函数支持
 namespace std {
 template<>
-struct hash<mr::BlockPos> {
-    size_t operator()(const mr::BlockPos& pos) const noexcept
+struct hash<mc::BlockPos> {
+    size_t operator()(const mc::BlockPos& pos) const noexcept
     {
         return static_cast<size_t>(pos.toId());
     }

@@ -12,7 +12,7 @@
 #include <functional>
 #include <array>
 
-namespace mr::client {
+namespace mc::client {
 
 // ============================================================================
 // 网格构建结果
@@ -237,4 +237,4 @@ private:
     std::atomic<bool> m_stop{false};
 };
 
-} // namespace mr::client
+} // namespace mc::client

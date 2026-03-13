@@ -25,9 +25,9 @@ void printBanner()
 )" << std::endl;
 
     std::cout << "  Minecraft Reborn Client v"
-              << MR_VERSION_MAJOR << "."
-              << MR_VERSION_MINOR << "."
-              << MR_VERSION_PATCH << std::endl;
+              << MC_VERSION_MAJOR << "."
+              << MC_VERSION_MINOR << "."
+              << MC_VERSION_PATCH << std::endl;
     std::cout << "  ========================================\n" << std::endl;
 }
 
@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
     printBanner();
 
     // 启动参数
-    mr::client::ClientLaunchParams params;
+    mc::client::ClientLaunchParams params;
 
     // 解析命令行参数
     for (int i = 1; i < argc; ++i) {
@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
             params.serverAddress = argv[++i];
         }
         if ((arg == "-p" || arg == "--port") && i + 1 < argc) {
-            params.serverPort = static_cast<mr::u16>(std::stoi(argv[++i]));
+            params.serverPort = static_cast<mc::u16>(std::stoi(argv[++i]));
         }
         if ((arg == "-u" || arg == "--username") && i + 1 < argc) {
             params.username = argv[++i];
@@ -93,7 +93,7 @@ int main(int argc, char* argv[])
 
     try {
         // 创建客户端实例
-        mr::client::ClientApplication client;
+        mc::client::ClientApplication client;
 
         // 初始化
         auto initResult = client.initialize(params);

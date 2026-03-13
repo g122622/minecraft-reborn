@@ -2,7 +2,7 @@
 
 #include "../Block.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 空气方块
@@ -43,4 +43,4 @@ public:
     [[nodiscard]] bool isOpaque(const BlockState& state) const override;
 };
 
-} // namespace mr
+} // namespace mc

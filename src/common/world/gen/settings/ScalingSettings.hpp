@@ -2,7 +2,7 @@
 
 #include "../../../core/Types.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 噪声缩放设置
@@ -20,4 +20,4 @@ struct ScalingSettings {
     f32 yFactor = 160.0f;                 ///< Y 因子
 };
 
-} // namespace mr
+} // namespace mc

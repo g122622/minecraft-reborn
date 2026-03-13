@@ -4,7 +4,7 @@
 #include "../util/Direction.hpp"
 #include "../world/chunk/ChunkPos.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 射线检测结果类型
@@ -145,4 +145,4 @@ private:
     f32 m_distance = 0.0f;
 };
 
-} // namespace mr
+} // namespace mc

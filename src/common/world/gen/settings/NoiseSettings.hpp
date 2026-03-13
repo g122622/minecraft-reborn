@@ -4,7 +4,7 @@
 #include "SlideSettings.hpp"
 #include "../../../core/Types.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 噪声地形生成设置
@@ -124,4 +124,4 @@ struct NoiseSettings {
     }
 };
 
-} // namespace mr
+} // namespace mc

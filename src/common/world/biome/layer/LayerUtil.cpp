@@ -2,7 +2,7 @@
 #include "../BiomeRegistry.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // LayerStack 实现
@@ -183,4 +183,4 @@ std::unique_ptr<LayerStack> createEndLayers(u64 seed)
 
 } // namespace LayerUtil
 
-} // namespace mr
+} // namespace mc

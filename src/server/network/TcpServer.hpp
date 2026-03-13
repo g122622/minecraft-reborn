@@ -9,7 +9,7 @@
 #include <mutex>
 #include <functional>
 
-namespace mr::server {
+namespace mc::server {
 
 // TCP服务器配置
 struct TcpServerConfig {
@@ -82,4 +82,4 @@ private:
     void sendSessionData(TcpSession* session);
 };
 
-} // namespace mr::server
+} // namespace mc::server

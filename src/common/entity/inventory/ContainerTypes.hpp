@@ -2,7 +2,7 @@
 
 #include "../../core/Types.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 容器ID类型
@@ -95,4 +95,4 @@ enum class ClickType : u8 {
     Swap             ///< 数字键交换
 };
 
-} // namespace mr
+} // namespace mc

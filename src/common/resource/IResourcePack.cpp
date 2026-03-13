@@ -1,6 +1,6 @@
 #include "IResourcePack.hpp"
 
-namespace mr {
+namespace mc {
 
 Result<String> IResourcePack::readTextResource(StringView resourcePath) const {
     auto result = readResource(resourcePath);
@@ -12,4 +12,4 @@ Result<String> IResourcePack::readTextResource(StringView resourcePath) const {
     return String(data.begin(), data.end());
 }
 
-} // namespace mr
+} // namespace mc

@@ -5,7 +5,7 @@
 #include <vector>
 #include <functional>
 
-namespace mr::client {
+namespace mc::client {
 
 /**
  * @brief 屏幕管理器
@@ -182,4 +182,4 @@ private:
     i32 m_lastMouseY = 0;
 };
 
-} // namespace mr::client
+} // namespace mc::client

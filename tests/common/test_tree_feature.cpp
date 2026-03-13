@@ -9,7 +9,7 @@
 #include "world/block/VanillaBlocks.hpp"
 #include "math/MathUtils.hpp"
 
-using namespace mr;
+using namespace mc;
 
 // ============================================================================
 // FeatureSpread 测试

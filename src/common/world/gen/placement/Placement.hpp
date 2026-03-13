@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class ChunkPrimer;
@@ -314,4 +314,4 @@ private:
     std::unique_ptr<ConfiguredPlacement> m_next;
 };
 
-} // namespace mr
+} // namespace mc

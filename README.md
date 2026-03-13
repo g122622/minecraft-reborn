@@ -19,7 +19,7 @@ chcp 65001 # 务必记得先执行这一行，避免中文乱码
 cmake --build build --config Debug
 
 # 运行测试
-./build/bin/Debug/mr_tests.exe
+./build/bin/Debug/mc_tests.exe
 
 # 运行服务端
 ./build/bin/Debug/minecraft-server.exe --help
@@ -93,8 +93,8 @@ src/
 
 ```powershell
 # 运行所有测试
-./build/bin/Debug/mr_tests.exe
+./build/bin/Debug/mc_tests.exe
 
 # 运行特定测试
-./build/bin/Debug/mr_tests.exe --gtest_filter="BlockGeometry.*"
+./build/bin/Debug/mc_tests.exe --gtest_filter="BlockGeometry.*"
 ```

@@ -16,7 +16,7 @@
 #include <mutex>
 #include <condition_variable>
 
-namespace mr::client {
+namespace mc::client {
 
 // ============================================================================
 // 客户端网络状态
@@ -73,6 +73,17 @@ struct NetworkClientCallbacks {
     std::function<void(const ContainerContentPacket& packet)> onContainerContent;
     std::function<void(const ContainerSlotPacket& packet)> onContainerSlot;
     std::function<void(ContainerId containerId)> onCloseContainer;
+
+    // 实体事件
+    std::function<void(u32 entityId, const String& typeId, f32 x, f32 y, f32 z, f32 yaw, f32 pitch, f32 headYaw)> onSpawnMob;
+    std::function<void(u32 entityId, const String& typeId, f32 x, f32 y, f32 z, f32 yaw, f32 pitch)> onSpawnEntity;
+    std::function<void(u32 entityId, f32 deltaX, f32 deltaY, f32 deltaZ)> onEntityMove;
+    std::function<void(u32 entityId, i16 vx, i16 vy, i16 vz)> onEntityVelocity;
+    std::function<void(u32 entityId, f32 x, f32 y, f32 z, f32 yaw, f32 pitch)> onEntityTeleport;
+    std::function<void(const std::vector<u32>& entityIds)> onEntityDestroy;
+    std::function<void(u32 entityId, u8 animation)> onEntityAnimation;
+    std::function<void(u32 entityId, f32 headYaw)> onEntityHeadLook;
+    std::function<void(u32 entityId, u8 status)> onEntityStatus;
 };
 
 // ============================================================================
@@ -158,6 +169,18 @@ private:
     void handleCloseContainer(network::PacketDeserializer& deser);
     void handleDisconnect(network::PacketDeserializer& deser);
 
+    // 实体包处理
+    void handleSpawnEntity(network::PacketDeserializer& deser);
+    void handleSpawnMob(network::PacketDeserializer& deser);
+    void handleEntityDestroy(network::PacketDeserializer& deser);
+    void handleEntityMove(network::PacketDeserializer& deser);
+    void handleEntityTeleport(network::PacketDeserializer& deser);
+    void handleEntityVelocity(network::PacketDeserializer& deser);
+    void handleEntityMetadata(network::PacketDeserializer& deser);
+    void handleEntityAnimation(network::PacketDeserializer& deser);
+    void handleEntityHeadLook(network::PacketDeserializer& deser);
+    void handleEntityStatus(network::PacketDeserializer& deser);
+
     // ASIO 网络
     asio::io_context m_ioContext;
     std::unique_ptr<asio::ip::tcp::socket> m_socket;
@@ -197,4 +220,4 @@ private:
     std::atomic<u64> m_packetsSent{0};
 };
 
-} // namespace mr::client
+} // namespace mc::client

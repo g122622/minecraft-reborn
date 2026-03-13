@@ -4,7 +4,7 @@
 #include "../../item/ItemStack.hpp"
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class Player;
@@ -176,4 +176,4 @@ public:
     [[nodiscard]] static Result<std::unique_ptr<IInventory>> deserialize(network::PacketDeserializer& deser);
 };
 
-} // namespace mr
+} // namespace mc

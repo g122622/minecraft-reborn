@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace mr {
+namespace mc {
 
 namespace {
 
@@ -224,4 +224,4 @@ BiomeId SimpleBiomeProvider::selectBiome(
     return Biomes::Plains;
 }
 
-} // namespace mr
+} // namespace mc

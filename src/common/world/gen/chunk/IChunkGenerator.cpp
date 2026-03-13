@@ -1,9 +1,12 @@
 #include "IChunkGenerator.hpp"
+#include "../spawn/WorldGenSpawner.hpp"
 #include "../../block/BlockRegistry.hpp"
+#include "../../biome/BiomeRegistry.hpp"
+#include "../../../math/random/Random.hpp"
 #include "../../WorldConstants.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // WorldGenRegion 实现
@@ -145,6 +148,7 @@ void WorldGenRegion::worldToLocal(i32 worldX, i32 worldZ, i32& localX, i32& loca
 BaseChunkGenerator::BaseChunkGenerator(u64 seed, DimensionSettings settings)
     : m_seed(seed)
     , m_settings(std::move(settings))
+    , m_worldGenSpawner(std::make_unique<WorldGenSpawner>())
 {
 }
 
@@ -174,4 +178,26 @@ void BaseChunkGenerator::placeFeatures(WorldGenRegion& /*region*/, ChunkPrimer& 
     // 子类可以覆盖以添加树木、矿石等
 }
 
-} // namespace mr
+i32 BaseChunkGenerator::spawnInitialMobs(WorldGenRegion& region, ChunkPrimer& chunk,
+                                          std::vector<SpawnedEntityData>& outEntities)
+{
+    // 默认实现：使用 WorldGenSpawner 放置被动动物
+    if (!m_worldGenSpawner || !m_worldGenSpawner->isEnabled()) {
+        return 0;
+    }
+
+    // 获取区块中心位置的生物群系
+    const BiomeId biomeId = chunk.getBiomeAtBlock(8, 64, 8);
+    const Biome& biome = BiomeRegistry::instance().get(biomeId);
+
+    // 使用种子创建随机数生成器
+    // 参考 MC: setDecorationSeed
+    math::Random rng;
+    rng.setSeed(static_cast<u64>(chunk.x()) * 341873128712ULL +
+                static_cast<u64>(chunk.z()) * 132897987541ULL +
+                m_seed);
+
+    return m_worldGenSpawner->spawnInitialMobs(region, biome, chunk.x(), chunk.z(), *this, rng, outEntities);
+}
+
+} // namespace mc

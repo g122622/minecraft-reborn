@@ -2,7 +2,7 @@
 #include "../../Biome.hpp"
 #include <random>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // IslandLayer 实现
@@ -245,4 +245,4 @@ i32 DeepOceanLayer::apply(IAreaContext& context, const IArea& area, i32 x, i32 z
     return center;
 }
 
-} // namespace mr
+} // namespace mc

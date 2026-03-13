@@ -2,7 +2,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 namespace {
 
@@ -177,4 +177,4 @@ BlockRaycastResult raycastBlocks(
     return BlockRaycastResult::miss();
 }
 
-} // namespace mr
+} // namespace mc

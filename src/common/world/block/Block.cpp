@@ -3,7 +3,7 @@
 #include "Material.hpp"
 #include <sstream>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // VoxelShapes
@@ -227,4 +227,4 @@ bool Block::isOpaque(const BlockState& state) const {
     return m_material.isOpaque();
 }
 
-} // namespace mr
+} // namespace mc

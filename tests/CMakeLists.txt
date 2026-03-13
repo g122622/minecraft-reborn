@@ -5,7 +5,7 @@ find_package(GTest CONFIG REQUIRED)
 find_package(asio CONFIG REQUIRED)
 
 # 通用测试可执行文件
-add_executable(mr_tests
+add_executable(mc_tests
     common/test_math.cpp
     common/test_network.cpp
     common/test_world.cpp
@@ -40,24 +40,56 @@ add_executable(mr_tests
     common/entity/inventory/CraftingInventoryTest.cpp
     common/world/blockentity/BlockEntityTest.cpp
     common/command/test_command_dispatcher.cpp
+    entity/EntityCoreTests.cpp
+    entity/AttributeTests.cpp
+    entity/LivingEntityTests.cpp
+    entity/GoalTests.cpp
+    entity/PathfindingTests.cpp
     common/SettingsTest.cpp
     server/ServerWorldTest.cpp
     server/test_integrated_server.cpp
     server/test_chunk_worker_pool.cpp
     server/test_server_chunk_manager.cpp
+    # ServerCore 模块测试
+    server/core/TimeManagerTest.cpp
+    server/core/PlayerManagerTest.cpp
+    server/core/ConnectionManagerTest.cpp
+    server/core/TeleportManagerTest.cpp
+    server/core/KeepAliveManagerTest.cpp
+    server/core/PositionTrackerTest.cpp
+    server/core/ServerCoreTest.cpp
     client/test_mesh_worker_pool.cpp
     client/renderer/test_renderer.cpp
+    network/EntityPacketsTest.cpp
+    network/LocalServerConnectionTest.cpp
+    common/entity/loot/LootTest.cpp
+    common/world/gen/WorldGenSpawnerTest.cpp
+    common/world/gen/ChunkSpawnIntegrationTest.cpp
+    # Perfetto 测试（集成到主测试套件）
+    common/perfetto/PerfettoTest.cpp
 )
 
 # 添加服务端源文件
-target_sources(mr_tests
+target_sources(mc_tests
     PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/server/core/ServerCore.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/core/PlayerManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/core/ConnectionManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/core/TimeManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/core/TeleportManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/core/KeepAliveManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/core/PositionTracker.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/core/PacketHandler.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/ChunkWorkerPool.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/ServerChunkManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/world/entity/EntityTracker.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/world/spawn/NaturalSpawner.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/world/spawn/SpawnConditions.cpp
         ${CMAKE_SOURCE_DIR}/src/server/player/ServerPlayer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpServer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpSession.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/network/TcpConnection.cpp
         ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/menu/CraftingMenu.cpp
         ${CMAKE_SOURCE_DIR}/src/server/settings/ServerSettings.cpp
@@ -73,9 +105,11 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/server/command/commands/GiveCommand.cpp
         ${CMAKE_SOURCE_DIR}/src/server/command/commands/ClearCommand.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/LocalConnection.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/network/LocalServerConnection.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/ChunkSync.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/PacketSerializer.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/Packet.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/network/EntityPackets.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkData.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkDistanceGraph.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkLoadTicketManager.cpp
@@ -109,6 +143,8 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/tree/foliage/FoliagePlacer.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/tree/foliage/BlobFoliagePlacer.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/placement/Placement.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/gen/spawn/WorldGenSpawner.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/spawn/MobSpawnInfo.cpp
         # ${CMAKE_SOURCE_DIR}/src/common/world/BlockID.cpp  # 已移除 - 使用新的方块系统
         ${CMAKE_SOURCE_DIR}/src/common/entity/Player.cpp
         ${CMAKE_SOURCE_DIR}/src/common/entity/Entity.cpp
@@ -147,6 +183,12 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/common/world/blockentity/BlockEntity.cpp
         # 物品实体和掉落表
         ${CMAKE_SOURCE_DIR}/src/common/entity/ItemEntity.cpp
+        # 掉落系统
+        ${CMAKE_SOURCE_DIR}/src/common/entity/loot/LootContext.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/entity/loot/RandomRanges.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/entity/loot/LootEntry.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/entity/loot/LootPool.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/entity/loot/LootTable.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/drop/DropTables.cpp
         # 天体计算
         ${CMAKE_SOURCE_DIR}/src/client/renderer/sky/CelestialCalculations.cpp
@@ -165,9 +207,9 @@ target_sources(mr_tests
         ${CMAKE_SOURCE_DIR}/src/client/resource/TextureAtlasBuilder.cpp
 )
 
-target_link_libraries(mr_tests
+target_link_libraries(mc_tests
     PRIVATE
-        mr_common
+        mc_common
         GTest::gtest
         GTest::gtest_main
         asio::asio
@@ -177,26 +219,26 @@ target_link_libraries(mr_tests
 )
 
 if(WIN32)
-    target_link_libraries(mr_tests PRIVATE ws2_32)
+    target_link_libraries(mc_tests PRIVATE ws2_32)
 endif()
 
-target_include_directories(mr_tests
+target_include_directories(mc_tests
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/include
 )
 
-mr_set_compiler_warnings(mr_tests)
+mc_set_compiler_warnings(mc_tests)
 
 # 资源测试可执行文件
-add_executable(mr_resource_tests
+add_executable(mc_resource_tests
     client/resource/test_resource_location.cpp
     client/resource/test_model_loader.cpp
 )
 
-target_link_libraries(mr_resource_tests
+target_link_libraries(mc_resource_tests
     PRIVATE
-        mr_common
+        mc_common
         GTest::gtest
         GTest::gtest_main
         nlohmann_json::nlohmann_json
@@ -205,7 +247,7 @@ target_link_libraries(mr_resource_tests
 )
 
 # 添加客户端资源源文件
-target_sources(mr_resource_tests
+target_sources(mc_resource_tests
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src/client/resource/BlockModelLoader.cpp
         ${CMAKE_SOURCE_DIR}/src/client/resource/BlockStateLoader.cpp
@@ -229,7 +271,7 @@ target_sources(mr_resource_tests
         ${CMAKE_SOURCE_DIR}/src/client/renderer/MeshTypes.cpp
 )
 
-target_include_directories(mr_resource_tests
+target_include_directories(mc_resource_tests
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/include
@@ -237,18 +279,18 @@ target_include_directories(mr_resource_tests
 
 # stb_image 实现放在TextureAtlasBuilder.cpp中
 
-mr_set_compiler_warnings(mr_resource_tests)
+mc_set_compiler_warnings(mc_resource_tests)
 
 # 发现测试
 include(GoogleTest)
-gtest_discover_tests(mr_tests)
-gtest_discover_tests(mr_resource_tests)
+gtest_discover_tests(mc_tests)
+gtest_discover_tests(mc_resource_tests)
 
 # 输出测试可执行文件位置
-set_target_properties(mr_tests PROPERTIES
+set_target_properties(mc_tests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
 
-set_target_properties(mr_resource_tests PROPERTIES
+set_target_properties(mc_resource_tests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )

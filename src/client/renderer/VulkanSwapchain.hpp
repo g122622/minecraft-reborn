@@ -6,7 +6,7 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
-namespace mr::client {
+namespace mc::client {
 
 // 交换链配置
 struct SwapChainConfig {
@@ -74,4 +74,4 @@ private:
     [[nodiscard]] Result<void> createImageViews();
 };
 
-} // namespace mr::client
+} // namespace mc::client

@@ -8,7 +8,7 @@
 #include <functional>
 #include <mutex>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 玩家管理器
@@ -100,4 +100,4 @@ void PlayerManager::broadcastExcept(const Packet& packet, PlayerId excludeId,
     }
 }
 
-} // namespace mr
+} // namespace mc

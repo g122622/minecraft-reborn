@@ -6,7 +6,7 @@
 // STB image for loading PNG textures (已在TextureAtlasBuilder.cpp中定义)
 #include <stb_image.h>
 
-namespace mr::client {
+namespace mc::client {
 
 // ============================================================================
 // Font Implementation
@@ -291,4 +291,4 @@ bool BitmapGlyphProvider::getGlyphData(u32 codepoint,
     return true;
 }
 
-} // namespace mr::client
+} // namespace mc::client

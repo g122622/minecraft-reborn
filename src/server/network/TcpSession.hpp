@@ -8,7 +8,7 @@
 #include <deque>
 #include <mutex>
 
-namespace mr::server {
+namespace mc::server {
 
 class TcpServer;
 
@@ -98,4 +98,4 @@ private:
     void processPacket(const u8* data, size_t size);
 };
 
-} // namespace mr::server
+} // namespace mc::server

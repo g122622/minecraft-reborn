@@ -30,10 +30,10 @@
       "inherits": "windows-base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "MR_BUILD_CLIENT": "ON",
-        "MR_BUILD_SERVER": "ON",
-        "MR_BUILD_TESTS": "ON",
-        "MR_ENABLE_SANITIZERS": "OFF"
+        "MC_BUILD_CLIENT": "ON",
+        "MC_BUILD_SERVER": "ON",
+        "MC_BUILD_TESTS": "ON",
+        "MC_ENABLE_SANITIZERS": "OFF"
       }
     },
     {
@@ -42,10 +42,10 @@
       "inherits": "windows-base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "MR_BUILD_CLIENT": "ON",
-        "MR_BUILD_SERVER": "ON",
-        "MR_BUILD_TESTS": "OFF",
-        "MR_ENABLE_SANITIZERS": "OFF"
+        "MC_BUILD_CLIENT": "ON",
+        "MC_BUILD_SERVER": "ON",
+        "MC_BUILD_TESTS": "OFF",
+        "MC_ENABLE_SANITIZERS": "OFF"
       }
     },
     {
@@ -54,9 +54,9 @@
       "inherits": "windows-base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "MR_BUILD_CLIENT": "OFF",
-        "MR_BUILD_SERVER": "ON",
-        "MR_BUILD_TESTS": "OFF"
+        "MC_BUILD_CLIENT": "OFF",
+        "MC_BUILD_SERVER": "ON",
+        "MC_BUILD_TESTS": "OFF"
       }
     },
     {
@@ -65,9 +65,9 @@
       "inherits": "windows-base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "MR_BUILD_CLIENT": "ON",
-        "MR_BUILD_SERVER": "OFF",
-        "MR_BUILD_TESTS": "OFF"
+        "MC_BUILD_CLIENT": "ON",
+        "MC_BUILD_SERVER": "OFF",
+        "MC_BUILD_TESTS": "OFF"
       }
     }
   ],

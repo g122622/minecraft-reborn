@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 class ServerPlayer;
 namespace server {
@@ -108,4 +108,4 @@ public:
     virtual bool isCommandAllowed(const command::ICommandSource& source, const String& command) = 0;
 };
 
-} // namespace mr
+} // namespace mc

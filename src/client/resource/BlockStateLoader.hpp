@@ -7,7 +7,7 @@
 #include <memory>
 #include <map>
 
-namespace mr {
+namespace mc {
 
 class IResourcePack;
 
@@ -51,4 +51,4 @@ private:
     [[nodiscard]] static String propertiesToStateStr(const std::map<String, String>& properties);
 };
 
-} // namespace mr
+} // namespace mc

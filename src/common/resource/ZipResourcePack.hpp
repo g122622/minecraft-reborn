@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief ZIP 资源包实现
@@ -62,4 +62,4 @@ private:
     mutable std::unordered_map<String, std::vector<u8>> m_cache;
 };
 
-} // namespace mr
+} // namespace mc

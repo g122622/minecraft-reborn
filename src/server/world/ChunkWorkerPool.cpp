@@ -2,7 +2,7 @@
 #include <chrono>
 #include <algorithm>
 
-namespace mr::server {
+namespace mc::server {
 
 // ============================================================================
 // 构造与析构
@@ -217,4 +217,4 @@ void ChunkWorkerPool::executeTask(InternalTask& task)
     }
 }
 
-} // namespace mr::server
+} // namespace mc::server

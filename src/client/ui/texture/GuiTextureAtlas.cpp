@@ -7,7 +7,7 @@
 #include <cstring>
 #include <vector>
 
-namespace mr::client {
+namespace mc::client {
 
 // ============================================================================
 // 颜色常量
@@ -267,4 +267,4 @@ const GuiTextureRegion* GuiTextureAtlas::getRegion(const String& textureId) cons
     return nullptr;
 }
 
-} // namespace mr::client
+} // namespace mc::client

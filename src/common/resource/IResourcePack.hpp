@@ -6,7 +6,7 @@
 #include <memory>
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 资源包抽象接口
@@ -43,4 +43,4 @@ public:
 
 using ResourcePackPtr = std::shared_ptr<IResourcePack>;
 
-} // namespace mr
+} // namespace mc

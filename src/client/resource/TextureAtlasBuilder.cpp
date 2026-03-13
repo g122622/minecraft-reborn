@@ -11,7 +11,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace mr {
+namespace mc {
 
 TextureAtlasBuilder::TextureAtlasBuilder()
     : m_maxWidth(4096)
@@ -360,4 +360,4 @@ void TextureAtlasBuilder::placeTexture(
     }
 }
 
-} // namespace mr
+} // namespace mc

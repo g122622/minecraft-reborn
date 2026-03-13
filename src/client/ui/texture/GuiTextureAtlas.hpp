@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <string>
 
-namespace mr::client {
+namespace mc::client {
 
 // 前向声明
 class VulkanContext;
@@ -171,4 +171,4 @@ private:
     bool m_initialized = false;
 };
 
-} // namespace mr::client
+} // namespace mc::client

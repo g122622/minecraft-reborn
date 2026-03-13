@@ -8,9 +8,22 @@ add_executable(minecraft-server
     settings/ServerSettings.cpp
     network/TcpServer.cpp
     network/TcpSession.cpp
+    network/TcpConnection.cpp
+    # 核心模块
+    core/ServerCore.cpp
+    core/PlayerManager.cpp
+    core/ConnectionManager.cpp
+    core/TimeManager.cpp
+    core/TeleportManager.cpp
+    core/KeepAliveManager.cpp
+    core/PositionTracker.cpp
+    core/PacketHandler.cpp
     world/ServerWorld.cpp
     world/ChunkWorkerPool.cpp
     world/ServerChunkManager.cpp
+    world/spawn/NaturalSpawner.cpp
+    world/spawn/SpawnConditions.cpp
+    world/entity/EntityTracker.cpp
     player/ServerPlayer.cpp
     # 命令系统
     command/ServerCommandSource.cpp
@@ -30,7 +43,7 @@ add_executable(minecraft-server
 
 target_link_libraries(minecraft-server
     PRIVATE
-        mr_common
+        mc_common
         spdlog::spdlog
         nlohmann_json::nlohmann_json
 )
@@ -39,7 +52,7 @@ if(WIN32)
     target_link_libraries(minecraft-server PRIVATE ws2_32)
 endif()
 
-mr_set_compiler_warnings(minecraft-server)
+mc_set_compiler_warnings(minecraft-server)
 
 target_compile_features(minecraft-server PRIVATE cxx_std_17)
 

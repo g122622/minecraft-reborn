@@ -2,7 +2,7 @@
 
 #include "SurfaceBuilder.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 默认地表构建器
@@ -211,4 +211,4 @@ public:
     [[nodiscard]] const char* name() const override { return "beach"; }
 };
 
-} // namespace mr
+} // namespace mc

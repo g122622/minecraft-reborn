@@ -12,7 +12,7 @@
 #include <functional>
 #include <atomic>
 
-namespace mr {
+namespace mc {
 
 // 导入票据类型到当前命名空间
 using ChunkLoadTicket = world::ChunkLoadTicket;
@@ -374,4 +374,4 @@ struct ChunkTask {
     }
 };
 
-} // namespace mr
+} // namespace mc

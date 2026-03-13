@@ -3,7 +3,7 @@
 #include "../../common/network/PacketSerializer.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr::server {
+namespace mc::server {
 
 TcpSession::TcpSession(SessionId id, TcpServer* server)
     : m_id(id)
@@ -109,4 +109,4 @@ void TcpSession::processPacket(const u8* data, size_t size) {
     }
 }
 
-} // namespace mr::server
+} // namespace mc::server

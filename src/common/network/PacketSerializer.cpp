@@ -10,7 +10,7 @@
     #include <arpa/inet.h>
 #endif
 
-namespace mr::network {
+namespace mc::network {
 
 // ============================================================================
 // NetworkEndian 实现
@@ -606,4 +606,4 @@ Result<u64> PacketDeserializer::readVarULong() {
     return static_cast<u64>(result.value());
 }
 
-} // namespace mr::network
+} // namespace mc::network

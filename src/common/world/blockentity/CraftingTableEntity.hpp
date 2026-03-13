@@ -4,7 +4,7 @@
 #include "entity/inventory/CraftingInventory.hpp"  // 包含 CraftingInventory 和 CraftResultInventory
 #include "item/crafting/RecipeManager.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 工作台方块实体
@@ -207,4 +207,4 @@ private:
     String m_customName;
 };
 
-} // namespace mr
+} // namespace mc

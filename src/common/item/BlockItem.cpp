@@ -2,7 +2,7 @@
 #include "../entity/Player.hpp"
 #include "../world/block/Material.hpp"
 
-namespace mr {
+namespace mc {
 
 BlockItem::BlockItem(const Block& block, ItemProperties properties)
     : Item(properties)
@@ -94,4 +94,4 @@ bool BlockItem::placeBlock(BlockItemUseContext& context, const BlockState* state
     return true;
 }
 
-} // namespace mr
+} // namespace mc

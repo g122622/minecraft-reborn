@@ -6,8 +6,8 @@
 #include "common/world/block/Block.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
 
-using namespace mr::client;
-using namespace mr;
+using namespace mc::client;
+using namespace mc;
 
 // ============================================================================
 // 测试固件

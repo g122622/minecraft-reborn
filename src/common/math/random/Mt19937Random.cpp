@@ -1,7 +1,7 @@
 #include "Mt19937Random.hpp"
 #include <random>
 
-namespace mr::math {
+namespace mc::math {
 
 Mt19937Random::Mt19937Random(u64 seed)
     : m_engine(seed)
@@ -22,4 +22,4 @@ u64 Mt19937Random::nextU64() {
     return m_engine();
 }
 
-} // namespace mr::math
+} // namespace mc::math

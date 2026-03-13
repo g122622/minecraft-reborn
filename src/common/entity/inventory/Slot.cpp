@@ -1,7 +1,7 @@
 #include "Slot.hpp"
 #include "IInventory.hpp"
 
-namespace mr {
+namespace mc {
 
 Slot::Slot(IInventory* inventory, i32 slotIndex, i32 x, i32 y)
     : m_inventory(inventory)
@@ -84,4 +84,4 @@ ResultSlot::ResultSlot(IInventory* inventory, i32 slotIndex, i32 x, i32 y,
 {
 }
 
-} // namespace mr
+} // namespace mc

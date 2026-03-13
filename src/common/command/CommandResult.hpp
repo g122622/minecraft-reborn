@@ -4,7 +4,7 @@
 #include <string>
 #include <optional>
 
-namespace mr::command {
+namespace mc::command {
 
 /**
  * @brief 命令执行结果
@@ -72,4 +72,4 @@ public:
     virtual void onCommandComplete(bool success, i32 result) = 0;
 };
 
-} // namespace mr::command
+} // namespace mc::command

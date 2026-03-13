@@ -4,7 +4,7 @@
 #include "entity/inventory/IInventory.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 容器方块实体基类
@@ -137,4 +137,4 @@ protected:
     i32 m_openCount;
 };
 
-} // namespace mr
+} // namespace mc

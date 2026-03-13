@@ -5,7 +5,7 @@
 #include "../../../common/item/ItemStack.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class Player;
@@ -154,4 +154,4 @@ private:
 };
 
 } // namespace client
-} // namespace mr
+} // namespace mc

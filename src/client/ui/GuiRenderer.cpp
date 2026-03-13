@@ -9,7 +9,7 @@
 #include <fstream>
 #include <spdlog/spdlog.h>
 
-namespace mr::client {
+namespace mc::client {
 
 // 从文件加载SPIR-V着色器
 static std::vector<u8> loadShaderFile(const std::filesystem::path& path) {
@@ -735,6 +735,37 @@ void GuiRenderer::uploadBufferData(VkCommandBuffer commandBuffer) {
     VkDeviceSize vertexSize = m_vertices.size() * sizeof(GuiVertex);
     VkDeviceSize indexSize = m_indices.size() * sizeof(u32);
 
+    VkDevice device = m_context->device();
+    VkPhysicalDevice physicalDevice = m_context->physicalDevice();
+
+    // 若顶点数据超出缓冲容量，则以2倍所需大小重建缓冲
+    if (vertexSize > m_vertexBuffer->size()) {
+        m_vertexBuffer->destroy();
+        auto result = m_vertexBuffer->create(device, physicalDevice,
+                                              vertexSize * 2,
+                                              VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                              VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                              VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        if (!result.success()) {
+            spdlog::error("GuiRenderer: failed to reallocate vertex buffer ({}B)", vertexSize);
+            return;
+        }
+    }
+
+    // 若索引数据超出缓冲容量，则以2倍所需大小重建缓冲
+    if (indexSize > m_indexBuffer->size()) {
+        m_indexBuffer->destroy();
+        auto result = m_indexBuffer->create(device, physicalDevice,
+                                             indexSize * 2,
+                                             VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        if (!result.success()) {
+            spdlog::error("GuiRenderer: failed to reallocate index buffer ({}B)", indexSize);
+            return;
+        }
+    }
+
     // 直接映射顶点缓冲并复制数据
     auto vertexMapResult = m_vertexBuffer->map();
     if (vertexMapResult.success()) {
@@ -756,4 +787,4 @@ void GuiRenderer::uploadBufferData(VkCommandBuffer commandBuffer) {
     (void)commandBuffer; // 不再需要commandBuffer
 }
 
-} // namespace mr::client
+} // namespace mc::client

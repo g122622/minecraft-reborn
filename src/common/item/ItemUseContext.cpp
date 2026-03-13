@@ -2,7 +2,7 @@
 #include "../entity/Player.hpp"
 #include "../item/ItemStack.hpp"
 
-namespace mr {
+namespace mc {
 
 ItemUseContext::ItemUseContext(const IBlockReader& world,
                                Player* player,
@@ -43,4 +43,4 @@ f32 ItemUseContext::getHitU(Axis axis) const
     }
 }
 
-} // namespace mr
+} // namespace mc

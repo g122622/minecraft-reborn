@@ -1,11 +1,15 @@
 #include "ServerWorld.hpp"
 #include "ServerChunkManager.hpp"
 #include "common/world/gen/chunk/NoiseChunkGenerator.hpp"
-#include "server/network/TcpSession.hpp"
+#include "common/entity/Entity.hpp"
+#include "common/entity/EntityRegistry.hpp"
+#include "common/network/IServerConnection.hpp"
+#include "common/network/Packet.hpp"
+#include "common/network/PacketSerializer.hpp"
 #include <chrono>
 #include <spdlog/spdlog.h>
 
-namespace mr::server {
+namespace mc::server {
 
 // ============================================================================
 // ServerWorld 实现
@@ -143,13 +147,13 @@ void ServerWorld::unloadChunk(ChunkCoord x, ChunkCoord z) {
 // 玩家管理
 // ============================================================================
 
-void ServerWorld::addPlayer(PlayerId playerId, const String& username, std::shared_ptr<TcpSession> session) {
+void ServerWorld::addPlayer(PlayerId playerId, const String& username, network::ConnectionPtr connection) {
     std::lock_guard<std::mutex> lock(m_playerMutex);
 
     auto& player = m_players[playerId];
     player.playerId = playerId;
     player.username = username;
-    player.session = session;
+    player.connection = connection;
     player.chunkTracker = std::make_shared<network::PlayerChunkTracker>(playerId);
     player.chunkTracker->setViewDistance(m_config.viewDistance);
 
@@ -181,10 +185,7 @@ void ServerWorld::removePlayer(PlayerId playerId) {
 
     for (auto& [pid, pdata] : m_players) {
         if (pid != playerId) {
-            auto session = pdata.session.lock();
-            if (session) {
-                // session->send(fullPacket.data(), fullPacket.size());
-            }
+            pdata.send(fullPacket.data(), fullPacket.size());
         }
     }
 
@@ -228,8 +229,8 @@ size_t ServerWorld::playerCount() const {
 
 void ServerWorld::updatePlayerPosition(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch, bool onGround) {
     // 准备区块更新数据（在锁外执行耗时操作）
-    std::vector<mr::ChunkPos> chunksToLoad;
-    std::vector<mr::ChunkPos> chunksToUnload;
+    std::vector<mc::ChunkPos> chunksToLoad;
+    std::vector<mc::ChunkPos> chunksToUnload;
     bool needsChunkUpdate = false;
 
     {
@@ -342,10 +343,7 @@ void ServerWorld::teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw
     fullPacket.writeU16(0);
     fullPacket.writeBytes(ser.buffer());
 
-    auto session = player.session.lock();
-    if (session) {
-        (void)session;
-    }
+    player.send(fullPacket.data(), fullPacket.size());
 
     spdlog::debug("Teleporting player {} to ({}, {}, {}), teleportId={}",
                   playerId, x, y, z, teleportId);
@@ -373,8 +371,8 @@ void ServerWorld::sendInitialChunks(PlayerId playerId) {
     auto it = m_players.find(playerId);
     if (it == m_players.end()) return;
 
-    std::vector<mr::ChunkPos> chunksToLoad;
-    std::vector<mr::ChunkPos> chunksToUnload;
+    std::vector<mc::ChunkPos> chunksToLoad;
+    std::vector<mc::ChunkPos> chunksToUnload;
 
     m_chunkSyncManager.calculateUpdates(playerId, chunksToLoad, chunksToUnload);
 
@@ -419,10 +417,7 @@ void ServerWorld::sendChunkToPlayer(PlayerId playerId, ChunkCoord x, ChunkCoord 
             std::lock_guard<std::mutex> lock(m_playerMutex);
             auto it = m_players.find(playerId);
             if (it != m_players.end()) {
-                auto session = it->second.session.lock();
-                if (session) {
-                    // session->send(fullPacket.data(), fullPacket.size());
-                }
+                it->second.send(fullPacket.data(), fullPacket.size());
             }
 
             spdlog::debug("Sent chunk ({}, {}) to player {}", x, z, playerId);
@@ -447,46 +442,13 @@ void ServerWorld::sendUnloadChunkToPlayer(PlayerId playerId, ChunkCoord x, Chunk
     std::lock_guard<std::mutex> lock(m_playerMutex);
     auto it = m_players.find(playerId);
     if (it != m_players.end()) {
-        auto session = it->second.session.lock();
-        if (session) {
-            // session->send(fullPacket.data(), fullPacket.size());
-        }
+        it->second.send(fullPacket.data(), fullPacket.size());
     }
 }
 
 // ============================================================================
 // 方块操作
 // ============================================================================
-
-void ServerWorld::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {
-    ChunkCoord chunkX = blockToChunk(static_cast<f32>(x));
-    ChunkCoord chunkZ = blockToChunk(static_cast<f32>(z));
-
-    ChunkData* chunk = getChunkSync(chunkX, chunkZ);
-    if (!chunk) return;
-
-    i32 localX = x - chunkX * 16;
-    i32 localZ = z - chunkZ * 16;
-
-    chunk->setBlock(localX, y, localZ, state);
-    chunk->setDirty(true);
-
-    // 广播方块更新
-    broadcastBlockUpdate(x, y, z, state ? state->stateId() : 0);
-}
-
-const BlockState* ServerWorld::getBlockState(i32 x, i32 y, i32 z) const {
-    ChunkCoord chunkX = blockToChunk(static_cast<f32>(x));
-    ChunkCoord chunkZ = blockToChunk(static_cast<f32>(z));
-
-    const ChunkData* chunk = getChunk(chunkX, chunkZ);
-    if (!chunk) return nullptr;
-
-    i32 localX = x - chunkX * 16;
-    i32 localZ = z - chunkZ * 16;
-
-    return chunk->getBlock(localX, y, localZ);
-}
 
 void ServerWorld::broadcastBlockUpdate(i32 x, i32 y, i32 z, u32 blockStateId) {
     network::BlockUpdatePacket blockPacket(x, y, z, blockStateId);
@@ -508,39 +470,29 @@ void ServerWorld::broadcastBlockUpdate(i32 x, i32 y, i32 z, u32 blockStateId) {
 // 发送数据包
 // ============================================================================
 
-void ServerWorld::sendPacket(PlayerId playerId, const std::vector<u8>& /*data*/) {
+void ServerWorld::sendPacket(PlayerId playerId, const std::vector<u8>& data) {
     std::lock_guard<std::mutex> lock(m_playerMutex);
 
     auto it = m_players.find(playerId);
     if (it == m_players.end()) return;
 
-    auto session = it->second.session.lock();
-    if (session) {
-        // session->send(data.data(), data.size());
-    }
+    it->second.send(data.data(), data.size());
 }
 
-void ServerWorld::broadcastPacket(const std::vector<u8>& /*data*/) {
+void ServerWorld::broadcastPacket(const std::vector<u8>& data) {
     std::lock_guard<std::mutex> lock(m_playerMutex);
 
     for (const auto& [playerId, player] : m_players) {
-        auto session = player.session.lock();
-        if (session) {
-            // session->send(data.data(), data.size());
-        }
+        player.send(data.data(), data.size());
     }
 }
 
-void ServerWorld::broadcastPacketExcept(PlayerId excludePlayerId, const std::vector<u8>& /*data*/) {
+void ServerWorld::broadcastPacketExcept(PlayerId excludePlayerId, const std::vector<u8>& data) {
     std::lock_guard<std::mutex> lock(m_playerMutex);
 
     for (const auto& [playerId, player] : m_players) {
         if (playerId == excludePlayerId) continue;
-
-        auto session = player.session.lock();
-        if (session) {
-            // session->send(data.data(), data.size());
-        }
+        player.send(data.data(), data.size());
     }
 }
 
@@ -553,6 +505,12 @@ void ServerWorld::tick() {
 
     // 更新游戏时间
     m_gameTime.tick();
+
+    // 更新所有实体
+    m_entityManager.tick();
+
+    // 更新实体追踪
+    m_entityTracker.tick(*this);
 
     // 更新区块管理器
     if (m_chunkManager) {
@@ -633,4 +591,177 @@ void ServerWorld::broadcastTimeUpdate() {
     broadcastPacket(fullPacket.buffer());
 }
 
-} // namespace mr::server
+// ============================================================================
+// IWorld 接口实现
+// ============================================================================
+
+const BlockState* ServerWorld::getBlockState(i32 x, i32 y, i32 z) const {
+    // 调用已有的 const 版本方法
+    ChunkCoord chunkX = blockToChunk(static_cast<f32>(x));
+    ChunkCoord chunkZ = blockToChunk(static_cast<f32>(z));
+
+    const ChunkData* chunk = getChunk(chunkX, chunkZ);
+    if (!chunk) return nullptr;
+
+    i32 localX = x - chunkX * 16;
+    i32 localZ = z - chunkZ * 16;
+
+    return chunk->getBlock(localX, y, localZ);
+}
+
+bool ServerWorld::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {
+    ChunkCoord chunkX = blockToChunk(static_cast<f32>(x));
+    ChunkCoord chunkZ = blockToChunk(static_cast<f32>(z));
+
+    ChunkData* chunk = getChunkSync(chunkX, chunkZ);
+    if (!chunk) return false;
+
+    i32 localX = x - chunkX * 16;
+    i32 localZ = z - chunkZ * 16;
+
+    chunk->setBlock(localX, y, localZ, state);
+    chunk->setDirty(true);
+
+    // 广播方块更新
+    broadcastBlockUpdate(x, y, z, state ? state->stateId() : 0);
+    return true;
+}
+
+i32 ServerWorld::getHeight(i32 /*x*/, i32 /*z*/) const {
+    // TODO: 实现高度图查询
+    return 64;
+}
+
+u8 ServerWorld::getBlockLight(i32 /*x*/, i32 /*y*/, i32 /*z*/) const {
+    // TODO: 实现光照系统
+    return 15;
+}
+
+u8 ServerWorld::getSkyLight(i32 /*x*/, i32 /*y*/, i32 /*z*/) const {
+    // TODO: 实现光照系统
+    return 15;
+}
+
+bool ServerWorld::hasBlockCollision(const AxisAlignedBB& /*box*/) const {
+    // TODO: 实现碰撞检测
+    return false;
+}
+
+std::vector<AxisAlignedBB> ServerWorld::getBlockCollisions(const AxisAlignedBB& /*box*/) const {
+    // TODO: 实现碰撞检测
+    return {};
+}
+
+std::vector<Entity*> ServerWorld::getEntitiesInAABB(const AxisAlignedBB& box, const Entity* except) const {
+    return m_entityManager.getEntitiesInAABB(box, except);
+}
+
+std::vector<Entity*> ServerWorld::getEntitiesInRange(const Vector3& pos, f32 range, const Entity* except) const {
+    return m_entityManager.getEntitiesInRange(pos, range, except);
+}
+
+// ============================================================================
+// 实体管理
+// ============================================================================
+
+EntityId ServerWorld::spawnEntity(std::unique_ptr<Entity> entity) {
+    if (!entity) {
+        return 0;
+    }
+
+    // 设置实体的世界引用
+    entity->setWorld(this);
+
+    // 添加到实体管理器
+    EntityId id = m_entityManager.addEntity(std::move(entity));
+
+    spdlog::debug("Spawned entity with ID {}", id);
+    return id;
+}
+
+std::unique_ptr<Entity> ServerWorld::removeEntity(EntityId id) {
+    auto entity = m_entityManager.removeEntity(id);
+    if (entity) {
+        spdlog::debug("Removed entity with ID {}", id);
+    }
+    return entity;
+}
+
+Entity* ServerWorld::getEntity(EntityId id) {
+    return m_entityManager.getEntity(id);
+}
+
+const Entity* ServerWorld::getEntity(EntityId id) const {
+    return m_entityManager.getEntity(id);
+}
+
+bool ServerWorld::hasEntity(EntityId id) const {
+    return m_entityManager.hasEntity(id);
+}
+
+size_t ServerWorld::entityCount() const {
+    return m_entityManager.entityCount();
+}
+
+// ============================================================================
+// 区块生成实体
+// ============================================================================
+
+i32 ServerWorld::spawnEntitiesFromChunkGeneration(const std::vector<SpawnedEntityData>& entities) {
+    if (entities.empty()) {
+        return 0;
+    }
+
+    i32 spawnedCount = 0;
+    auto& registry = entity::EntityRegistry::instance();
+
+    for (const auto& entityData : entities) {
+        // 获取实体类型
+        const entity::EntityType* entityType = registry.getType(entityData.entityTypeId);
+        if (!entityType) {
+            spdlog::debug("ServerWorld: Unknown entity type '{}' during chunk generation spawn",
+                          entityData.entityTypeId);
+            continue;
+        }
+
+        // 检查实体类型是否可以生成
+        if (!entityType->canSummon()) {
+            spdlog::trace("ServerWorld: Entity type '{}' cannot be summoned",
+                          entityData.entityTypeId);
+            continue;
+        }
+
+        // 创建实体实例
+        std::unique_ptr<Entity> entity = entityType->create(this);
+        if (!entity) {
+            spdlog::debug("ServerWorld: Failed to create entity of type '{}'",
+                          entityData.entityTypeId);
+            continue;
+        }
+
+        // 设置实体位置
+        entity->setPosition(Vector3(entityData.x, entityData.y, entityData.z));
+
+        // 设置生成原因标记（可选，用于后续处理）
+        // entity->setSpawnReason(entityData.spawnReason);
+
+        // 添加到实体管理器
+        EntityId entityId = m_entityManager.addEntity(std::move(entity));
+        if (entityId != 0) {
+            ++spawnedCount;
+
+            SPDLOG_TRACE("ServerWorld: Spawned {} at ({:.1f}, {:.1f}, {:.1f}) with ID {}",
+                         entityData.entityTypeId,
+                         entityData.x, entityData.y, entityData.z,
+                         entityId);
+        }
+    }
+
+    if (spawnedCount > 0) {
+        spdlog::debug("ServerWorld: Spawned {} entities from chunk generation", spawnedCount);
+    }
+
+    return spawnedCount;
+}
+
+} // namespace mc::server

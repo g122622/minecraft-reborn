@@ -2,7 +2,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <algorithm>
 
-namespace mr::client {
+namespace mc::client {
 
 // ============================================================================
 // Camera 实现
@@ -314,4 +314,4 @@ void CameraController::update(f32 deltaTime) {
             || m_moveUp || m_moveDown;
 }
 
-} // namespace mr::client
+} // namespace mc::client

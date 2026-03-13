@@ -1,0 +1,187 @@
+#pragma once
+
+#include "common/core/Types.hpp"
+#include "LootEntry.hpp"
+#include "RandomRanges.hpp"
+#include <functional>
+#include <memory>
+#include <vector>
+
+namespace mc {
+namespace loot {
+
+/**
+ * @brief 掉落池
+ *
+ * 包含多个掉落条目，按权重随机选择。
+ * 参考: net.minecraft.loot.LootPool
+ */
+class LootPool {
+public:
+    /**
+     * @brief 构造空掉落池
+     */
+    LootPool() = default;
+
+    /**
+     * @brief 构造掉落池
+     * @param rolls 掷骰次数
+     * @param bonusRolls 额外掷骰次数（受幸运值影响）
+     */
+    explicit LootPool(const RandomValueRange& rolls,
+                     const RandomValueRange& bonusRolls = RandomValueRange(0.0f, 0.0f));
+
+    ~LootPool() = default;
+
+    // 禁止拷贝
+    LootPool(const LootPool&) = delete;
+    LootPool& operator=(const LootPool&) = delete;
+
+    // 允许移动
+    LootPool(LootPool&&) = default;
+    LootPool& operator=(LootPool&&) = default;
+
+    /**
+     * @brief 创建副本
+     */
+    [[nodiscard]] std::unique_ptr<LootPool> clone() const;
+
+    // ========== 条目管理 ==========
+
+    /**
+     * @brief 添加掉落条目
+     */
+    void addEntry(std::unique_ptr<LootEntry> entry);
+
+    /**
+     * @brief 获取所有条目
+     */
+    [[nodiscard]] const std::vector<std::unique_ptr<LootEntry>>& getEntries() const {
+        return m_entries;
+    }
+
+    // ========== 掷骰配置 ==========
+
+    /**
+     * @brief 获取掷骰次数范围
+     */
+    [[nodiscard]] const RandomValueRange& getRolls() const { return m_rolls; }
+
+    /**
+     * @brief 获取额外掷骰次数范围
+     */
+    [[nodiscard]] const RandomValueRange& getBonusRolls() const { return m_bonusRolls; }
+
+    /**
+     * @brief 设置掷骰次数
+     */
+    void setRolls(const RandomValueRange& rolls) { m_rolls = rolls; }
+
+    /**
+     * @brief 设置额外掷骰次数
+     */
+    void setBonusRolls(const RandomValueRange& bonusRolls) { m_bonusRolls = bonusRolls; }
+
+    // ========== 名称 ==========
+
+    /**
+     * @brief 获取名称
+     */
+    [[nodiscard]] const String& getName() const { return m_name; }
+
+    /**
+     * @brief 设置名称
+     */
+    void setName(const String& name) { m_name = name; }
+
+    // ========== 生成 ==========
+
+    /**
+     * @brief 生成掉落物
+     *
+     * @param consumer 接收物品的回调
+     * @param context 掉落上下文
+     */
+    void generate(std::function<void(const ItemStack&)> consumer, LootContext& context) const;
+
+private:
+    /**
+     * @brief 执行一次掷骰
+     */
+    void generateRoll(std::function<void(const ItemStack&)> consumer, LootContext& context) const;
+
+private:
+    String m_name;
+    std::vector<std::unique_ptr<LootEntry>> m_entries;
+    RandomValueRange m_rolls{1.0f, 1.0f};
+    RandomValueRange m_bonusRolls{0.0f, 0.0f};
+};
+
+/**
+ * @brief 掉落池构建器
+ *
+ * 参考: net.minecraft.loot.LootPool.Builder
+ */
+class LootPoolBuilder {
+public:
+    LootPoolBuilder() = default;
+
+    /**
+     * @brief 设置掷骰次数
+     */
+    LootPoolBuilder& rolls(const RandomValueRange& rolls) {
+        m_rolls = rolls;
+        return *this;
+    }
+
+    /**
+     * @brief 设置掷骰次数（固定值）
+     */
+    LootPoolBuilder& rolls(i32 value) {
+        m_rolls = RandomValueRange(static_cast<f32>(value), static_cast<f32>(value));
+        return *this;
+    }
+
+    /**
+     * @brief 设置额外掷骰次数
+     */
+    LootPoolBuilder& bonusRolls(f32 min, f32 max) {
+        m_bonusRolls = RandomValueRange(min, max);
+        return *this;
+    }
+
+    /**
+     * @brief 设置名称
+     */
+    LootPoolBuilder& name(const String& name) {
+        m_name = name;
+        return *this;
+    }
+
+    /**
+     * @brief 添加条目
+     */
+    LootPoolBuilder& entry(std::unique_ptr<LootEntry> entry) {
+        m_entries.push_back(std::move(entry));
+        return *this;
+    }
+
+    /**
+     * @brief 添加物品条目
+     */
+    LootPoolBuilder& item(const String& itemId, i32 count = 1, i32 weight = 1);
+
+    /**
+     * @brief 构建掉落池
+     */
+    [[nodiscard]] std::unique_ptr<LootPool> build() const;
+
+private:
+    String m_name;
+    RandomValueRange m_rolls{1.0f, 1.0f};
+    RandomValueRange m_bonusRolls{0.0f, 0.0f};
+    std::vector<std::unique_ptr<LootEntry>> m_entries;
+};
+
+} // namespace loot
+} // namespace mc

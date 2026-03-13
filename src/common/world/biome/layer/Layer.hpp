@@ -4,7 +4,7 @@
 #include <memory>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 区域上下文
@@ -142,4 +142,4 @@ public:
                                           i32 x, i32 z) const = 0;
 };
 
-} // namespace mr
+} // namespace mc

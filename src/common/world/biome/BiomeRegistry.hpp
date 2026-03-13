@@ -3,7 +3,7 @@
 #include "Biome.hpp"
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 生物群系注册表
@@ -206,4 +206,4 @@ Biome createSnowyTaiga();
 
 } // namespace BiomeFactory
 
-} // namespace mr
+} // namespace mc

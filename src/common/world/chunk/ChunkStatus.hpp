@@ -6,7 +6,7 @@
 #include <vector>
 #include <array>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class IChunk;
@@ -169,4 +169,4 @@ constexpr i32 COUNT = 8;
 
 } // namespace ChunkStatuses
 
-} // namespace mr
+} // namespace mc

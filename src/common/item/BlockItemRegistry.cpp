@@ -4,7 +4,7 @@
 #include "../resource/ResourceLocation.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr {
+namespace mc {
 
 BlockItemRegistry& BlockItemRegistry::instance()
 {
@@ -229,4 +229,4 @@ void BlockItemRegistry::initializeVanillaBlockItems()
     spdlog::info("Registered {} block items", m_itemToBlock.size());
 }
 
-} // namespace mr
+} // namespace mc

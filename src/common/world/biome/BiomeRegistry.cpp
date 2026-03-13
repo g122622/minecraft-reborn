@@ -1,7 +1,7 @@
 #include "BiomeRegistry.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // BiomeRegistry 实现
@@ -99,6 +99,8 @@ Biome createPlains()
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
     biome.setGenerationSettings(BiomeGenerationSettings::createPlains());
+    // 设置生物生成信息
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createPlains());
     return biome;
 }
 
@@ -114,6 +116,8 @@ Biome createDesert()
     biome.setSubSurfaceBlock(BlockId::Sand);
     biome.setUnderWaterBlock(BlockId::Sand);
     biome.setGenerationSettings(BiomeGenerationSettings::createDesert());
+    // 沙漠生物生成信息
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createDesert());
     return biome;
 }
 
@@ -144,6 +148,8 @@ Biome createForest()
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
     biome.setGenerationSettings(BiomeGenerationSettings::createForest());
+    // 森林生物生成信息
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createForest());
     return biome;
 }
 
@@ -159,6 +165,8 @@ Biome createOcean()
     biome.setSubSurfaceBlock(BlockId::Gravel);
     biome.setUnderWaterBlock(BlockId::Gravel);
     biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    // 海洋生物生成信息
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createOcean());
     return biome;
 }
 
@@ -509,4 +517,4 @@ Biome createMountainEdge()
 
 } // namespace BiomeFactory
 
-} // namespace mr
+} // namespace mc

@@ -1,6 +1,6 @@
 #include "SimpleBlock.hpp"
 
-namespace mr {
+namespace mc {
 
 SimpleBlock::SimpleBlock(BlockProperties properties)
     : Block(properties) {
@@ -17,4 +17,4 @@ bool SimpleBlock::isSolid(const BlockState& state) const {
     return material().isSolid();
 }
 
-} // namespace mr
+} // namespace mc

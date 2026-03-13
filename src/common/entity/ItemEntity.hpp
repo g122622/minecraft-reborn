@@ -4,7 +4,7 @@
 #include "../item/ItemStack.hpp"
 #include <random>
 
-namespace mr {
+namespace mc {
 
 // Forward declarations
 class Player;
@@ -42,6 +42,15 @@ public:
 
     /// 水下下沉速度
     static constexpr f32 SINK_SPEED = 0.02f;
+
+    /**
+     * @brief 实体工厂方法
+     *
+     * 用于 EntityRegistry 注册
+     * @param world 世界实例
+     * @return 新创建的实体实例
+     */
+    static std::unique_ptr<Entity> create(IWorld* world);
 
     // ========== 构造函数 ==========
 
@@ -230,4 +239,4 @@ private:
     static constexpr f32 MERGE_RADIUS = 1.5f;  // 合并检测半径
 };
 
-} // namespace mr
+} // namespace mc

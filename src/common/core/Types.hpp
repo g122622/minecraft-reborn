@@ -6,7 +6,7 @@
 #include <string_view>
 #include <optional>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 基础类型定义
@@ -68,6 +68,14 @@ struct Vector3d {
     bool operator!=(const Vector3d& other) const { return !(*this == other); }
 };
 
+struct Vector3f {
+    f32 x, y, z;
+    Vector3f() : x(0), y(0), z(0) {}
+    Vector3f(f32 x, f32 y, f32 z) : x(x), y(y), z(z) {}
+    bool operator==(const Vector3f& other) const { return x == other.x && y == other.y && z == other.z; }
+    bool operator!=(const Vector3f& other) const { return !(*this == other); }
+};
+
 struct Vector2f {
     f32 x, y;
     Vector2f() : x(0), y(0) {}
@@ -91,6 +99,9 @@ using WorldHeight = i32;
 
 // 实体ID类型
 using EntityId = u64;
+
+// 无效实体ID常量
+inline constexpr EntityId INVALID_ENTITY_ID = 0;
 
 // 物品ID类型
 using ItemId = u16;
@@ -288,4 +299,4 @@ enum class BlockId : u32 {
     Unknown = 0xFFFFFFFF
 };
 
-} // namespace mr
+} // namespace mc

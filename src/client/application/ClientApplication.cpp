@@ -5,7 +5,10 @@
 #include "common/world/drop/DropTables.hpp"
 #include "common/math/ray/Raycast.hpp"
 #include "common/resource/VanillaResources.hpp"
+#include "common/entity/VanillaEntities.hpp"
 #include "common/entity/inventory/Slot.hpp"
+#include "common/perfetto/PerfettoManager.hpp"
+#include "common/perfetto/TraceEvents.hpp"
 #include "client/renderer/ChunkMesher.hpp"
 #include "client/ui/hud/HudRenderer.hpp"
 #include "client/ui/screen/ScreenManager.hpp"
@@ -18,7 +21,7 @@
 #include <chrono>
 #include <filesystem>
 
-namespace mr::client {
+namespace mc::client {
 
 namespace {
 
@@ -87,7 +90,7 @@ void captureMouseAfterScreens(InputManager& input, bool& mouseCaptured) {
  * 射线检测接口当前要求 IBlockReader，
  * 而 ClientWorld 实现的是 ICollisionWorld（方法签名兼容）。
  */
-class ClientWorldBlockReader final : public mr::IBlockReader {
+class ClientWorldBlockReader final : public mc::IBlockReader {
 public:
     explicit ClientWorldBlockReader(const ClientWorld& world)
         : m_world(world)
@@ -168,8 +171,16 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
     }
 
     spdlog::info("=== Minecraft Reborn Client ===");
-    spdlog::info("Version: {}.{}.{}", MR_VERSION_MAJOR, MR_VERSION_MINOR, MR_VERSION_PATCH);
+    spdlog::info("Version: {}.{}.{}", MC_VERSION_MAJOR, MC_VERSION_MINOR, MC_VERSION_PATCH);
     spdlog::info("Initializing client...");
+
+    // 初始化性能追踪
+    mc::perfetto::TraceConfig traceConfig;
+    traceConfig.outputPath = "client_trace.perfetto-trace";
+    traceConfig.bufferSizeKb = 65536; // 64MB
+    mc::perfetto::PerfettoManager::instance().initialize(traceConfig);
+    mc::perfetto::PerfettoManager::instance().startTracing();
+    spdlog::info("Perfetto tracing initialized");
 
     // 初始化方块注册表
     VanillaBlocks::initialize();
@@ -178,6 +189,10 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
     Items::initialize();
     DropTableRegistry::instance().initializeVanillaDrops();
     spdlog::info("Vanilla items and drop tables initialized");
+
+    // 注册实体类型
+    entity::VanillaEntities::registerAll();
+    spdlog::info("Entity types registered");
 
     // 初始化方块物品注册表
     BlockItemRegistry::instance().initializeVanillaBlockItems();
@@ -500,25 +515,39 @@ void ClientApplication::mainLoop()
     m_lastFrameTime = glfwGetTime();
 
     while (m_running && !m_window.shouldClose()) {
+        MC_TRACE_EVENT("rendering.frame", "Frame");
+
         // 计算帧时间
         const f64 currentTime = glfwGetTime();
         const f32 deltaTime = static_cast<f32>(currentTime - m_lastFrameTime);
         m_lastFrameTime = currentTime;
 
         // 处理事件
-        handleEvents();
+        {
+            MC_TRACE_EVENT("rendering.frame", "HandleEvents");
+            handleEvents();
+        }
 
         // 更新
-        update(deltaTime);
+        {
+            MC_TRACE_EVENT("rendering.frame", "Update");
+            update(deltaTime);
+        }
 
         // 渲染
-        render();
+        {
+            MC_TRACE_EVENT("rendering.frame", "Render");
+            render();
+        }
 
         // 清理本帧的瞬时输入状态
         m_input.endFrame();
 
         // 帧计数
         ++m_frameCount;
+
+        // 追踪 FPS
+        MC_TRACE_COUNTER("rendering.frame", "FPS", static_cast<i64>(1.0 / deltaTime));
 
         // 每秒输出一次FPS
         if (m_frameCount % 60 == 0) {
@@ -702,14 +731,14 @@ void ClientApplication::update(f32 deltaTime)
         glm::vec3 forward = m_camera.forward();
 
         // 创建射线
-        mr::Vector3 origin(eyePos.x, eyePos.y, eyePos.z);
-        mr::Vector3 direction(forward.x, forward.y, forward.z);
-        mr::Ray ray(origin, direction);
+        mc::Vector3 origin(eyePos.x, eyePos.y, eyePos.z);
+        mc::Vector3 direction(forward.x, forward.y, forward.z);
+        mc::Ray ray(origin, direction);
 
         // 执行射线检测（创造模式使用更远的距离）
-        mr::RaycastContext context(ray, 5.0f);  // 生存模式5格
+        mc::RaycastContext context(ray, 5.0f);  // 生存模式5格
         ClientWorldBlockReader blockReader(m_world);
-        m_raycastResult = mr::raycastBlocks(context, blockReader);
+        m_raycastResult = mc::raycastBlocks(context, blockReader);
 
         // 更新调试屏幕的目标方块
         m_debugScreen.setTargetBlock(&m_raycastResult);
@@ -825,6 +854,11 @@ void ClientApplication::shutdown()
     m_world.destroy();
 
     m_window.destroy();
+
+    // 关闭性能追踪
+    mc::perfetto::PerfettoManager::instance().stopTracing();
+    mc::perfetto::PerfettoManager::instance().shutdown();
+    spdlog::info("Perfetto tracing stopped");
 
     spdlog::info("Client stopped.");
 }
@@ -1467,4 +1501,4 @@ void ClientApplication::handleChatCommand(const String& input)
     }
 }
 
-} // namespace mr::client
+} // namespace mc::client

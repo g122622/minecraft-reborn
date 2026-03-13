@@ -4,7 +4,7 @@
 #include "../../core/BlockRaycastResult.hpp"
 #include "../../world/block/Block.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 射线检测上下文
@@ -85,4 +85,4 @@ public:
     const RaycastContext& context,
     const IBlockReader& world);
 
-} // namespace mr
+} // namespace mc

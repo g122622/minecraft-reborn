@@ -1,7 +1,7 @@
 #include "ChunkHolder.hpp"
 #include <chrono>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // ChunkHolder 实现
@@ -179,4 +179,4 @@ void ChunkHolder::removeTrackingPlayer(PlayerId player)
     m_trackingPlayers.erase(player);
 }
 
-} // namespace mr
+} // namespace mc

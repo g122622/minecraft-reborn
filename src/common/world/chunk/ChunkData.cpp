@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <stdexcept>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // ChunkSection 实现
@@ -540,4 +540,4 @@ ChunkDataRef& ChunkDataRef::operator=(ChunkDataRef&& other) noexcept {
     return *this;
 }
 
-} // namespace mr
+} // namespace mc

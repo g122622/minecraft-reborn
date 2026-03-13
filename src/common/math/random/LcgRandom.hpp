@@ -2,7 +2,7 @@
 
 #include "IRandom.hpp"
 
-namespace mr::math {
+namespace mc::math {
 
 /**
  * @brief 线性同余随机数生成器
@@ -44,4 +44,4 @@ private:
     static constexpr u64 C = 1442695040888963407ULL;
 };
 
-} // namespace mr::math
+} // namespace mc::math

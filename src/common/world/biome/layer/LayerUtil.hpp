@@ -8,7 +8,7 @@
 #include <memory>
 #include <vector>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 层堆叠构建器
@@ -122,4 +122,4 @@ std::unique_ptr<LayerStack> createEndLayers(u64 seed);
 
 } // namespace LayerUtil
 
-} // namespace mr
+} // namespace mc

@@ -1,7 +1,7 @@
 #include "item/crafting/IRecipe.hpp"
 #include <unordered_map>
 
-namespace mr {
+namespace mc {
 namespace crafting {
 
 namespace {
@@ -58,4 +58,4 @@ std::optional<RecipeType> recipeTypeFromString(const String& str) {
 }
 
 } // namespace crafting
-} // namespace mr
+} // namespace mc

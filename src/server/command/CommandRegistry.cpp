@@ -9,7 +9,7 @@
 #include "commands/GiveCommand.hpp"
 #include "commands/ClearCommand.hpp"
 
-namespace mr {
+namespace mc {
 namespace command {
 
 CommandRegistry::CommandRegistry()
@@ -41,6 +41,7 @@ void CommandRegistry::registerDefaults() {
     m_commandNames = {
         "gamemode", "time", "kill", "list", "help", "seed", "tp", "give", "clear"
     };
+    m_commandNameSet = std::unordered_set<String>(m_commandNames.begin(), m_commandNames.end());
 }
 
 std::vector<String> CommandRegistry::getCommandNames() const {
@@ -48,8 +49,18 @@ std::vector<String> CommandRegistry::getCommandNames() const {
 }
 
 bool CommandRegistry::hasCommand(const String& name) const {
-    return std::find(m_commandNames.begin(), m_commandNames.end(), name) != m_commandNames.end();
+    return m_commandNameSet.find(name) != m_commandNameSet.end();
+}
+
+CommandRegistry& CommandRegistry::getGlobal() {
+    static CommandRegistry registry;
+    static const bool initialized = [] {
+        registry.registerDefaults();
+        return true;
+    }();
+    (void)initialized;
+    return registry;
 }
 
 } // namespace command
-} // namespace mr
+} // namespace mc

@@ -8,7 +8,7 @@
 #include <vector>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 配方加载器
@@ -131,4 +131,4 @@ private:
     bool m_clearBeforeLoad = true;
 };
 
-} // namespace mr
+} // namespace mc

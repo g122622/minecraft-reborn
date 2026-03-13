@@ -7,7 +7,7 @@
 #include <memory>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class BlockModelCache;
@@ -243,4 +243,4 @@ struct MeshBuildTask {
     explicit MeshBuildTask(ChunkId id) : chunkId(id) {}
 };
 
-} // namespace mr
+} // namespace mc

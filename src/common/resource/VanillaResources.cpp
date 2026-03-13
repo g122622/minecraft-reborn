@@ -1,7 +1,7 @@
 #include "VanillaResources.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 模型模板定义
@@ -757,4 +757,4 @@ void VanillaResources::registerBlockStates(InMemoryResourcePack& pack) {
     })");
 }
 
-} // namespace mr
+} // namespace mc

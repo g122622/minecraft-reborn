@@ -4,7 +4,7 @@
 #include "../../../../block/VanillaBlocks.hpp"
 #include "../../../../../core/Types.hpp"
 
-namespace mr {
+namespace mc {
 
 FoliagePlacer::FoliagePlacer(const FeatureSpread& radius, const FeatureSpread& offset)
     : m_radius(radius)
@@ -93,4 +93,4 @@ void FoliagePlacer::placeFoliageLayer(
     }
 }
 
-} // namespace mr
+} // namespace mc

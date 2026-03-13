@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <set>
 
-namespace mr {
+namespace mc {
 namespace crafting {
 
 Ingredient Ingredient::fromItem(const Item& item) {
@@ -135,14 +135,12 @@ size_t Ingredient::hash() const {
     size_t h = 0;
 
     if (m_hasTag) {
-        // 组合标签哈希
-        for (char c : m_tag) {
-            h = h * 31 + static_cast<size_t>(c);
-        }
-        return h;
+        // 使用 std::hash<String> 进行哈希
+        return std::hash<String>{}(m_tag);
     }
 
     // 组合物品ID哈希
+    // 使用排序后的ID列表确保一致性
     std::set<ItemId> ids;
     for (const ItemStack& stack : m_matchingStacks) {
         if (stack.getItem()) {
@@ -150,11 +148,12 @@ size_t Ingredient::hash() const {
         }
     }
     for (ItemId id : ids) {
-        h = h * 31 + static_cast<size_t>(id);
+        // 使用标准哈希组合模式
+        h ^= std::hash<ItemId>{}(id) + 0x9e3779b9 + (h << 6) + (h >> 2);
     }
 
     return h;
 }
 
 } // namespace crafting
-} // namespace mr
+} // namespace mc

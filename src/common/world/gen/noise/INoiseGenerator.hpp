@@ -2,7 +2,7 @@
 
 #include "../../../core/Types.hpp"
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 噪声生成器接口
@@ -30,4 +30,4 @@ public:
     }
 };
 
-} // namespace mr
+} // namespace mc

@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 内存资源包
@@ -68,4 +68,4 @@ private:
     [[nodiscard]] static String normalizePath(StringView path);
 };
 
-} // namespace mr
+} // namespace mc

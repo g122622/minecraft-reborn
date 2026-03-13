@@ -3,7 +3,7 @@
 #include "common/resource/InMemoryResourcePack.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 原版内置资源
@@ -40,4 +40,4 @@ private:
     static const char* MODEL_AIR;           // 空气
 };
 
-} // namespace mr
+} // namespace mc

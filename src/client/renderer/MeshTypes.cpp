@@ -1,6 +1,6 @@
 #include "MeshTypes.hpp"
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // BlockGeometry 实现
@@ -140,4 +140,4 @@ TextureRegion TextureAtlas::getRegion(u32 tileIndex) const {
     return getRegion(tileX, tileY);
 }
 
-} // namespace mr
+} // namespace mc

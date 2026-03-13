@@ -7,7 +7,7 @@
 #include <functional>
 #include <optional>
 
-namespace mr {
+namespace mc {
 namespace crafting {
 
 /**
@@ -177,13 +177,13 @@ private:
 };
 
 } // namespace crafting
-} // namespace mr
+} // namespace mc
 
 // std::hash 特化，允许Ingredient用于unordered容器
 namespace std {
 template<>
-struct hash<mr::crafting::Ingredient> {
-    size_t operator()(const mr::crafting::Ingredient& ingredient) const {
+struct hash<mc::crafting::Ingredient> {
+    size_t operator()(const mc::crafting::Ingredient& ingredient) const {
         return ingredient.hash();
     }
 };

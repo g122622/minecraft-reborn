@@ -1,0 +1,239 @@
+#pragma once
+
+#include "ServerCoreConfig.hpp"
+#include "ServerPlayerData.hpp"
+#include "common/network/IServerConnection.hpp"
+#include "common/network/ChunkSync.hpp"
+#include <memory>
+#include <unordered_map>
+#include <mutex>
+#include <functional>
+#include <vector>
+#include <atomic>
+
+namespace mc::server::core {
+
+/**
+ * @brief 玩家管理器
+ *
+ * 负责玩家的注册、移除、查询、遍历等生命周期管理。
+ * 线程安全：所有公共方法都是线程安全的。
+ *
+ * 使用示例：
+ * @code
+ * PlayerManager manager;
+ * auto* player = manager.addPlayer(1, "Steve", connection);
+ * manager.forEachPlayer([](ServerPlayerData& p) {
+ *     spdlog::info("Player: {}", p.username);
+ * });
+ * @endcode
+ */
+class PlayerManager {
+public:
+    /**
+     * @brief 构造玩家管理器
+     */
+    PlayerManager() = default;
+
+    /**
+     * @brief 构造玩家管理器（带配置）
+     * @param config 配置引用（用于默认视距等设置）
+     */
+    explicit PlayerManager(const ServerCoreConfig& config);
+
+    // ========== 玩家生命周期 ==========
+
+    /**
+     * @brief 添加玩家
+     * @param playerId 玩家ID（由调用方生成）
+     * @param username 用户名
+     * @param connection 连接接口
+     * @return 玩家数据指针，如果ID已存在则返回 nullptr
+     * @note 线程安全
+     */
+    ServerPlayerData* addPlayer(PlayerId playerId,
+                                 const String& username,
+                                 network::ConnectionPtr connection);
+
+    /**
+     * @brief 移除玩家
+     * @param playerId 玩家ID
+     * @note 线程安全
+     */
+    void removePlayer(PlayerId playerId);
+
+    /**
+     * @brief 根据会话ID移除玩家
+     * @param sessionId 会话ID
+     * @note 线程安全
+     */
+    void removePlayerBySessionId(u32 sessionId);
+
+    /**
+     * @brief 根据会话ID查找玩家
+     * @param sessionId 会话ID
+     * @return 玩家数据指针，如果未找到则返回 nullptr
+     * @note 线程安全
+     */
+    [[nodiscard]] ServerPlayerData* findBySessionId(u32 sessionId);
+
+    /**
+     * @brief 根据会话ID查找玩家（const版本）
+     * @param sessionId 会话ID
+     * @return 玩家数据指针，如果未找到则返回 nullptr
+     * @note 线程安全
+     */
+    [[nodiscard]] const ServerPlayerData* findBySessionId(u32 sessionId) const;
+
+    // ========== 玩家查询 ==========
+
+    /**
+     * @brief 获取玩家数据
+     * @param playerId 玩家ID
+     * @return 玩家数据指针，如果未找到则返回 nullptr
+     * @note 线程安全
+     */
+    [[nodiscard]] ServerPlayerData* getPlayer(PlayerId playerId);
+
+    /**
+     * @brief 获取玩家数据（const版本）
+     * @param playerId 玩家ID
+     * @return 玩家数据指针，如果未找到则返回 nullptr
+     * @note 线程安全
+     */
+    [[nodiscard]] const ServerPlayerData* getPlayer(PlayerId playerId) const;
+
+    /**
+     * @brief 检查玩家是否存在
+     * @param playerId 玩家ID
+     * @return true 如果玩家存在
+     * @note 线程安全
+     */
+    [[nodiscard]] bool hasPlayer(PlayerId playerId) const;
+
+    /**
+     * @brief 获取玩家数量
+     * @return 当前玩家数量
+     * @note 线程安全
+     */
+    [[nodiscard]] size_t playerCount() const;
+
+    /**
+     * @brief 检查是否已满
+     * @return true 如果玩家数量已达上限
+     * @note 线程安全
+     */
+    [[nodiscard]] bool isFull() const;
+
+    // ========== 遍历 ==========
+
+    /**
+     * @brief 遍历所有玩家
+     * @param func 对每个玩家调用的函数
+     * @note 线程安全
+     */
+    template<typename Func>
+    void forEachPlayer(Func&& func) {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        for (auto& [id, player] : m_players) {
+            func(player);
+        }
+    }
+
+    template<typename Func>
+    void forEachPlayer(Func&& func) const {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        for (const auto& [id, player] : m_players) {
+            func(player);
+        }
+    }
+
+    /**
+     * @brief 获取所有玩家ID列表
+     * @return 玩家ID列表
+     * @note 线程安全
+     */
+    [[nodiscard]] std::vector<PlayerId> getPlayerIds() const;
+
+    // ========== ID 生成 ==========
+
+    /**
+     * @brief 获取下一个玩家ID（线程安全）
+     * @return 新的玩家ID
+     */
+    [[nodiscard]] PlayerId nextPlayerId() { return m_nextPlayerId.fetch_add(1); }
+
+    /**
+     * @brief 获取下一个会话ID（线程安全）
+     * @return 新的会话ID
+     */
+    [[nodiscard]] u32 nextSessionId() { return m_nextSessionId.fetch_add(1); }
+
+    // ========== 配置 ==========
+
+    /**
+     * @brief 设置配置
+     * @param config 配置引用
+     */
+    void setConfig(const ServerCoreConfig& config) {
+        m_maxPlayers = config.maxPlayers;
+        m_chunkSyncManager.setDefaultViewDistance(config.viewDistance);
+    }
+
+    /**
+     * @brief 设置最大玩家数
+     * @param maxPlayers 最大玩家数
+     */
+    void setMaxPlayers(i32 maxPlayers) { m_maxPlayers = maxPlayers; }
+
+    /**
+     * @brief 获取最大玩家数
+     */
+    [[nodiscard]] i32 maxPlayers() const { return m_maxPlayers; }
+
+    // ========== 区块同步 ==========
+
+    /**
+     * @brief 获取区块同步管理器
+     */
+    [[nodiscard]] network::ChunkSyncManager& chunkSyncManager() { return m_chunkSyncManager; }
+    [[nodiscard]] const network::ChunkSyncManager& chunkSyncManager() const { return m_chunkSyncManager; }
+
+    // ========== 会话映射 ==========
+
+    /**
+     * @brief 建立会话ID到玩家ID的映射
+     * @param sessionId 会话ID
+     * @param playerId 玩家ID
+     * @note 线程安全
+     */
+    void mapSessionToPlayer(u32 sessionId, PlayerId playerId);
+
+    /**
+     * @brief 移除会话映射
+     * @param sessionId 会话ID
+     * @note 线程安全
+     */
+    void unmapSession(u32 sessionId);
+
+    /**
+     * @brief 通过会话ID查找玩家ID
+     * @param sessionId 会话ID
+     * @return 玩家ID，如果未找到返回 0
+     * @note 线程安全
+     */
+    [[nodiscard]] PlayerId getPlayerIdBySession(u32 sessionId) const;
+
+private:
+    mutable std::mutex m_mutex;
+    std::unordered_map<PlayerId, ServerPlayerData> m_players;
+    std::unordered_map<u32, PlayerId> m_sessionToPlayer;  ///< 会话ID -> 玩家ID
+
+    std::atomic<PlayerId> m_nextPlayerId{1};
+    std::atomic<u32> m_nextSessionId{1};
+    i32 m_maxPlayers = 20;
+
+    network::ChunkSyncManager m_chunkSyncManager;
+};
+
+} // namespace mc::server::core

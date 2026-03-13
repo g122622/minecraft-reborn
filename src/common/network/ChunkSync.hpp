@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <memory>
 
-namespace mr::network {
+namespace mc::network {
 
 // ============================================================================
 // 区块序列化器 - 将区块数据序列化为网络传输格式
@@ -161,4 +161,4 @@ private:
     i32 m_defaultViewDistance = 10;
 };
 
-} // namespace mr::network
+} // namespace mc::network

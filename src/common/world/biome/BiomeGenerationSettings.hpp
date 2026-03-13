@@ -5,7 +5,7 @@
 #include <memory>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 // 前向声明
 class ConfiguredFeatureBase;
@@ -137,4 +137,4 @@ public:
         u64 seed);
 };
 
-} // namespace mr
+} // namespace mc

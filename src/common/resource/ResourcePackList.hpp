@@ -12,7 +12,7 @@
 #include <memory>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 资源包列表管理器
@@ -307,4 +307,4 @@ private:
     [[nodiscard]] static bool isResourcePackDir(const std::filesystem::path& path);
 };
 
-} // namespace mr
+} // namespace mc

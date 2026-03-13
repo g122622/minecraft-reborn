@@ -7,7 +7,7 @@
 #include "common/world/block/VanillaBlocks.hpp"
 #include "common/math/random/Random.hpp"
 
-using namespace mr;
+using namespace mc;
 
 // ============================================================================
 // RuleTest 测试

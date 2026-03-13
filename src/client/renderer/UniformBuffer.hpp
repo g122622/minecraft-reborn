@@ -6,7 +6,7 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
-namespace mr::client {
+namespace mc::client {
 
 // Uniform缓冲区基类
 class UniformBuffer {
@@ -87,4 +87,4 @@ struct ModelPushConstants {
     alignas(4) float padding;
 };
 
-} // namespace mr::client
+} // namespace mc::client

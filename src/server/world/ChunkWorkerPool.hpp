@@ -12,7 +12,7 @@
 #include <functional>
 #include <atomic>
 
-namespace mr::server {
+namespace mc::server {
 
 /**
  * @brief 区块 Worker 线程池
@@ -187,4 +187,4 @@ private:
     GeneratorFunc m_generator;
 };
 
-} // namespace mr::server
+} // namespace mc::server

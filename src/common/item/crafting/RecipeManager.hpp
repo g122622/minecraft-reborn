@@ -10,7 +10,7 @@
 #include <functional>
 #include <mutex>
 
-namespace mr {
+namespace mc {
 namespace crafting {
 
 /**
@@ -167,4 +167,4 @@ private:
 };
 
 } // namespace crafting
-} // namespace mr
+} // namespace mc

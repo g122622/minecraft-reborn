@@ -1,6 +1,6 @@
 #include "Xoroshiro128ppRandom.hpp"
 
-namespace mr::math {
+namespace mc::math {
 
 Xoroshiro128ppRandom::Xoroshiro128ppRandom(u64 seed) {
     setSeed(seed);
@@ -70,4 +70,4 @@ u64 Xoroshiro128ppRandom::splitMix64(u64& state) {
     return z ^ (z >> 31);
 }
 
-} // namespace mr::math
+} // namespace mc::math

@@ -23,7 +23,7 @@
 // 前置声明
 struct GLFWwindow;
 
-namespace mr::client {
+namespace mc::client {
 
 // 渲染器配置
 struct RendererConfig {
@@ -243,4 +243,4 @@ private:
     void renderGui(VkCommandBuffer cmd);
 };
 
-} // namespace mr::client
+} // namespace mc::client

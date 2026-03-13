@@ -1,6 +1,6 @@
 #include "world/blockentity/BlockEntityType.hpp"
 
-namespace mr {
+namespace mc {
 
 namespace {
     const std::unordered_map<BlockEntityType, ResourceLocation> typeToIdMap = {
@@ -116,4 +116,4 @@ BlockEntityType blockEntityTypeFromId(const ResourceLocation& id) {
     return BlockEntityType::Unknown;
 }
 
-} // namespace mr
+} // namespace mc

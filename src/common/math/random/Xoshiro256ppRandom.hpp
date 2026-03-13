@@ -2,7 +2,7 @@
 
 #include "IRandom.hpp"
 
-namespace mr::math {
+namespace mc::math {
 
 /**
  * @brief xoshiro256++ 随机数生成器
@@ -63,4 +63,4 @@ private:
     static u64 splitMix64(u64& state);
 };
 
-} // namespace mr::math
+} // namespace mc::math

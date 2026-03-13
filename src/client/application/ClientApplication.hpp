@@ -25,7 +25,7 @@
 #include <memory>
 #include <atomic>
 
-namespace mr::client {
+namespace mc::client {
 
 /**
  * @brief 客户端启动参数
@@ -234,4 +234,4 @@ private:
     bool m_hasServerTimeSync = false;
 };
 
-} // namespace mr::client
+} // namespace mc::client

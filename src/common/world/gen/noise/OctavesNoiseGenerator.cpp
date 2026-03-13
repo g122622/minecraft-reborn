@@ -3,7 +3,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // OctavesNoiseGenerator 实现
@@ -360,4 +360,4 @@ f32 SimplexNoiseGenerator::grad(i32 hash, f32 x, f32 y, f32 z) const
     return SIMPLEX_GRAD[h][0] * x + SIMPLEX_GRAD[h][1] * y + SIMPLEX_GRAD[h][2] * z;
 }
 
-} // namespace mr
+} // namespace mc

@@ -8,7 +8,7 @@
 #include "../src/common/util/property/Properties.hpp"
 #include "../src/common/util/Direction.hpp"
 
-using namespace mr;
+using namespace mc;
 
 // ============================================================================
 // BooleanProperty 测试

@@ -3,7 +3,7 @@
 #include "core/Types.hpp"
 #include <string>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 屏幕类型枚举
@@ -67,4 +67,4 @@ String screenTypeToId(ScreenType type);
  */
 ScreenType screenTypeFromId(const String& id);
 
-} // namespace mr
+} // namespace mc

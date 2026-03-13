@@ -8,7 +8,7 @@
 #include <optional>
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 方块注册表
@@ -226,4 +226,4 @@ private:
     u32 m_nextStateId = 0;
 };
 
-} // namespace mr
+} // namespace mc

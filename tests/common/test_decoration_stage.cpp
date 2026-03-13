@@ -3,7 +3,7 @@
 #include "../src/common/world/gen/feature/ConfiguredFeature.hpp"
 #include "../src/common/world/biome/BiomeGenerationSettings.hpp"
 
-using namespace mr;
+using namespace mc;
 
 // ============================================================================
 // DecorationStage Tests

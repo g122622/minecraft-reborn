@@ -1,0 +1,371 @@
+#include <gtest/gtest.h>
+#include "network/EntityPackets.hpp"
+
+using namespace mc::network;
+using mc::u8;
+
+// ==================== SpawnEntityPacket Tests ====================
+
+class SpawnEntityPacketTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        packet.setEntityId(12345);
+        packet.setEntityTypeId("minecraft:item");
+        packet.setPosition(100.5f, 64.0f, -200.25f);
+        packet.setRotation(45.0f, 30.0f);
+        packet.setVelocity(100, -50, 200);
+
+        std::array<u8, 16> uuid = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+                                    0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10};
+        packet.setUuid(uuid);
+    }
+
+    SpawnEntityPacket packet;
+};
+
+TEST_F(SpawnEntityPacketTest, SerializeDeserialize) {
+    auto result = packet.serialize();
+    ASSERT_TRUE(result.success());
+
+    const auto& data = result.value();
+    EXPECT_GT(data.size(), sizeof(PacketHeader));
+
+    SpawnEntityPacket packet2;
+    auto result2 = packet2.deserialize(data.data(), data.size());
+    EXPECT_TRUE(result2.success());
+
+    EXPECT_EQ(packet2.entityId(), 12345u);
+    EXPECT_EQ(packet2.entityTypeId(), "minecraft:item");
+    EXPECT_FLOAT_EQ(packet2.x(), 100.5f);
+    EXPECT_FLOAT_EQ(packet2.y(), 64.0f);
+    EXPECT_FLOAT_EQ(packet2.z(), -200.25f);
+    EXPECT_FLOAT_EQ(packet2.yaw(), 45.0f);
+    EXPECT_FLOAT_EQ(packet2.pitch(), 30.0f);
+    EXPECT_EQ(packet2.velocityX(), 100);
+    EXPECT_EQ(packet2.velocityY(), -50);
+    EXPECT_EQ(packet2.velocityZ(), 200);
+}
+
+TEST_F(SpawnEntityPacketTest, PacketType) {
+    EXPECT_EQ(packet.type(), PacketType::SpawnEntity);
+}
+
+// ==================== SpawnMobPacket Tests ====================
+
+class SpawnMobPacketTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        packet.setEntityId(54321);
+        packet.setEntityTypeId("minecraft:pig");
+        packet.setPosition(50.0f, 70.0f, 100.0f);
+        packet.setRotation(0.0f, 0.0f, 0.0f);  // yaw, pitch, headYaw
+        packet.setVelocity(0, 0, 0);
+
+        std::array<u8, 16> uuid = {0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89,
+                                    0x9A, 0xBC, 0xDE, 0xF0, 0x12, 0x34, 0x56, 0x78};
+        packet.setUuid(uuid);
+
+        std::vector<u8> metadata = {0x01, 0x02, 0x03, static_cast<u8>(0xFF)};  // 示例元数据
+        packet.setMetadata(metadata);
+    }
+
+    SpawnMobPacket packet;
+};
+
+TEST_F(SpawnMobPacketTest, SerializeDeserialize) {
+    auto result = packet.serialize();
+    ASSERT_TRUE(result.success());
+
+    const auto& data = result.value();
+
+    SpawnMobPacket packet2;
+    auto result2 = packet2.deserialize(data.data(), data.size());
+    EXPECT_TRUE(result2.success());
+
+    EXPECT_EQ(packet2.entityId(), 54321u);
+    EXPECT_EQ(packet2.entityTypeId(), "minecraft:pig");
+    EXPECT_FLOAT_EQ(packet2.x(), 50.0f);
+    EXPECT_FLOAT_EQ(packet2.y(), 70.0f);
+    EXPECT_FLOAT_EQ(packet2.z(), 100.0f);
+    EXPECT_EQ(packet2.metadata().size(), 4u);
+    EXPECT_EQ(packet2.metadata()[0], 0x01);
+    EXPECT_EQ(packet2.metadata()[3], 0xFF);
+}
+
+TEST_F(SpawnMobPacketTest, PacketType) {
+    EXPECT_EQ(packet.type(), PacketType::SpawnMob);
+}
+
+// ==================== EntityVelocityPacket Tests ====================
+
+TEST(EntityVelocityPacketTest, SerializeDeserialize) {
+    EntityVelocityPacket packet;
+    packet.setEntityId(100);
+    packet.setVelocity(1000, -500, 2000);
+
+    auto result = packet.serialize();
+    ASSERT_TRUE(result.success());
+
+    EntityVelocityPacket packet2;
+    auto result2 = packet2.deserialize(result.value().data(), result.value().size());
+    EXPECT_TRUE(result2.success());
+
+    EXPECT_EQ(packet2.entityId(), 100u);
+    EXPECT_EQ(packet2.velocityX(), 1000);
+    EXPECT_EQ(packet2.velocityY(), -500);
+    EXPECT_EQ(packet2.velocityZ(), 2000);
+}
+
+// ==================== EntityTeleportPacket Tests ====================
+
+TEST(EntityTeleportPacketTest, SerializeDeserialize) {
+    EntityTeleportPacket packet;
+    packet.setEntityId(200);
+    packet.setPosition(123.45f, 64.0f, -789.0f);
+    packet.setRotation(90.0f, 45.0f);
+    packet.setOnGround(true);
+
+    auto result = packet.serialize();
+    ASSERT_TRUE(result.success());
+
+    EntityTeleportPacket packet2;
+    auto result2 = packet2.deserialize(result.value().data(), result.value().size());
+    EXPECT_TRUE(result2.success());
+
+    EXPECT_EQ(packet2.entityId(), 200u);
+    EXPECT_FLOAT_EQ(packet2.x(), 123.45f);
+    EXPECT_FLOAT_EQ(packet2.y(), 64.0f);
+    EXPECT_FLOAT_EQ(packet2.z(), -789.0f);
+    EXPECT_FLOAT_EQ(packet2.yaw(), 90.0f);
+    EXPECT_FLOAT_EQ(packet2.pitch(), 45.0f);
+    EXPECT_TRUE(packet2.onGround());
+}
+
+// ==================== EntityDestroyPacket Tests ====================
+
+TEST(EntityDestroyPacketTest, SerializeDeserialize) {
+    EntityDestroyPacket packet;
+    packet.addEntityId(1);
+    packet.addEntityId(2);
+    packet.addEntityId(3);
+
+    auto result = packet.serialize();
+    ASSERT_TRUE(result.success());
+
+    EntityDestroyPacket packet2;
+    auto result2 = packet2.deserialize(result.value().data(), result.value().size());
+    EXPECT_TRUE(result2.success());
+
+    EXPECT_EQ(packet2.entityIds().size(), 3u);
+    EXPECT_EQ(packet2.entityIds()[0], 1u);
+    EXPECT_EQ(packet2.entityIds()[1], 2u);
+    EXPECT_EQ(packet2.entityIds()[2], 3u);
+}
+
+TEST(EntityDestroyPacketTest, EmptyList) {
+    EntityDestroyPacket packet;
+
+    auto result = packet.serialize();
+    ASSERT_TRUE(result.success());
+
+    EntityDestroyPacket packet2;
+    auto result2 = packet2.deserialize(result.value().data(), result.value().size());
+    EXPECT_TRUE(result2.success());
+
+    EXPECT_TRUE(packet2.entityIds().empty());
+}
+
+// ==================== EntityAnimationPacket Tests ====================
+
+TEST(EntityAnimationPacketTest, SerializeDeserialize) {
+    EntityAnimationPacket packet;
+    packet.setEntityId(300);
+    packet.setAnimation(EntityAnimationPacket::Animation::SwingMainHand);
+
+    auto result = packet.serialize();
+    ASSERT_TRUE(result.success());
+
+    EntityAnimationPacket packet2;
+    auto result2 = packet2.deserialize(result.value().data(), result.value().size());
+    EXPECT_TRUE(result2.success());
+
+    EXPECT_EQ(packet2.entityId(), 300u);
+    EXPECT_EQ(packet2.animation(), EntityAnimationPacket::Animation::SwingMainHand);
+}
+
+TEST(EntityAnimationPacketTest, AllAnimationTypes) {
+    EntityAnimationPacket packet;
+    packet.setEntityId(1);
+
+    auto testAnimation = [&](EntityAnimationPacket::Animation anim) {
+        packet.setAnimation(anim);
+        auto result = packet.serialize();
+        ASSERT_TRUE(result.success());
+
+        EntityAnimationPacket packet2;
+        auto result2 = packet2.deserialize(result.value().data(), result.value().size());
+        EXPECT_TRUE(result2.success());
+        EXPECT_EQ(packet2.animation(), anim);
+    };
+
+    testAnimation(EntityAnimationPacket::Animation::SwingMainHand);
+    testAnimation(EntityAnimationPacket::Animation::TakeDamage);
+    testAnimation(EntityAnimationPacket::Animation::LeaveBed);
+    testAnimation(EntityAnimationPacket::Animation::SwingOffHand);
+    testAnimation(EntityAnimationPacket::Animation::CriticalEffect);
+    testAnimation(EntityAnimationPacket::Animation::MagicCriticalEffect);
+}
+
+// ==================== EntityMovePacket Tests ====================
+
+TEST(EntityMovePacketTest, SerializeDeserialize) {
+    EntityMovePacket packet;
+    packet.setEntityId(400);
+    packet.setDelta(100, -50, 200);  // 相对移动（1/32 block）
+    packet.setRotation(180.0f, 90.0f);
+    packet.setOnGround(false);
+
+    auto result = packet.serialize();
+    ASSERT_TRUE(result.success());
+
+    EntityMovePacket packet2;
+    auto result2 = packet2.deserialize(result.value().data(), result.value().size());
+    EXPECT_TRUE(result2.success());
+
+    EXPECT_EQ(packet2.entityId(), 400u);
+    EXPECT_EQ(packet2.deltaX(), 100);
+    EXPECT_EQ(packet2.deltaY(), -50);
+    EXPECT_EQ(packet2.deltaZ(), 200);
+    EXPECT_FLOAT_EQ(packet2.yaw(), 180.0f);
+    EXPECT_FLOAT_EQ(packet2.pitch(), 90.0f);
+    EXPECT_FALSE(packet2.onGround());
+}
+
+// ==================== EntityHeadLookPacket Tests ====================
+
+TEST(EntityHeadLookPacketTest, SerializeDeserialize) {
+    EntityHeadLookPacket packet;
+    packet.setEntityId(500);
+    packet.setHeadYaw(270.0f);
+
+    auto result = packet.serialize();
+    ASSERT_TRUE(result.success());
+
+    EntityHeadLookPacket packet2;
+    auto result2 = packet2.deserialize(result.value().data(), result.value().size());
+    EXPECT_TRUE(result2.success());
+
+    EXPECT_EQ(packet2.entityId(), 500u);
+    EXPECT_FLOAT_EQ(packet2.headYaw(), 270.0f);
+}
+
+// ==================== EntityStatusPacket Tests ====================
+
+TEST(EntityStatusPacketTest, SerializeDeserialize) {
+    EntityStatusPacket packet;
+    packet.setEntityId(600);
+    packet.setStatus(EntityStatusPacket::Status::LoveHeart);
+
+    auto result = packet.serialize();
+    ASSERT_TRUE(result.success());
+
+    EntityStatusPacket packet2;
+    auto result2 = packet2.deserialize(result.value().data(), result.value().size());
+    EXPECT_TRUE(result2.success());
+
+    EXPECT_EQ(packet2.entityId(), 600u);
+    EXPECT_EQ(packet2.status(), EntityStatusPacket::Status::LoveHeart);
+}
+
+TEST(EntityStatusPacketTest, AllStatusTypes) {
+    EntityStatusPacket packet;
+    packet.setEntityId(1);
+
+    auto testStatus = [&](EntityStatusPacket::Status status) {
+        packet.setStatus(status);
+        auto result = packet.serialize();
+        ASSERT_TRUE(result.success());
+
+        EntityStatusPacket packet2;
+        auto result2 = packet2.deserialize(result.value().data(), result.value().size());
+        EXPECT_TRUE(result2.success());
+        EXPECT_EQ(packet2.status(), status);
+    };
+
+    testStatus(EntityStatusPacket::Status::Hurt);
+    testStatus(EntityStatusPacket::Status::Death);
+    testStatus(EntityStatusPacket::Status::TamingSucceeded);
+    testStatus(EntityStatusPacket::Status::LoveHeart);
+    testStatus(EntityStatusPacket::Status::SheepEatGrass);
+    testStatus(EntityStatusPacket::Status::ChickenLayEgg);
+}
+
+// ==================== EntityMetadataPacket Tests ====================
+
+TEST(EntityMetadataPacketTest, SerializeDeserialize) {
+    EntityMetadataPacket packet;
+    packet.setEntityId(700);
+
+    std::vector<u8> metadata = {0x00, 0x01, 0x02, 0x03, 0x04};
+    packet.setMetadata(metadata);
+
+    auto result = packet.serialize();
+    ASSERT_TRUE(result.success());
+
+    EntityMetadataPacket packet2;
+    auto result2 = packet2.deserialize(result.value().data(), result.value().size());
+    EXPECT_TRUE(result2.success());
+
+    EXPECT_EQ(packet2.entityId(), 700u);
+    EXPECT_EQ(packet2.metadata().size(), 5u);
+    EXPECT_EQ(packet2.metadata(), metadata);
+}
+
+TEST(EntityMetadataPacketTest, EmptyMetadata) {
+    EntityMetadataPacket packet;
+    packet.setEntityId(800);
+
+    auto result = packet.serialize();
+    ASSERT_TRUE(result.success());
+
+    EntityMetadataPacket packet2;
+    auto result2 = packet2.deserialize(result.value().data(), result.value().size());
+    EXPECT_TRUE(result2.success());
+
+    EXPECT_EQ(packet2.entityId(), 800u);
+    EXPECT_TRUE(packet2.metadata().empty());
+}
+
+// ==================== Error Handling Tests ====================
+
+TEST(EntityPacketsErrorTest, SpawnEntityPacketTooSmall) {
+    SpawnEntityPacket packet;
+    mc::u8 smallData[] = {0x01, 0x02};  // 数据太小
+
+    auto result = packet.deserialize(smallData, sizeof(smallData));
+    EXPECT_FALSE(result.success());
+}
+
+TEST(EntityPacketsErrorTest, SpawnMobPacketTooSmall) {
+    SpawnMobPacket packet;
+    mc::u8 smallData[] = {0x01, 0x02, 0x03};  // 数据太小
+
+    auto result = packet.deserialize(smallData, sizeof(smallData));
+    EXPECT_FALSE(result.success());
+}
+
+TEST(EntityPacketsErrorTest, EntityVelocityPacketTooSmall) {
+    EntityVelocityPacket packet;
+    mc::u8 smallData[] = {0x01};  // 数据太小
+
+    auto result = packet.deserialize(smallData, sizeof(smallData));
+    EXPECT_FALSE(result.success());
+}
+
+TEST(EntityPacketsErrorTest, EntityTeleportPacketTooSmall) {
+    EntityTeleportPacket packet;
+    mc::u8 smallData[] = {0x01, 0x02, 0x03, 0x04};  // 数据太小
+
+    auto result = packet.deserialize(smallData, sizeof(smallData));
+    EXPECT_FALSE(result.success());
+}

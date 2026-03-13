@@ -1,6 +1,6 @@
 #include "DefaultTextureAtlas.hpp"
 
-namespace mr::client {
+namespace mc::client {
 
 std::vector<u8> DefaultTextureAtlas::generate() {
     std::vector<u8> pixels(ATLAS_SIZE * ATLAS_SIZE * 4, 0);
@@ -51,4 +51,4 @@ void DefaultTextureAtlas::generateMissingTexture(u8* pixels, u32 tileX, u32 tile
     }
 }
 
-} // namespace mr::client
+} // namespace mc::client

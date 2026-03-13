@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <memory>
 
-namespace mr::client {
+namespace mc::client {
 
 // 前向声明
 class VulkanTexture;
@@ -153,4 +153,4 @@ private:
     u32 m_padding = 1;                       // 字形间距（防止纹理 bleeding）
 };
 
-} // namespace mr::client
+} // namespace mc::client

@@ -5,8 +5,8 @@
 #include <thread>
 #include <chrono>
 
-using namespace mr;
-using namespace mr::server;
+using namespace mc;
+using namespace mc::server;
 
 // ============================================================================
 // ServerChunkManager 测试固件

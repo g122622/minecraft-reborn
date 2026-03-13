@@ -1,7 +1,7 @@
 #include "GameTime.hpp"
 #include <algorithm>
 
-namespace mr::time {
+namespace mc::time {
 
 void GameTime::tick() {
     m_gameTime++;
@@ -42,4 +42,4 @@ i64 GameTime::dayTimeForNetwork() const {
     return m_daylightCycleEnabled ? m_dayTime : -m_dayTime;
 }
 
-} // namespace mr::time
+} // namespace mc::time

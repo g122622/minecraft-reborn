@@ -11,7 +11,7 @@
 #include <vector>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 设置基类
@@ -186,4 +186,4 @@ private:
     mutable bool m_dirty = false;
 };
 
-} // namespace mr
+} // namespace mc

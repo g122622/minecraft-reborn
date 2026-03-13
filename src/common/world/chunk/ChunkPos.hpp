@@ -9,7 +9,7 @@
 #include <functional>
 #include <tuple>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 区块位置
@@ -193,25 +193,25 @@ public:
     }
 };
 
-} // namespace mr
+} // namespace mc
 
 // 哈希函数支持
 namespace std {
 template<>
-struct hash<mr::ChunkPos> {
-    size_t operator()(const mr::ChunkPos& pos) const noexcept
+struct hash<mc::ChunkPos> {
+    size_t operator()(const mc::ChunkPos& pos) const noexcept
     {
         return static_cast<size_t>(pos.toId());
     }
 };
 
 template<>
-struct hash<mr::SectionPos> {
-    size_t operator()(const mr::SectionPos& pos) const noexcept
+struct hash<mc::SectionPos> {
+    size_t operator()(const mc::SectionPos& pos) const noexcept
     {
-        size_t h1 = std::hash<mr::ChunkCoord>{}(pos.x);
-        size_t h2 = std::hash<mr::i32>{}(pos.y);
-        size_t h3 = std::hash<mr::ChunkCoord>{}(pos.z);
+        size_t h1 = std::hash<mc::ChunkCoord>{}(pos.x);
+        size_t h2 = std::hash<mc::i32>{}(pos.y);
+        size_t h3 = std::hash<mc::ChunkCoord>{}(pos.z);
         return h1 ^ (h2 << 1) ^ (h3 << 2);
     }
 };

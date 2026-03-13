@@ -1,0 +1,86 @@
+#pragma once
+
+#include "../Goal.hpp"
+#include "../../../mob/CreatureEntity.hpp"
+#include "../../../living/LivingEntity.hpp"
+#include "../../../Entity.hpp"
+#include "../../../../world/IWorld.hpp"
+#include "../../../../math/random/Random.hpp"
+#include "../../../../math/Vector3.hpp"
+#include <cmath>
+#include <functional>
+
+namespace mc {
+
+namespace entity::ai::goal {
+
+/**
+ * @brief 避开实体目标
+ *
+ * 使生物避开特定类型的实体。
+ *
+ * 参考 MC 1.16.5 AvoidEntityGoal
+ */
+class AvoidEntityGoal : public Goal {
+public:
+    /**
+     * @brief 实体过滤函数类型
+     */
+    using EntityPredicate = std::function<bool(const LivingEntity*)>;
+
+    /**
+     * @brief 构造函数
+     * @param creature 生物实体
+     * @param avoidDistance 避开距离
+     * @param farSpeed 远距离速度
+     * @param nearSpeed 近距离速度
+     */
+    AvoidEntityGoal(CreatureEntity* creature, f32 avoidDistance, f64 farSpeed, f64 nearSpeed);
+
+    /**
+     * @brief 构造函数（带过滤条件）
+     * @param creature 生物实体
+     * @param avoidDistance 避开距离
+     * @param farSpeed 远距离速度
+     * @param nearSpeed 近距离速度
+     * @param predicate 实体过滤条件
+     */
+    AvoidEntityGoal(CreatureEntity* creature, f32 avoidDistance, f64 farSpeed, f64 nearSpeed, EntityPredicate predicate);
+
+    [[nodiscard]] bool shouldExecute() override;
+    [[nodiscard]] bool shouldContinueExecuting() override;
+    void startExecuting() override;
+    void resetTask() override;
+    void tick() override;
+
+    [[nodiscard]] String getTypeName() const override { return "AvoidEntityGoal"; }
+
+protected:
+    /**
+     * @brief 寻找要避开的实体
+     * @return 要避开的实体，如果没有则返回 nullptr
+     */
+    [[nodiscard]] LivingEntity* findEntityToAvoid();
+
+    /**
+     * @brief 寻找远离实体的位置
+     * @return 是否找到有效位置
+     */
+    [[nodiscard]] bool findEscapePosition();
+
+    CreatureEntity* m_creature;
+    f32 m_avoidDistance;
+    f64 m_farSpeed;
+    f64 m_nearSpeed;
+    EntityPredicate m_predicate;
+    LivingEntity* m_avoidTarget = nullptr;
+    f32 m_escapeX = 0.0f;
+    f32 m_escapeY = 0.0f;
+    f32 m_escapeZ = 0.0f;
+
+    static constexpr i32 ESCAPE_RANGE = 16; // 逃跑搜索范围
+    static constexpr i32 ESCAPE_VERTICAL = 7; // 垂直搜索范围
+};
+
+} // namespace entity::ai::goal
+} // namespace mc

@@ -5,7 +5,7 @@
 #include <array>
 #include <unordered_map>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 方向枚举
@@ -281,4 +281,4 @@ namespace Axes {
     }
 }
 
-} // namespace mr
+} // namespace mc

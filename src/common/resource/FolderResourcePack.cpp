@@ -4,7 +4,7 @@
 
 namespace fs = std::filesystem;
 
-namespace mr {
+namespace mc {
 
 namespace {
     String getDirectoryName(const String& path) {
@@ -146,4 +146,4 @@ String FolderResourcePack::normalizePath(StringView resourcePath) const {
     return m_rootPath + "/" + path;
 }
 
-} // namespace mr
+} // namespace mc

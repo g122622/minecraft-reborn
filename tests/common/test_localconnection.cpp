@@ -5,8 +5,8 @@
 #include <vector>
 #include <atomic>
 
-using namespace mr::network;
-using namespace mr;
+using namespace mc::network;
+using namespace mc;
 
 // ============================================================================
 // 基础测试

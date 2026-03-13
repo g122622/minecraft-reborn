@@ -1,0 +1,223 @@
+/**
+ * @file PerfettoManager.hpp
+ * @brief Perfetto 追踪管理器
+ *
+ * 单例管理器，负责 Perfetto 追踪系统的生命周期管理：
+ * - 初始化和关闭追踪系统
+ * - 启动和停止追踪会话
+ * - 切换追踪数据到文件
+ * - 运行时启用/禁用追踪
+ *
+ * 使用方法：
+ * @code
+ * // 应用启动时初始化
+ * mc::perfetto::TraceConfig config;
+ * config.outputPath = "trace.perfetto-trace";
+ * mc::perfetto::PerfettoManager::instance().initialize(config);
+ * mc::perfetto::PerfettoManager::instance().startTracing();
+ *
+ * // 应用运行中记录事件
+ * MC_TRACE_EVENT("rendering.frame", "Frame");
+ *
+ * // 应用关闭时清理
+ * mc::perfetto::PerfettoManager::instance().stopTracing();
+ * mc::perfetto::PerfettoManager::instance().shutdown();
+ * @endcode
+ *
+ * 注意事项：
+ * - 必须在使用任何 MC_TRACE_* 宏之前调用 initialize()
+ * - 必须在程序退出前调用 shutdown() 确保数据写入文件
+ * - 追踪禁用时（MC_ENABLE_TRACING=0），此类展开为空操作
+ */
+
+#pragma once
+
+#include "PerfettoConfig.hpp"
+
+#include <string>
+#include <memory>
+#include <vector>
+
+namespace mc {
+namespace perfetto {
+
+/**
+ * @brief 追踪配置选项
+ */
+struct TraceConfig {
+    /** 是否启用追踪（运行时开关） */
+    bool enabled = true;
+
+    /** 是否输出到文件 */
+    bool outputToFile = true;
+
+    /** 输出文件路径 */
+    std::string outputPath = MC_TRACE_DEFAULT_OUTPUT;
+
+    /** 缓冲区大小 (KB) */
+    size_t bufferSizeKb = MC_TRACE_BUFFER_SIZE_KB;
+
+    /** 是否记录进程元数据 */
+    bool recordProcessMetadata = true;
+
+    /** 是否记录线程名称 */
+    bool recordThreadNames = true;
+
+    /**
+     * @brief 要启用的分类列表
+     *
+     * 空列表表示启用所有分类。
+     * 使用 "*" 作为通配符匹配所有分类。
+     */
+    std::vector<std::string> enabledCategories;
+
+    /**
+     * @brief 要禁用的分类列表
+     *
+     * 优先级高于 enabledCategories。
+     */
+    std::vector<std::string> disabledCategories;
+};
+
+#if MC_ENABLE_TRACING
+
+/**
+ * @brief Perfetto 追踪管理器（启用追踪时的实现）
+ *
+ * 单例模式，管理追踪系统的完整生命周期。
+ */
+class PerfettoManager {
+public:
+    /**
+     * @brief 获取单例实例
+     *
+     * @return PerfettoManager& 单例引用
+     */
+    static PerfettoManager& instance();
+
+    /**
+     * @brief 初始化追踪系统
+     *
+     * 必须在任何追踪事件之前调用。
+     *
+     * @param config 配置选项
+     * @throws std::runtime_error 如果初始化失败
+     */
+    void initialize(const TraceConfig& config = {});
+
+    /**
+     * @brief 关闭追踪系统
+     *
+     * 刷新所有待写入数据并释放资源。
+     * 必须在程序退出前调用以确保数据完整性。
+     */
+    void shutdown();
+
+    /**
+     * @brief 启动追踪会话
+     *
+     * 开始记录追踪事件。
+     */
+    void startTracing();
+
+    /**
+     * @brief 停止追踪会话
+     *
+     * 停止记录追踪事件，但保持系统初始化状态。
+     * 可以通过 startTracing() 重新启动。
+     */
+    void stopTracing();
+
+    /**
+     * @brief 刷新追踪数据
+     *
+     * 将缓冲区中的数据写入文件。
+     * 通常在关键时刻手动调用，如场景切换。
+     */
+    void flush();
+
+    /**
+     * @brief 检查追踪是否已启用
+     *
+     * @return true 如果追踪系统已初始化且正在记录
+     */
+    [[nodiscard]] bool isEnabled() const;
+
+    /**
+     * @brief 检查追踪系统是否已初始化
+     *
+     * @return true 如果已调用 initialize()
+     */
+    [[nodiscard]] bool isInitialized() const { return m_initialized; }
+
+    /**
+     * @brief 运行时启用/禁用追踪
+     *
+     * 可以在不停止追踪会话的情况下暂停/恢复事件记录。
+     *
+     * @param enabled 是否启用
+     */
+    void setEnabled(bool enabled) { m_enabled = enabled; }
+
+    /**
+     * @brief 获取当前配置
+     *
+     * @return const TraceConfig& 配置的常量引用
+     */
+    [[nodiscard]] const TraceConfig& config() const { return m_config; }
+
+private:
+    PerfettoManager();
+    ~PerfettoManager();
+
+    PerfettoManager(const PerfettoManager&) = delete;
+    PerfettoManager& operator=(const PerfettoManager&) = delete;
+
+    TraceConfig m_config;
+    bool m_initialized = false;
+    bool m_enabled = true;
+    bool m_tracing = false;
+
+    /** Pimpl 模式隐藏实现细节 */
+    class Impl;
+    std::unique_ptr<Impl> m_impl;
+};
+
+#else // MC_ENABLE_TRACING == 0
+
+/**
+ * @brief Perfetto 追踪管理器（禁用追踪时的存根实现）
+ *
+ * 所有方法展开为空操作，无任何开销。
+ */
+class PerfettoManager {
+public:
+    static PerfettoManager& instance() {
+        static PerfettoManager instance;
+        return instance;
+    }
+
+    void initialize(const TraceConfig& = {}) {}
+    void shutdown() {}
+    void startTracing() {}
+    void stopTracing() {}
+    void flush() {}
+
+    [[nodiscard]] bool isEnabled() const { return false; }
+    [[nodiscard]] bool isInitialized() const { return false; }
+    void setEnabled(bool) {}
+
+    [[nodiscard]] TraceConfig config() const { return {}; }
+
+private:
+    PerfettoManager() = default;
+    ~PerfettoManager() = default;
+
+    PerfettoManager(const PerfettoManager&) = delete;
+    PerfettoManager& operator=(const PerfettoManager&) = delete;
+};
+
+#endif // MC_ENABLE_TRACING
+
+} // namespace perfetto
+} // namespace mc

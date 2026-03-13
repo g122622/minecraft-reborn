@@ -5,12 +5,12 @@
 #include "server/settings/ServerSettings.hpp"
 #include "server/world/ServerWorld.hpp"
 #include "server/network/TcpServer.hpp"
+#include "server/core/ServerCore.hpp"
 #include <string>
 #include <memory>
 #include <atomic>
-#include <unordered_map>
 
-namespace mr::server {
+namespace mc::server {
 
 /**
  * @brief 服务端启动参数
@@ -33,6 +33,9 @@ struct ServerLaunchParams {
 
 /**
  * @brief 服务端应用
+ *
+ * 使用 ServerCore 进行核心逻辑管理，
+ * 使用 TcpServer 进行网络通信。
  */
 class ServerApplication {
 public:
@@ -77,6 +80,12 @@ public:
     [[nodiscard]] ServerWorld& world() noexcept { return *m_world; }
     [[nodiscard]] const ServerWorld& world() const noexcept { return *m_world; }
 
+    /**
+     * @brief 获取 ServerCore
+     */
+    [[nodiscard]] ServerCore& serverCore() noexcept { return *m_serverCore; }
+    [[nodiscard]] const ServerCore& serverCore() const noexcept { return *m_serverCore; }
+
 private:
     void mainLoop();
     void tick();
@@ -108,20 +117,14 @@ private:
     std::atomic<bool> m_running{false};
     std::atomic<bool> m_initialized{false};
 
+    // 核心逻辑管理器
+    std::unique_ptr<ServerCore> m_serverCore;
+
     std::unique_ptr<ServerWorld> m_world;
     std::unique_ptr<TcpServer> m_server;
 
-    // 会话到玩家ID的映射
-    std::unordered_map<SessionId, PlayerId> m_sessionToPlayer;
-    std::unordered_map<PlayerId, SessionId> m_playerToSession;
-    std::mutex m_playerMapMutex;
-
-    // 玩家ID生成
-    std::atomic<PlayerId> m_nextPlayerId{1};
-
     // 统计
-    u64 m_tickCount = 0;
     u64 m_lastKeepAliveTime = 0;
 };
 
-} // namespace mr::server
+} // namespace mc::server

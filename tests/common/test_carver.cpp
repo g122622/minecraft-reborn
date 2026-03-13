@@ -8,7 +8,7 @@
 #include "world/biome/BiomeProvider.hpp"
 #include "math/random/Random.hpp"
 
-using namespace mr;
+using namespace mc;
 
 // ============================================================================
 // CarvingMask 测试

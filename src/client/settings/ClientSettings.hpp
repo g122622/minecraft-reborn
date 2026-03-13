@@ -9,7 +9,7 @@
 #include <vector>
 #include <fstream>
 
-namespace mr::client {
+namespace mc::client {
 
 /**
  * @brief 图形质量模式
@@ -241,4 +241,4 @@ private:
     static std::vector<std::unique_ptr<KeyBinding>> s_keyBindings;
 };
 
-} // namespace mr::client
+} // namespace mc::client

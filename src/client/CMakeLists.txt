@@ -48,11 +48,35 @@ add_executable(minecraft-client
     ui/texture/GuiTextureAtlas.cpp
     ui/chat/ChatHistory.cpp
     ui/chat/ChatScreen.cpp
+    # 实体渲染
+    renderer/entity/EntityRenderer.cpp
+    renderer/entity/EntityRendererManager.cpp
+    renderer/entity/model/ModelRenderer.cpp
+    renderer/entity/model/EntityModel.cpp
+    renderer/entity/model/AnimalModels.cpp
+    renderer/entity/EntityPipeline.cpp
+    renderer/entity/EntityTextureAtlas.cpp
+    # 客户端实体管理
+    world/entity/ClientEntity.cpp
+    world/entity/ClientEntityManager.cpp
+    # 实体纹理加载
+    resource/EntityTextureLoader.cpp
     # 内置服务端支持
     ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/core/ServerCore.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/core/PlayerManager.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/core/ConnectionManager.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/core/TimeManager.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/core/TeleportManager.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/core/KeepAliveManager.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/core/PositionTracker.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/core/PacketHandler.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ChunkWorkerPool.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ServerChunkManager.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/world/spawn/SpawnConditions.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/world/spawn/NaturalSpawner.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/world/entity/EntityTracker.cpp
     ${CMAKE_SOURCE_DIR}/src/server/player/ServerPlayer.cpp
     ${CMAKE_SOURCE_DIR}/src/server/menu/CraftingMenu.cpp
     ${CMAKE_SOURCE_DIR}/src/server/command/ServerCommandSource.cpp
@@ -70,7 +94,7 @@ add_executable(minecraft-client
 
 target_link_libraries(minecraft-client
     PRIVATE
-        mr_common
+        mc_common
         spdlog::spdlog
         nlohmann_json::nlohmann_json
         glfw
@@ -81,7 +105,7 @@ if(WIN32)
     target_link_libraries(minecraft-client PRIVATE user32 gdi32 ws2_32)
 endif()
 
-mr_set_compiler_warnings(minecraft-client)
+mc_set_compiler_warnings(minecraft-client)
 
 target_compile_features(minecraft-client PRIVATE cxx_std_17)
 

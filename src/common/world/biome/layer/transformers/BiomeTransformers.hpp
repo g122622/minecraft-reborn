@@ -4,7 +4,7 @@
 #include "../../Biome.hpp"
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 生物群系分配层
@@ -118,4 +118,4 @@ public:
                              i32 x, i32 z) const override;
 };
 
-} // namespace mr
+} // namespace mc

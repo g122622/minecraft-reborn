@@ -11,7 +11,7 @@
 #include <array>
 #include <cstring>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 区块段 (16x16x16 方块)
@@ -242,13 +242,13 @@ struct ChunkId {
     }
 };
 
-} // namespace mr
+} // namespace mc
 
 // 哈希支持
 namespace std {
 template<>
-struct hash<mr::ChunkId> {
-    size_t operator()(const mr::ChunkId& id) const {
+struct hash<mc::ChunkId> {
+    size_t operator()(const mc::ChunkId& id) const {
         return static_cast<size_t>(id.toId());
     }
 };

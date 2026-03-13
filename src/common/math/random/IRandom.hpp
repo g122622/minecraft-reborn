@@ -5,7 +5,7 @@
 #include <cmath>
 #include <memory>
 
-namespace mr::math {
+namespace mc::math {
 
 /**
  * @brief 随机数生成器接口
@@ -165,4 +165,4 @@ protected:
     f32 m_nextGaussian = 0.0f;
 };
 
-} // namespace mr::math
+} // namespace mc::math

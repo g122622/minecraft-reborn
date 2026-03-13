@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 
-namespace mr::command {
+namespace mc::command {
 
 /**
  * @brief 字符串读取器
@@ -363,4 +363,4 @@ private:
     i32 m_cursor;
 };
 
-} // namespace mr::command
+} // namespace mc::command

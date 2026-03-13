@@ -6,9 +6,9 @@
 #include <chrono>
 #include <vector>
 
-using namespace mr::server;
-using namespace mr::network;
-using namespace mr;
+using namespace mc::server;
+using namespace mc::network;
+using namespace mc;
 
 // ============================================================================
 // IntegratedServer 基础测试

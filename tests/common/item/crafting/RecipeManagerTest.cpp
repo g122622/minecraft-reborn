@@ -4,8 +4,8 @@
 #include "entity/inventory/CraftingInventory.hpp"
 #include "item/ItemRegistry.hpp"
 
-using namespace mr;
-using namespace mr::crafting;
+using namespace mc;
+using namespace mc::crafting;
 
 // 简单的测试配方类
 class TestRecipe : public CraftingRecipe {

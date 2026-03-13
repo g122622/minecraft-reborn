@@ -2,10 +2,11 @@
 
 #include "entity/inventory/AbstractContainerMenu.hpp"
 #include "entity/inventory/CraftingInventory.hpp"
+#include "item/crafting/RecipeManager.hpp"
 #include "screen/ScreenType.hpp"
 #include <memory>
 
-namespace mr {
+namespace mc {
 
 class CraftingTableEntity;
 class World;
@@ -138,8 +139,17 @@ protected:
     void addResultSlot(i32 x, i32 y);
 
 private:
-    bool handleResultSlotClick();
-    void consumeIngredients();
+    /**
+     * @brief 处理结果槽位点击
+     * @return 如果成功处理返回配方指针，否则返回nullptr
+     */
+    const crafting::CraftingRecipe* handleResultSlotClick();
+
+    /**
+     * @brief 消耗合成原料
+     * @param recipe 已查找的配方指针（避免重复查找）
+     */
+    void consumeIngredients(const crafting::CraftingRecipe* recipe);
 
     CraftingInventory m_craftingGrid;
     CraftResultInventory m_result;
@@ -219,11 +229,20 @@ public:
     static constexpr i32 PLAYER_INV_START = 5;
 
 private:
-    bool handleResultSlotClick();
-    void consumeIngredients();
+    /**
+     * @brief 处理结果槽位点击
+     * @return 如果成功处理返回配方指针，否则返回nullptr
+     */
+    const crafting::CraftingRecipe* handleResultSlotClick();
+
+    /**
+     * @brief 消耗合成原料
+     * @param recipe 已查找的配方指针（避免重复查找）
+     */
+    void consumeIngredients(const crafting::CraftingRecipe* recipe);
 
     CraftingInventory m_craftingGrid;
     CraftResultInventory m_result;
 };
 
-} // namespace mr
+} // namespace mc

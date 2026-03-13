@@ -1,7 +1,7 @@
 #include "ServerPlayer.hpp"
 #include <spdlog/spdlog.h>
 
-namespace mr {
+namespace mc {
 
 ServerPlayer::ServerPlayer(EntityId id, const String& name)
     : Player(id, name)
@@ -18,4 +18,4 @@ void ServerPlayer::sendSystemMessage(const String& message) {
     spdlog::info("[System -> {}] {}", username(), message);
 }
 
-} // namespace mr
+} // namespace mc

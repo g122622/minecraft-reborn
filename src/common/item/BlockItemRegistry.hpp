@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <functional>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 方块物品注册表
@@ -136,4 +136,4 @@ private:
     bool m_initialized = false;
 };
 
-} // namespace mr
+} // namespace mc

@@ -4,7 +4,7 @@
 #include "../../../../block/VanillaBlocks.hpp"
 #include "../../../../../core/Types.hpp"
 
-namespace mr {
+namespace mc {
 
 TrunkPlacer::TrunkPlacer(i32 baseHeight, i32 heightRandA, i32 heightRandB)
     : m_baseHeight(baseHeight)
@@ -105,4 +105,4 @@ void TrunkPlacer::placeDirtUnder(WorldGenRegion& world, const BlockPos& pos) {
     }
 }
 
-} // namespace mr
+} // namespace mc

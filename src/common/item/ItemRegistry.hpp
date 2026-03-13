@@ -9,7 +9,7 @@
 #include <functional>
 #include <optional>
 
-namespace mr {
+namespace mc {
 
 /**
  * @brief 物品注册表
@@ -169,4 +169,4 @@ private:
     Item* m_airItem = nullptr;
 };
 
-} // namespace mr
+} // namespace mc

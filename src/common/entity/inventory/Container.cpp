@@ -2,7 +2,7 @@
 #include "PlayerInventory.hpp"
 #include <algorithm>
 
-namespace mr {
+namespace mc {
 
 // ============================================================================
 // 常量
@@ -762,4 +762,4 @@ bool PlayerContainer::canQuickMove(i32 slotIndex) const {
     return slot && !slot->isEmpty();
 }
 
-} // namespace mr
+} // namespace mc

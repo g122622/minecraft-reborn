@@ -5,7 +5,7 @@
 #include "common/core/Constants.hpp"
 #include "common/world/WorldConstants.hpp"
 
-using namespace mr;
+using namespace mc;
 
 // ============================================================================
 // 基础类型测试
