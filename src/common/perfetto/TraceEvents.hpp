@@ -49,7 +49,17 @@
 
 #if MC_ENABLE_TRACING
 
+// 禁用 Perfetto SDK 的警告
+#if defined(_MSC_VER)
+#pragma warning(push, 0)
+#endif
+
 #include <perfetto.h>
+#include "TraceCategories.hpp"
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 // ============================================================================
 // 追踪事件宏

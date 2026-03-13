@@ -2,17 +2,11 @@
  * @file TraceCategories.hpp
  * @brief Perfetto 追踪分类定义
  *
- * 此文件定义了项目中所有追踪分类。分类用于组织和过滤追踪事件。
+ * 此文件定义 Perfetto 追踪分类。根据 Perfetto SDK 要求：
+ * - PERFETTO_DEFINE_CATEGORIES 放在头文件中
+ * - PERFETTO_TRACK_EVENT_STATIC_STORAGE() 放在一个 .cpp 文件中 (TraceCategories.cpp)
  *
- * 分类命名规范：
- * - 使用点分层次结构，如 "rendering.frame"
- * - 顶层分类表示子系统，如 "rendering", "game", "world"
- * - 次级分类表示具体功能，如 "frame", "tick", "chunk_gen"
- *
- * 使用方法：
- * 1. 包含此头文件
- * 2. 使用 TRACE_EVENT("category", "name") 记录事件
- * 3. 分类必须在 PERFETTO_DEFINE_CATEGORIES 中注册
+ * 所有使用 MC_TRACE_EVENT 宏的文件都必须包含此头文件。
  */
 
 #pragma once
@@ -28,14 +22,7 @@
 
 #include <perfetto.h>
 
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
-
-// ============================================================================
-// 分类定义 - 必须在全局命名空间
-// ============================================================================
-
+// 定义追踪分类
 PERFETTO_DEFINE_CATEGORIES(
     // === 渲染分类 ===
     perfetto::Category("rendering.frame")
@@ -59,7 +46,7 @@ PERFETTO_DEFINE_CATEGORIES(
 
     // === 世界分类 ===
     perfetto::Category("world.chunk")
-        .SetDescription("区块操作（加载/卸载/状态变化）"),
+        .SetDescription("区块操作"),
     perfetto::Category("world.chunk_gen")
         .SetDescription("区块生成各阶段"),
     perfetto::Category("world.chunk_load")
@@ -87,6 +74,10 @@ PERFETTO_DEFINE_CATEGORIES(
     perfetto::Category("memory.cache")
         .SetDescription("缓存操作")
 );
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 namespace mc {
 namespace perfetto {

@@ -1,9 +1,9 @@
 /**
  * @file TraceCategories.cpp
- * @brief Perfetto 追踪分类静态存储定义和 SDK 编译
+ * @brief Perfetto 追踪分类静态存储定义
  *
- * 此文件定义 PERFETTO_TRACK_EVENT_STATIC_STORAGE 并包含 Perfetto SDK 实现。
- * 将 perfetto.cc 包含到此文件中可以确保所有符号在同一个编译单元中。
+ * 此文件定义 PERFETTO_TRACK_EVENT_STATIC_STORAGE，必须且只能在一个编译单元中定义。
+ * 注意：perfetto.cc 编译为独立的静态库 perfetto_sdk。
  */
 
 #include "TraceCategories.hpp"
@@ -15,18 +15,8 @@
 #pragma warning(push, 0)
 #endif
 
-#include <perfetto.h>
-
-// 为追踪分类预留内部静态存储
+// 定义分类的静态存储（必须且只能在一个 .cpp 文件中）
 PERFETTO_TRACK_EVENT_STATIC_STORAGE();
-
-// 包含 Perfetto SDK 实现
-// 这确保所有模板实例化和符号都在同一个编译单元中
-#if defined(__has_include)
-#if __has_include("perfetto.cc")
-#include "perfetto.cc"
-#endif
-#endif
 
 #if defined(_MSC_VER)
 #pragma warning(pop)
