@@ -11,6 +11,7 @@
 #include "common/world/gen/settings/DimensionSettings.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
 #include "common/world/drop/DropTables.hpp"
+#include "common/world/fluid/Fluid.hpp"
 #include "common/network/Packet.hpp"
 #include "common/network/ChunkSync.hpp"
 #include "common/world/WorldConstants.hpp"
@@ -104,6 +105,25 @@ public:
         (void)z;
         return y >= world::MIN_BUILD_HEIGHT && y < world::MAX_BUILD_HEIGHT;
     }
+
+    // IWorld 接口实现
+    bool setBlock(i32, i32, i32, const BlockState*) override { return false; }
+    [[nodiscard]] const fluid::FluidState* getFluidState(i32, i32, i32) const override { return fluid::Fluid::getFluidState(0); }
+    [[nodiscard]] const ChunkData* getChunk(ChunkCoord, ChunkCoord) const override { return nullptr; }
+    [[nodiscard]] bool hasChunk(ChunkCoord, ChunkCoord) const override { return false; }
+    [[nodiscard]] i32 getHeight(i32, i32) const override { return 64; }
+    [[nodiscard]] u8 getBlockLight(i32, i32, i32) const override { return 15; }
+    [[nodiscard]] u8 getSkyLight(i32, i32, i32) const override { return 15; }
+    [[nodiscard]] bool hasBlockCollision(const AxisAlignedBB&) const override { return false; }
+    [[nodiscard]] std::vector<AxisAlignedBB> getBlockCollisions(const AxisAlignedBB&) const override { return {}; }
+    [[nodiscard]] std::vector<Entity*> getEntitiesInAABB(const AxisAlignedBB&, const Entity*) const override { return {}; }
+    [[nodiscard]] std::vector<Entity*> getEntitiesInRange(const Vector3&, f32, const Entity*) const override { return {}; }
+    [[nodiscard]] DimensionId dimension() const override { return DimensionId(0); }
+    [[nodiscard]] u64 seed() const override { return 0; }
+    [[nodiscard]] u64 currentTick() const override { return 0; }
+    [[nodiscard]] i64 dayTime() const override { return 0; }
+    [[nodiscard]] bool isHardcore() const override { return false; }
+    [[nodiscard]] i32 difficulty() const override { return 0; }
 
 private:
     ServerChunkManager& m_chunkManager;

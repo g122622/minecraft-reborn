@@ -1,6 +1,7 @@
 #include "ServerWorld.hpp"
 #include "ServerChunkManager.hpp"
 #include "common/world/gen/chunk/NoiseChunkGenerator.hpp"
+#include "common/world/fluid/Fluid.hpp"
 #include "common/entity/Entity.hpp"
 #include "common/entity/EntityRegistry.hpp"
 #include "common/network/IServerConnection.hpp"
@@ -607,6 +608,22 @@ const BlockState* ServerWorld::getBlockState(i32 x, i32 y, i32 z) const {
     i32 localZ = z - chunkZ * 16;
 
     return chunk->getBlock(localX, y, localZ);
+}
+
+const fluid::FluidState* ServerWorld::getFluidState(i32 x, i32 y, i32 z) const {
+    // 获取方块状态，然后从中获取流体状态
+    const BlockState* blockState = getBlockState(x, y, z);
+    if (blockState == nullptr) {
+        // 返回空流体
+        return fluid::Fluid::getFluidState(0);
+    }
+    return blockState->getFluidState();
+}
+
+bool ServerWorld::isWithinWorldBounds(i32 /*x*/, i32 y, i32 /*z*/) const {
+    // MC 世界高度限制：-64 到 320 (1.18+), 或 0 到 256 (旧版本)
+    // 暂时使用 0-256 范围
+    return y >= 0 && y < 256;
 }
 
 bool ServerWorld::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {

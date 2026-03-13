@@ -19,6 +19,10 @@ class Block;
 class BlockState;
 class BlockRegistry;
 
+namespace fluid {
+class FluidState;
+} // namespace fluid
+
 /**
  * @brief VoxelShape工具类
  *
@@ -135,6 +139,13 @@ public:
      * @brief 获取方块资源位置
      */
     [[nodiscard]] const ResourceLocation& blockLocation() const;
+
+    /**
+     * @brief 获取流体状态
+     *
+     * 委托到方块的 getFluidState 方法
+     */
+    [[nodiscard]] const fluid::FluidState* getFluidState() const;
 
     /**
      * @brief 转换为模型键（用于查找模型变体）
@@ -404,6 +415,16 @@ public:
      * @param state 方块状态
      */
     [[nodiscard]] virtual bool isOpaque(const BlockState& state) const;
+
+    /**
+     * @brief 获取流体状态
+     *
+     * 默认返回空流体。液体方块（LiquidBlock）会重写此方法返回对应的流体。
+     *
+     * @param state 方块状态
+     * @return 流体状态指针
+     */
+    [[nodiscard]] virtual const fluid::FluidState* getFluidState(const BlockState& state) const;
 
     /**
      * @brief 转换为字符串

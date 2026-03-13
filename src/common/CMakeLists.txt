@@ -130,6 +130,7 @@ add_library(mc_common STATIC
     world/block/blocks/AirBlock.cpp
     world/block/blocks/SimpleBlock.cpp
     world/block/blocks/RotatedPillarBlock.cpp
+    world/block/blocks/LiquidBlock.cpp
 
     # World - Chunk
     world/chunk/ChunkData.cpp
@@ -187,6 +188,16 @@ add_library(mc_common STATIC
 
     # World - Time
     world/time/GameTime.cpp
+
+    # World - Tick System (header-only templates: TickPriority.hpp, ScheduledTick.hpp, ITickList.hpp, EmptyTickList.hpp, ServerTickList.hpp)
+
+    # World - Fluid System
+    world/fluid/Fluid.cpp
+    world/fluid/FluidRegistry.cpp
+    world/fluid/FlowingFluid.cpp
+    world/fluid/fluids/EmptyFluid.cpp
+    world/fluid/fluids/WaterFluid.cpp
+    world/fluid/fluids/LavaFluid.cpp
 
     # Physics
     physics/PhysicsEngine.cpp

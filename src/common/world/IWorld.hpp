@@ -11,6 +11,23 @@ namespace mc {
 class Entity;
 class BlockState;
 class ChunkData;
+class BlockPos;
+
+namespace fluid {
+class Fluid;
+class FluidState;
+}
+
+namespace world::tick {
+template<typename T> class ITickList;
+enum class TickPriority : i8;
+}
+
+namespace block {
+class BlockPos;
+}
+
+using namespace world::tick;
 
 /**
  * @brief 世界访问接口
@@ -40,6 +57,30 @@ public:
      * @return 是否成功
      */
     virtual bool setBlock(i32 x, i32 y, i32 z, const BlockState* state) = 0;
+
+    // ========== 流体访问 ==========
+
+    /**
+     * @brief 获取流体状态
+     * @param x, y, z 方块坐标
+     * @return 流体状态指针，如果无流体返回空流体状态
+     */
+    [[nodiscard]] virtual const fluid::FluidState* getFluidState(i32 x, i32 y, i32 z) const = 0;
+
+    /**
+     * @brief 检查位置是否有流体
+     */
+    [[nodiscard]] bool hasFluid(i32 x, i32 y, i32 z) const;
+
+    /**
+     * @brief 检查位置是否为水
+     */
+    [[nodiscard]] bool isWaterAt(i32 x, i32 y, i32 z) const;
+
+    /**
+     * @brief 检查位置是否为岩浆
+     */
+    [[nodiscard]] bool isLavaAt(i32 x, i32 y, i32 z) const;
 
     // ========== 区块访问 ==========
 
@@ -95,6 +136,15 @@ public:
      * @return 碰撞箱列表
      */
     [[nodiscard]] virtual std::vector<AxisAlignedBB> getBlockCollisions(const AxisAlignedBB& box) const = 0;
+
+    /**
+     * @brief 检查位置是否在世界边界内
+     * @param x X坐标
+     * @param y Y坐标
+     * @param z Z坐标
+     * @return 是否在世界边界内
+     */
+    [[nodiscard]] virtual bool isWithinWorldBounds(i32 x, i32 y, i32 z) const = 0;
 
     // ========== 实体查询 ==========
 
@@ -159,5 +209,8 @@ public:
 protected:
     IWorld() = default;
 };
+
+// 前向声明区块读取器接口
+class IBlockReader : public IWorld {};
 
 } // namespace mc

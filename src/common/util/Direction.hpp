@@ -209,6 +209,21 @@ namespace Directions {
     }
 
     /**
+     * @brief 将Direction转换为BlockFace
+     */
+    inline BlockFace toBlockFace(Direction dir) {
+        switch (dir) {
+            case Direction::Down:  return BlockFace::Bottom;
+            case Direction::Up:    return BlockFace::Top;
+            case Direction::North: return BlockFace::North;
+            case Direction::South: return BlockFace::South;
+            case Direction::West:  return BlockFace::West;
+            case Direction::East:  return BlockFace::East;
+            default:               return BlockFace::Bottom;
+        }
+    }
+
+    /**
      * @brief 从轴向和轴方向获取方向
      */
     inline Direction fromAxisAndDirection(Axis axis, AxisDirection axisDir) {

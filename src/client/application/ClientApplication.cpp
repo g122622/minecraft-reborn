@@ -3,6 +3,7 @@
 #include "common/item/BlockItemRegistry.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
 #include "common/world/drop/DropTables.hpp"
+#include "common/world/fluid/Fluid.hpp"
 #include "common/math/ray/Raycast.hpp"
 #include "common/resource/VanillaResources.hpp"
 #include "common/entity/VanillaEntities.hpp"
@@ -107,9 +108,51 @@ public:
         return m_world.isWithinWorldBounds(x, y, z);
     }
 
+    // IWorld 接口实现 - 委托到 ClientWorld
+    bool setBlock(i32 x, i32 y, i32 z, const BlockState* state) override;
+    [[nodiscard]] const fluid::FluidState* getFluidState(i32 x, i32 y, i32 z) const override;
+    [[nodiscard]] const ChunkData* getChunk(ChunkCoord x, ChunkCoord z) const override;
+    [[nodiscard]] bool hasChunk(ChunkCoord x, ChunkCoord z) const override;
+    [[nodiscard]] i32 getHeight(i32 x, i32 z) const override;
+    [[nodiscard]] u8 getBlockLight(i32 x, i32 y, i32 z) const override;
+    [[nodiscard]] u8 getSkyLight(i32 x, i32 y, i32 z) const override;
+    [[nodiscard]] bool hasBlockCollision(const AxisAlignedBB& box) const override;
+    [[nodiscard]] std::vector<AxisAlignedBB> getBlockCollisions(const AxisAlignedBB& box) const override;
+    [[nodiscard]] std::vector<Entity*> getEntitiesInAABB(const AxisAlignedBB& box, const Entity* except) const override;
+    [[nodiscard]] std::vector<Entity*> getEntitiesInRange(const Vector3& pos, f32 range, const Entity* except) const override;
+    [[nodiscard]] DimensionId dimension() const override;
+    [[nodiscard]] u64 seed() const override;
+    [[nodiscard]] u64 currentTick() const override;
+    [[nodiscard]] i64 dayTime() const override;
+    [[nodiscard]] bool isHardcore() const override;
+    [[nodiscard]] i32 difficulty() const override;
+
 private:
     const ClientWorld& m_world;
 };
+
+// IWorld 接口实现
+bool ClientWorldBlockReader::setBlock(i32, i32, i32, const BlockState*) { return false; }
+
+const fluid::FluidState* ClientWorldBlockReader::getFluidState(i32, i32, i32) const {
+    return fluid::Fluid::getFluidState(0);
+}
+
+const ChunkData* ClientWorldBlockReader::getChunk(ChunkCoord, ChunkCoord) const { return nullptr; }
+bool ClientWorldBlockReader::hasChunk(ChunkCoord, ChunkCoord) const { return false; }
+i32 ClientWorldBlockReader::getHeight(i32, i32) const { return 64; }
+u8 ClientWorldBlockReader::getBlockLight(i32, i32, i32) const { return 15; }
+u8 ClientWorldBlockReader::getSkyLight(i32, i32, i32) const { return 15; }
+bool ClientWorldBlockReader::hasBlockCollision(const AxisAlignedBB&) const { return false; }
+std::vector<AxisAlignedBB> ClientWorldBlockReader::getBlockCollisions(const AxisAlignedBB&) const { return {}; }
+std::vector<Entity*> ClientWorldBlockReader::getEntitiesInAABB(const AxisAlignedBB&, const Entity*) const { return {}; }
+std::vector<Entity*> ClientWorldBlockReader::getEntitiesInRange(const Vector3&, f32, const Entity*) const { return {}; }
+DimensionId ClientWorldBlockReader::dimension() const { return DimensionId(0); }
+u64 ClientWorldBlockReader::seed() const { return 0; }
+u64 ClientWorldBlockReader::currentTick() const { return 0; }
+i64 ClientWorldBlockReader::dayTime() const { return 0; }
+bool ClientWorldBlockReader::isHardcore() const { return false; }
+i32 ClientWorldBlockReader::difficulty() const { return 0; }
 
 } // namespace
 

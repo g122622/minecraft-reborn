@@ -148,6 +148,8 @@ public:
 
     // ========== 其他 IWorld 接口 ==========
 
+    [[nodiscard]] const fluid::FluidState* getFluidState(i32 x, i32 y, i32 z) const override;
+    [[nodiscard]] bool isWithinWorldBounds(i32 x, i32 y, i32 z) const override;
     [[nodiscard]] i32 getHeight(i32 x, i32 z) const override;
     [[nodiscard]] u8 getBlockLight(i32 x, i32 y, i32 z) const override;
     [[nodiscard]] u8 getSkyLight(i32 x, i32 y, i32 z) const override;

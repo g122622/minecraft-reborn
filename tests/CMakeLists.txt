@@ -67,6 +67,10 @@ add_executable(mc_tests
     common/world/gen/ChunkSpawnIntegrationTest.cpp
     # Perfetto 测试（集成到主测试套件）
     common/perfetto/PerfettoTest.cpp
+    # Tick 系统测试
+    common/world/tick/ServerTickListTest.cpp
+    # 流体系统测试
+    common/world/fluid/FluidTest.cpp
 )
 
 # 添加服务端源文件

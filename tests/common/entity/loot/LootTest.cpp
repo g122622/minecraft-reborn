@@ -9,6 +9,7 @@
 #include "world/IWorld.hpp"
 #include "world/chunk/ChunkData.hpp"
 #include "world/block/Block.hpp"
+#include "world/fluid/Fluid.hpp"
 #include "math/random/Random.hpp"
 
 using namespace mc;
@@ -19,6 +20,10 @@ class LootTestWorld : public IWorld {
 public:
     [[nodiscard]] const BlockState* getBlockState(i32, i32, i32) const override { return nullptr; }
     bool setBlock(i32, i32, i32, const BlockState*) override { return false; }
+    [[nodiscard]] const fluid::FluidState* getFluidState(i32, i32, i32) const override {
+        return fluid::Fluid::getFluidState(0);
+    }
+    [[nodiscard]] bool isWithinWorldBounds(i32, i32 y, i32) const override { return y >= 0 && y < 256; }
     [[nodiscard]] const ChunkData* getChunk(ChunkCoord, ChunkCoord) const override { return nullptr; }
     [[nodiscard]] bool hasChunk(ChunkCoord, ChunkCoord) const override { return false; }
     [[nodiscard]] i32 getHeight(i32, i32) const override { return 64; }
