@@ -336,16 +336,21 @@ void IntegratedServer::tick() {
         sendKeepAlive(timestamp);
     }
 
-    // 日光周期
-    if (m_daylightCycleEnabled) {
-        m_serverCore->timeManager().addDayTime(1);
-    }
+    // 日光周期由 ServerCore::tick() 内的 TimeManager::tick() 负责，无需再此重复增加
 
     // 追踪统计
     MC_TRACE_COUNTER("server.tick", "PlayerCount", static_cast<i64>(m_serverCore->playerCount()));
+
+    // 每 20 tick 同步一次时间到客户端（类似 Java 版，每秒一次）
+    if (tick % 20 == 0) {
+        sendTimeUpdate();
+    }
 }
 
 void IntegratedServer::shutdown() {
+    // 释放客户端连接（必须在 ServerCore 重置前清空）
+    m_clientConnection.reset();
+
     // 清理区块管理器
     m_chunkManager.reset();
 
@@ -525,12 +530,13 @@ void IntegratedServer::handleLoginRequest(const u8* data, size_t size) {
 
     spdlog::info("Player '{}' attempting to join", username);
 
-    // 创建本地连接
-    auto connection = std::make_shared<network::LocalServerConnection>(&m_connectionPair->serverEndpoint());
+    // 创建本地连接，并将 shared_ptr 保存到成员变量，
+    // 防止 ServerPlayerData 中的 weak_ptr 失效导致玩家被误删
+    m_clientConnection = std::make_shared<network::LocalServerConnection>(&m_connectionPair->serverEndpoint());
 
     // 使用 ServerCore 添加玩家
     m_clientPlayerId = m_serverCore->nextPlayerId();
-    auto* player = m_serverCore->addPlayer(m_clientPlayerId, username, connection);
+    auto* player = m_serverCore->addPlayer(m_clientPlayerId, username, m_clientConnection);
 
     if (!player) {
         sendLoginResponse(false, 0, username, "Failed to add player");
@@ -1160,6 +1166,26 @@ void IntegratedServer::sendToClient(const u8* data, size_t size) {
     if (m_serverEndpoint && m_serverEndpoint->isConnected()) {
         m_serverEndpoint->send(data, size);
     }
+}
+
+void IntegratedServer::sendTimeUpdate() {
+    if (!m_serverCore) return;
+    auto* player = getPlayerData();
+    if (!player || !player->loggedIn) return;
+
+    const auto& time = m_serverCore->gameTime();
+    network::TimeUpdatePacket packet(
+        time.gameTime(),
+        time.dayTime(),
+        time.daylightCycleEnabled()
+    );
+
+    network::PacketSerializer ser;
+    packet.serialize(ser);
+
+    auto fullPacket = core::ConnectionManager::encapsulatePacket(
+        network::PacketType::TimeUpdate, ser.buffer());
+    sendToClient(fullPacket.data(), fullPacket.size());
 }
 
 void IntegratedServer::openCraftingTableMenu() {

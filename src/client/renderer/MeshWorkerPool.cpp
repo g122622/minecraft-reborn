@@ -219,6 +219,8 @@ void MeshWorkerPool::workerThread(i32 workerId)
 void MeshWorkerPool::executeTask(const ClientMeshTask& task)
 {
     MC_TRACE_CHUNK_MESH_EVENT("BuildMesh");
+    // spdlog::info("MeshWorkerPool: building mesh for chunk ({}, {}) with priority {}",
+    //               task.chunkId.x, task.chunkId.z, task.priority);
 
     MeshBuildResult result;
     result.chunkId = task.chunkId;

@@ -156,6 +156,7 @@ private:
     void sendOpenContainer(ContainerId containerId, ContainerType type, const String& title, i32 slotCount);
     void sendCloseContainer(ContainerId containerId);
     void sendToClient(const u8* data, size_t size);
+    void sendTimeUpdate();
     void openCraftingTableMenu();
 
     /**
@@ -186,6 +187,9 @@ private:
     // 本地连接
     std::unique_ptr<network::LocalConnectionPair> m_connectionPair;
     network::LocalEndpoint* m_serverEndpoint = nullptr;
+
+    /// 客户端连接（持有 shared_ptr 以防止 ServerPlayerData 中的 weak_ptr 失效）
+    network::ConnectionPtr m_clientConnection;
 
     // 客户端特有数据（容器、物品栏等）
     struct ClientGameData {
