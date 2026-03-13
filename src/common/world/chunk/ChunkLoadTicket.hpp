@@ -251,6 +251,10 @@ public:
                m_intValue == other.m_intValue;
     }
 
+    bool operator!=(const ChunkLoadTicket& other) const {
+        return !(*this == other);
+    }
+
     /**
      * @brief 比较优先级
      * @param other 另一个票据
