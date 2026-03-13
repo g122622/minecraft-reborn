@@ -272,15 +272,12 @@ public:
 
     /**
      * @brief 是否可见
+     *
+     * 不可见的模型部件不会渲染。
+     * 此属性会传递给所有子部件。
      */
     [[nodiscard]] bool isVisible() const { return m_visible; }
     void setVisible(bool visible) { m_visible = visible; }
-
-    /**
-     * @brief 是否显示模型
-     */
-    [[nodiscard]] bool showModel() const { return m_showModel; }
-    void setShowModel(bool show) { m_showModel = show; }
 
     // ========== 旋转访问器 ==========
 
@@ -331,9 +328,8 @@ private:
     // 镜像
     bool m_mirror = false;
 
-    // 显示状态
+    // 可见性
     bool m_visible = true;
-    bool m_showModel = true;
 
     // 子部件
     std::vector<std::shared_ptr<ModelRenderer>> m_children;

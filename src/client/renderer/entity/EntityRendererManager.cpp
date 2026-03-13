@@ -1,11 +1,30 @@
 #include "EntityRendererManager.hpp"
 #include "AnimalRenderers.hpp"
 #include "../../world/entity/ClientEntity.hpp"
-#include "../../../common/entity/Entity.hpp"
+#include "../../../common/entity/EntityRegistry.hpp"
 #include "../../../common/math/MathUtils.hpp"
 #include <spdlog/spdlog.h>
 
 namespace mc::client::renderer {
+
+namespace {
+
+/**
+ * @brief 规范化实体类型ID
+ *
+ * 将实体类型ID转换为标准格式（带命名空间前缀）
+ * 例如："pig" -> "minecraft:pig", "minecraft:cow" -> "minecraft:cow"
+ */
+String normalizeEntityTypeId(const String& typeId) {
+    // 如果已有命名空间前缀，直接返回
+    if (typeId.find(':') != String::npos) {
+        return typeId;
+    }
+    // 添加默认命名空间
+    return "minecraft:" + typeId;
+}
+
+} // anonymous namespace
 
 EntityRendererManager::EntityRendererManager()
 {
@@ -17,7 +36,8 @@ void EntityRendererManager::registerRenderer(const String& typeId, RendererCreat
 }
 
 EntityRenderer* EntityRendererManager::getRenderer(const String& typeId) {
-    auto it = m_renderers.find(typeId);
+    String normalizedId = normalizeEntityTypeId(typeId);
+    auto it = m_renderers.find(normalizedId);
     if (it != m_renderers.end()) {
         return it->second.get();
     }
@@ -25,9 +45,8 @@ EntityRenderer* EntityRendererManager::getRenderer(const String& typeId) {
 }
 
 void EntityRendererManager::render(Entity& entity, f32 partialTicks) {
-    // 获取实体类型ID并查找渲染器
-    String typeId = entity.getTypeId();
-    EntityRenderer* renderer = getOrCreateRenderer(typeId);
+    // 获取实体类型ID并查找渲染器（已在 getOrCreateRenderer 中规范化）
+    EntityRenderer* renderer = getOrCreateRenderer(entity.getTypeId());
     if (renderer) {
         renderer->render(entity, partialTicks);
         if (m_renderShadows) {
@@ -150,44 +169,36 @@ void EntityRendererManager::removeMesh(EntityId entityId) {
 }
 
 void EntityRendererManager::initializeDefaults() {
-    // 注册动物渲染器
-    registerRenderer("minecraft:pig", []() -> std::unique_ptr<EntityRenderer> {
-        return std::make_unique<PigRenderer>();
-    });
-    registerRenderer("minecraft:cow", []() -> std::unique_ptr<EntityRenderer> {
-        return std::make_unique<CowRenderer>();
-    });
-    registerRenderer("minecraft:sheep", []() -> std::unique_ptr<EntityRenderer> {
-        return std::make_unique<SheepRenderer>();
-    });
-    registerRenderer("minecraft:chicken", []() -> std::unique_ptr<EntityRenderer> {
-        return std::make_unique<ChickenRenderer>();
-    });
+    // 使用 EntityTypes 常量注册渲染器，避免重复注册
+    // 所有注册都使用规范化的命名空间格式
+    namespace ET = entity::EntityTypes;
 
-    // 兼容性：同时注册不带命名空间的ID
-    registerRenderer("pig", []() -> std::unique_ptr<EntityRenderer> {
+    registerRenderer(ET::PIG, []() -> std::unique_ptr<EntityRenderer> {
         return std::make_unique<PigRenderer>();
     });
-    registerRenderer("cow", []() -> std::unique_ptr<EntityRenderer> {
+    registerRenderer(ET::COW, []() -> std::unique_ptr<EntityRenderer> {
         return std::make_unique<CowRenderer>();
     });
-    registerRenderer("sheep", []() -> std::unique_ptr<EntityRenderer> {
+    registerRenderer(ET::SHEEP, []() -> std::unique_ptr<EntityRenderer> {
         return std::make_unique<SheepRenderer>();
     });
-    registerRenderer("chicken", []() -> std::unique_ptr<EntityRenderer> {
+    registerRenderer(ET::CHICKEN, []() -> std::unique_ptr<EntityRenderer> {
         return std::make_unique<ChickenRenderer>();
     });
 }
 
 EntityRenderer* EntityRendererManager::getOrCreateRenderer(const String& typeId) {
+    // 规范化实体类型ID
+    String normalizedId = normalizeEntityTypeId(typeId);
+
     // 先查找已创建的渲染器
-    auto it = m_renderers.find(typeId);
+    auto it = m_renderers.find(normalizedId);
     if (it != m_renderers.end()) {
         return it->second.get();
     }
 
     // 查找创建函数
-    auto creatorIt = m_creators.find(typeId);
+    auto creatorIt = m_creators.find(normalizedId);
     if (creatorIt == m_creators.end()) {
         return nullptr;
     }
@@ -195,37 +206,42 @@ EntityRenderer* EntityRendererManager::getOrCreateRenderer(const String& typeId)
     // 创建渲染器
     auto renderer = creatorIt->second();
     EntityRenderer* ptr = renderer.get();
-    m_renderers[typeId] = std::move(renderer);
+    m_renderers[normalizedId] = std::move(renderer);
     return ptr;
 }
 
 bool EntityRendererManager::generateModelMesh(const String& typeId,
                                                std::vector<ModelVertex>& vertices,
                                                std::vector<u32>& indices) {
-    // 根据实体类型创建模型并生成网格
-    if (typeId == "minecraft:pig" || typeId == "pig") {
+    // 规范化实体类型ID，统一使用命名空间格式进行比较
+    String normalizedId = normalizeEntityTypeId(typeId);
+
+    // 使用 EntityTypes 常量进行比较
+    namespace ET = entity::EntityTypes;
+
+    if (normalizedId == ET::PIG) {
         PigModel model;
         model.generateMesh(vertices, indices);
         return true;
     }
-    else if (typeId == "minecraft:cow" || typeId == "cow") {
+    if (normalizedId == ET::COW) {
         CowModel model;
         model.generateMesh(vertices, indices);
         return true;
     }
-    else if (typeId == "minecraft:sheep" || typeId == "sheep") {
+    if (normalizedId == ET::SHEEP) {
         SheepModel model;
         model.generateMesh(vertices, indices);
         return true;
     }
-    else if (typeId == "minecraft:chicken" || typeId == "chicken") {
+    if (normalizedId == ET::CHICKEN) {
         ChickenModel model;
         model.generateMesh(vertices, indices);
         return true;
     }
 
     // 未知实体类型
-    spdlog::debug("Unknown entity type for mesh generation: {}", typeId);
+    spdlog::debug("Unknown entity type for mesh generation: {}", normalizedId);
     return false;
 }
 

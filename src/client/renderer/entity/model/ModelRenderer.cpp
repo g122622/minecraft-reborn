@@ -360,7 +360,7 @@ void ModelRenderer::generateMesh(std::vector<ModelVertex>& vertices,
                                   std::vector<u32>& indices,
                                   const std::array<f32, 16>& parentMatrix,
                                   f32 scale) const {
-    if (!m_visible || !m_showModel) {
+    if (!m_visible) {
         return;
     }
 
@@ -422,7 +422,7 @@ void ModelRenderer::generateMesh(std::vector<ModelVertex>& vertices,
 }
 
 void ModelRenderer::render(f32 scale) {
-    if (!m_visible || !m_showModel) {
+    if (!m_visible) {
         return;
     }
 
@@ -440,7 +440,7 @@ void ModelRenderer::render(f32 scale) {
 }
 
 void ModelRenderer::renderNoRotate(f32 scale) {
-    if (!m_visible || !m_showModel) {
+    if (!m_visible) {
         return;
     }
 

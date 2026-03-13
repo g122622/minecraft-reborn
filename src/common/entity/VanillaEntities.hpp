@@ -8,6 +8,7 @@
 #include "animal/ChickenEntity.hpp"
 #include "ItemEntity.hpp"
 #include <spdlog/spdlog.h>
+#include <mutex>
 
 namespace mc {
 namespace entity {
@@ -26,15 +27,37 @@ public:
      * @brief 注册所有原版实体类型
      *
      * 包括动物、怪物和其他实体类型。
-     * 此方法可以安全地多次调用，后续调用将被忽略。
+     * 此方法线程安全，可以安全地多次调用，后续调用将被忽略。
      */
     static void registerAll() {
-        static bool registered = false;
-        if (registered) {
-            return;
-        }
-        registered = true;
+        std::call_once(s_onceFlag, []() {
+            doRegisterAll();
+        });
+    }
 
+    /**
+     * @brief 获取实体类型的本地化名称
+     * @param typeId 实体类型ID
+     * @return 本地化名称键（如 entity.minecraft.pig）
+     */
+    static String getLocalizedNameKey(EntityTypeId typeId) {
+        const auto* type = EntityRegistry::instance().getType(typeId);
+        if (!type) {
+            return "entity.minecraft.unknown";
+        }
+
+        // 将 minecraft:pig 转换为 entity.minecraft.pig
+        const String& name = type->name();
+        if (name.find(':') != String::npos) {
+            return "entity." + name;
+        }
+        return "entity.minecraft." + name;
+    }
+
+private:
+    static inline std::once_flag s_onceFlag;
+
+    static void doRegisterAll() {
         auto& registry = EntityRegistry::instance();
 
         // ========== 动物 ==========
@@ -92,25 +115,6 @@ public:
         // 玩家实体类型由 Player 类自行管理
 
         spdlog::info("Registered {} entity types", registry.size());
-    }
-
-    /**
-     * @brief 获取实体类型的本地化名称
-     * @param typeId 实体类型ID
-     * @return 本地化名称键（如 entity.minecraft.pig）
-     */
-    static String getLocalizedNameKey(EntityTypeId typeId) {
-        const auto* type = EntityRegistry::instance().getType(typeId);
-        if (!type) {
-            return "entity.minecraft.unknown";
-        }
-
-        // 将 minecraft:pig 转换为 entity.minecraft.pig
-        const String& name = type->name();
-        if (name.find(':') != String::npos) {
-            return "entity." + name;
-        }
-        return "entity.minecraft." + name;
     }
 };
 

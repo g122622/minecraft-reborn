@@ -6,9 +6,9 @@
 namespace mc {
 
 std::unique_ptr<Entity> ChickenEntity::create(IWorld* /*world*/) {
-    // 创建一个临时ID，实际ID由实体管理器分配
-    static EntityId nextId = 1;
-    return std::make_unique<ChickenEntity>(LegacyEntityType::Unknown, nextId++);
+    // 使用临时ID 0，实际ID由 EntityManager 分配
+    // 注意：不要使用静态计数器，以避免线程安全问题和ID冲突
+    return std::make_unique<ChickenEntity>(LegacyEntityType::Unknown, 0);
 }
 
 ChickenEntity::ChickenEntity(LegacyEntityType type, EntityId id)

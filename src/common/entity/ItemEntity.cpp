@@ -1,8 +1,10 @@
 #include "ItemEntity.hpp"
 #include "Player.hpp"
 #include "../math/random/Random.hpp"
+#include "../world/entity/EntityManager.hpp"
 #include <cmath>
 #include <chrono>
+#include <atomic>
 
 namespace mc {
 
@@ -11,10 +13,11 @@ namespace mc {
 // ============================================================================
 
 std::unique_ptr<Entity> ItemEntity::create(IWorld* /*world*/) {
-    // 创建一个空的物品实体，实际物品稍后设置
-    static EntityId nextId = 1;
+    // 创建一个空的物品实体，使用临时ID 0
+    // 实际ID会在 EntityManager::addEntity() 时分配
+    // 注意：不要使用静态计数器，以避免线程安全问题和ID冲突
     ItemStack emptyStack;
-    return std::make_unique<ItemEntity>(nextId++, emptyStack, 0.0f, 0.0f, 0.0f);
+    return std::make_unique<ItemEntity>(0, emptyStack, 0.0f, 0.0f, 0.0f);
 }
 
 // ============================================================================
