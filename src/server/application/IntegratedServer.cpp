@@ -17,6 +17,8 @@
 #include "common/world/chunk/ChunkLoadTicket.hpp"
 #include "common/util/Direction.hpp"
 #include "common/util/TimeUtils.hpp"
+#include "common/perfetto/PerfettoManager.hpp"
+#include "common/perfetto/TraceEvents.hpp"
 #include "server/menu/CraftingMenu.hpp"
 #include "server/application/MinecraftServer.hpp"
 #include "server/command/CommandRegistry.hpp"
@@ -257,9 +259,14 @@ void IntegratedServer::mainLoop() {
     using clock = std::chrono::steady_clock;
     const auto tickDuration = std::chrono::milliseconds(1000 / m_config.tickRate);
 
+    // 设置线程名称
+    mc::perfetto::PerfettoManager::instance().setThreadName("IntegratedServerThread");
+
     spdlog::info("Integrated server started ({} TPS)", m_config.tickRate);
 
     while (m_running.load(std::memory_order_acquire)) {
+        MC_TRACE_EVENT("server.tick", "MainLoopIteration");
+
         auto startTime = clock::now();
 
         tick();
@@ -273,18 +280,26 @@ void IntegratedServer::mainLoop() {
 }
 
 void IntegratedServer::tick() {
+    MC_TRACE_EVENT("server.tick", "IntegratedServerTick");
+
     // 如果已停止，跳过处理
     if (!m_running.load()) {
         return;
     }
 
     // 使用 ServerCore 的 tick
-    m_serverCore->tick();
+    {
+        MC_TRACE_EVENT("server.tick", "CoreTick");
+        m_serverCore->tick();
+    }
 
     // 处理网络数据包
-    std::vector<u8> packetData;
-    while (m_running.load() && m_serverEndpoint && m_serverEndpoint->receive(packetData)) {
-        onPacketReceived(packetData.data(), packetData.size());
+    {
+        MC_TRACE_EVENT("server.network", "ProcessPackets");
+        std::vector<u8> packetData;
+        while (m_running.load() && m_serverEndpoint && m_serverEndpoint->receive(packetData)) {
+            onPacketReceived(packetData.data(), packetData.size());
+        }
     }
 
     // 如果已停止，跳过更新
@@ -293,21 +308,27 @@ void IntegratedServer::tick() {
     }
 
     // 处理待发送区块（从 Worker 线程推送）
-    processPendingChunkSends();
+    {
+        MC_TRACE_EVENT("server.chunk", "ProcessPendingChunks");
+        processPendingChunkSends();
+    }
 
     // 更新票据管理器（清理过期票据等）
     if (m_ticketManager) {
+        MC_TRACE_EVENT("server.chunk", "TicketManagerTick");
         m_ticketManager->tick();
     }
 
     // 更新区块管理器
     if (m_chunkManager) {
+        MC_TRACE_EVENT("server.chunk", "ChunkManagerTick");
         m_chunkManager->tick();
     }
 
     // 心跳（每 15 秒）
     u64 tick = m_serverCore->currentTick();
     if (tick % (static_cast<u64>(m_config.tickRate) * 15) == 0) {
+        MC_TRACE_EVENT("server.network", "SendKeepAlive");
         u64 timestamp = util::TimeUtils::getCurrentTimeMs();
         sendKeepAlive(timestamp);
     }
@@ -316,6 +337,9 @@ void IntegratedServer::tick() {
     if (m_daylightCycleEnabled) {
         m_serverCore->timeManager().addDayTime(1);
     }
+
+    // 追踪统计
+    MC_TRACE_COUNTER("server.tick", "PlayerCount", static_cast<i64>(m_serverCore->playerCount()));
 }
 
 void IntegratedServer::shutdown() {

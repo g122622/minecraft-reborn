@@ -7,6 +7,7 @@
 #include "server/core/PositionTracker.hpp"
 #include "server/core/PacketHandler.hpp"
 #include "server/world/ServerWorld.hpp"
+#include "common/perfetto/TraceEvents.hpp"
 #include <spdlog/spdlog.h>
 
 namespace mc::server {
@@ -217,17 +218,24 @@ void ServerCore::recordKeepAliveSent(PlayerId playerId, u64 timestamp) {
 // ============================================================================
 
 void ServerCore::tick() {
+    MC_TRACE_EVENT("server.tick", "CoreTick");
+
     // 更新时间
-    tickTime();
+    {
+        MC_TRACE_EVENT("server.tick", "TickTime");
+        tickTime();
+    }
 
     // 清理断开连接的玩家（每 CLEANUP_INTERVAL_TICKS tick 执行一次）
     if (m_currentCleanupTick % CLEANUP_INTERVAL_TICKS == 0) {
+        MC_TRACE_EVENT("server.player", "CleanupDisconnected");
         cleanupDisconnectedPlayers();
     }
     m_currentCleanupTick++;
 
     // 检查心跳超时（每 KEEPALIVE_CHECK_INTERVAL_TICKS tick 执行一次）
     if (m_currentKeepAliveCheckTick % KEEPALIVE_CHECK_INTERVAL_TICKS == 0) {
+        MC_TRACE_EVENT("server.network", "CheckKeepAliveTimeout");
         u64 currentTickMs = currentTick() * TICK_DURATION_MS;
         auto timedOutPlayers = m_keepAliveManager->getTimedOutPlayers(currentTickMs);
         for (PlayerId playerId : timedOutPlayers) {

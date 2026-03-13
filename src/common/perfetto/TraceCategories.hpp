@@ -94,7 +94,21 @@ PERFETTO_DEFINE_CATEGORIES(
     perfetto::Category("memory.allocation")
         .SetDescription("内存分配追踪"),
     perfetto::Category("memory.cache")
-        .SetDescription("缓存操作")
+        .SetDescription("缓存操作"),
+
+    // === 服务端细粒度分类 ===
+    perfetto::Category("server.tick")
+        .SetDescription("服务端游戏刻处理"),
+    perfetto::Category("server.network")
+        .SetDescription("服务端网络处理"),
+    perfetto::Category("server.player")
+        .SetDescription("服务端玩家管理"),
+    perfetto::Category("server.world")
+        .SetDescription("服务端世界更新"),
+    perfetto::Category("server.chunk")
+        .SetDescription("服务端区块处理"),
+    perfetto::Category("server.entity")
+        .SetDescription("服务端实体更新")
 );
 
 #if defined(_MSC_VER)

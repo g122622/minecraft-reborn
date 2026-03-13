@@ -166,6 +166,26 @@ public:
      */
     [[nodiscard]] const TraceConfig& config() const { return m_config; }
 
+    /**
+     * @brief 设置当前进程名称
+     *
+     * 在 Perfetto UI 中显示有意义的进程名称，便于分析。
+     * 应在进程启动后、追踪开始前调用。
+     *
+     * @param name 进程名称
+     */
+    void setProcessName(const std::string& name);
+
+    /**
+     * @brief 设置当前线程名称
+     *
+     * 在 Perfetto UI 中显示有意义的线程名称，便于分析。
+     * 应在线程启动后尽早调用。
+     *
+     * @param name 线程名称
+     */
+    void setThreadName(const std::string& name);
+
 private:
     PerfettoManager();
     ~PerfettoManager();
@@ -208,6 +228,8 @@ public:
     void setEnabled(bool) {}
 
     [[nodiscard]] TraceConfig config() const { return {}; }
+    void setProcessName(const std::string&) {}
+    void setThreadName(const std::string&) {}
 
 private:
     PerfettoManager() = default;

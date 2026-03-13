@@ -180,6 +180,10 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
     traceConfig.bufferSizeKb = 65536; // 64MB
     mc::perfetto::PerfettoManager::instance().initialize(traceConfig);
     mc::perfetto::PerfettoManager::instance().startTracing();
+
+    // 设置进程和主线程名称
+    mc::perfetto::PerfettoManager::instance().setProcessName("MinecraftClient");
+    mc::perfetto::PerfettoManager::instance().setThreadName("ClientMainThread");
     spdlog::info("Perfetto tracing initialized");
 
     // 初始化方块注册表
