@@ -1,5 +1,6 @@
 #include "ChunkMesher.hpp"
 #include "../resource/BlockModelCache.hpp"
+#include "common/perfetto/TraceEvents.hpp"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 
@@ -31,6 +32,8 @@ void ChunkMesher::generateMesh(
     MeshData& outMesh,
     const ChunkData* neighbors[6]
 ) {
+    MC_TRACE_CHUNK_MESH_EVENT("GenerateMesh");
+
     outMesh.clear();
 
     // 预分配空间 (每个区块最多约98304个顶点)

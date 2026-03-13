@@ -273,6 +273,9 @@ void IntegratedServer::mainLoop() {
 
         auto elapsed = clock::now() - startTime;
         auto sleepTime = tickDuration - elapsed;
+
+        MC_TRACE_COUNTER("server.tick", "ServerTickTime", static_cast<i64>(elapsed.count()));
+
         if (sleepTime > std::chrono::milliseconds(0)) {
             std::this_thread::sleep_for(sleepTime);
         }

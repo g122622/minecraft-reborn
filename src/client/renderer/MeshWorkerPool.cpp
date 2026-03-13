@@ -1,5 +1,7 @@
 #include "MeshWorkerPool.hpp"
 #include "ChunkMesher.hpp"
+#include "common/perfetto/PerfettoManager.hpp"
+#include "common/perfetto/TraceEvents.hpp"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 
@@ -176,6 +178,10 @@ size_t MeshWorkerPool::completedTaskCount() const
 
 void MeshWorkerPool::workerThread(i32 workerId)
 {
+    // 设置线程名称
+    std::string threadName = "ChunkMeshWorker-" + std::to_string(workerId);
+    mc::perfetto::PerfettoManager::instance().setThreadName(threadName);
+
     spdlog::debug("MeshWorkerPool worker {} started", workerId);
 
     while (!m_stop.load(std::memory_order_acquire)) {
@@ -212,6 +218,8 @@ void MeshWorkerPool::workerThread(i32 workerId)
 
 void MeshWorkerPool::executeTask(const ClientMeshTask& task)
 {
+    MC_TRACE_CHUNK_MESH_EVENT("BuildMesh");
+
     MeshBuildResult result;
     result.chunkId = task.chunkId;
     result.success = false;
@@ -224,7 +232,10 @@ void MeshWorkerPool::executeTask(const ClientMeshTask& task)
         }
 
         // 生成实心方块网格
-        ChunkMesher::generateMesh(*task.chunkData, result.solidMesh, neighborPtrs);
+        {
+            MC_TRACE_CHUNK_MESH_EVENT("GenerateSolidMesh");
+            ChunkMesher::generateMesh(*task.chunkData, result.solidMesh, neighborPtrs);
+        }
 
         // TODO: 生成透明方块网格（水、玻璃等）
         // ChunkMesher::generateTransparentMesh(*task.chunkData, result.transparentMesh, neighborPtrs);
