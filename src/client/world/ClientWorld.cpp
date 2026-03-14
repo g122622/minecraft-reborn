@@ -41,8 +41,9 @@ void ClientWorld::destroy() {
 void ClientWorld::update(const glm::vec3& cameraPosition, i32 renderDistance) {
     m_renderDistance = renderDistance;
     m_cameraPosition = cameraPosition;
-    // 区块加载由服务端控制，客户端只处理卸载
-    unloadChunksOutOfRange(cameraPosition, renderDistance + 2); // 多保留2个区块的缓冲
+    // 区块生命周期由服务端统一控制。
+    // 客户端若自行按距离卸载，会与服务端的已发送集合产生状态漂移，
+    // 导致回头后部分旧区块无法重新下发。
 }
 
 ClientChunk* ClientWorld::getChunk(const ChunkId& id) {

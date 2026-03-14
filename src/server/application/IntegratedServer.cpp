@@ -322,6 +322,12 @@ void IntegratedServer::tick() {
         m_ticketManager->tick();
     }
 
+    // 处理延迟卸载（边缘区块防抖）
+    {
+        MC_TRACE_EVENT("server.chunk", "PendingChunkUnloadTick");
+        processPendingChunkUnloads();
+    }
+
     // 更新区块管理器
     if (m_chunkManager) {
         MC_TRACE_EVENT("server.chunk", "ChunkManagerTick");
@@ -354,6 +360,8 @@ void IntegratedServer::shutdown() {
     // 清理区块管理器
     m_chunkManager.reset();
 
+    m_pendingChunkUnloads.clear();
+
     // 清理 ServerCore
     m_serverCore.reset();
 
@@ -382,6 +390,11 @@ void IntegratedServer::requestChunkAsync(ChunkCoord x, ChunkCoord z) {
         [this, x, z, id](bool success, ChunkData* chunk) {
             // Worker 线程回调
             if (!m_running.load() || !success || !chunk) return;
+
+            // 玩家可能已移动到其他区域，避免发送过期区块。
+            if (!m_ticketManager || !m_ticketManager->shouldChunkLoad(x, z)) {
+                return;
+            }
 
             // 检查是否已发送
             auto* p = getPlayerData();
@@ -414,6 +427,10 @@ void IntegratedServer::processPendingChunkSends() {
     // 发送所有待发送区块
     for (const auto& send : sends) {
         if (!m_running.load()) return;
+
+        if (!m_ticketManager || !m_ticketManager->shouldChunkLoad(send.x, send.z)) {
+            continue;
+        }
 
         // 检查客户端是否仍然登录
         auto* player = getPlayerData();
@@ -972,14 +989,55 @@ void IntegratedServer::onChunkLevelChanged(ChunkCoord x, ChunkCoord z, i32 oldLe
     if (!wasLoaded && isLoaded) {
         // 区块从卸载变为加载 - 异步请求
         spdlog::debug("Chunk ({}, {}) loading: level {} -> {}", x, z, oldLevel, newLevel);
+        m_pendingChunkUnloads.erase(chunkKey(x, z));
         requestChunkAsync(x, z);
     } else if (wasLoaded && !isLoaded) {
-        // 区块从加载变为卸载
-        spdlog::debug("Chunk ({}, {}) unloading: level {} -> {}", x, z, oldLevel, newLevel);
+        // 区块从加载变为卸载：延迟一小段时间，避免边缘抖动导致闪烁
+        spdlog::debug("Chunk ({}, {}) scheduled for unload: level {} -> {}", x, z, oldLevel, newLevel);
+        const u64 nowTick = m_serverCore ? m_serverCore->currentTick() : 0;
+        m_pendingChunkUnloads[chunkKey(x, z)] = nowTick + CHUNK_UNLOAD_GRACE_TICKS;
+    }
+}
+
+void IntegratedServer::processPendingChunkUnloads() {
+    if (!m_ticketManager) {
+        m_pendingChunkUnloads.clear();
+        return;
+    }
+
+    auto* player = getPlayerData();
+    if (!player) {
+        m_pendingChunkUnloads.clear();
+        return;
+    }
+
+    const u64 nowTick = m_serverCore ? m_serverCore->currentTick() : 0;
+
+    for (auto it = m_pendingChunkUnloads.begin(); it != m_pendingChunkUnloads.end();) {
+        const u64 dueTick = it->second;
+        if (nowTick < dueTick) {
+            ++it;
+            continue;
+        }
+
+        ChunkCoord x = 0;
+        ChunkCoord z = 0;
+        chunkKeyToCoord(it->first, x, z);
+
+        // 经过防抖窗口后再次确认是否仍应卸载
+        if (m_ticketManager->shouldChunkLoad(x, z)) {
+            it = m_pendingChunkUnloads.erase(it);
+            continue;
+        }
+
+        const ChunkId id(x, z);
         if (player->loadedChunks.count(id) > 0) {
             sendUnloadChunk(x, z);
             player->loadedChunks.erase(id);
+            spdlog::debug("Chunk ({}, {}) unloaded after grace window", x, z);
         }
+
+        it = m_pendingChunkUnloads.erase(it);
     }
 }
 

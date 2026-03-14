@@ -1,6 +1,7 @@
 #include "ChunkLoadTicketManager.hpp"
 #include "ChunkLoadTicket.hpp"
 #include <spdlog/spdlog.h>
+#include <algorithm>
 
 namespace mc::world {
 
@@ -273,15 +274,17 @@ void ChunkLoadTicketManager::tick() {
 }
 
 void ChunkLoadTicketManager::setViewDistance(i32 distance) {
-    if (m_viewDistance == distance) {
+    const i32 clampedDistance = std::clamp(distance, 2, 32);
+
+    if (m_viewDistance == clampedDistance) {
         return;
     }
 
-    m_viewDistance = distance;
+    m_viewDistance = clampedDistance;
 
     // 更新所有玩家追踪器
     for (auto& [playerId, tracker] : m_playerTrackers) {
-        tracker->setViewDistance(distance);
+        tracker->setViewDistance(clampedDistance);
     }
 
     // 处理更新

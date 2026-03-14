@@ -18,6 +18,7 @@
 #include <atomic>
 #include <functional>
 #include <unordered_set>
+#include <unordered_map>
 #include <mutex>
 #include <vector>
 
@@ -116,6 +117,15 @@ public:
     [[nodiscard]] const ServerCore& serverCore() const { return *m_serverCore; }
 
 private:
+    [[nodiscard]] static u64 chunkKey(ChunkCoord x, ChunkCoord z) {
+        return (static_cast<u64>(static_cast<u32>(x)) << 32) | static_cast<u32>(z);
+    }
+
+    static void chunkKeyToCoord(u64 key, ChunkCoord& x, ChunkCoord& z) {
+        x = static_cast<ChunkCoord>(key >> 32);
+        z = static_cast<ChunkCoord>(key & 0xFFFFFFFF);
+    }
+
     void mainLoop();
     void tick();
     void shutdown();
@@ -128,6 +138,7 @@ private:
     // 票据系统
     void handlePlayerChunkMove(ChunkCoord newChunkX, ChunkCoord newChunkZ);
     void onChunkLevelChanged(ChunkCoord x, ChunkCoord z, i32 oldLevel, i32 newLevel);
+    void processPendingChunkUnloads();
 
     // 网络事件处理
     void onPacketReceived(const u8* data, size_t size);
@@ -203,6 +214,10 @@ private:
 
     // 区块加载票据管理器
     std::unique_ptr<world::ChunkLoadTicketManager> m_ticketManager;
+
+    // 延迟卸载队列（防抖，避免边缘区块瞬时闪动）
+    std::unordered_map<u64, u64> m_pendingChunkUnloads;
+    static constexpr u64 CHUNK_UNLOAD_GRACE_TICKS = 8;
 
     // 玩家当前区块位置（用于检测跨区块移动）
     ChunkCoord m_lastPlayerChunkX = std::numeric_limits<ChunkCoord>::max();
