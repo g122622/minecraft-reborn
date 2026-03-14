@@ -21,6 +21,9 @@ layout(push_constant) uniform PushConstants {
 layout(set = 0, binding = 0) uniform SkyUBO {
     vec4 skyColor;
     vec4 fogColor;
+    vec4 sunriseColor;
+    vec4 sunriseDirection;
+    vec4 cameraForward;
     float celestialAngle;
     float starBrightness;
     int moonPhase;
@@ -49,8 +52,8 @@ vec3 calculateMoonDirection(float angle) {
 }
 
 void main() {
-    // 月亮尺寸常量 (MC 1.16.5 使用 20.0)
-    const float MOON_SIZE = 20.0;
+    // 月亮尺寸常量（与太阳保持相近观感比例）
+    const float MOON_SIZE = 10.0;
 
     // 计算月亮方向
     vec3 moonDir = calculateMoonDirection(sky.celestialAngle);
@@ -70,8 +73,8 @@ void main() {
     vec3 forward = normalize(cross(moonDir, right));
 
     // 计算世界位置
-    // 月亮位于天空球上，距离 100，与太阳相同
-    const float MOON_DISTANCE = 100.0;
+    // 月亮位于天空球上，距离与太阳一致
+    const float MOON_DISTANCE = 150.0;
     vec3 moonCenter = moonDir * MOON_DISTANCE;
 
     // 根据输入顶点位置计算四边形角点

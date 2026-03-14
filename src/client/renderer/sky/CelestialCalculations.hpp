@@ -21,6 +21,11 @@ namespace mc::client {
  */
 class CelestialCalculations {
 public:
+    /// 主世界默认天空色 (#78A7FF)
+    static constexpr f32 OVERWORLD_BASE_SKY_R = 120.0f / 255.0f;
+    static constexpr f32 OVERWORLD_BASE_SKY_G = 167.0f / 255.0f;
+    static constexpr f32 OVERWORLD_BASE_SKY_B = 1.0f;
+
     // ========== 天体角度计算 ==========
 
     /**
@@ -118,6 +123,45 @@ public:
         f32 celestialAngle,
         f32 rainStrength = 0.0f,
         f32 thunderStrength = 0.0f);
+
+    /**
+     * @brief 计算主世界日出/日落颜色（含强度）
+     * @param celestialAngle 天体角度
+     * @param rainStrength 雨强度
+     * @param thunderStrength 雷暴强度
+     * @return RGBA，A 通道为效果强度。若当前时刻无效果则返回全 0。
+     *
+     * 该算法对齐 MC 1.16.5 `DimensionType#calcSunriseSunsetColors`：
+     * - 只在太阳接近地平线时生效
+     * - 生效曲线为“渐入 -> 峰值 -> 渐出”
+     * - 受天气影响衰减
+     */
+    [[nodiscard]] static glm::vec4 calculateSunriseSunsetColor(
+        f32 celestialAngle,
+        f32 rainStrength = 0.0f,
+        f32 thunderStrength = 0.0f);
+
+    /**
+     * @brief 计算摄像机朝向与日出日落中心方向的对齐因子
+     * @param cameraForward 摄像机前向向量（世界空间）
+     * @param sunriseDirection 日出/日落中心方向（世界空间）
+     * @return [0, 1]，1 表示完全朝向中心，0 表示背向。
+     *
+     * 注意：
+     * - 仅使用水平面（XZ）分量，不受俯仰角影响。
+     * - 若任一向量在 XZ 平面长度过小，返回 0 以避免除零。
+     */
+    [[nodiscard]] static f32 calculateSunriseFacingFactor(
+        const glm::vec3& cameraForward,
+        const glm::vec3& sunriseDirection);
+
+    /**
+     * @brief 获取主世界默认天空色（#78A7FF）
+     * @return 线性空间 RGB
+     */
+    [[nodiscard]] static constexpr glm::vec3 getOverworldBaseSkyColor() {
+        return glm::vec3(OVERWORLD_BASE_SKY_R, OVERWORLD_BASE_SKY_G, OVERWORLD_BASE_SKY_B);
+    }
 
     /**
      * @brief 计算雾颜色

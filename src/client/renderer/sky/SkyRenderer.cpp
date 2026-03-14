@@ -5,6 +5,7 @@
 #include "../../../common/math/random/Random.hpp"
 #include "../../../common/perfetto/TraceEvents.hpp"
 #include <spdlog/spdlog.h>
+#include <cassert>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -223,6 +224,8 @@ Result<void> SkyRenderer::onResize(VkExtent2D extent) {
 
 void SkyRenderer::update(i64 dayTime, i64 gameTime, f32 partialTick,
                          f32 rainStrength, f32 thunderStrength) {
+    assert(partialTick >= 0.0f && partialTick <= 1.0f);
+
     m_dayTime = dayTime;
     m_gameTime = gameTime;
     m_rainStrength = rainStrength;
@@ -237,10 +240,22 @@ void SkyRenderer::update(i64 dayTime, i64 gameTime, f32 partialTick,
     // 计算天空颜色
     m_skyColor = CelestialCalculations::calculateSkyColor(m_celestialAngle, rainStrength, thunderStrength);
     m_fogColor = CelestialCalculations::calculateFogColor(m_celestialAngle, rainStrength, thunderStrength);
+    m_sunriseSunsetColor = CelestialCalculations::calculateSunriseSunsetColor(
+        m_celestialAngle,
+        rainStrength,
+        thunderStrength);
 
     // 计算太阳方向和强度
     m_sunDirection = CelestialCalculations::calculateSunDirection(m_celestialAngle);
     m_sunIntensity = CelestialCalculations::calculateSunIntensity(m_celestialAngle);
+
+    // 日出日落中心方向（始终在水平面）
+    glm::vec2 sunriseXZ(m_sunDirection.x, m_sunDirection.z);
+    const f32 sunriseLen2 = glm::dot(sunriseXZ, sunriseXZ);
+    if (sunriseLen2 > 1e-6f) {
+        sunriseXZ = sunriseXZ / std::sqrt(sunriseLen2);
+        m_sunriseDirection = glm::vec3(sunriseXZ.x, 0.0f, sunriseXZ.y);
+    }
 
     // 计算星星亮度
     m_starBrightness = CelestialCalculations::calculateStarBrightness(m_celestialAngle);
@@ -251,12 +266,18 @@ void SkyRenderer::update(i64 dayTime, i64 gameTime, f32 partialTick,
 // 渲染
 // ============================================================================
 
-void SkyRenderer::render(VkCommandBuffer cmd, const glm::mat4& viewProjection, const glm::vec3& cameraPos, u32 frameIndex) {
+void SkyRenderer::render(VkCommandBuffer cmd,
+                         const glm::mat4& viewProjection,
+                         const glm::vec3& cameraPos,
+                         const glm::vec3& cameraForward,
+                         u32 frameIndex) {
     (void)cameraPos;
 
     if (!m_initialized || m_pipelineLayout == VK_NULL_HANDLE) {
         return;
     }
+
+    m_cameraForward = cameraForward;
 
     m_currentFrame = frameIndex % MAX_FRAMES_IN_FLIGHT;
     m_lastViewProjection = viewProjection;
@@ -366,8 +387,8 @@ void SkyRenderer::renderSun(VkCommandBuffer cmd) {
     VkBuffer vertexBuffer = m_sunMoonVBO->buffer();
     vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer, &offset);
 
-    // 太阳是一个四边形，4个顶点
-    vkCmdDraw(cmd, 4, 1, 0, 0);
+    // 太阳使用 2 个三角形（6 顶点）
+    vkCmdDraw(cmd, 6, 1, 0, 0);
 }
 
 void SkyRenderer::renderMoon(VkCommandBuffer cmd) {
@@ -380,8 +401,8 @@ void SkyRenderer::renderMoon(VkCommandBuffer cmd) {
     VkBuffer vertexBuffer = m_sunMoonVBO->buffer();
     vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer, &offset);
 
-    // 月亮是一个四边形，4个顶点 (从索引4开始)
-    vkCmdDraw(cmd, 4, 1, 4, 0);
+    // 月亮使用 2 个三角形（6 顶点，从索引 6 开始）
+    vkCmdDraw(cmd, 6, 1, 6, 0);
 }
 
 void SkyRenderer::renderStars(VkCommandBuffer cmd) {
@@ -402,40 +423,57 @@ void SkyRenderer::renderStars(VkCommandBuffer cmd) {
 // ============================================================================
 
 Result<void> SkyRenderer::createSkyDomeVBO() {
-    // 创建天空穹顶网格 (参考 MC WorldRenderer.renderSky)
-    // Y=16 的平面网格，范围 -384 到 +384
-    // 每格 64 单位，共 12x12 个四边形
-
-    constexpr f32 SKY_HEIGHT = 16.0f;
-    // SKY_RADIUS = 384.0f 用于定义网格范围 (GRID_COUNT * GRID_SIZE)
-    constexpr i32 GRID_SIZE = 64;
-    constexpr i32 GRID_COUNT = 12; // (384 * 2) / 64 = 12
+    // 创建天空球网格。
+    // 说明：
+    // - 原先的平面天空无法区分“上半天空/下半天空”，无法实现 MC 晨昏时下半天空填充。
+    // - 使用球面后，可基于方向向量按半球分别着色并叠加日出日落扇形效果。
+    constexpr f32 SKY_RADIUS = 384.0f;
+    constexpr i32 STACK_COUNT = 32;
+    constexpr i32 SLICE_COUNT = 64;
 
     std::vector<SkyVertex> vertices;
     std::vector<u16> indices;
 
-    // 生成顶点
-    for (i32 z = -GRID_COUNT; z <= GRID_COUNT; ++z) {
-        for (i32 x = -GRID_COUNT; x <= GRID_COUNT; ++x) {
-            f32 px = static_cast<f32>(x * GRID_SIZE);
-            f32 pz = static_cast<f32>(z * GRID_SIZE);
-            vertices.push_back({px, SKY_HEIGHT, pz});
+    vertices.reserve(static_cast<size_t>((STACK_COUNT + 1) * (SLICE_COUNT + 1)));
+    indices.reserve(static_cast<size_t>(STACK_COUNT * SLICE_COUNT * 6));
+
+    // 生成球面顶点（纬度-经度）
+    for (i32 stack = 0; stack <= STACK_COUNT; ++stack) {
+        const f32 v = static_cast<f32>(stack) / static_cast<f32>(STACK_COUNT);
+        const f32 phi = v * mc::math::PI; // [0, PI]
+
+        const f32 y = std::cos(phi) * SKY_RADIUS;
+        const f32 ringRadius = std::sin(phi) * SKY_RADIUS;
+
+        for (i32 slice = 0; slice <= SLICE_COUNT; ++slice) {
+            const f32 u = static_cast<f32>(slice) / static_cast<f32>(SLICE_COUNT);
+            const f32 theta = u * mc::math::TAU_F; // [0, 2PI]
+
+            const f32 x = std::cos(theta) * ringRadius;
+            const f32 z = std::sin(theta) * ringRadius;
+            vertices.push_back({x, y, z});
         }
     }
 
-    // 生成索引 (三角形带)
-    for (i32 z = 0; z < GRID_COUNT * 2; ++z) {
-        i32 rowStart = z * (GRID_COUNT * 2 + 1);
-        i32 nextRowStart = (z + 1) * (GRID_COUNT * 2 + 1);
+    // 生成三角形索引
+    const i32 stride = SLICE_COUNT + 1;
+    for (i32 stack = 0; stack < STACK_COUNT; ++stack) {
+        const i32 row0 = stack * stride;
+        const i32 row1 = (stack + 1) * stride;
 
-        for (i32 x = 0; x < GRID_COUNT * 2; ++x) {
-            indices.push_back(static_cast<u16>(rowStart + x));
-            indices.push_back(static_cast<u16>(nextRowStart + x));
-            indices.push_back(static_cast<u16>(rowStart + x + 1));
+        for (i32 slice = 0; slice < SLICE_COUNT; ++slice) {
+            const u16 i0 = static_cast<u16>(row0 + slice);
+            const u16 i1 = static_cast<u16>(row1 + slice);
+            const u16 i2 = static_cast<u16>(row0 + slice + 1);
+            const u16 i3 = static_cast<u16>(row1 + slice + 1);
 
-            indices.push_back(static_cast<u16>(rowStart + x + 1));
-            indices.push_back(static_cast<u16>(nextRowStart + x));
-            indices.push_back(static_cast<u16>(nextRowStart + x + 1));
+            indices.push_back(i0);
+            indices.push_back(i1);
+            indices.push_back(i2);
+
+            indices.push_back(i2);
+            indices.push_back(i1);
+            indices.push_back(i3);
         }
     }
 
@@ -519,20 +557,22 @@ Result<void> SkyRenderer::createStarVBO() {
 }
 
 Result<void> SkyRenderer::createSunMoonVBO() {
-    // 太阳和月亮顶点使用"单位四边形"[-1, 1]。
-    // 具体实际尺寸由顶点着色器中的常量控制（sun: 30, moon: 20）。
-    // 注意：如果这里直接传入世界尺寸（例如 ±30），片元着色器会因为 UV 超范围
-    // 导致圆盘被完全 discard，从而出现"白天看不到太阳"的问题。
+    // 太阳和月亮都使用单位四边形 [-1, 1]，并展开为 TriangleList（6 顶点）。
+    // 使用 TriangleList 可避免 TriangleStrip 在某些姿态下出现的裂缝/缺口伪影。
     std::vector<SkyVertex> vertices = {
-        // 太阳 (4 个顶点)
+        // 太阳（2 三角形）
         {-1.0f, -1.0f, 0.0f},
         { 1.0f, -1.0f, 0.0f},
         { 1.0f,  1.0f, 0.0f},
+        {-1.0f, -1.0f, 0.0f},
+        { 1.0f,  1.0f, 0.0f},
         {-1.0f,  1.0f, 0.0f},
 
-        // 月亮 (4 个顶点)
+        // 月亮（2 三角形）
         {-1.0f, -1.0f, 0.0f},
         { 1.0f, -1.0f, 0.0f},
+        { 1.0f,  1.0f, 0.0f},
+        {-1.0f, -1.0f, 0.0f},
         { 1.0f,  1.0f, 0.0f},
         {-1.0f,  1.0f, 0.0f},
     };
@@ -850,7 +890,7 @@ Result<void> SkyRenderer::createPipelines() {
 
     // 太阳
     auto sunResult = createPipeline(sunVertPath,
-                                    sunFragPath, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+                                    sunFragPath, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
                                     VK_TRUE, VK_FALSE, VK_FALSE, &m_sunPipeline);
     if (sunResult.failed()) {
         return sunResult.error();
@@ -860,7 +900,7 @@ Result<void> SkyRenderer::createPipelines() {
     auto moonResult = createPipeline(
         moonVertPath,
         moonFragPath,
-        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
         VK_TRUE,
         VK_FALSE,
         VK_FALSE,
@@ -893,6 +933,17 @@ void SkyRenderer::updateUniformBuffer(u32 frameIndex) {
     SkyUBO ubo = {};
     ubo.skyColor = m_skyColor;
     ubo.fogColor = m_fogColor;
+    ubo.sunriseColor = m_sunriseSunsetColor;
+    ubo.sunriseDirection = glm::vec4(m_sunriseDirection, 0.0f);
+
+    glm::vec3 cameraForward = m_cameraForward;
+    const f32 cameraForwardLen2 = glm::dot(cameraForward, cameraForward);
+    if (cameraForwardLen2 > 1e-6f) {
+        cameraForward /= std::sqrt(cameraForwardLen2);
+    } else {
+        cameraForward = glm::vec3(0.0f, 0.0f, -1.0f);
+    }
+    ubo.cameraForward = glm::vec4(cameraForward, 0.0f);
 
     // sun.vert 在太阳接近天顶/天底时会出现 right=normalize(cross(up, sunDir)) 退化。
     // 这里做极小偏移，避免精确零向量导致太阳四边形退化不可见。

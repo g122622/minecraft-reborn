@@ -20,6 +20,9 @@ class Camera;
 struct SkyUBO {
     alignas(16) glm::vec4 skyColor;         // 天空颜色
     alignas(16) glm::vec4 fogColor;         // 雾颜色
+    alignas(16) glm::vec4 sunriseColor;     // 日出日落颜色 (A=强度)
+    alignas(16) glm::vec4 sunriseDirection; // 日出日落中心方向 (xyz)
+    alignas(16) glm::vec4 cameraForward;    // 摄像机前向 (xyz)
     alignas(4)  float celestialAngle;       // 天体角度 (0.0-1.0)
     alignas(4)  float starBrightness;       // 星星亮度
     alignas(4)  int32_t moonPhase;          // 月相 (0-7)
@@ -78,8 +81,13 @@ public:
      * @param cmd 命令缓冲区
      * @param viewProjection 相机视图投影矩阵
      * @param cameraPos 相机位置 (用于雾效果)
+    * @param cameraForward 相机前向（用于下半天空晨昏填充）
      */
-    void render(VkCommandBuffer cmd, const glm::mat4& viewProjection, const glm::vec3& cameraPos, u32 frameIndex);
+    void render(VkCommandBuffer cmd,
+             const glm::mat4& viewProjection,
+             const glm::vec3& cameraPos,
+             const glm::vec3& cameraForward,
+             u32 frameIndex);
 
     // ========== 状态查询 ==========
 
@@ -223,8 +231,11 @@ private:
     f32 m_celestialAngle = 0.0f;
     i32 m_moonPhase = 0;
     f32 m_starBrightness = 0.0f;
-    glm::vec4 m_skyColor = glm::vec4(0.53f, 0.81f, 0.92f, 1.0f);
+    glm::vec4 m_skyColor = glm::vec4(120.0f / 255.0f, 167.0f / 255.0f, 1.0f, 1.0f);
     glm::vec4 m_fogColor = glm::vec4(0.7f, 0.75f, 0.8f, 1.0f);
+    glm::vec4 m_sunriseSunsetColor = glm::vec4(0.0f);
+    glm::vec3 m_sunriseDirection = glm::vec3(1.0f, 0.0f, 0.0f);
+    glm::vec3 m_cameraForward = glm::vec3(0.0f, 0.0f, -1.0f);
     glm::vec3 m_sunDirection = glm::vec3(0.0f, 1.0f, 0.0f);
     f32 m_sunIntensity = 1.0f;
     f32 m_rainStrength = 0.0f;

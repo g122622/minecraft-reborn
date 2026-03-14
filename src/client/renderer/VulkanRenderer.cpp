@@ -440,14 +440,16 @@ Result<void> VulkanRenderer::render() {
         MC_TRACE_SKY("SkyRender");
         glm::mat4 viewProjection(1.0f);
         glm::vec3 cameraPos(0.0f);
+        glm::vec3 cameraForward(0.0f, 0.0f, -1.0f);
 
         if (m_camera) {
             glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(m_camera->viewMatrix()));
             viewProjection = m_camera->projectionMatrix() * viewNoTranslation;
             cameraPos = m_camera->position();
+            cameraForward = m_camera->forward();
         }
 
-        m_skyRenderer.render(cmd, viewProjection, cameraPos, m_currentFrame);
+        m_skyRenderer.render(cmd, viewProjection, cameraPos, cameraForward, m_currentFrame);
     }
 
     // 渲染区块

@@ -11,6 +11,19 @@ layout(location = 1) in flat int fragMoonPhase;
 // 输出颜色
 layout(location = 0) out vec4 outColor;
 
+// 描述符集 0 - Uniform 缓冲区
+layout(set = 0, binding = 0) uniform SkyUBO {
+    vec4 skyColor;
+    vec4 fogColor;
+    vec4 sunriseColor;
+    vec4 sunriseDirection;
+    vec4 cameraForward;
+    float celestialAngle;
+    float starBrightness;
+    int moonPhase;
+    float padding;
+} sky;
+
 void main() {
     // 月相纹理 UV 已经由顶点着色器计算好
     // 这里需要根据月相来渲染月亮的外观

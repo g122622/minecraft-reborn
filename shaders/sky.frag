@@ -14,6 +14,9 @@ layout(location = 0) out vec4 outColor;
 layout(set = 0, binding = 0) uniform SkyUBO {
     vec4 skyColor;
     vec4 fogColor;
+    vec4 sunriseColor;
+    vec4 sunriseDirection;
+    vec4 cameraForward;
     float celestialAngle;
     float starBrightness;
     int moonPhase;
@@ -21,19 +24,40 @@ layout(set = 0, binding = 0) uniform SkyUBO {
 } sky;
 
 void main() {
-    // 计算与地平线的距离因子
-    // 网格在 Y=16 平面，相机在 Y≈0
-    // fragWorldPos.y = 16.0 对于所有顶点
-    // 使用 XZ 距离计算雾混合因子
+    vec3 viewDir = normalize(fragWorldPos);
+    vec3 color = sky.skyColor.rgb;
 
-    float dist = length(fragWorldPos.xz);
-    float maxDist = 384.0; // 网格半径
+    // 在地平线附近加入雾感（上下半球都生效）
+    float horizonBand = 1.0 - smoothstep(0.0, 0.45, abs(viewDir.y));
+    color = mix(color, sky.fogColor.rgb, horizonBand * 0.45);
 
-    // 距离越远，雾颜色越明显
-    float fogFactor = clamp(dist / maxDist, 0.0, 1.0);
+    // 日出日落颜色（只在朝向日出/日落中心的一侧地平线出现）
+    vec2 sunriseXZ = sky.sunriseDirection.xz;
+    vec2 dirXZ = viewDir.xz;
+    float sunriseLen = length(sunriseXZ);
+    float dirLen = length(dirXZ);
+    if (sky.sunriseColor.a > 0.0001 && sunriseLen > 0.0001 && dirLen > 0.0001) {
+        vec2 sunriseN = sunriseXZ / sunriseLen;
+        vec2 dirN = dirXZ / dirLen;
 
-    // 混合天空颜色和雾颜色
-    vec3 color = mix(sky.skyColor.rgb, sky.fogColor.rgb, fogFactor);
+        // 上半天空扇形：地平线附近 + 朝向中心
+        float towardSunrise = max(dot(dirN, sunriseN), 0.0);
+        float upperMask = smoothstep(0.35, 0.0, abs(viewDir.y));
+        float upperBlend = towardSunrise * upperMask * sky.sunriseColor.a;
+        color = mix(color, sky.sunriseColor.rgb, upperBlend);
+
+        // 下半天空填充：受“摄像机朝向与日出中心方向对齐度”影响
+        vec2 cameraXZ = sky.cameraForward.xz;
+        float camLen = length(cameraXZ);
+        float cameraFacing = 0.0;
+        if (camLen > 0.0001) {
+            cameraFacing = max(dot(cameraXZ / camLen, sunriseN), 0.0);
+        }
+
+        float lowerMask = smoothstep(0.0, -0.55, viewDir.y);
+        float lowerBlend = lowerMask * cameraFacing * sky.sunriseColor.a;
+        color = mix(color, sky.sunriseColor.rgb, lowerBlend);
+    }
 
     outColor = vec4(color, 1.0);
 }
