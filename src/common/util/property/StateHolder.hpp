@@ -36,9 +36,10 @@ public:
 
     /**
      * @brief 获取属性值
+     * @note 对于 bool 类型返回值而非引用，因为 std::vector<bool> 特化
      */
     template<typename T>
-    [[nodiscard]] const T& get(const Property<T>& prop) const {
+    [[nodiscard]] typename Property<T>::ValueReturnType get(const Property<T>& prop) const {
         auto it = m_values.find(&prop);
         if (it == m_values.end()) {
             throw std::invalid_argument(
@@ -50,6 +51,7 @@ public:
 
     /**
      * @brief 尝试获取属性值
+     * @note 对于 bool 类型返回值而非引用
      */
     template<typename T>
     [[nodiscard]] Optional<T> getOptional(const Property<T>& prop) const {

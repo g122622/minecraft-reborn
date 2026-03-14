@@ -4,8 +4,18 @@
 #include <optional>
 #include <algorithm>
 #include <sstream>
+#include <type_traits>
 
 namespace mc {
+
+namespace detail {
+    // 辅助类型特征：检测是否为 std::vector<bool>
+    template<typename T>
+    struct is_vector_bool : std::false_type {};
+
+    template<typename Alloc>
+    struct is_vector_bool<std::vector<bool, Alloc>> : std::true_type {};
+}
 
 /**
  * @brief 类型安全的属性模板基类
@@ -30,6 +40,13 @@ template<typename T>
 class Property : public IProperty {
 public:
     using ValueType = T;
+
+    // 对于 std::vector<bool> 特化，返回值类型；其他类型返回引用
+    using ValueReturnType = std::conditional_t<
+        detail::is_vector_bool<std::vector<T>>::value,
+        T,
+        const T&
+    >;
 
     /**
      * @brief 获取属性名称
@@ -69,8 +86,9 @@ public:
      * @brief 获取指定索引的值
      * @param index 索引
      * @return 值，如果索引越界抛出异常
+     * @note 对于 bool 类型返回值而非引用，因为 std::vector<bool> 特化
      */
-    [[nodiscard]] const T& valueAt(size_t index) const {
+    [[nodiscard]] ValueReturnType valueAt(size_t index) const {
         if (index >= m_values.size()) {
             throw std::out_of_range("Property value index out of range: " + std::to_string(index));
         }
