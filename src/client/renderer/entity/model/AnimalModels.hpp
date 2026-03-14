@@ -34,7 +34,6 @@ public:
                    f32 headPitch, f32 scale) override;
 
 private:
-    std::shared_ptr<ModelRenderer> m_horns;  // 牛角
 };
 
 /**
@@ -58,7 +57,6 @@ public:
     void setWool(bool hasWool) { m_hasWool = hasWool; }
 
 private:
-    std::shared_ptr<ModelRenderer> m_wool;  // 羊毛层
     bool m_hasWool = true;
 };
 

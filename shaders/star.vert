@@ -19,6 +19,9 @@ layout(push_constant) uniform PushConstants {
 layout(set = 0, binding = 0) uniform SkyUBO {
     vec4 skyColor;
     vec4 fogColor;
+    vec4 sunriseColor;
+    vec4 sunriseDirection;
+    vec4 cameraForward;
     float celestialAngle;
     float starBrightness;
     int moonPhase;

@@ -699,4 +699,18 @@ ResourceLocation ResourceManager::texturePathToLocation(StringView path) {
     return ResourceLocation(p);
 }
 
+IResourcePack* ResourceManager::getFirstResourcePack() {
+    if (m_resourcePacks.empty()) {
+        return nullptr;
+    }
+    return m_resourcePacks[0].get();
+}
+
+IResourcePack* ResourceManager::getResourcePack(size_t index) {
+    if (index >= m_resourcePacks.size()) {
+        return nullptr;
+    }
+    return m_resourcePacks[index].get();
+}
+
 } // namespace mc

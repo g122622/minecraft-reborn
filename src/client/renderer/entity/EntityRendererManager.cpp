@@ -1,5 +1,7 @@
 #include "EntityRendererManager.hpp"
 #include "AnimalRenderers.hpp"
+#include "EntityTextureAtlas.hpp"
+#include "../../resource/EntityTextureLoader.hpp"
 #include "../../world/entity/ClientEntity.hpp"
 #include "../../../common/entity/EntityRegistry.hpp"
 #include "../../../common/math/MathUtils.hpp"
@@ -8,6 +10,10 @@
 namespace mc::client::renderer {
 
 namespace {
+
+inline constexpr f32 MODEL_SCALE = 1.0f / 16.0f;
+inline constexpr f32 MODEL_MESH_SCALE = 1.0f;
+inline constexpr f32 MODEL_Y_OFFSET = 24.0f;
 
 /**
  * @brief 规范化实体类型ID
@@ -42,6 +48,12 @@ void EntityRendererManager::clearMeshes() {
         }
     }
     m_meshes.clear();
+}
+
+void EntityRendererManager::setTextureAtlas(const EntityTextureAtlas* textureAtlas) {
+    m_textureAtlas = textureAtlas;
+    // 图集变化后，旧网格的UV映射可能失效，强制重建
+    clearMeshes();
 }
 
 void EntityRendererManager::registerRenderer(const String& typeId, RendererCreator creator) {
@@ -96,6 +108,11 @@ void EntityRendererManager::renderWithPipeline(VkCommandBuffer cmd, ClientEntity
         0.0f, 0.0f, 0.0f, 1.0f
     };
 
+    // MC 实体模型局部坐标系的 Y 轴方向与世界坐标相反，先做一次 Y 翻转
+    modelMatrix[5] = -1.0f;
+    // Y 翻转后，模型会相对地面下沉，需要补偿一个模型高度
+    modelMatrix[7] = MODEL_Y_OFFSET;
+
     // 应用实体旋转（yaw）
     f32 yaw = entity.getInterpolatedYaw(partialTicks);
     f32 yawRad = math::toRadians(yaw);
@@ -113,7 +130,7 @@ void EntityRendererManager::renderWithPipeline(VkCommandBuffer cmd, ClientEntity
     Vector3f pos(posInterp.x, posInterp.y, posInterp.z);
 
     // 绘制网格
-    m_pipeline->drawMesh(cmd, *mesh, modelMatrix, pos);
+    m_pipeline->drawMesh(cmd, *mesh, modelMatrix, pos, MODEL_SCALE);
 }
 
 EntityMesh* EntityRendererManager::getOrCreateMesh(ClientEntity& entity) {
@@ -234,28 +251,65 @@ bool EntityRendererManager::generateModelMesh(const String& typeId,
 
     if (normalizedId == ET::PIG) {
         PigModel model;
-        model.generateMesh(vertices, indices);
+        model.setAngles(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, MODEL_MESH_SCALE);
+        model.generateMesh(vertices, indices, MODEL_MESH_SCALE);
+        remapUvToAtlasRegion(normalizedId, vertices);
         return true;
     }
     if (normalizedId == ET::COW) {
         CowModel model;
-        model.generateMesh(vertices, indices);
+        model.setAngles(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, MODEL_MESH_SCALE);
+        model.generateMesh(vertices, indices, MODEL_MESH_SCALE);
+        remapUvToAtlasRegion(normalizedId, vertices);
         return true;
     }
     if (normalizedId == ET::SHEEP) {
         SheepModel model;
-        model.generateMesh(vertices, indices);
+        model.setAngles(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, MODEL_MESH_SCALE);
+        model.generateMesh(vertices, indices, MODEL_MESH_SCALE);
+        remapUvToAtlasRegion(normalizedId, vertices);
         return true;
     }
     if (normalizedId == ET::CHICKEN) {
         ChickenModel model;
-        model.generateMesh(vertices, indices);
+        model.setAngles(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, MODEL_MESH_SCALE);
+        model.generateMesh(vertices, indices, MODEL_MESH_SCALE);
+        remapUvToAtlasRegion(normalizedId, vertices);
         return true;
     }
 
     // 未知实体类型
     spdlog::debug("Unknown entity type for mesh generation: {}", normalizedId);
     return false;
+}
+
+void EntityRendererManager::remapUvToAtlasRegion(const String& normalizedTypeId,
+                                                 std::vector<ModelVertex>& vertices) const {
+    if (!m_textureAtlas || !m_textureAtlas->isBuilt() || vertices.empty()) {
+        return;
+    }
+
+    const TextureRegion* region = nullptr;
+    const auto texturePaths = EntityTextureLoader::getTexturePaths(normalizedTypeId);
+    for (const auto& path : texturePaths) {
+        region = m_textureAtlas->getRegion(path);
+        if (region) {
+            break;
+        }
+    }
+
+    if (!region) {
+        spdlog::debug("No atlas region found for entity type: {}", normalizedTypeId);
+        return;
+    }
+
+    const f32 du = region->u1 - region->u0;
+    const f32 dv = region->v1 - region->v0;
+
+    for (auto& vertex : vertices) {
+        vertex.texCoord.x = region->u0 + vertex.texCoord.x * du;
+        vertex.texCoord.y = region->v0 + vertex.texCoord.y * dv;
+    }
 }
 
 } // namespace mc::client::renderer

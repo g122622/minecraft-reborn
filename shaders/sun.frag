@@ -10,31 +10,29 @@ layout(location = 0) in vec2 fragTexCoord;
 // 输出颜色
 layout(location = 0) out vec4 outColor;
 
+// 描述符集 0 - Uniform 缓冲区
+layout(set = 0, binding = 0) uniform SkyUBO {
+    vec4 skyColor;
+    vec4 fogColor;
+    vec4 sunriseColor;
+    vec4 sunriseDirection;
+    vec4 cameraForward;
+    float celestialAngle;
+    float starBrightness;
+    int moonPhase;
+    float padding;
+} sky;
+
 void main() {
-    // 计算到中心的距离
-    vec2 center = fragTexCoord - 0.5;
-    float dist = length(center) * 2.0; // 归一化到 [0, 1]
+    // Java 版太阳为“方形太阳贴图”。
+    // 这里用程序化方形 + 轻微边缘暖色渐变模拟。
+    vec2 centered = abs(fragTexCoord - 0.5) * 2.0;
+    float edge = max(centered.x, centered.y);
 
-    // 圆盘半径 0.5 (UV 空间中)
-    // 使用平滑边缘
-    float radius = 0.5;
-    float edgeSoftness = 0.05;
+    vec3 inner = vec3(1.00, 0.98, 0.88);
+    vec3 edgeColor = vec3(1.00, 0.90, 0.62);
+    vec3 color = mix(inner, edgeColor, smoothstep(0.25, 1.0, edge));
 
-    // 平滑的圆盘 alpha
-    float alpha = 1.0 - smoothstep(radius - edgeSoftness, radius, dist);
-
-    // 如果完全透明则丢弃
-    if (alpha < 0.01) {
-        discard;
-    }
-
-    // 太阳颜色 - 明亮的黄色/白色
-    // MC 中的太阳纹理是正方形，中心是白色/黄色
-    vec3 sunColorInner = vec3(1.0, 0.95, 0.8); // 略带黄白色
-    vec3 sunColorEdge = vec3(1.0, 0.85, 0.6);  // 边缘更黄
-
-    // 径向渐变
-    vec3 color = mix(sunColorInner, sunColorEdge, dist);
-
-    outColor = vec4(color, alpha);
+    // 保持太阳不透明，避免出现“缺角/咬掉”视觉瑕疵。
+    outColor = vec4(color, 1.0);
 }

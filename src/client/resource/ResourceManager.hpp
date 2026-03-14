@@ -153,6 +153,19 @@ public:
      */
     [[nodiscard]] bool isAtlasBuilt() const { return m_atlasBuilt; }
 
+    /**
+     * @brief 获取第一个资源包（用于纹理加载）
+     * @return 资源包指针，如果没有则返回 nullptr
+     */
+    [[nodiscard]] IResourcePack* getFirstResourcePack();
+
+    /**
+     * @brief 按索引获取资源包
+     * @param index 资源包索引
+     * @return 资源包指针，如果索引无效则返回 nullptr
+     */
+    [[nodiscard]] IResourcePack* getResourcePack(size_t index);
+
     // ========================================================================
     // 配置
     // ========================================================================

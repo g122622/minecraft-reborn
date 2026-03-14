@@ -17,6 +17,7 @@ namespace mc::client {
 
 // 前向声明
 class ClientEntity;
+class EntityTextureAtlas;
 
 namespace renderer {
 
@@ -110,6 +111,11 @@ public:
     void setPipeline(EntityPipeline* pipeline) { m_pipeline = pipeline; }
 
     /**
+     * @brief 设置实体纹理图集（用于UV重映射）
+     */
+    void setTextureAtlas(const EntityTextureAtlas* textureAtlas);
+
+    /**
      * @brief 获取实体渲染管线
      */
     [[nodiscard]] EntityPipeline* pipeline() { return m_pipeline; }
@@ -152,6 +158,7 @@ private:
 
     // 管线
     EntityPipeline* m_pipeline = nullptr;
+    const EntityTextureAtlas* m_textureAtlas = nullptr;
 
     bool m_renderShadows = true;
     bool m_renderNameTags = true;
@@ -171,6 +178,12 @@ private:
     bool generateModelMesh(const String& typeId,
                            std::vector<ModelVertex>& vertices,
                            std::vector<u32>& indices);
+
+    /**
+     * @brief 将模型局部UV映射到图集区域
+     */
+    void remapUvToAtlasRegion(const String& normalizedTypeId,
+                              std::vector<ModelVertex>& vertices) const;
 };
 
 } // namespace renderer

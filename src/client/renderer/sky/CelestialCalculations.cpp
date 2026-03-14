@@ -1,4 +1,5 @@
 #include "CelestialCalculations.hpp"
+#include <cassert>
 #include <cmath>
 
 namespace mc::client {
@@ -110,31 +111,79 @@ glm::vec4 CelestialCalculations::calculateSkyColor(
     f32 celestialAngle,
     f32 rainStrength,
     f32 thunderStrength) {
+    assert(std::isfinite(celestialAngle));
+
     const f32 angleRad = celestialAngle * mc::math::TAU_F;
     const f32 sunHeight = std::cos(angleRad);
 
-    // 基础昼夜渐变（接近 MC 的蓝天/夜空对比）。
-    const glm::vec3 daySky(0.53f, 0.81f, 0.92f);
+    // 主世界基础昼夜渐变（白天默认 #78A7FF）。
+    const glm::vec3 daySky = getOverworldBaseSkyColor();
     const glm::vec3 nightSky(0.02f, 0.03f, 0.08f);
 
-    const f32 daylight = glm::smoothstep(-0.12f, 0.18f, sunHeight);
+    // 接近 MC 的昼夜过渡：白天拉满，夜晚降到深蓝。
+    const f32 daylight = glm::smoothstep(-0.18f, 0.14f, sunHeight);
     glm::vec3 skyColor = glm::mix(nightSky, daySky, daylight);
 
-    // 日出/日落暖色带（只在地平线附近生效，避免整片天空过橙）。
-    const f32 horizon = 1.0f - glm::clamp(std::abs(sunHeight) / 0.42f, 0.0f, 1.0f);
-    const f32 twilight = horizon * horizon;
-    const glm::vec3 twilightColor(0.98f, 0.56f, 0.28f);
-    skyColor = glm::mix(skyColor, twilightColor, twilight * 0.35f);
+    // 日出/日落暖色（主色由 MC sunrise/sunset 曲线提供）。
+    const glm::vec4 sunrise = calculateSunriseSunsetColor(celestialAngle, rainStrength, thunderStrength);
+    if (sunrise.a > 0.0f) {
+        skyColor = glm::mix(skyColor, glm::vec3(sunrise), sunrise.a * 0.37f);
+    }
 
     // 天气影响
     if (rainStrength > 0.0f || thunderStrength > 0.0f) {
-        // 雨天/雷暴时天空偏灰偏暗。
+        // 雨天/雷暴时天空偏灰偏暗（Java 版观感）。
         glm::vec3 fogGray(0.58f, 0.60f, 0.64f);
-        f32 weatherFactor = std::max(rainStrength, thunderStrength);
+        f32 weatherFactor = glm::clamp(std::max(rainStrength, thunderStrength), 0.0f, 1.0f);
         skyColor = glm::mix(skyColor, fogGray, weatherFactor * 0.82f);
     }
 
     return glm::vec4(skyColor, 1.0f);
+}
+
+glm::vec4 CelestialCalculations::calculateSunriseSunsetColor(
+    f32 celestialAngle,
+    f32 rainStrength,
+    f32 thunderStrength) {
+    assert(std::isfinite(celestialAngle));
+
+    // 对齐 MC 1.16.5 DimensionType#calcSunriseSunsetColors。
+    const f32 cosine = std::cos(celestialAngle * mc::math::TAU_F);
+    if (cosine < -0.4f || cosine > 0.4f) {
+        return glm::vec4(0.0f);
+    }
+
+    const f32 t = cosine / 0.4f * 0.5f + 0.5f;
+    f32 alpha = 1.0f - (1.0f - std::sin(t * mc::math::PI)) * 0.99f;
+    alpha *= alpha;
+
+    glm::vec3 color;
+    color.r = t * 0.20f + 0.80f;
+    color.g = t * t * 0.52f + 0.12f;
+    color.b = 0.10f;
+
+    const f32 rainAttenuation = 1.0f - glm::clamp(rainStrength, 0.0f, 1.0f) * 0.75f;
+    const f32 thunderAttenuation = 1.0f - glm::clamp(thunderStrength, 0.0f, 1.0f) * 0.75f;
+    alpha *= rainAttenuation * thunderAttenuation;
+
+    return glm::vec4(color, glm::clamp(alpha, 0.0f, 1.0f));
+}
+
+f32 CelestialCalculations::calculateSunriseFacingFactor(
+    const glm::vec3& cameraForward,
+    const glm::vec3& sunriseDirection) {
+    const glm::vec2 cam(cameraForward.x, cameraForward.z);
+    const glm::vec2 sunrise(sunriseDirection.x, sunriseDirection.z);
+
+    const f32 camLen2 = glm::dot(cam, cam);
+    const f32 sunriseLen2 = glm::dot(sunrise, sunrise);
+    if (camLen2 < 1e-6f || sunriseLen2 < 1e-6f) {
+        return 0.0f;
+    }
+
+    const glm::vec2 camN = cam / std::sqrt(camLen2);
+    const glm::vec2 sunriseN = sunrise / std::sqrt(sunriseLen2);
+    return glm::clamp(glm::dot(camN, sunriseN), 0.0f, 1.0f);
 }
 
 glm::vec4 CelestialCalculations::calculateFogColor(
@@ -144,8 +193,8 @@ glm::vec4 CelestialCalculations::calculateFogColor(
     glm::vec4 skyColor = calculateSkyColor(celestialAngle, rainStrength, thunderStrength);
     glm::vec3 fogColor = glm::vec3(skyColor);
 
-    // 雾比天空略亮、略灰（地平线感）。
-    fogColor = glm::mix(fogColor, glm::vec3(0.70f, 0.75f, 0.80f), 0.26f);
+    // 雾比天空更灰一些，模拟 MC 地平线“泛白”感。
+    fogColor = glm::mix(fogColor, glm::vec3(0.70f, 0.75f, 0.80f), 0.22f);
 
     return glm::vec4(fogColor, 1.0f);
 }

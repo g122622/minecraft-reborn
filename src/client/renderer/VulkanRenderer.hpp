@@ -19,6 +19,7 @@
 #include "item/ItemRenderer.hpp"
 #include "entity/EntityRendererManager.hpp"
 #include "entity/EntityPipeline.hpp"
+#include "entity/EntityTextureAtlas.hpp"
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <functional>
@@ -161,6 +162,19 @@ public:
      */
     bool isEntityRendererInitialized() const { return m_entityRendererInitialized; }
 
+    /**
+     * @brief 获取实体纹理图集
+     */
+    EntityTextureAtlas& entityTextureAtlas() { return m_entityTextureAtlas; }
+    const EntityTextureAtlas& entityTextureAtlas() const { return m_entityTextureAtlas; }
+
+    /**
+     * @brief 初始化实体纹理图集
+     * @param resourceManager 资源管理器
+     * @return 成功或错误
+     */
+    [[nodiscard]] Result<void> initializeEntityTextureAtlas(ResourceManager* resourceManager);
+
     // 状态
     bool isInitialized() const { return m_initialized; }
     bool isMinimized() const { return m_minimized; }
@@ -265,7 +279,9 @@ private:
     // 实体渲染
     std::unique_ptr<EntityPipeline> m_entityPipeline;
     std::unique_ptr<renderer::EntityRendererManager> m_entityRendererManager;
+    EntityTextureAtlas m_entityTextureAtlas;
     bool m_entityRendererInitialized = false;
+    bool m_entityTextureAtlasInitialized = false;
     EntityRenderCallback m_entityRenderCallback;
 
     // 创建函数

@@ -19,6 +19,9 @@ layout(push_constant) uniform PushConstants {
 layout(set = 0, binding = 0) uniform SkyUBO {
     vec4 skyColor;
     vec4 fogColor;
+    vec4 sunriseColor;
+    vec4 sunriseDirection;
+    vec4 cameraForward;
     float celestialAngle;
     float starBrightness;
     int moonPhase;
@@ -47,8 +50,10 @@ vec3 calculateSunDirection(float angle) {
 }
 
 void main() {
-    // 太阳尺寸常量 (MC 1.16.5 使用 30.0)
-    const float SUN_SIZE = 30.0;
+    // 太阳尺寸常量。
+    // 说明：当前渲染路径使用透视投影 + 裁剪缩放，30.0 会明显偏大，
+    // 这里调小到更接近 Java 版观感。
+    const float SUN_SIZE = 10.0;
 
     // 计算太阳方向
     vec3 sunDir = calculateSunDirection(sky.celestialAngle);
@@ -71,8 +76,8 @@ void main() {
     vec3 forward = normalize(cross(sunDir, right));
 
     // 计算世界位置
-    // 太阳位于天空球上，距离 100
-    const float SUN_DISTANCE = 100.0;
+    // 太阳位于天空球上，适当拉远以减小角直径。
+    const float SUN_DISTANCE = 160.0;
     vec3 sunCenter = sunDir * SUN_DISTANCE;
 
     // 根据输入顶点位置计算四边形角点

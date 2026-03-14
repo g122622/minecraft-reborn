@@ -4,6 +4,7 @@
 #include "DefaultTextureAtlas.hpp"
 #include "sky/CelestialCalculations.hpp"
 #include "../ui/DefaultAsciiFont.hpp"
+#include "../resource/EntityTextureLoader.hpp"
 #include "MeshTypes.hpp"
 #include "../../common/world/WorldConstants.hpp"
 #include "../../common/perfetto/TraceEvents.hpp"
@@ -439,14 +440,16 @@ Result<void> VulkanRenderer::render() {
         MC_TRACE_SKY("SkyRender");
         glm::mat4 viewProjection(1.0f);
         glm::vec3 cameraPos(0.0f);
+        glm::vec3 cameraForward(0.0f, 0.0f, -1.0f);
 
         if (m_camera) {
             glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(m_camera->viewMatrix()));
             viewProjection = m_camera->projectionMatrix() * viewNoTranslation;
             cameraPos = m_camera->position();
+            cameraForward = m_camera->forward();
         }
 
-        m_skyRenderer.render(cmd, viewProjection, cameraPos, m_currentFrame);
+        m_skyRenderer.render(cmd, viewProjection, cameraPos, cameraForward, m_currentFrame);
     }
 
     // 渲染区块
@@ -1862,16 +1865,20 @@ Result<void> VulkanRenderer::createEntityPipeline() {
         return result.error();
     }
 
-    // 如果区块纹理图集已经创建，设置实体管线的纹理
-    if (m_chunkTextureAtlas.isValid()) {
+    // 如果实体纹理图集已经初始化，设置到管线
+    // 否则在 initializeEntityTextureAtlas 中设置
+    if (m_entityTextureAtlasInitialized && m_entityTextureAtlas.isBuilt()) {
         m_entityPipeline->setTextureAtlas(
-            m_chunkTextureAtlas.texture().imageView(),
-            m_chunkTextureAtlas.texture().sampler());
+            m_entityTextureAtlas.imageView(),
+            m_entityTextureAtlas.sampler());
     }
 
     // 初始化实体渲染器管理器
     m_entityRendererManager = std::make_unique<renderer::EntityRendererManager>();
     m_entityRendererManager->setPipeline(m_entityPipeline.get());
+    if (m_entityTextureAtlasInitialized && m_entityTextureAtlas.isBuilt()) {
+        m_entityRendererManager->setTextureAtlas(&m_entityTextureAtlas);
+    }
     m_entityRendererManager->initializeDefaults();
 
     m_entityRendererInitialized = true;
@@ -1886,8 +1893,77 @@ void VulkanRenderer::destroyEntityResources() {
 
     m_entityRendererManager.reset();
     m_entityPipeline.reset();
+    m_entityTextureAtlas.destroy();
     m_entityRendererInitialized = false;
+    m_entityTextureAtlasInitialized = false;
     spdlog::info("Entity resources destroyed");
+}
+
+Result<void> VulkanRenderer::initializeEntityTextureAtlas(ResourceManager* resourceManager) {
+    if (m_entityTextureAtlasInitialized) {
+        return Result<void>::ok();
+    }
+
+    if (!resourceManager) {
+        return Error(ErrorCode::NullPointer, "ResourceManager is null");
+    }
+
+    spdlog::info("Initializing entity texture atlas...");
+
+    // 初始化实体纹理图集
+    auto initResult = m_entityTextureAtlas.initialize(
+        m_context.get(),
+        m_commandPool,
+        256,   // 最大纹理数量
+        64     // 默认纹理尺寸
+    );
+    if (initResult.failed()) {
+        return initResult.error();
+    }
+
+    // 遍历所有资源包加载实体纹理（从后往前，优先使用后添加的资源包）
+    u32 loadedCount = 0;
+    size_t packCount = resourceManager->resourcePackCount();
+
+    for (size_t i = packCount; i > 0; --i) {
+        auto* pack = resourceManager->getResourcePack(i - 1);
+        if (!pack) continue;
+
+        EntityTextureLoader textureLoader;
+        auto loaderResult = textureLoader.loadDefaultTextures(*pack, m_entityTextureAtlas);
+        if (loaderResult.success() && loaderResult.value() > 0) {
+            loadedCount += loaderResult.value();
+            spdlog::info("Loaded {} entity textures from resource pack", loaderResult.value());
+        }
+    }
+
+    // 构建纹理图集
+    if (loadedCount > 0) {
+        auto buildResult = m_entityTextureAtlas.build();
+        if (buildResult.failed()) {
+            spdlog::error("Failed to build entity texture atlas: {}", buildResult.error().toString());
+            return buildResult.error();
+        }
+
+        // 设置纹理到管线
+        if (m_entityPipeline && m_entityPipeline->isInitialized()) {
+            m_entityPipeline->setTextureAtlas(
+                m_entityTextureAtlas.imageView(),
+                m_entityTextureAtlas.sampler()
+            );
+            spdlog::info("Entity texture atlas set to pipeline");
+        }
+
+        if (m_entityRendererManager) {
+            m_entityRendererManager->setTextureAtlas(&m_entityTextureAtlas);
+        }
+    } else {
+        spdlog::warn("No entity textures loaded from any resource pack");
+    }
+
+    m_entityTextureAtlasInitialized = true;
+    spdlog::info("Entity texture atlas initialized with {} total textures", loadedCount);
+    return Result<void>::ok();
 }
 
 } // namespace mc::client
