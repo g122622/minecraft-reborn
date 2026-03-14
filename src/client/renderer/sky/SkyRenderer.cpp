@@ -375,10 +375,10 @@ void SkyRenderer::renderSun(VkCommandBuffer cmd) {
         const glm::vec2 ndc = glm::vec2(pos.x / w, pos.y / w);
         const f32 crossLen = glm::length(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), sunDir));
 
-        spdlog::info("[Sky] Sun draw: dayTime={}, gameTime={}, intensity={:.4f}, angle={:.6f}, sunDir=({:.3f},{:.3f},{:.3f}), crossLen={:.6f}, ndc=({:.3f},{:.3f})",
-                m_dayTime, m_gameTime, m_sunIntensity, m_celestialAngle,
-                    sunDir.x, sunDir.y, sunDir.z,
-                    crossLen, ndc.x, ndc.y);
+        // spdlog::info("[Sky] Sun draw: dayTime={}, gameTime={}, intensity={:.4f}, angle={:.6f}, sunDir=({:.3f},{:.3f},{:.3f}), crossLen={:.6f}, ndc=({:.3f},{:.3f})",
+        //         m_dayTime, m_gameTime, m_sunIntensity, m_celestialAngle,
+        //             sunDir.x, sunDir.y, sunDir.z,
+        //             crossLen, ndc.x, ndc.y);
     }
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_sunPipeline);

@@ -50,7 +50,7 @@ void FeatureRegistry::initialize() {
     spdlog::info("[FeatureRegistry] Initialized features:");
     for (size_t i = 0; i < m_featuresByStage.size(); ++i) {
         if (!m_featuresByStage[i].empty()) {
-            spdlog::info("  Stage {}: {} features", i, m_featuresByStage[i].size());
+            // spdlog::info("  Stage {}: {} features", i, m_featuresByStage[i].size());
         }
     }
 }

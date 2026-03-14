@@ -250,8 +250,8 @@ void EntityTracker::sendSpawnPacket(ServerWorld& world, PlayerId playerId, Entit
             fullPacket.writeBytes(result.value());
 
             player->send(fullPacket.data(), fullPacket.size());
-            spdlog::info("Sent SpawnMob packet for entity {} (type: {}) to player {}",
-                          entity->id(), entity->getTypeId(), playerId);
+            // spdlog::info("Sent SpawnMob packet for entity {} (type: {}) to player {}",
+            //               entity->id(), entity->getTypeId(), playerId);
         }
     } else {
         // 非生物实体，使用 SpawnEntityPacket

@@ -146,7 +146,7 @@ i32 WorldGenSpawner::spawnInitialMobs(
     }
 
     if (totalSpawned > 0) {
-        spdlog::info("WorldGenSpawner: Spawned {} entities at chunk ({}, {})", totalSpawned, chunkX, chunkZ);
+        // spdlog::info("WorldGenSpawner: Spawned {} entities at chunk ({}, {})", totalSpawned, chunkX, chunkZ);
     }
 
     return totalSpawned;

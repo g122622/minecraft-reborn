@@ -1334,8 +1334,8 @@ void IntegratedServer::handleSpawnedEntities(const std::vector<SpawnedEntityData
 
         spawnedEntities.emplace_back(entityId, &entityData);
 
-        spdlog::info("IntegratedServer: Spawned {} at ({:.1f}, {:.1f}, {:.1f}) with ID {}",
-                     entityData.entityTypeId, entityData.x, entityData.y, entityData.z, entityId);
+        // spdlog::info("IntegratedServer: Spawned {} at ({:.1f}, {:.1f}, {:.1f}) with ID {}",
+        //              entityData.entityTypeId, entityData.x, entityData.y, entityData.z, entityId);
     }
 
     // 发送实体生成包到客户端
@@ -1368,8 +1368,8 @@ void IntegratedServer::sendEntitySpawnPackets(const std::vector<std::pair<Entity
                 auto fullPacket = core::ConnectionManager::encapsulatePacket(
                     network::PacketType::SpawnMob, result.value());
                 sendToClient(fullPacket.data(), fullPacket.size());
-                spdlog::info("IntegratedServer: Sent SpawnMob packet for {} (ID: {}) at ({:.1f}, {:.1f}, {:.1f})",
-                             entityData->entityTypeId, entityId, entityData->x, entityData->y, entityData->z);
+                // spdlog::info("IntegratedServer: Sent SpawnMob packet for {} (ID: {}) at ({:.1f}, {:.1f}, {:.1f})",
+                //              entityData->entityTypeId, entityId, entityData->x, entityData->y, entityData->z);
             }
         } else {
             network::SpawnEntityPacket packet;

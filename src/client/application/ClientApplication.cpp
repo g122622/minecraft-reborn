@@ -1198,8 +1198,8 @@ void ClientApplication::setupNetworkCallbacks()
             entity->setPosition(x, y, z);
             entity->setRotation(yaw, pitch);
             entity->setHeadRotation(headYaw);
-            spdlog::info("Client received SpawnMob: {} (ID: {}) at ({:.1f}, {:.1f}, {:.1f})",
-                          typeId, entityId, x, y, z);
+            // spdlog::info("Client received SpawnMob: {} (ID: {}) at ({:.1f}, {:.1f}, {:.1f})",
+            //               typeId, entityId, x, y, z);
         }
     };
 
@@ -1211,8 +1211,8 @@ void ClientApplication::setupNetworkCallbacks()
         if (entity) {
             entity->setPosition(x, y, z);
             entity->setRotation(yaw, pitch);
-            spdlog::info("Client received SpawnEntity: {} (ID: {}) at ({:.1f}, {:.1f}, {:.1f})",
-                          typeId, entityId, x, y, z);
+            // spdlog::info("Client received SpawnEntity: {} (ID: {}) at ({:.1f}, {:.1f}, {:.1f})",
+            //               typeId, entityId, x, y, z);
         }
     };
 

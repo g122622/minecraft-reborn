@@ -910,15 +910,15 @@ i32 ServerWorld::spawnEntitiesFromChunkGeneration(const std::vector<SpawnedEntit
 
             ++spawnedCount;
 
-            SPDLOG_TRACE("ServerWorld: Spawned {} at ({:.1f}, {:.1f}, {:.1f}) with ID {}",
-                         entityData.entityTypeId,
-                         entityData.x, entityData.y, entityData.z,
-                         entityId);
+            // SPDLOG_TRACE("ServerWorld: Spawned {} at ({:.1f}, {:.1f}, {:.1f}) with ID {}",
+            //              entityData.entityTypeId,
+            //              entityData.x, entityData.y, entityData.z,
+            //              entityId);
         }
     }
 
     if (spawnedCount > 0) {
-        spdlog::info("ServerWorld: Spawned {} entities from chunk generation", spawnedCount);
+        // spdlog::info("ServerWorld: Spawned {} entities from chunk generation", spawnedCount);
     }
 
     return spawnedCount;

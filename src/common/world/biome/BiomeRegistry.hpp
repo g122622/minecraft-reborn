@@ -204,6 +204,31 @@ Biome createShatteredSavanna();
  */
 Biome createSnowyTaiga();
 
+/**
+ * @brief 创建冻结海洋生物群系
+ */
+Biome createFrozenOcean();
+
+/**
+ * @brief 创建冻结河流生物群系
+ */
+Biome createFrozenRiver();
+
+/**
+ * @brief 创建积雪山地生物群系
+ */
+Biome createSnowyMountains();
+
+/**
+ * @brief 创建冰刺之地生物群系
+ */
+Biome createIceSpikes();
+
+/**
+ * @brief 创建深海冻结海洋生物群系
+ */
+Biome createDeepFrozenOcean();
+
 } // namespace BiomeFactory
 
 } // namespace mc

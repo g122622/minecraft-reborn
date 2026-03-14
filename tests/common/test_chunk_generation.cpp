@@ -695,13 +695,21 @@ TEST_F(ChunkGenerationTest, BiomeDistribution) {
 
     // 检查更大范围的生物群系
     std::set<BiomeId> foundBiomes;
+    std::map<BiomeId, int> biomeCounts;
 
     // 采样范围 -500 到 500，更大范围更多生物群系
     for (int x = -500; x <= 500; x += 50) {
         for (int z = -500; z <= 500; z += 50) {
             BiomeId biome = generator.getBiome(x, 64, z);
             foundBiomes.insert(biome);
+            biomeCounts[biome]++;
         }
+    }
+
+    // 打印发现的生物群系
+    std::cout << "Found " << foundBiomes.size() << " biomes:" << std::endl;
+    for (const auto& [biomeId, count] : biomeCounts) {
+        std::cout << "  Biome " << biomeId << ": " << count << " samples" << std::endl;
     }
 
     // 应该发现多种生物群系
