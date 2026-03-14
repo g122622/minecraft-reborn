@@ -68,6 +68,8 @@ add_executable(mc_tests
     common/world/gen/ChunkSpawnIntegrationTest.cpp
     # Perfetto 测试（集成到主测试套件）
     common/perfetto/PerfettoTest.cpp
+    # 射线检测测试
+    common/math/RaycastTest.cpp
 )
 
 # 添加服务端源文件
@@ -193,6 +195,8 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/common/world/drop/DropTables.cpp
         # 天体计算
         ${CMAKE_SOURCE_DIR}/src/client/renderer/sky/CelestialCalculations.cpp
+        # 射线检测
+        ${CMAKE_SOURCE_DIR}/src/common/math/ray/Raycast.cpp
         # 设置系统
         ${CMAKE_SOURCE_DIR}/src/client/settings/ClientSettings.cpp
         # 网格构建线程池
