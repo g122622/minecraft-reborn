@@ -185,6 +185,99 @@ inline bool isShallowOcean(i32 biome) {
  */
 bool areBiomesSimilar(i32 a, i32 b);
 
+// ============================================================================
+// 生物群系类别检查函数（用于 Layer 处理）
+// ============================================================================
+
+/**
+ * @brief 检查是否为恶地（Badlands/Mesa）类别
+ * @param biome 生物群系 ID
+ * @return 是否为恶地类别
+ */
+[[nodiscard]] inline bool isBadlands(i32 biome) {
+    return biome == Badlands ||
+           biome == WoodedBadlandsPlateau ||
+           biome == BadlandsPlateau ||
+           biome == ErodedBadlands ||
+           biome == ModifiedWoodedBadlandsPlateau ||
+           biome == ModifiedBadlandsPlateau;
+}
+
+/**
+ * @brief 检查是否为丛林类别
+ * @param biome 生物群系 ID
+ * @return 是否为丛林类别
+ */
+[[nodiscard]] inline bool isJungle(i32 biome) {
+    return biome == Jungle ||
+           biome == JungleHills ||
+           biome == JungleEdge ||
+           biome == BambooJungle ||
+           biome == BambooJungleHills ||
+           biome == ModifiedJungle ||
+           biome == ModifiedJungleEdge;
+}
+
+/**
+ * @brief 检查是否与丛林兼容（丛林、森林、针叶林、海洋）
+ * @param biome 生物群系 ID
+ * @return 是否与丛林兼容
+ */
+[[nodiscard]] inline bool isJungleCompatible(i32 biome) {
+    return isJungle(biome) ||
+           biome == Forest ||
+           biome == Taiga ||
+           isOcean(biome);
+}
+
+/**
+ * @brief 检查是否为雪地类别
+ * @param biome 生物群系 ID
+ * @return 是否为雪地类别
+ */
+[[nodiscard]] inline bool isSnowy(i32 biome) {
+    return biome == SnowyPlains ||
+           biome == SnowyMountains ||
+           biome == SnowyBeach ||
+           biome == SnowyTaiga ||
+           biome == SnowyTaigaHills ||
+           biome == SnowyTaigaMountains ||
+           biome == IceSpikes ||
+           biome == FrozenOcean ||
+           biome == DeepFrozenOcean ||
+           biome == FrozenRiver;
+}
+
+/**
+ * @brief 检查是否为山地类别
+ * @param biome 生物群系 ID
+ * @return 是否为山地类别
+ */
+[[nodiscard]] inline bool isMountain(i32 biome) {
+    return biome == Mountains ||
+           biome == WoodedMountains ||
+           biome == GravellyMountains ||
+           biome == ModifiedGravellyMountains ||
+           biome == MountainEdge;  // MountainEdge 在 MC 中是 ID 20
+}
+
+/**
+ * @brief 检查周围是否有海洋邻居
+ * @param north 北边值
+ * @param east 东边值
+ * @param south 南边值
+ * @param west 西边值
+ * @param shallowOnly 是否只检查浅海
+ * @return 是否有海洋邻居
+ */
+[[nodiscard]] inline bool hasOceanNeighbor(i32 north, i32 east, i32 south, i32 west, bool shallowOnly = false) {
+    if (shallowOnly) {
+        return isShallowOcean(north) || isShallowOcean(east) ||
+               isShallowOcean(south) || isShallowOcean(west);
+    }
+    return isOcean(north) || isOcean(east) || isOcean(south) || isOcean(west);
+}
+
 } // namespace BiomeValues
 } // namespace layer
 } // namespace mc

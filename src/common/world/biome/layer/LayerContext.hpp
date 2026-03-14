@@ -4,15 +4,16 @@
 #include "../../gen/noise/ImprovedNoiseGenerator.hpp"
 #include "../../../math/random/Random.hpp"
 #include <unordered_map>
+#include <list>
 #include <mutex>
 #include <memory>
 
 namespace mc {
 
 /**
- * @brief LRU 缓存的坐标到值映射
+ * @brief 高效 LRU 缓存的坐标到值映射
  *
- * 使用简单的 LRU 策略，当缓存满时移除最旧的条目。
+ * 使用双向链表 + 哈希表实现 O(1) 的 get/put/evict 操作。
  * 参考 MC Long2IntLinkedOpenHashMap
  */
 class Long2IntLRUCache {
@@ -20,12 +21,12 @@ public:
     explicit Long2IntLRUCache(i32 maxSize = 1024);
 
     /**
-     * @brief 获取缓存值
+     * @brief 获取缓存值（会更新访问顺序）
      * @param key 坐标键（打包的 x, z）
      * @param value 输出值
      * @return 是否找到
      */
-    [[nodiscard]] bool get(i64 key, i32& value) const;
+    [[nodiscard]] bool get(i64 key, i32& value);
 
     /**
      * @brief 设置缓存值
@@ -49,20 +50,24 @@ public:
     /**
      * @brief 获取缓存大小
      */
-    [[nodiscard]] i32 size() const { return static_cast<i32>(m_cache.size()); }
+    [[nodiscard]] i32 size() const;
 
     /**
      * @brief 清除缓存
      */
-    void clear() { m_cache.clear(); m_accessOrder.clear(); }
+    void clear();
 
 private:
     i32 m_maxSize;
-    mutable std::unordered_map<i64, i32> m_cache;
-    mutable std::vector<i64> m_accessOrder;  // 简单的访问顺序跟踪
-    mutable std::mutex m_mutex;
 
-    void evictOldest();
+    // 双向链表节点：存储 (key, value)
+    using ListNode = std::pair<i64, i32>;
+    mutable std::list<ListNode> m_list;  // 前面是最新，后面是最旧
+
+    // 哈希表：key -> 链表迭代器
+    mutable std::unordered_map<i64, std::list<ListNode>::iterator> m_cache;
+
+    mutable std::mutex m_mutex;
 };
 
 /**

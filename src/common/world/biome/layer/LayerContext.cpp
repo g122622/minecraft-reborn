@@ -1,11 +1,10 @@
 #include "LayerContext.hpp"
 #include "transformers/TransformerTraits.hpp"
-#include <list>
 
 namespace mc {
 
 // ============================================================================
-// Long2IntLRUCache 实现
+// Long2IntLRUCache 实现 - O(1) LRU 缓存
 // ============================================================================
 
 Long2IntLRUCache::Long2IntLRUCache(i32 maxSize)
@@ -14,11 +13,13 @@ Long2IntLRUCache::Long2IntLRUCache(i32 maxSize)
     m_cache.reserve(static_cast<size_t>(maxSize * 2));  // 预分配空间
 }
 
-bool Long2IntLRUCache::get(i64 key, i32& value) const {
+bool Long2IntLRUCache::get(i64 key, i32& value) {
     std::lock_guard<std::mutex> lock(m_mutex);
     auto it = m_cache.find(key);
     if (it != m_cache.end()) {
-        value = it->second;
+        // 移动到链表前端（最近访问）
+        m_list.splice(m_list.begin(), m_list, it->second);
+        value = it->second->second;
         return true;
     }
     return false;
@@ -30,29 +31,33 @@ void Long2IntLRUCache::put(i64 key, i32 value) {
     // 检查是否已存在
     auto it = m_cache.find(key);
     if (it != m_cache.end()) {
-        it->second = value;
+        // 更新值并移动到前端
+        it->second->second = value;
+        m_list.splice(m_list.begin(), m_list, it->second);
         return;
     }
 
     // 检查是否需要淘汰
     if (static_cast<i32>(m_cache.size()) >= m_maxSize) {
-        evictOldest();
+        // 移除链表尾部（最旧）
+        i64 oldestKey = m_list.back().first;
+        m_cache.erase(oldestKey);
+        m_list.pop_back();
     }
 
-    m_cache[key] = value;
-    m_accessOrder.push_back(key);
+    // 插入新条目到前端
+    m_list.emplace_front(key, value);
+    m_cache[key] = m_list.begin();
 }
 
-void Long2IntLRUCache::evictOldest() {
-    // 淘汰 1/16 的最旧条目
-    i32 toRemove = m_maxSize / 16;
-    if (toRemove < 1) toRemove = 1;
+i32 Long2IntLRUCache::size() const {
+    return static_cast<i32>(m_cache.size());
+}
 
-    for (i32 i = 0; i < toRemove && !m_accessOrder.empty(); ++i) {
-        i64 oldestKey = m_accessOrder.front();
-        m_accessOrder.erase(m_accessOrder.begin());
-        m_cache.erase(oldestKey);
-    }
+void Long2IntLRUCache::clear() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_cache.clear();
+    m_list.clear();
 }
 
 // ============================================================================

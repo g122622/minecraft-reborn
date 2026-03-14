@@ -1,5 +1,4 @@
 #include "BiomeLayers.hpp"
-#include <unordered_set>
 
 namespace mc {
 namespace layer {
@@ -115,63 +114,39 @@ i32 RareBiomeLayer::apply(IAreaContext& ctx, i32 value) {
 // ShoreLayer 实现
 // ============================================================================
 
-namespace {
-    // 雪地相邻生物群系
-    const std::unordered_set<i32> snowyShoreBiomes = {
-        BiomeValues::DeepFrozenOcean, BiomeValues::FrozenOcean,
-        BiomeValues::FrozenRiver, BiomeValues::SnowyPlains,
-        BiomeValues::SnowyMountains, BiomeValues::SnowyBeach,
-        BiomeValues::SnowyTaiga, BiomeValues::SnowyTaigaHills,
-        BiomeValues::IceSpikes
-    };
-
-    // 丛林相关生物群系
-    const std::unordered_set<i32> jungleShoreBiomes = {
-        BiomeValues::BambooJungle, BiomeValues::BambooJungleHills,
-        BiomeValues::Jungle, BiomeValues::JungleHills,
-        BiomeValues::JungleEdge, BiomeValues::ModifiedJungle,
-        BiomeValues::ModifiedJungleEdge
-    };
-}
-
 i32 ShoreLayer::apply(IAreaContext& ctx, i32 north, i32 east, i32 south, i32 west, i32 center) {
     // 参考 MC ShoreLayer.apply
 
     // 蘑菇岛海岸
     if (center == BiomeValues::MushroomFields) {
-        if (BiomeValues::isShallowOcean(north) || BiomeValues::isShallowOcean(east) ||
-            BiomeValues::isShallowOcean(south) || BiomeValues::isShallowOcean(west)) {
+        if (BiomeValues::hasOceanNeighbor(north, east, south, west, true)) {
             return BiomeValues::MushroomFieldShore;
         }
     }
 
     // 丛林海岸
-    if (jungleShoreBiomes.count(center) > 0) {
+    if (BiomeValues::isJungle(center)) {
         // 检查周围是否都是丛林兼容的
-        if (!isJungleCompatible(north) || !isJungleCompatible(east) ||
-            !isJungleCompatible(south) || !isJungleCompatible(west)) {
+        if (!BiomeValues::isJungleCompatible(north) || !BiomeValues::isJungleCompatible(east) ||
+            !BiomeValues::isJungleCompatible(south) || !BiomeValues::isJungleCompatible(west)) {
             return BiomeValues::JungleEdge;
         }
         // 与海洋相邻变成丛林
-        if (BiomeValues::isOcean(north) || BiomeValues::isOcean(east) ||
-            BiomeValues::isOcean(south) || BiomeValues::isOcean(west)) {
+        if (BiomeValues::hasOceanNeighbor(north, east, south, west)) {
             return BiomeValues::Jungle;
         }
     }
 
     // 山地和山地变体
-    if (center == BiomeValues::Mountains || center == BiomeValues::WoodedMountains ||
-        center == BiomeValues::GravellyMountains || center == BiomeValues::ModifiedGravellyMountains) {
-        if (BiomeValues::isOcean(north) || BiomeValues::isOcean(east) ||
-            BiomeValues::isOcean(south) || BiomeValues::isOcean(west)) {
+    if (BiomeValues::isMountain(center)) {
+        if (BiomeValues::hasOceanNeighbor(north, east, south, west)) {
             return BiomeValues::StoneShore;
         }
     }
 
     // 雪地海滩
-    if (snowyShoreBiomes.count(center) > 0) {
-        if (BiomeValues::isOcean(north) || BiomeValues::isOcean(east) ||
-            BiomeValues::isOcean(south) || BiomeValues::isOcean(west)) {
+    if (BiomeValues::isSnowy(center)) {
+        if (BiomeValues::hasOceanNeighbor(north, east, south, west)) {
             return BiomeValues::SnowyBeach;
         }
     }
@@ -180,44 +155,27 @@ i32 ShoreLayer::apply(IAreaContext& ctx, i32 north, i32 east, i32 south, i32 wes
     if (center == BiomeValues::Badlands || center == BiomeValues::ErodedBadlands) {
         if (!BiomeValues::isOcean(north) && !BiomeValues::isOcean(east) &&
             !BiomeValues::isOcean(south) && !BiomeValues::isOcean(west) &&
-            (!isMesa(north) || !isMesa(east) || !isMesa(south) || !isMesa(west))) {
+            (!BiomeValues::isBadlands(north) || !BiomeValues::isBadlands(east) ||
+             !BiomeValues::isBadlands(south) || !BiomeValues::isBadlands(west))) {
             return BiomeValues::Desert;
         }
     }
 
     // 恶地高原
     if (center == BiomeValues::WoodedBadlandsPlateau || center == BiomeValues::BadlandsPlateau) {
-        if (BiomeValues::isOcean(north) || BiomeValues::isOcean(east) ||
-            BiomeValues::isOcean(south) || BiomeValues::isOcean(west)) {
+        if (BiomeValues::hasOceanNeighbor(north, east, south, west)) {
             return BiomeValues::StoneShore;
         }
     }
 
     // 普通海滩
     if (!BiomeValues::isOcean(center) && center != BiomeValues::River && center != BiomeValues::Swamp) {
-        if (BiomeValues::isOcean(north) || BiomeValues::isOcean(east) ||
-            BiomeValues::isOcean(south) || BiomeValues::isOcean(west)) {
+        if (BiomeValues::hasOceanNeighbor(north, east, south, west)) {
             return BiomeValues::Beach;
         }
     }
 
     return center;
-}
-
-bool ShoreLayer::isJungleCompatible(i32 biome) {
-    return jungleShoreBiomes.count(biome) > 0 ||
-           biome == BiomeValues::Forest ||
-           biome == BiomeValues::Taiga ||
-           BiomeValues::isOcean(biome);
-}
-
-bool ShoreLayer::isMesa(i32 biome) {
-    return biome == BiomeValues::Badlands ||
-           biome == BiomeValues::WoodedBadlandsPlateau ||
-           biome == BiomeValues::BadlandsPlateau ||
-           biome == BiomeValues::ErodedBadlands ||
-           biome == BiomeValues::ModifiedWoodedBadlandsPlateau ||
-           biome == BiomeValues::ModifiedBadlandsPlateau;
 }
 
 // ============================================================================

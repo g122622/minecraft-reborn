@@ -537,7 +537,7 @@ void endSingleTimeCommands(VkCommandBuffer cmd);
   - ImprovedNoiseGenerator: MC-style Perlin noise
   - OctavesNoiseGenerator: Multi-octave noise (16 octaves)
   - NoiseChunkGenerator: Reference MC 1.16.5 terrain generation
-  - SimpleBiomeProvider: Biome distribution
+  - LayerBiomeProvider: Layer-based biome distribution (MC 1.16.5)
   - ChunkWorkerPool: Async generation thread pool
   - ServerChunkManager: Central chunk coordination
 - **Renderer**: In progress (Vulkan context, basic mesh generation, texture atlas with MC 1.12/1.13+ compatibility)

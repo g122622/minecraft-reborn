@@ -60,17 +60,6 @@ class ShoreLayer : public ICastleTransformer {
 public:
     using ICastleTransformer::apply;
     [[nodiscard]] i32 apply(IAreaContext& ctx, i32 north, i32 east, i32 south, i32 west, i32 center) override;
-
-private:
-    /**
-     * @brief 检查是否与丛林兼容
-     */
-    [[nodiscard]] static bool isJungleCompatible(i32 biome);
-
-    /**
-     * @brief 检查是否为恶地
-     */
-    [[nodiscard]] static bool isMesa(i32 biome);
 };
 
 /**

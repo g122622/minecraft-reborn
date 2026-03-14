@@ -154,49 +154,6 @@ TEST_F(BiomeRegistryTest, CreateOcean) {
 }
 
 // ============================================================================
-// SimpleBiomeProvider 测试
-// ============================================================================
-
-class SimpleBiomeProviderTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        BiomeRegistry::instance().initialize();
-        provider = std::make_unique<SimpleBiomeProvider>(12345);
-    }
-
-    std::unique_ptr<SimpleBiomeProvider> provider;
-};
-
-TEST_F(SimpleBiomeProviderTest, GetBiome) {
-    // 测试不同位置的生物群系
-    BiomeId biome1 = provider->getBiome(0, 64, 0);
-    BiomeId biome2 = provider->getBiome(100, 64, 100);
-    BiomeId biome3 = provider->getBiome(-100, 64, -100);
-
-    // 应该返回有效的生物群系 ID
-    EXPECT_LT(biome1, Biomes::Count);
-    EXPECT_LT(biome2, Biomes::Count);
-    EXPECT_LT(biome3, Biomes::Count);
-}
-
-TEST_F(SimpleBiomeProviderTest, GetNoiseBiome) {
-    BiomeId biome = provider->getNoiseBiome(0, 0, 0);
-    EXPECT_LT(biome, Biomes::Count);
-}
-
-TEST_F(SimpleBiomeProviderTest, GetBiomeDefinition) {
-    const Biome& biome = provider->getBiomeDefinition(Biomes::Plains);
-    EXPECT_EQ(biome.id(), Biomes::Plains);
-}
-
-TEST_F(SimpleBiomeProviderTest, Consistency) {
-    // 相同位置应该返回相同结果
-    BiomeId biome1 = provider->getBiome(100, 64, 200);
-    BiomeId biome2 = provider->getBiome(100, 64, 200);
-    EXPECT_EQ(biome1, biome2);
-}
-
-// ============================================================================
 // Layer 系统测试
 // ============================================================================
 

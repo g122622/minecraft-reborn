@@ -1,5 +1,4 @@
 #include "EdgeLayers.hpp"
-#include <unordered_set>
 
 namespace mc {
 namespace layer {
@@ -100,15 +99,6 @@ i32 SpecialEdgeLayer::apply(IAreaContext& ctx, i32 value) {
 // BiomeEdgeLayer 实现
 // ============================================================================
 
-// 丛林兼容的生物群系 ID
-namespace {
-    const std::unordered_set<i32> jungleBiomes = {
-        BiomeValues::BambooJungle, BiomeValues::BambooJungleHills,
-        BiomeValues::Jungle, BiomeValues::JungleHills, BiomeValues::JungleEdge,
-        BiomeValues::ModifiedJungle, BiomeValues::ModifiedJungleEdge
-    };
-}
-
 i32 BiomeEdgeLayer::apply(IAreaContext& ctx, i32 north, i32 east, i32 south, i32 west, i32 center) {
     (void)ctx; // 未使用
 
@@ -145,8 +135,8 @@ i32 BiomeEdgeLayer::apply(IAreaContext& ctx, i32 north, i32 east, i32 south, i32
 
     // 处理沙漠与雪地相邻
     if (center == BiomeValues::Desert) {
-        if (north == BiomeValues::SnowyPlains || east == BiomeValues::SnowyPlains ||
-            south == BiomeValues::SnowyPlains || west == BiomeValues::SnowyPlains) {
+        if (BiomeValues::isSnowy(north) || BiomeValues::isSnowy(east) ||
+            BiomeValues::isSnowy(south) || BiomeValues::isSnowy(west)) {
             return BiomeValues::SnowyTaiga;
         }
     }
@@ -156,36 +146,18 @@ i32 BiomeEdgeLayer::apply(IAreaContext& ctx, i32 north, i32 east, i32 south, i32
         // 沼泽与沙漠/山脉/雪地相邻变成平原
         if (north == BiomeValues::Desert || east == BiomeValues::Desert ||
             south == BiomeValues::Desert || west == BiomeValues::Desert ||
-            north == BiomeValues::SnowyTaiga || east == BiomeValues::SnowyTaiga ||
-            south == BiomeValues::SnowyTaiga || west == BiomeValues::SnowyTaiga ||
-            north == BiomeValues::SnowyPlains || east == BiomeValues::SnowyPlains ||
-            south == BiomeValues::SnowyPlains || west == BiomeValues::SnowyPlains) {
+            BiomeValues::isSnowy(north) || BiomeValues::isSnowy(east) ||
+            BiomeValues::isSnowy(south) || BiomeValues::isSnowy(west)) {
             return BiomeValues::Plains;
         }
         // 沼泽与丛林相邻变成丛林边缘
-        if (jungleBiomes.count(north) || jungleBiomes.count(east) ||
-            jungleBiomes.count(south) || jungleBiomes.count(west)) {
+        if (BiomeValues::isJungle(north) || BiomeValues::isJungle(east) ||
+            BiomeValues::isJungle(south) || BiomeValues::isJungle(west)) {
             return BiomeValues::JungleEdge;
         }
     }
 
     return center;
-}
-
-bool BiomeEdgeLayer::isMesa(i32 biome) {
-    return biome == BiomeValues::Badlands ||
-           biome == BiomeValues::WoodedBadlandsPlateau ||
-           biome == BiomeValues::BadlandsPlateau ||
-           biome == BiomeValues::ErodedBadlands ||
-           biome == BiomeValues::ModifiedWoodedBadlandsPlateau ||
-           biome == BiomeValues::ModifiedBadlandsPlateau;
-}
-
-bool BiomeEdgeLayer::isJungleCompatible(i32 biome) {
-    return jungleBiomes.count(biome) > 0 ||
-           biome == BiomeValues::Forest ||
-           biome == BiomeValues::Taiga ||
-           BiomeValues::isOcean(biome);
 }
 
 } // namespace layer
