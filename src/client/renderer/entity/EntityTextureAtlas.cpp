@@ -80,9 +80,11 @@ Result<void> EntityTextureAtlas::addTexture(mc::IResourcePack& pack, const Resou
         return Error(ErrorCode::InvalidState, "Atlas already built");
     }
 
-    // 检查是否已存在
-    if (m_regions.find(location) != m_regions.end()) {
-        return Result<void>::ok();  // 已存在，忽略
+    // 检查是否已存在（在已加载纹理中）
+    for (const auto& tex : m_textures) {
+        if (tex.location == location) {
+            return Result<void>::ok();  // 已存在，忽略
+        }
     }
 
     // 加载纹理
@@ -237,8 +239,10 @@ Result<void> EntityTextureAtlas::loadTextureWithFallback(mc::IResourcePack& pack
                                                           std::vector<u8>& outData,
                                                           u32& outWidth,
                                                           u32& outHeight) {
-    // 尝试直接加载
-    auto result = pack.readResource(location.toString());
+    // 尝试直接加载（使用文件路径格式）
+    String filePath = location.toFilePath();
+
+    auto result = pack.readResource(filePath);
     if (result.success()) {
         auto& data = result.value();
         int width, height, channels;
@@ -254,28 +258,32 @@ Result<void> EntityTextureAtlas::loadTextureWithFallback(mc::IResourcePack& pack
         }
     }
 
-    // 尝试路径变体
-    // MC 1.12: textures/entity/pig.png
-    // MC 1.13+: textures/entity/pig/pig.png
+    // 尝试路径变体 - MC 1.12格式
+    // 例如: textures/entity/pig/pig.png -> textures/entity/pig.png
     String path = location.path();
 
-    // 检查是否需要添加目录
-    if (path.find('/') == String::npos) {
-        // 无目录，尝试添加实体目录
-        ResourceLocation altLoc(location.namespace_(), "textures/entity/" + path);
-        result = pack.readResource(altLoc.toString());
-        if (result.success()) {
-            auto& data = result.value();
-            int width, height, channels;
-            u8* pixels = stbi_load_from_memory(data.data(), static_cast<int>(data.size()),
-                                                &width, &height, &channels, 4);
-            if (pixels) {
-                outWidth = static_cast<u32>(width);
-                outHeight = static_cast<u32>(height);
-                outData.resize(width * height * 4);
-                std::memcpy(outData.data(), pixels, outData.size());
-                stbi_image_free(pixels);
-                return Result<void>::ok();
+    // 如果路径包含目录但加载失败，尝试无目录版本
+    if (path.find('/') != String::npos) {
+        size_t lastSlash = path.rfind('/');
+        if (lastSlash != String::npos) {
+            String fileName = path.substr(lastSlash + 1);
+            ResourceLocation altLoc(location.namespace_(), "textures/entity/" + fileName);
+            String altPath = altLoc.toFilePath();
+
+            result = pack.readResource(altPath);
+            if (result.success()) {
+                auto& data = result.value();
+                int width, height, channels;
+                u8* pixels = stbi_load_from_memory(data.data(), static_cast<int>(data.size()),
+                                                    &width, &height, &channels, 4);
+                if (pixels) {
+                    outWidth = static_cast<u32>(width);
+                    outHeight = static_cast<u32>(height);
+                    outData.resize(width * height * 4);
+                    std::memcpy(outData.data(), pixels, outData.size());
+                    stbi_image_free(pixels);
+                    return Result<void>::ok();
+                }
             }
         }
     }

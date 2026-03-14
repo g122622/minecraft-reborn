@@ -58,13 +58,14 @@ public:
      */
     [[nodiscard]] static const std::vector<String>& getDefaultEntityTypes();
 
-private:
     /**
      * @brief 获取实体纹理路径
      * @param entityTypeId 实体类型ID
      * @return 纹理资源位置列表（尝试多个路径）
      */
-    [[nodiscard]] std::vector<ResourceLocation> getTexturePaths(const String& entityTypeId);
+    [[nodiscard]] static std::vector<ResourceLocation> getTexturePaths(const String& entityTypeId);
+
+private:
 
     /**
      * @brief 解析实体类型名称

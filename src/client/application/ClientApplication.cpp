@@ -298,6 +298,13 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         } else {
             spdlog::warn("Atlas not built, skipping renderer update");
         }
+
+        // 初始化实体纹理图集
+        spdlog::info("Initializing entity texture atlas...");
+        auto entityAtlasResult = m_renderer->initializeEntityTextureAtlas(m_resourceManager.get());
+        if (entityAtlasResult.failed()) {
+            spdlog::warn("Failed to initialize entity texture atlas: {}", entityAtlasResult.error().toString());
+        }
     } else {
         spdlog::warn("ResourceManager is null, skipping texture atlas update");
     }

@@ -1,4 +1,5 @@
 #include "EntityModel.hpp"
+#include "../../../../common/math/MathUtils.hpp"
 #include <cmath>
 
 namespace mc::client::renderer {
@@ -56,32 +57,32 @@ QuadrupedModel::QuadrupedModel() {
 }
 
 void QuadrupedModel::setupParts() {
-    // 默认四足动物模型尺寸
-    // 子类应该重写此方法设置具体尺寸
+    // 默认四足动物（接近 PigModel 基础参数）
+    // 参考 MC 1.16.5 QuadrupedModel(legHeight=6)
 
-    // 头部
+    // 头部（基础头壳）
     m_head->addBox(-4.0f, -4.0f, -8.0f, 8.0f, 8.0f, 8.0f);
-    m_head->setRotationPoint(0.0f, 18.0f, -6.0f);
+    m_head->setRotationPoint(0.0f, 12.0f, -6.0f);
 
-    // 身体
-    m_body->addBox(-6.0f, 10.0f, -8.0f, 12.0f, 18.0f, 10.0f);
-    m_body->setRotationPoint(0.0f, 0.0f, 0.0f);
+    // 身体（在 setAngles 中旋转到水平）
+    m_body->addBox(-5.0f, -10.0f, -7.0f, 10.0f, 16.0f, 8.0f);
+    m_body->setRotationPoint(0.0f, 11.0f, 2.0f);
 
     // 前右腿
     m_legFrontRight->addBox(-2.0f, 0.0f, -2.0f, 4.0f, 6.0f, 4.0f);
-    m_legFrontRight->setRotationPoint(-3.0f, 18.0f, -4.0f);
+    m_legFrontRight->setRotationPoint(-3.0f, 18.0f, -5.0f);
 
     // 前左腿
     m_legFrontLeft->addBox(-2.0f, 0.0f, -2.0f, 4.0f, 6.0f, 4.0f);
-    m_legFrontLeft->setRotationPoint(3.0f, 18.0f, -4.0f);
+    m_legFrontLeft->setRotationPoint(3.0f, 18.0f, -5.0f);
 
     // 后右腿
     m_legBackRight->addBox(-2.0f, 0.0f, -2.0f, 4.0f, 6.0f, 4.0f);
-    m_legBackRight->setRotationPoint(-3.0f, 18.0f, 6.0f);
+    m_legBackRight->setRotationPoint(-3.0f, 18.0f, 7.0f);
 
     // 后左腿
     m_legBackLeft->addBox(-2.0f, 0.0f, -2.0f, 4.0f, 6.0f, 4.0f);
-    m_legBackLeft->setRotationPoint(3.0f, 18.0f, 6.0f);
+    m_legBackLeft->setRotationPoint(3.0f, 18.0f, 7.0f);
 }
 
 void QuadrupedModel::render(f32 scale) {
@@ -92,20 +93,20 @@ void QuadrupedModel::setAngles(f32 limbSwing, f32 limbSwingAmount,
                                 f32 /*ageInTicks*/, f32 netHeadYaw,
                                 f32 headPitch, f32 /*scale*/) {
     // 头部旋转
-    m_head->setRotateAngleX(headPitch * 3.14159f / 180.0f);
-    m_head->setRotateAngleY(netHeadYaw * 3.14159f / 180.0f);
+    m_head->setRotateAngleX(math::toRadians(headPitch));
+    m_head->setRotateAngleY(math::toRadians(netHeadYaw));
 
-    // 步态动画
-    f32 walkAngle = limbSwing * 3.14159f;
-    f32 walkAmount = limbSwingAmount * 0.666f;
+    // 身体默认姿态（与 Java 版一致）
+    m_body->setRotateAngleX(math::PI * 0.5f);
 
-    // 前腿动画（与后腿相反）
-    m_legFrontRight->setRotateAngleX(std::cos(walkAngle) * walkAmount);
-    m_legFrontLeft->setRotateAngleX(-std::cos(walkAngle) * walkAmount);
+    // 步态动画（与 MC 1.16.5 一致）
+    const f32 walkAngle = limbSwing * 0.6662f;
+    const f32 walkAmount = limbSwingAmount * 1.4f;
 
-    // 后腿动画
-    m_legBackRight->setRotateAngleX(-std::cos(walkAngle) * walkAmount);
-    m_legBackLeft->setRotateAngleX(std::cos(walkAngle) * walkAmount);
+    m_legBackRight->setRotateAngleX(std::cos(walkAngle) * walkAmount);
+    m_legBackLeft->setRotateAngleX(std::cos(walkAngle + math::PI) * walkAmount);
+    m_legFrontRight->setRotateAngleX(std::cos(walkAngle + math::PI) * walkAmount);
+    m_legFrontLeft->setRotateAngleX(std::cos(walkAngle) * walkAmount);
 }
 
 // ==================== BipedModel ====================
@@ -172,15 +173,15 @@ void BipedModel::setAngles(f32 limbSwing, f32 limbSwingAmount,
                             f32 /*ageInTicks*/, f32 netHeadYaw,
                             f32 headPitch, f32 /*scale*/) {
     // 头部旋转
-    m_head->setRotateAngleX(headPitch * 3.14159f / 180.0f);
-    m_head->setRotateAngleY(netHeadYaw * 3.14159f / 180.0f);
+    m_head->setRotateAngleX(math::toRadians(headPitch));
+    m_head->setRotateAngleY(math::toRadians(netHeadYaw));
 
     // 帽子跟随头部
-    m_headwear->setRotateAngleX(headPitch * 3.14159f / 180.0f);
-    m_headwear->setRotateAngleY(netHeadYaw * 3.14159f / 180.0f);
+    m_headwear->setRotateAngleX(math::toRadians(headPitch));
+    m_headwear->setRotateAngleY(math::toRadians(netHeadYaw));
 
     // 步态动画
-    f32 walkAngle = limbSwing * 3.14159f;
+    f32 walkAngle = limbSwing * math::PI;
     f32 walkAmount = limbSwingAmount;
 
     // 手臂摆动

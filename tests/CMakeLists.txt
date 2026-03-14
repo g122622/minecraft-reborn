@@ -60,7 +60,9 @@ add_executable(mc_tests
     server/core/ServerCoreTest.cpp
     client/test_mesh_worker_pool.cpp
     client/renderer/test_renderer.cpp
+    client/renderer/entity/AnimalModelTests.cpp
     client/renderer/test_gui_item_color.cpp
+    client/resource/test_entity_texture_loader.cpp
     network/EntityPacketsTest.cpp
     network/LocalServerConnectionTest.cpp
     common/entity/loot/LootTest.cpp
@@ -207,6 +209,9 @@ target_sources(mc_tests
         # 区块网格生成（已在 client/renderer）
         ${CMAKE_SOURCE_DIR}/src/client/renderer/ChunkMesher.cpp
         ${CMAKE_SOURCE_DIR}/src/client/renderer/MeshTypes.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/renderer/entity/model/ModelRenderer.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/renderer/entity/model/EntityModel.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/renderer/entity/model/AnimalModels.cpp
         # 区块模型缓存
         ${CMAKE_SOURCE_DIR}/src/client/resource/BlockModelCache.cpp
         ${CMAKE_SOURCE_DIR}/src/client/resource/ResourceManager.cpp

@@ -36,17 +36,17 @@ std::vector<VkVertexInputAttributeDescription> EntityPipeline::getVertexAttribut
     descs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
     descs[0].offset = offsetof(renderer::ModelVertex, position);
 
-    // 法线
+    // 纹理坐标
     descs[1].binding = 0;
     descs[1].location = 1;
-    descs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-    descs[1].offset = offsetof(renderer::ModelVertex, normal);
+    descs[1].format = VK_FORMAT_R32G32_SFLOAT;
+    descs[1].offset = offsetof(renderer::ModelVertex, texCoord);
 
-    // 纹理坐标
+    // 法线
     descs[2].binding = 0;
     descs[2].location = 2;
-    descs[2].format = VK_FORMAT_R32G32_SFLOAT;
-    descs[2].offset = offsetof(renderer::ModelVertex, texCoord);
+    descs[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+    descs[2].offset = offsetof(renderer::ModelVertex, normal);
 
     return descs;
 }
@@ -106,8 +106,10 @@ Result<void> EntityPipeline::initialize(VulkanContext* context,
 
     // 光栅化
     config.polygonMode = VK_POLYGON_MODE_FILL;
-    config.cullMode = VK_CULL_MODE_BACK_BIT;
-    config.frontFace = VK_FRONT_FACE_CLOCKWISE;  // 与区块渲染一致
+    // 实体模型由运行时网格生成，部分面的绕序在当前实现下不完全一致。
+    // 禁用剔除可避免出现“刺状/破碎”外观。
+    config.cullMode = VK_CULL_MODE_NONE;
+    config.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     config.lineWidth = 1.0f;
 
     // 多重采样
