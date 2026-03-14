@@ -38,7 +38,7 @@ add_executable(minecraft-client
     ui/FontRenderer.cpp
     ui/GuiRenderer.cpp
     ui/DefaultAsciiFont.cpp
-    ui/DebugScreen.cpp
+    ui/debug/DebugScreen.cpp
     ui/crosshair/CrosshairRenderer.cpp
     ui/hud/HudRenderer.cpp
     ui/inventory/InventoryScreen.cpp

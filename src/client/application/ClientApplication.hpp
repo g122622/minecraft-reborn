@@ -13,7 +13,7 @@
 #include "../renderer/Camera.hpp"
 #include "../world/ClientWorld.hpp"
 #include "../network/NetworkClient.hpp"
-#include "../ui/DebugScreen.hpp"
+#include "../ui/debug/DebugScreen.hpp"
 #include "../ui/crosshair/CrosshairRenderer.hpp"
 #include "../ui/hud/HudRenderer.hpp"
 #include "../ui/chat/ChatScreen.hpp"

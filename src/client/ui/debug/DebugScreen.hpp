@@ -1,10 +1,10 @@
 #pragma once
 
-#include "GuiRenderer.hpp"
-#include "../renderer/Camera.hpp"
-#include "../../common/core/BlockRaycastResult.hpp"
-#include "../../common/world/time/GameTime.hpp"
-#include "../../common/util/PlatformInfo.hpp"
+#include "../GuiRenderer.hpp"
+#include "../../renderer/Camera.hpp"
+#include "../../../common/core/BlockRaycastResult.hpp"
+#include "../../../common/world/time/GameTime.hpp"
+#include "../../../common/util/PlatformInfo.hpp"
 #include <string>
 #include <chrono>
 #include <vector>

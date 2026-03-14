@@ -1,17 +1,17 @@
 #include "DebugScreen.hpp"
-#include "../world/ClientWorld.hpp"
-#include "../world/entity/ClientEntityManager.hpp"
-#include "../network/NetworkClient.hpp"
-#include "../renderer/sky/CelestialCalculations.hpp"
-#include "../../common/world/block/Block.hpp"
-#include "../../common/world/biome/BiomeRegistry.hpp"
-#include "../../common/resource/ResourceLocation.hpp"
-#include "../../common/util/Direction.hpp"
-#include "../../common/entity/Entity.hpp"
-#include "../../common/world/time/GameTime.hpp"
-#include "../../common/util/PlatformInfo.hpp"
-#include <sstream>
+#include "../../../common/entity/Entity.hpp"
+#include "../../../common/resource/ResourceLocation.hpp"
+#include "../../../common/util/Direction.hpp"
+#include "../../../common/util/PlatformInfo.hpp"
+#include "../../../common/world/biome/BiomeRegistry.hpp"
+#include "../../../common/world/block/Block.hpp"
+#include "../../../common/world/time/GameTime.hpp"
+#include "../../network/NetworkClient.hpp"
+#include "../../renderer/sky/CelestialCalculations.hpp"
+#include "../../world/ClientWorld.hpp"
+#include "../../world/entity/ClientEntityManager.hpp"
 #include <iomanip>
+#include <sstream>
 #include <spdlog/spdlog.h>
 
 namespace mc::client {
@@ -120,17 +120,17 @@ void DebugScreen::buildLeftDebugText() {
     // E: 实体数
     if (m_world != nullptr) {
         oss.str("");
-        oss << "C: 0/" << m_world->chunkCount()
-            << " D: " << m_renderDistance
-            << ", L: 0"
-            << ", E: " << (m_entityManager ? m_entityManager->entityCount() : 0);
+        oss << "ChunkCount: 0/" << m_world->chunkCount()
+            << ", RenderDistance: " << m_renderDistance
+            << ", LightUpdates: 0"
+            << ", EntityCount: " << (m_entityManager ? m_entityManager->entityCount() : 0);
         m_leftLines.push_back(oss.str());
     }
 
     // ========== 实体统计 ==========
     // MC格式: "P: XX. T: XX"  (粒子数和实体数)
     oss.str("");
-    oss << "P: " << m_particleCount << ". T: " << (m_entityManager ? m_entityManager->entityCount() : 0);
+    oss << "Particles: " << m_particleCount << ", Entities: " << (m_entityManager ? m_entityManager->entityCount() : 0);
     m_leftLines.push_back(oss.str());
 
     // ========== 维度信息 ==========
@@ -138,7 +138,7 @@ void DebugScreen::buildLeftDebugText() {
 
     // ========== 强制加载区块 ==========
     // MC格式: "minecraft:overworld FC: 0"
-    m_leftLines.push_back("minecraft:overworld FC: 0");
+    m_leftLines.push_back("minecraft:overworld ForcedChunks: 0");
 
     // 空行
     m_leftLines.push_back("");
