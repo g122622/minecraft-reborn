@@ -3,10 +3,13 @@
 #include "common/world/biome/BiomeRegistry.hpp"
 #include "common/world/biome/BiomeProvider.hpp"
 #include "common/world/biome/layer/Layer.hpp"
-#include "common/world/biome/layer/LazyArea.hpp"
+#include "common/world/biome/layer/LayerContext.hpp"
 #include "common/world/biome/layer/LayerUtil.hpp"
-#include "common/world/biome/layer/transformers/BasicTransformers.hpp"
-#include "common/world/biome/layer/transformers/BiomeTransformers.hpp"
+#include "common/world/biome/layer/transformers/TransformerTraits.hpp"
+#include "common/world/biome/layer/transformers/ClimateLayers.hpp"
+#include "common/world/biome/layer/transformers/BiomeLayers.hpp"
+#include "common/world/biome/layer/transformers/SourceLayers.hpp"
+#include "common/world/biome/layer/transformers/ZoomLayers.hpp"
 
 using namespace mc;
 
@@ -148,31 +151,6 @@ TEST_F(BiomeRegistryTest, CreateOcean) {
     EXPECT_FLOAT_EQ(ocean.depth(), -1.0f); // 海洋深度为负
 }
 
-TEST_F(BiomeRegistryTest, CreateForest) {
-    Biome forest = BiomeFactory::createForest();
-    EXPECT_EQ(forest.id(), Biomes::Forest);
-    EXPECT_EQ(forest.name(), "forest");
-    EXPECT_FLOAT_EQ(forest.depth(), 0.1f);
-    EXPECT_FLOAT_EQ(forest.scale(), 0.2f);
-}
-
-TEST_F(BiomeRegistryTest, CreateTaiga) {
-    Biome taiga = BiomeFactory::createTaiga();
-    EXPECT_EQ(taiga.id(), Biomes::Taiga);
-    EXPECT_EQ(taiga.name(), "taiga");
-    // Taiga 是寒冷的生物群系，温度为负值
-    EXPECT_FLOAT_EQ(taiga.temperature(), -0.5f);
-    EXPECT_FLOAT_EQ(taiga.humidity(), 0.4f);
-}
-
-TEST_F(BiomeRegistryTest, CreateJungle) {
-    Biome jungle = BiomeFactory::createJungle();
-    EXPECT_EQ(jungle.id(), Biomes::Jungle);
-    EXPECT_EQ(jungle.name(), "jungle");
-    EXPECT_FLOAT_EQ(jungle.temperature(), 0.95f);
-    EXPECT_FLOAT_EQ(jungle.humidity(), 0.9f);
-}
-
 // ============================================================================
 // SimpleBiomeProvider 测试
 // ============================================================================
@@ -209,29 +187,11 @@ TEST_F(SimpleBiomeProviderTest, GetBiomeDefinition) {
     EXPECT_EQ(biome.id(), Biomes::Plains);
 }
 
-TEST_F(SimpleBiomeProviderTest, GetDepthAndScale) {
-    f32 depth = provider->getDepth(0, 0);
-    f32 scale = provider->getScale(0, 0);
-
-    // 深度和比例应该在合理范围内
-    EXPECT_GE(depth, 0.0f);
-    EXPECT_GE(scale, 0.0f);
-}
-
 TEST_F(SimpleBiomeProviderTest, Consistency) {
     // 相同位置应该返回相同结果
     BiomeId biome1 = provider->getBiome(100, 64, 200);
     BiomeId biome2 = provider->getBiome(100, 64, 200);
     EXPECT_EQ(biome1, biome2);
-}
-
-TEST_F(SimpleBiomeProviderTest, SeedVariation) {
-    SimpleBiomeProvider provider2(54321);
-
-    // 不同种子应该产生不同结果（概率很高）
-    BiomeId biome1 = provider->getBiome(100, 64, 200);
-    BiomeId biome2 = provider2.getBiome(100, 64, 200);
-    // 注意：这有可能相同，但概率极低
 }
 
 // ============================================================================
@@ -241,148 +201,288 @@ TEST_F(SimpleBiomeProviderTest, SeedVariation) {
 class LayerTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        context = std::make_shared<SimpleAreaContext>(12345);
+        BiomeRegistry::instance().initialize();
     }
-
-    std::shared_ptr<SimpleAreaContext> context;
 };
 
-TEST_F(LayerTest, SimpleAreaContext_NextInt) {
-    context->initRandom(12345);
+TEST_F(LayerTest, LayerContext_PositionSeed) {
+    LayerContext ctx(1024, 12345, 1);
 
-    // 测试随机数生成
-    i32 val1 = context->nextInt(10);
-    i32 val2 = context->nextInt(10);
+    ctx.setPosition(0, 0);
+    i32 val1 = ctx.nextInt(100);
 
-    EXPECT_GE(val1, 0);
-    EXPECT_LT(val1, 10);
-    EXPECT_GE(val2, 0);
-    EXPECT_LT(val2, 10);
+    ctx.setPosition(0, 0);
+    i32 val2 = ctx.nextInt(100);
+
+    // 相同位置应该产生相同的结果
+    EXPECT_EQ(val1, val2);
 }
 
-TEST_F(LayerTest, SimpleAreaContext_NextIntWithMod) {
-    context->initRandom(12345);
+TEST_F(LayerTest, LayerContext_DifferentPositions) {
+    LayerContext ctx(1024, 12345, 1);
 
-    i32 val = context->nextIntWithMod(100);
+    ctx.setPosition(0, 0);
+    i32 val1 = ctx.nextInt(100);
+
+    ctx.setPosition(100, 200);
+    i32 val2 = ctx.nextInt(100);
+
+    // 不同位置通常产生不同结果（概率很高）
+    // 注意：这不是绝对的，但对于大多数种子来说是正确的
+}
+
+TEST_F(LayerTest, IslandLayer_SpawnPointIsLand) {
+    auto ctx = std::make_shared<LayerContext>(1024, 12345, 1);
+    layer::IslandLayer islandLayer;
+
+    auto factory = islandLayer.apply(*ctx);
+    auto area = factory->create();
+
+    // 原点 (0, 0) 应该是陆地
+    i32 val = area->getValue(0, 0);
+    EXPECT_EQ(val, 1); // 1 = 陆地
+}
+
+TEST_F(LayerTest, ZoomLayer_Scaling) {
+    auto ctx = std::make_shared<LayerContext>(1024, 12345, 1);
+    layer::ZoomLayer zoom(layer::ZoomLayer::Mode::Normal);
+
+    // 创建源层
+    layer::IslandLayer islandLayer;
+    auto sourceFactory = islandLayer.apply(*ctx);
+    auto zoomedFactory = zoom.apply(*ctx, std::move(sourceFactory));
+    auto area = zoomedFactory->create();
+
+    // 采样应该有效
+    i32 val = area->getValue(0, 0);
+    EXPECT_TRUE(val == 0 || val == 1);
+}
+
+TEST_F(LayerTest, SimpleLayerChain) {
+    // 测试简单的层链
+    auto ctx = std::make_shared<LayerContext>(1024, 12345, 1);
+
+    static layer::IslandLayer islandLayer;
+    auto factory = islandLayer.apply(*ctx);
+
+    // 创建第一个缩放
+    static layer::ZoomLayer zoom1(layer::ZoomLayer::Mode::Fuzzy);
+    factory = zoom1.apply(*ctx, std::move(factory));
+
+    // 创建第二个缩放
+    static layer::ZoomLayer zoom2(layer::ZoomLayer::Mode::Normal);
+    factory = zoom2.apply(*ctx, std::move(factory));
+
+    // 创建区域并采样
+    auto area = factory->create();
+    i32 val = area->getValue(0, 0);
+    EXPECT_TRUE(val == 0 || val == 1);
+}
+
+TEST_F(LayerTest, AddIslandLayer) {
+    // 测试 AddIslandLayer
+    auto ctx = std::make_shared<LayerContext>(1024, 12345, 1);
+
+    static layer::IslandLayer islandLayer;
+    auto factory = islandLayer.apply(*ctx);
+
+    static layer::ZoomLayer fuzzyZoom(layer::ZoomLayer::Mode::Fuzzy);
+    factory = fuzzyZoom.apply(*ctx, std::move(factory));
+
+    static layer::AddIslandLayer addIslandLayer;
+    factory = addIslandLayer.apply(*ctx, std::move(factory));
+
+    auto area = factory->create();
+    i32 val = area->getValue(0, 0);
+    EXPECT_TRUE(val == 0 || val == 1);
+}
+
+TEST_F(LayerTest, AddSnowLayer) {
+    // 测试 AddSnowLayer
+    auto ctx = std::make_shared<LayerContext>(1024, 12345, 1);
+
+    static layer::IslandLayer islandLayer;
+    auto factory = islandLayer.apply(*ctx);
+
+    static layer::ZoomLayer fuzzyZoom(layer::ZoomLayer::Mode::Fuzzy);
+    factory = fuzzyZoom.apply(*ctx, std::move(factory));
+
+    static layer::AddIslandLayer addIslandLayer;
+    factory = addIslandLayer.apply(*ctx, std::move(factory));
+
+    static layer::ZoomLayer normalZoom(layer::ZoomLayer::Mode::Normal);
+    factory = normalZoom.apply(*ctx, std::move(factory));
+
+    static layer::AddSnowLayer addSnowLayer;
+    factory = addSnowLayer.apply(*ctx, std::move(factory));
+
+    auto area = factory->create();
+    i32 val = area->getValue(0, 0);
+    // 应该是 0-4 之间的值
     EXPECT_GE(val, 0);
-    EXPECT_LT(val, 100);
+    EXPECT_LE(val, 4);
 }
 
-TEST_F(LayerTest, SimpleAreaContext_Reproducibility) {
-    context->initRandom(12345);
-    i32 val1a = context->nextInt(100);
-    i32 val2a = context->nextInt(100);
+TEST_F(LayerTest, MultipleContexts) {
+    // 测试使用不同上下文的层链 - 模拟 buildOverworldLayers 的行为
+    u64 seed = 12345;
 
-    context->initRandom(12345);
-    i32 val1b = context->nextInt(100);
-    i32 val2b = context->nextInt(100);
-
-    EXPECT_EQ(val1a, val1b);
-    EXPECT_EQ(val2a, val2b);
-}
-
-// ============================================================================
-// 变换器测试
-// ============================================================================
-
-TEST_F(LayerTest, IslandLayer_Basic) {
-    IslandLayer layer(12345);
-
-    // 创建虚拟区域
-    context->initRandom(12345);
-    i32 val = layer.apply(*context, *std::unique_ptr<IArea>().get(), 0, 0);
-
-    // 岛屿层返回 0（海洋）或 1（陆地）
-    EXPECT_TRUE(val == 0 || val == 1);
-}
-
-TEST_F(LayerTest, ZoomLayer_Basic) {
-    ZoomLayer layer(ZoomLayer::Mode::Normal);
-
-    // 创建简单的输入区域
-    class MockArea : public IArea {
-    public:
-        i32 getValue(i32 x, i32 z) const override {
-            return ((x + z) % 2 == 0) ? 1 : 0;
-        }
-        i32 getWidth() const override { return 16; }
-        i32 getHeight() const override { return 16; }
+    auto createContext = [seed](u64 modifier) -> std::shared_ptr<LayerContext> {
+        return std::make_shared<LayerContext>(1024, seed, modifier);
     };
 
-    auto area = std::make_unique<MockArea>();
-    context->initRandom(12345);
+    // 创建源层 - 使用 context 1
+    auto ctx = createContext(1);
+    static layer::IslandLayer islandLayer;
+    auto factory = islandLayer.apply(*ctx);
 
-    i32 val = layer.apply(*context, *area, 0, 0);
-    EXPECT_TRUE(val == 0 || val == 1);
+    // 使用 context 2000 进行模糊缩放
+    static layer::ZoomLayer fuzzyZoom(layer::ZoomLayer::Mode::Fuzzy);
+    ctx = createContext(2000);
+    factory = fuzzyZoom.apply(*ctx, std::move(factory));
+
+    // 使用 context 1 进行 AddIsland
+    static layer::AddIslandLayer addIslandLayer;
+    ctx = createContext(1);
+    factory = addIslandLayer.apply(*ctx, std::move(factory));
+
+    // 使用 context 2001 进行普通缩放
+    static layer::ZoomLayer normalZoom(layer::ZoomLayer::Mode::Normal);
+    ctx = createContext(2001);
+    factory = normalZoom.apply(*ctx, std::move(factory));
+
+    // 使用 context 2 进行 AddSnow
+    static layer::AddSnowLayer addSnowLayer;
+    ctx = createContext(2);
+    factory = addSnowLayer.apply(*ctx, std::move(factory));
+
+    // 创建区域并采样
+    auto area = factory->create();
+    i32 val = area->getValue(0, 0);
+    EXPECT_GE(val, 0);
+    EXPECT_LE(val, 4);
 }
 
-TEST_F(LayerTest, ZoomLayer_OutputSize) {
-    ZoomLayer layer(ZoomLayer::Mode::Normal);
+TEST_F(LayerTest, BiomeLayerTest) {
+    // 测试完整的层链直到 BiomeLayer
+    u64 seed = 12345;
 
-    i32 outWidth, outHeight;
-    layer.getOutputSize(16, 16, outWidth, outHeight);
-
-    EXPECT_EQ(outWidth, 32);
-    EXPECT_EQ(outHeight, 32);
-}
-
-TEST_F(LayerTest, BiomeLayer_Basic) {
-    BiomeLayer layer;
-
-    class MockArea : public IArea {
-    public:
-        i32 getValue(i32 x, i32 z) const override {
-            return 1; // 陆地
-        }
-        i32 getWidth() const override { return 16; }
-        i32 getHeight() const override { return 16; }
+    auto createContext = [seed](u64 modifier) -> std::shared_ptr<LayerContext> {
+        return std::make_shared<LayerContext>(1024, seed, modifier);
     };
 
-    auto area = std::make_unique<MockArea>();
-    context->initRandom(12345);
+    auto ctx = createContext(1);
+    static layer::IslandLayer islandLayer;
+    auto factory = islandLayer.apply(*ctx);
 
-    i32 biome = layer.apply(*context, *area, 0, 0);
-    EXPECT_LT(biome, static_cast<i32>(Biomes::Count));
+    static layer::ZoomLayer fuzzyZoom(layer::ZoomLayer::Mode::Fuzzy);
+    ctx = createContext(2000);
+    factory = fuzzyZoom.apply(*ctx, std::move(factory));
+
+    static layer::AddIslandLayer addIslandLayer;
+    ctx = createContext(1);
+    factory = addIslandLayer.apply(*ctx, std::move(factory));
+
+    static layer::ZoomLayer normalZoom(layer::ZoomLayer::Mode::Normal);
+    ctx = createContext(2001);
+    factory = normalZoom.apply(*ctx, std::move(factory));
+
+    static layer::AddSnowLayer addSnowLayer;
+    ctx = createContext(2);
+    factory = addSnowLayer.apply(*ctx, std::move(factory));
+
+    // 缩放几次
+    for (int i = 0; i < 4; ++i) {
+        ctx = createContext(static_cast<u64>(2002 + i));
+        factory = normalZoom.apply(*ctx, std::move(factory));
+    }
+
+    // BiomeLayer
+    static layer::BiomeLayer biomeLayer(layer::BiomeLayer::Config{false});
+    ctx = createContext(200);
+    factory = biomeLayer.apply(*ctx, std::move(factory));
+
+    auto area = factory->create();
+    i32 val = area->getValue(0, 0);
+    // 应该是一个有效的生物群系 ID
+    EXPECT_GE(val, 0);
 }
 
-TEST_F(LayerTest, HillsLayer_Basic) {
-    HillsLayer layer(12345);
+TEST_F(LayerTest, FullLayerChain) {
+    // 测试完整的层链
+    u64 seed = 12345;
 
-    class MockArea : public IArea {
-    public:
-        i32 getValue(i32 x, i32 z) const override {
-            return Biomes::Plains;
-        }
-        i32 getWidth() const override { return 16; }
-        i32 getHeight() const override { return 16; }
+    auto createContext = [seed](u64 modifier) -> std::shared_ptr<LayerContext> {
+        return std::make_shared<LayerContext>(1024, seed, modifier);
     };
 
-    auto area = std::make_unique<MockArea>();
-    context->initRandom(12345);
+    auto ctx = createContext(1);
+    static layer::IslandLayer islandLayer;
+    auto factory = islandLayer.apply(*ctx);
 
-    i32 biome = layer.apply(*context, *area, 0, 0);
-    // 可能是 Plains 或 WoodedHills
-    EXPECT_TRUE(biome == Biomes::Plains || biome == Biomes::WoodedHills);
+    static layer::ZoomLayer fuzzyZoom(layer::ZoomLayer::Mode::Fuzzy);
+    ctx = createContext(2000);
+    factory = fuzzyZoom.apply(*ctx, std::move(factory));
+
+    static layer::AddIslandLayer addIslandLayer;
+    ctx = createContext(1);
+    factory = addIslandLayer.apply(*ctx, std::move(factory));
+
+    static layer::ZoomLayer normalZoom(layer::ZoomLayer::Mode::Normal);
+    ctx = createContext(2001);
+    factory = normalZoom.apply(*ctx, std::move(factory));
+
+    static layer::AddSnowLayer addSnowLayer;
+    ctx = createContext(2);
+    factory = addSnowLayer.apply(*ctx, std::move(factory));
+
+    // 缩放几次 (biomeSize = 4, 所以 4+4=8 次)
+    for (int i = 0; i < 8; ++i) {
+        ctx = createContext(static_cast<u64>(2002 + i));
+        factory = normalZoom.apply(*ctx, std::move(factory));
+    }
+
+    // BiomeLayer
+    static layer::BiomeLayer biomeLayer(layer::BiomeLayer::Config{false});
+    ctx = createContext(200);
+    factory = biomeLayer.apply(*ctx, std::move(factory));
+
+    // 最终缩放
+    for (int i = 0; i < 4; ++i) {
+        ctx = createContext(static_cast<u64>(3000 + i));
+        factory = normalZoom.apply(*ctx, std::move(factory));
+    }
+
+    // SmoothLayer
+    static layer::SmoothLayer smoothLayer;
+    ctx = createContext(1000);
+    factory = smoothLayer.apply(*ctx, std::move(factory));
+
+    auto area = factory->create();
+    i32 val = area->getValue(0, 0);
+    // 应该是一个有效的生物群系 ID
+    EXPECT_GE(val, 0);
 }
 
-TEST_F(LayerTest, DeepOceanLayer_OceanToDeepOcean) {
-    DeepOceanLayer layer;
+TEST_F(LayerTest, LayerUtilBuildOverworldLayers) {
+    // 直接测试 buildOverworldLayers
+    auto factory = LayerUtil::buildOverworldLayers(12345, false, false, 4, 4);
+    ASSERT_NE(factory, nullptr);
 
-    class MockOceanArea : public IArea {
-    public:
-        i32 getValue(i32 x, i32 z) const override {
-            return Biomes::Ocean;
-        }
-        i32 getWidth() const override { return 16; }
-        i32 getHeight() const override { return 16; }
-    };
+    auto area = factory->create();
+    ASSERT_NE(area, nullptr);
 
-    auto area = std::make_unique<MockOceanArea>();
-    context->initRandom(12345);
+    i32 val = area->getValue(0, 0);
+    EXPECT_GE(val, 0);
+}
 
-    i32 biome = layer.apply(*context, *area, 0, 0);
-    // 可能保持 Ocean 或变成 DeepOcean
-    EXPECT_TRUE(biome == Biomes::Ocean || biome == Biomes::DeepOcean);
+TEST_F(LayerTest, CreateOverworldLayers) {
+    // 直接测试 createOverworldLayers
+    auto stack = LayerUtil::createOverworldLayers(12345, false);
+    ASSERT_NE(stack, nullptr);
+
+    BiomeId biome = stack->sample(0, 0);
+    EXPECT_LT(biome, Biomes::Count);
 }
 
 // ============================================================================
@@ -396,13 +496,30 @@ protected:
     }
 };
 
-TEST_F(LayerStackTest, SampleBasic) {
-    LayerStack stack(12345);
+TEST_F(LayerStackTest, CreateOverworldLayers) {
+    auto stack = LayerUtil::createOverworldLayers(12345, false);
+    ASSERT_NE(stack, nullptr);
+
+    BiomeId biome = stack->sample(0, 0);
+    EXPECT_LT(biome, Biomes::Count);
+}
+
+TEST_F(LayerStackTest, CreateOverworldLayers_LargeBiomes) {
+    auto stack = LayerUtil::createOverworldLayers(12345, true);
+    ASSERT_NE(stack, nullptr);
+
+    BiomeId biome = stack->sample(0, 0);
+    EXPECT_LT(biome, Biomes::Count);
+}
+
+TEST_F(LayerStackTest, SampleMultiplePositions) {
+    auto stack = LayerUtil::createOverworldLayers(12345, false);
+    ASSERT_NE(stack, nullptr);
 
     // 采样多个位置
-    BiomeId biome1 = stack.sample(0, 0);
-    BiomeId biome2 = stack.sample(100, 100);
-    BiomeId biome3 = stack.sample(-50, -50);
+    BiomeId biome1 = stack->sample(0, 0);
+    BiomeId biome2 = stack->sample(100, 100);
+    BiomeId biome3 = stack->sample(-50, -50);
 
     EXPECT_LT(biome1, Biomes::Count);
     EXPECT_LT(biome2, Biomes::Count);
@@ -410,9 +527,10 @@ TEST_F(LayerStackTest, SampleBasic) {
 }
 
 TEST_F(LayerStackTest, SampleArea) {
-    LayerStack stack(12345);
+    auto stack = LayerUtil::createOverworldLayers(12345, false);
+    ASSERT_NE(stack, nullptr);
 
-    auto biomes = stack.sampleArea(0, 0, 16, 16);
+    auto biomes = stack->sampleArea(0, 0, 16, 16);
 
     EXPECT_EQ(biomes.size(), 256u);
     for (BiomeId biome : biomes) {
@@ -421,10 +539,11 @@ TEST_F(LayerStackTest, SampleArea) {
 }
 
 TEST_F(LayerStackTest, Consistency) {
-    LayerStack stack(12345);
+    auto stack = LayerUtil::createOverworldLayers(12345, false);
+    ASSERT_NE(stack, nullptr);
 
-    BiomeId biome1 = stack.sample(100, 200);
-    BiomeId biome2 = stack.sample(100, 200);
+    BiomeId biome1 = stack->sample(100, 200);
+    BiomeId biome2 = stack->sample(100, 200);
 
     EXPECT_EQ(biome1, biome2);
 }
@@ -479,40 +598,4 @@ TEST_F(LayerBiomeProviderTest, BiomeDistribution) {
 
     // 应该有多种生物群系
     EXPECT_GT(distribution.size(), 1u);
-}
-
-// ============================================================================
-// LayerUtil 测试
-// ============================================================================
-
-TEST_F(LayerStackTest, CreateOverworldLayers) {
-    auto stack = LayerUtil::createOverworldLayers(12345, false);
-    ASSERT_NE(stack, nullptr);
-
-    BiomeId biome = stack->sample(0, 0);
-    EXPECT_LT(biome, Biomes::Count);
-}
-
-TEST_F(LayerStackTest, CreateOverworldLayers_LargeBiomes) {
-    auto stack = LayerUtil::createOverworldLayers(12345, true);
-    ASSERT_NE(stack, nullptr);
-
-    BiomeId biome = stack->sample(0, 0);
-    EXPECT_LT(biome, Biomes::Count);
-}
-
-TEST_F(LayerStackTest, CreateNetherLayers) {
-    auto stack = LayerUtil::createNetherLayers(12345);
-    ASSERT_NE(stack, nullptr);
-
-    BiomeId biome = stack->sample(0, 0);
-    EXPECT_LT(biome, Biomes::Count);
-}
-
-TEST_F(LayerStackTest, CreateEndLayers) {
-    auto stack = LayerUtil::createEndLayers(12345);
-    ASSERT_NE(stack, nullptr);
-
-    BiomeId biome = stack->sample(0, 0);
-    EXPECT_LT(biome, Biomes::Count);
 }

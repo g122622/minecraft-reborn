@@ -1,0 +1,190 @@
+#pragma once
+
+#include "../../../core/Types.hpp"
+
+namespace mc {
+namespace layer {
+
+/**
+ * @brief Layer 系统内部使用的生物群系值
+ *
+ * 这些值用于 Layer 系统的中间处理，最终会被映射到实际的 BiomeId。
+ * 参考 MC 1.16.5 LayerUtil 和各个 Layer 类中使用的值。
+ *
+ * 注意：这些值与 Biomes 命名空间中的 ID 是相同的，因为 MC 直接使用 ID 进行处理。
+ */
+namespace BiomeValues {
+
+// ============================================================================
+// 基础生物群系 ID（与 MC 1.16.5 完全一致）
+// ============================================================================
+
+// 海洋类型
+constexpr i32 Ocean = 0;
+constexpr i32 Plains = 1;
+constexpr i32 Desert = 2;
+constexpr i32 Mountains = 3;           // extreme_hills
+constexpr i32 Forest = 4;
+constexpr i32 Taiga = 5;
+constexpr i32 Swamp = 6;
+constexpr i32 River = 7;
+constexpr i32 NetherWastes = 8;
+constexpr i32 TheEnd = 9;
+constexpr i32 FrozenOcean = 10;
+constexpr i32 FrozenRiver = 11;
+constexpr i32 SnowyPlains = 12;        // snowy_tundra
+constexpr i32 SnowyMountains = 13;
+constexpr i32 MushroomFields = 14;
+constexpr i32 MushroomFieldShore = 15;
+constexpr i32 Beach = 16;
+constexpr i32 Jungle = 17;
+constexpr i32 JungleHills = 18;
+constexpr i32 JungleEdge = 19;
+constexpr i32 DeepOcean = 20;
+constexpr i32 StoneShore = 21;
+constexpr i32 SnowyBeach = 22;
+constexpr i32 BirchForest = 23;
+constexpr i32 BirchForestHills = 24;
+constexpr i32 DarkForest = 25;
+constexpr i32 SnowyTaiga = 26;
+constexpr i32 SnowyTaigaHills = 27;
+constexpr i32 GiantTreeTaiga = 28;
+constexpr i32 GiantTreeTaigaHills = 29;
+constexpr i32 WoodedMountains = 30;    // wooded_hills (原名 extreme_hills_with_trees)
+constexpr i32 Savanna = 31;
+constexpr i32 SavannaPlateau = 32;
+constexpr i32 Badlands = 33;
+constexpr i32 WoodedBadlandsPlateau = 34;
+constexpr i32 BadlandsPlateau = 35;
+constexpr i32 WoodedHills = 36;        // 也称作 wooded_hills
+
+// 注：MC 1.16.5 中 DesertHills 和 TaigaHills 使用不同的 ID
+// 这些是内部使用的常量，映射到合理的值
+constexpr i32 DesertHills = 17;        // 复用 Jungle ID（简化）
+constexpr i32 TaigaHills = 19;         // 复用 JungleEdge ID（简化）
+constexpr i32 MountainEdge = 20;       // MC 中已弃用，这里保留兼容性
+
+// 虚空生物群系
+constexpr i32 TheVoid = 60;
+
+// 小生物群系 ID（37-43 部分）
+constexpr i32 SmallEndIslands = 40;
+constexpr i32 EndMidlands = 41;
+constexpr i32 EndHighlands = 42;
+constexpr i32 EndBarrens = 43;
+
+// 海洋温度变体 (44-50)
+constexpr i32 WarmOcean = 44;
+constexpr i32 LukewarmOcean = 45;
+constexpr i32 ColdOcean = 46;
+constexpr i32 DeepWarmOcean = 47;
+constexpr i32 DeepLukewarmOcean = 48;
+constexpr i32 DeepColdOcean = 49;
+constexpr i32 DeepFrozenOcean = 50;
+
+// 变体生物群系（129-167，稀有变体）
+constexpr i32 SunflowerPlains = 129;
+constexpr i32 DesertLakes = 130;
+constexpr i32 GravellyMountains = 131;
+constexpr i32 FlowerForest = 132;
+constexpr i32 TaigaMountains = 133;
+constexpr i32 SwampHills = 134;
+constexpr i32 IceSpikes = 140;
+constexpr i32 ModifiedJungle = 149;
+constexpr i32 ModifiedJungleEdge = 151;
+constexpr i32 TallBirchForest = 155;
+constexpr i32 TallBirchHills = 156;
+constexpr i32 DarkForestHills = 157;
+constexpr i32 SnowyTaigaMountains = 158;
+constexpr i32 GiantSpruceTaiga = 160;
+constexpr i32 GiantSpruceTaigaHills = 161;
+constexpr i32 ModifiedGravellyMountains = 162;
+constexpr i32 ShatteredSavanna = 163;
+constexpr i32 ShatteredSavannaPlateau = 164;
+constexpr i32 ErodedBadlands = 165;
+constexpr i32 ModifiedWoodedBadlandsPlateau = 166;
+constexpr i32 ModifiedBadlandsPlateau = 167;
+constexpr i32 BambooJungle = 168;
+constexpr i32 BambooJungleHills = 169;
+
+// ============================================================================
+// 温度区域值（Layer 内部使用）
+// 这些值在 AddSnowLayer 中生成，在 BiomeLayer 中转换为实际生物群系
+// ============================================================================
+
+namespace Climate {
+    constexpr i32 Ocean = 0;       // 海洋（保持不变）
+    constexpr i32 Warm = 1;        // 温暖区域（沙漠、热带草原等）
+    constexpr i32 Medium = 2;      // 中等温度（平原、森林等）
+    constexpr i32 Cool = 3;        // 凉爽区域（针叶林等）
+    constexpr i32 Icy = 4;         // 冰冻区域（雪地）
+}
+
+// ============================================================================
+// 特殊位标记
+// ============================================================================
+
+/**
+ * @brief 特殊变体位掩码
+ *
+ * 在 EdgeLayer.Special 中使用，用于生成稀有变体。
+ * 值存储在 bits 8-11 (mask 0xF00)
+ */
+namespace SpecialBits {
+    constexpr i32 Mask = 0xF00;       // bits 8-11
+    constexpr i32 Shift = 8;          // 右移位数
+
+    /**
+     * @brief 提取特殊变体索引
+     * @param value 层值
+     * @return 特殊变体索引 (0-15)
+     */
+    inline i32 extract(i32 value) {
+        return (value & Mask) >> Shift;
+    }
+
+    /**
+     * @brief 设置特殊变体位
+     * @param value 层值
+     * @param special 特殊变体索引 (0-15)
+     * @return 带有特殊位的值
+     */
+    inline i32 set(i32 value, i32 special) {
+        return (value & ~Mask) | ((special << Shift) & Mask);
+    }
+}
+
+// ============================================================================
+// 辅助函数
+// ============================================================================
+
+/**
+ * @brief 检查是否为海洋生物群系（包括深海）
+ */
+inline bool isOcean(i32 biome) {
+    return biome == Ocean || biome == DeepOcean ||
+           biome == WarmOcean || biome == LukewarmOcean ||
+           biome == ColdOcean || biome == FrozenOcean ||
+           biome == DeepWarmOcean || biome == DeepLukewarmOcean ||
+           biome == DeepColdOcean || biome == DeepFrozenOcean;
+}
+
+/**
+ * @brief 检查是否为浅海洋生物群系（不包括深海）
+ */
+inline bool isShallowOcean(i32 biome) {
+    return biome == Ocean || biome == WarmOcean ||
+           biome == LukewarmOcean || biome == ColdOcean ||
+           biome == FrozenOcean;
+}
+
+/**
+ * @brief 检查两个生物群系是否相似（属于同一类别）
+ *
+ * 参考 MC LayerUtil.areBiomesSimilar
+ */
+bool areBiomesSimilar(i32 a, i32 b);
+
+} // namespace BiomeValues
+} // namespace layer
+} // namespace mc

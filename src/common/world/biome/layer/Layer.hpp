@@ -1,46 +1,37 @@
 #pragma once
 
 #include "../../../core/Types.hpp"
+#include "../../../math/random/Random.hpp"
 #include <memory>
 #include <functional>
+#include <mutex>
+#include <unordered_map>
+#include <vector>
 
 namespace mc {
 
 /**
- * @brief 区域上下文
+ * @brief 像素变换器函数类型
  *
- * 提供区域采样的上下文信息，包括世界种子和并发安全的随机数生成器。
+ * 用于延迟计算区域的像素值计算。
  */
-class IAreaContext {
-public:
-    virtual ~IAreaContext() = default;
+using PixelFunc = std::function<i32(i32 x, i32 z)>;
 
-    /**
-     * @brief 初始化随机数生成器
-     * @param seed 世界种子
-     */
-    virtual void initRandom(u64 seed) = 0;
+// Forward declarations
+class IArea;
+class IAreaContext;
 
-    /**
-     * @brief 获取随机整数
-     * @param bound 上界
-     * @return [0, bound) 范围内的随机整数
-     */
-    [[nodiscard]] virtual i32 nextInt(i32 bound) = 0;
-
-    /**
-     * @brief 获取随机整数（带修饰）
-     * @param bound 上界
-     * @return [0, bound) 范围内的随机整数
-     */
-    [[nodiscard]] virtual i32 nextIntWithMod(i32 bound) = 0;
-};
+// ============================================================================
+// IArea - 区域接口
+// ============================================================================
 
 /**
  * @brief 区域接口
  *
  * 表示一个可以被采样的区域，返回指定位置的整数值。
  * 用于生物群系生成中的层叠处理。
+ *
+ * 参考 MC 1.16.5 IArea / LazyArea
  */
 class IArea {
 public:
@@ -53,17 +44,238 @@ public:
      * @return 该位置的值
      */
     [[nodiscard]] virtual i32 getValue(i32 x, i32 z) const = 0;
-
-    /**
-     * @brief 获取区域宽度
-     */
-    [[nodiscard]] virtual i32 getWidth() const = 0;
-
-    /**
-     * @brief 获取区域高度
-     */
-    [[nodiscard]] virtual i32 getHeight() const = 0;
 };
+
+// ============================================================================
+// IAreaContext - 区域上下文
+// ============================================================================
+
+/**
+ * @brief 区域上下文接口
+ *
+ * 提供区域采样的上下文信息，包括位置感知的随机数生成器。
+ * 参考 MC INoiseRandom
+ */
+class IAreaContext {
+public:
+    virtual ~IAreaContext() = default;
+
+    /**
+     * @brief 设置当前位置（必须在采样前调用）
+     * @param x X 坐标
+     * @param z Z 坐标
+     */
+    virtual void setPosition(i64 x, i64 z) = 0;
+
+    /**
+     * @brief 获取随机整数
+     * @param bound 上界
+     * @return [0, bound) 范围内的随机整数
+     */
+    [[nodiscard]] virtual i32 nextInt(i32 bound) = 0;
+
+    /**
+     * @brief 从两个值中随机选择
+     * @param a 第一个值
+     * @param b 第二个值
+     * @return 随机选择的值
+     */
+    [[nodiscard]] virtual i32 pickRandom(i32 a, i32 b) = 0;
+
+    /**
+     * @brief 从四个值中随机选择
+     * @param a 第一个值
+     * @param b 第二个值
+     * @param c 第三个值
+     * @param d 第四个值
+     * @return 随机选择的值
+     */
+    [[nodiscard]] virtual i32 pickRandom(i32 a, i32 b, i32 c, i32 d) = 0;
+
+    /**
+     * @brief 获取噪声生成器（用于 OceanLayer）
+     * @return Perlin 噪声生成器的引用
+     */
+    [[nodiscard]] virtual class ImprovedNoiseGenerator* getNoiseGenerator() = 0;
+};
+
+// ============================================================================
+// IExtendedAreaContext - 扩展区域上下文
+// ============================================================================
+
+/**
+ * @brief 扩展区域上下文接口
+ *
+ * 扩展 IAreaContext，支持创建延迟计算区域。
+ * 参考 MC IExtendedNoiseRandom
+ */
+class IExtendedAreaContext : public IAreaContext, public std::enable_shared_from_this<IExtendedAreaContext> {
+public:
+    /**
+     * @brief 创建延迟计算区域
+     * @param pixelFunc 像素计算函数
+     * @return 延迟区域
+     */
+    [[nodiscard]] virtual std::unique_ptr<IArea> makeArea(PixelFunc pixelFunc) = 0;
+
+    /**
+     * @brief 创建延迟计算区域（单输入，持有所有权）
+     * @param pixelFunc 像素计算函数
+     * @param input 输入区域（将被持有）
+     * @return 延迟区域
+     */
+    [[nodiscard]] virtual std::unique_ptr<IArea> makeArea(PixelFunc pixelFunc, std::unique_ptr<IArea> input) = 0;
+
+    /**
+     * @brief 创建延迟计算区域（双输入，持有所有权）
+     * @param pixelFunc 像素计算函数
+     * @param input1 第一个输入区域（将被持有）
+     * @param input2 第二个输入区域（将被持有）
+     * @return 延迟区域
+     */
+    [[nodiscard]] virtual std::unique_ptr<IArea> makeArea(PixelFunc pixelFunc,
+                                                          std::unique_ptr<IArea> input1,
+                                                          std::unique_ptr<IArea> input2) = 0;
+};
+
+// ============================================================================
+// ITransformer0 - 零输入变换器
+// ============================================================================
+
+/**
+ * @brief 零输入变换器接口
+ *
+ * 从无生成数据，用于初始层（如 IslandLayer, OceanLayer）。
+ * 参考 MC IAreaTransformer0
+ */
+class ITransformer0 {
+public:
+    virtual ~ITransformer0() = default;
+
+    /**
+     * @brief 在指定位置生成值
+     * @param ctx 区域上下文
+     * @param x X 坐标
+     * @param z Z 坐标
+     * @return 生成的值
+     */
+    [[nodiscard]] virtual i32 apply(IAreaContext& ctx, i32 x, i32 z) = 0;
+
+    /**
+     * @brief 创建区域工厂
+     * @param context 扩展上下文
+     * @return 区域工厂
+     */
+    [[nodiscard]] virtual std::unique_ptr<class IAreaFactory> apply(IExtendedAreaContext& context) = 0;
+};
+
+// ============================================================================
+// ITransformer1 - 单输入变换器
+// ============================================================================
+
+/**
+ * @brief 单输入变换器接口
+ *
+ * 变换一个输入区域。
+ * 参考 MC IAreaTransformer1
+ */
+class ITransformer1 {
+public:
+    virtual ~ITransformer1() = default;
+
+    /**
+     * @brief 应用变换
+     * @param ctx 区域上下文
+     * @param area 输入区域
+     * @param x X 坐标
+     * @param z Z 坐标
+     * @return 变换后的值
+     */
+    [[nodiscard]] virtual i32 apply(IAreaContext& ctx, const IArea& area, i32 x, i32 z) = 0;
+
+    /**
+     * @brief 获取 X 偏移量（用于采样）
+     * @param x 原始 X 坐标
+     * @return 偏移后的 X 坐标
+     */
+    [[nodiscard]] virtual i32 getOffsetX(i32 x) const { return x; }
+
+    /**
+     * @brief 获取 Z 偏移量（用于采样）
+     * @param z 原始 Z 坐标
+     * @return 偏移后的 Z 坐标
+     */
+    [[nodiscard]] virtual i32 getOffsetZ(i32 z) const { return z; }
+
+    /**
+     * @brief 创建区域工厂
+     * @param context 扩展上下文
+     * @param input 输入工厂
+     * @return 区域工厂
+     */
+    [[nodiscard]] virtual std::unique_ptr<class IAreaFactory> apply(
+        IExtendedAreaContext& context,
+        std::unique_ptr<class IAreaFactory> input) = 0;
+};
+
+// ============================================================================
+// ITransformer2 - 双输入变换器
+// ============================================================================
+
+/**
+ * @brief 双输入变换器接口
+ *
+ * 合并两个输入区域。
+ * 参考 MC IAreaTransformer2
+ */
+class ITransformer2 {
+public:
+    virtual ~ITransformer2() = default;
+
+    /**
+     * @brief 应用变换
+     * @param ctx 区域上下文
+     * @param area1 第一个输入区域
+     * @param area2 第二个输入区域
+     * @param x X 坐标
+     * @param z Z 坐标
+     * @return 变换后的值
+     */
+    [[nodiscard]] virtual i32 apply(IAreaContext& ctx,
+                                    const IArea& area1,
+                                    const IArea& area2,
+                                    i32 x, i32 z) = 0;
+
+    /**
+     * @brief 获取 X 偏移量（用于采样）
+     * @param x 原始 X 坐标
+     * @return 偏移后的 X 坐标
+     */
+    [[nodiscard]] virtual i32 getOffsetX(i32 x) const { return x; }
+
+    /**
+     * @brief 获取 Z 偏移量（用于采样）
+     * @param z 原始 Z 坐标
+     * @return 偏移后的 Z 坐标
+     */
+    [[nodiscard]] virtual i32 getOffsetZ(i32 z) const { return z; }
+
+    /**
+     * @brief 创建区域工厂
+     * @param context 扩展上下文
+     * @param input1 第一个输入工厂
+     * @param input2 第二个输入工厂
+     * @return 区域工厂
+     */
+    [[nodiscard]] virtual std::unique_ptr<class IAreaFactory> apply(
+        IExtendedAreaContext& context,
+        std::unique_ptr<class IAreaFactory> input1,
+        std::unique_ptr<class IAreaFactory> input2) = 0;
+};
+
+// ============================================================================
+// IAreaFactory - 区域工厂接口
+// ============================================================================
 
 /**
  * @brief 区域工厂接口
@@ -81,49 +293,47 @@ public:
     [[nodiscard]] virtual std::unique_ptr<IArea> create() const = 0;
 };
 
+// ============================================================================
+// IDimOffset0Transformer - 无偏移变换器特征
+// ============================================================================
+
 /**
- * @brief 层变换器接口
+ * @brief 无偏移变换器特征
  *
- * 对输入层进行变换，生成新的层。
- * 参考 MC 1.16.5 IAreaTransformer。
+ * 采样坐标无偏移。
+ * 参考 MC IDimOffset0Transformer
  */
-class IAreaTransformer {
+class IDimOffset0Transformer {
 public:
-    virtual ~IAreaTransformer() = default;
-
-    /**
-     * @brief 应用变换
-     * @param context 区域上下文
-     * @param area 输入区域
-     * @param x 起始 X 坐标
-     * @param z 起始 Z 坐标
-     * @param width 宽度
-     * @param height 高度
-     * @return 变换后的值
-     */
-    [[nodiscard]] virtual i32 apply(IAreaContext& context,
-                                     const IArea& area,
-                                     i32 x, i32 z) const = 0;
-
-    /**
-     * @brief 获取变换后的区域大小（相对于输入）
-     * @param inputWidth 输入宽度
-     * @param inputHeight 输入高度
-     * @param outWidth 输出宽度
-     * @param outHeight 输出高度
-     */
-    virtual void getOutputSize(i32 inputWidth, i32 inputHeight,
-                                i32& outWidth, i32& outHeight) const {
-        outWidth = inputWidth;
-        outHeight = inputHeight;
-    }
+    [[nodiscard]] i32 getOffsetX(i32 x) const { return x; }
+    [[nodiscard]] i32 getOffsetZ(i32 z) const { return z; }
 };
+
+// ============================================================================
+// IDimOffset1Transformer - +1偏移变换器特征
+// ============================================================================
+
+/**
+ * @brief +1偏移变换器特征
+ *
+ * 采样坐标偏移 +1。
+ * 参考 MC IDimOffset1Transformer
+ */
+class IDimOffset1Transformer {
+public:
+    [[nodiscard]] i32 getOffsetX(i32 x) const { return x + 1; }
+    [[nodiscard]] i32 getOffsetZ(i32 z) const { return z + 1; }
+};
+
+// ============================================================================
+// IPixelTransformer - 像素变换器（遗留兼容）
+// ============================================================================
 
 /**
  * @brief 像素变换器接口
  *
  * 直接变换单个像素值。
- * 参考 MC 1.16.5 IDimTransformer。
+ * 参考 MC IPixelTransformer
  */
 class IPixelTransformer {
 public:
@@ -131,15 +341,11 @@ public:
 
     /**
      * @brief 变换单个像素
-     * @param context 区域上下文
-     * @param value 输入值
      * @param x X 坐标
      * @param z Z 坐标
      * @return 变换后的值
      */
-    [[nodiscard]] virtual i32 transform(IAreaContext& context,
-                                          i32 value,
-                                          i32 x, i32 z) const = 0;
+    [[nodiscard]] virtual i32 apply(i32 x, i32 z) = 0;
 };
 
 } // namespace mc

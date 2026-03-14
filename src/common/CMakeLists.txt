@@ -160,10 +160,16 @@ add_library(mc_common STATIC
     world/biome/BiomeGenerationSettings.cpp
 
     # World - Biome - Layer
-    world/biome/layer/LazyArea.cpp
+    world/biome/layer/LayerContext.cpp
+    world/biome/layer/BiomeValues.cpp
     world/biome/layer/LayerUtil.cpp
-    world/biome/layer/transformers/BasicTransformers.cpp
-    world/biome/layer/transformers/BiomeTransformers.cpp
+    world/biome/layer/transformers/TransformerTraits.cpp
+    world/biome/layer/transformers/SourceLayers.cpp
+    world/biome/layer/transformers/ClimateLayers.cpp
+    world/biome/layer/transformers/EdgeLayers.cpp
+    world/biome/layer/transformers/ZoomLayers.cpp
+    world/biome/layer/transformers/BiomeLayers.cpp
+    world/biome/layer/transformers/MergeLayers.cpp
 
     # World - Generation - Surface
     world/gen/surface/SurfaceBuilders.cpp

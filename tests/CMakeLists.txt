@@ -134,10 +134,15 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/common/world/biome/BiomeProvider.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/biome/BiomeRegistry.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/biome/BiomeGenerationSettings.cpp
-        ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/LazyArea.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/LayerContext.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/BiomeValues.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/LayerUtil.cpp
-        ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/transformers/BasicTransformers.cpp
-        ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/transformers/BiomeTransformers.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/transformers/SourceLayers.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/transformers/ClimateLayers.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/transformers/EdgeLayers.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/transformers/ZoomLayers.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/transformers/BiomeLayers.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/world/biome/layer/transformers/MergeLayers.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/surface/SurfaceBuilders.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/Feature.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/gen/feature/FeatureSpread.cpp
