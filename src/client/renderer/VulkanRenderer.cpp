@@ -1528,6 +1528,9 @@ void VulkanRenderer::destroyGuiResources() {
         return;
     }
 
+    m_itemRenderer.reset();
+    m_itemTextureAtlas.destroy();
+    m_itemTextureAtlasInitialized = false;
     m_guiRenderer.reset();
     m_font.destroy();
     m_guiRendererInitialized = false;
@@ -1686,6 +1689,102 @@ const TextureRegion* VulkanRenderer::getTextureRegion(const ResourceLocation& lo
         return &it->second;
     }
     return nullptr;
+}
+
+Result<void> VulkanRenderer::initializeItemRenderer(ResourceManager* resourceManager) {
+    if (resourceManager == nullptr) {
+        return Error(ErrorCode::NullPointer, "ResourceManager is null");
+    }
+
+    spdlog::info("Initializing item renderer...");
+
+    VkDevice device = m_context->device();
+    VkPhysicalDevice physicalDevice = m_context->physicalDevice();
+
+    // 创建物品纹理图集
+    auto result = m_itemTextureAtlas.create(device, physicalDevice, 256, 256);
+    if (!result.success()) {
+        return result.error();
+    }
+
+    // 加载物品纹理
+    // TODO: 需要传入资源包列表
+    // auto loadResult = m_itemTextureAtlas.loadFromResourcePacks(resourcePacks);
+    // if (!loadResult.success()) {
+    //     spdlog::warn("Failed to load item textures: {}", loadResult.error().toString());
+    // }
+
+    // 创建暂存缓冲区用于上传纹理
+    VulkanBuffer stagingBuffer;
+    auto stagingResult = stagingBuffer.create(device, physicalDevice, 256 * 256 * 4,
+                                               VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (!stagingResult.success()) {
+        m_itemTextureAtlas.destroy();
+        return stagingResult.error();
+    }
+
+    // 分配命令缓冲区用于上传
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = m_commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+    // 开始录制命令
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    // 上传纹理
+    auto uploadResult = m_itemTextureAtlas.upload(commandBuffer, stagingBuffer);
+    if (!uploadResult.success()) {
+        vkEndCommandBuffer(commandBuffer);
+        vkFreeCommandBuffers(device, m_commandPool, 1, &commandBuffer);
+        stagingBuffer.destroy();
+        m_itemTextureAtlas.destroy();
+        return uploadResult.error();
+    }
+
+    vkEndCommandBuffer(commandBuffer);
+
+    // 提交命令
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(m_context->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(m_context->graphicsQueue());
+
+    // 清理
+    vkFreeCommandBuffers(device, m_commandPool, 1, &commandBuffer);
+    stagingBuffer.destroy();
+
+    // 设置GUI渲染器的物品纹理
+    if (m_guiRenderer && m_itemTextureAtlas.isValid()) {
+        m_guiRenderer->setItemTextureAtlas(
+            m_itemTextureAtlas.texture().imageView(),
+            m_itemTextureAtlas.sampler());
+    }
+
+    // 创建物品渲染器
+    m_itemRenderer = std::make_unique<ItemRenderer>();
+    auto rendererResult = m_itemRenderer->initialize(resourceManager, &m_itemTextureAtlas);
+    if (!rendererResult.success()) {
+        m_itemTextureAtlas.destroy();
+        m_itemRenderer.reset();
+        return rendererResult.error();
+    }
+
+    m_itemTextureAtlasInitialized = true;
+    spdlog::info("Item renderer initialized successfully");
+    return Result<void>::ok();
 }
 
 } // namespace mc::client

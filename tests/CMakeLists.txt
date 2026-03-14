@@ -60,6 +60,7 @@ add_executable(mc_tests
     server/core/ServerCoreTest.cpp
     client/test_mesh_worker_pool.cpp
     client/renderer/test_renderer.cpp
+    client/renderer/test_gui_item_color.cpp
     network/EntityPacketsTest.cpp
     network/LocalServerConnectionTest.cpp
     common/entity/loot/LootTest.cpp

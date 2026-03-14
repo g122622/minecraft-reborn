@@ -17,6 +17,7 @@ namespace client {
 
 // Forward declarations
 class GuiRenderer;
+class ItemRenderer;
 
 /**
  * @brief 背包界面
@@ -102,6 +103,11 @@ public:
      */
     void toggle() { m_open = !m_open; }
 
+    /**
+     * @brief 设置物品渲染器
+     */
+    void setItemRenderer(ItemRenderer* itemRenderer) { m_itemRenderer = itemRenderer; }
+
 private:
     /**
      * @brief 渲染玩家模型
@@ -149,6 +155,7 @@ private:
     static constexpr f32 OFFHAND_Y = 84.0f;
 
     ItemStack m_cursorItem;     // 鼠标持有的物品
+    ItemRenderer* m_itemRenderer = nullptr;
     bool m_open = false;        // 是否打开
     bool m_initialized = false; // 是否已初始化
 };

@@ -15,6 +15,8 @@
 #include "../ui/Font.hpp"
 #include "../ui/GuiRenderer.hpp"
 #include "../resource/ResourceManager.hpp"
+#include "../resource/ItemTextureAtlas.hpp"
+#include "item/ItemRenderer.hpp"
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <functional>
@@ -115,6 +117,23 @@ public:
      */
     void setGuiRenderCallback(GuiRenderCallback callback) { m_guiRenderCallback = std::move(callback); }
 
+    // 物品渲染
+    ItemRenderer& itemRenderer() { return *m_itemRenderer; }
+    const ItemRenderer& itemRenderer() const { return *m_itemRenderer; }
+    ItemTextureAtlas& itemTextureAtlas() { return m_itemTextureAtlas; }
+    const ItemTextureAtlas& itemTextureAtlas() const { return m_itemTextureAtlas; }
+    bool isItemTextureAtlasInitialized() const { return m_itemTextureAtlasInitialized; }
+
+    /**
+     * @brief 初始化物品渲染器
+     *
+     * 必须在资源加载完成后调用。
+     *
+     * @param resourceManager 资源管理器
+     * @return 成功或错误
+     */
+    [[nodiscard]] Result<void> initializeItemRenderer(ResourceManager* resourceManager);
+
     // 状态
     bool isInitialized() const { return m_initialized; }
     bool isMinimized() const { return m_minimized; }
@@ -205,7 +224,14 @@ private:
     std::unique_ptr<GuiRenderer> m_guiRenderer;
     Font m_font;
     bool m_guiRendererInitialized = false;
-    
+
+    // 物品纹理图集
+    ItemTextureAtlas m_itemTextureAtlas;
+    bool m_itemTextureAtlasInitialized = false;
+
+    // 物品渲染器
+    std::unique_ptr<ItemRenderer> m_itemRenderer;
+
     // GUI渲染回调
     GuiRenderCallback m_guiRenderCallback;
 

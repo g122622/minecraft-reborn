@@ -31,6 +31,7 @@ add_executable(minecraft-client
     resource/TextureAtlasBuilder.cpp
     resource/ResourceManager.cpp
     resource/BlockModelCache.cpp
+    resource/ItemTextureAtlas.cpp
     world/ClientWorld.cpp
     network/NetworkClient.cpp
     ui/FontTextureAtlas.cpp
@@ -56,6 +57,8 @@ add_executable(minecraft-client
     renderer/entity/model/AnimalModels.cpp
     renderer/entity/EntityPipeline.cpp
     renderer/entity/EntityTextureAtlas.cpp
+    # 物品渲染
+    renderer/item/ItemRenderer.cpp
     # 客户端实体管理
     world/entity/ClientEntity.cpp
     world/entity/ClientEntityManager.cpp

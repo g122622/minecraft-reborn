@@ -28,6 +28,11 @@ class VulkanTexture;
  */
 class GuiRenderer {
 public:
+    // 物品纹理颜色（alpha=254）：
+    // - alpha==255 时片段着色器走字体采样分支
+    // - alpha<255 时走物品采样分支
+    static constexpr u32 ITEM_TEXTURE_COLOR = 0xFEFFFFFF;
+
     GuiRenderer();
     ~GuiRenderer();
 
@@ -138,6 +143,25 @@ public:
     void fillRect(f32 x, f32 y, f32 width, f32 height, u32 color);
 
     /**
+     * @brief 绘制纹理矩形（使用物品纹理图集）
+     *
+     * 绘制物品/图标纹理。UV坐标指定纹理图集中的区域。
+     *
+     * @param x 左上角X
+     * @param y 左上角Y
+     * @param width 宽度
+     * @param height 高度
+     * @param u0 纹理左上角U
+     * @param v0 纹理左上角V
+     * @param u1 纹理右下角U
+     * @param v1 纹理右下角V
+     * @param color 颜色（ARGB，默认白色）
+     */
+    void drawTexturedRect(f32 x, f32 y, f32 width, f32 height,
+                          f32 u0, f32 v0, f32 u1, f32 v1,
+                          u32 color = ITEM_TEXTURE_COLOR);
+
+    /**
      * @brief 绘制渐变矩形
      * @param x 左上角X
      * @param y 左上角Y
@@ -176,6 +200,16 @@ public:
      */
     [[nodiscard]] bool isInitialized() const { return m_initialized; }
 
+    /**
+     * @brief 设置物品纹理图集
+     *
+     * 物品纹理图集用于渲染物品图标。binding=1的纹理采样器。
+     *
+     * @param itemView 物品纹理图集的图像视图
+     * @param itemSampler 物品纹理采样器
+     */
+    void setItemTextureAtlas(VkImageView itemView, VkSampler itemSampler);
+
 private:
     /**
      * @brief 创建管线布局
@@ -208,6 +242,13 @@ private:
     void updateFontTexture(VkCommandBuffer commandBuffer);
 
     /**
+     * @brief 初始化纹理布局（在首次使用前调用）
+     *
+     * 由于纹理创建时布局为 UNDEFINED，需要在首次渲染前转换到 SHADER_READ_ONLY_OPTIMAL
+     */
+    void initializeTextureLayouts(VkCommandBuffer commandBuffer);
+
+    /**
      * @brief 上传顶点和索引数据到GPU
      */
     void uploadBufferData(VkCommandBuffer commandBuffer);
@@ -227,6 +268,7 @@ private:
 
     // 纹理
     std::unique_ptr<VulkanTexture> m_fontTexture;
+    std::unique_ptr<VulkanTexture> m_itemPlaceholderTexture;  // 物品纹理占位符（RGBA格式）
     VkSampler m_sampler = VK_NULL_HANDLE;
 
     // 字体

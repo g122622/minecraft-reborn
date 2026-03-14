@@ -14,6 +14,7 @@ namespace client {
 
 // Forward declarations
 class GuiRenderer;
+class ItemRenderer;
 
 /**
  * @brief HUD元素颜色常量
@@ -69,9 +70,10 @@ public:
 
     /**
      * @brief 初始化HUD渲染器
+     * @param itemRenderer 物品渲染器
      * @return 成功或错误
      */
-    [[nodiscard]] bool initialize();
+    [[nodiscard]] bool initialize(ItemRenderer* itemRenderer);
 
     /**
      * @brief 渲染HUD
@@ -144,6 +146,7 @@ private:
      */
     void drawArmor(GuiRenderer& gui, f32 x, f32 y, bool full);
 
+    ItemRenderer* m_itemRenderer = nullptr;
     bool m_visible = true;
     bool m_initialized = false;
 };

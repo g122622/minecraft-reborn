@@ -112,6 +112,7 @@ void GuiRenderer::destroy() {
 
     // 销毁纹理
     m_fontTexture.reset();
+    m_itemPlaceholderTexture.reset();
 
     if (m_sampler != VK_NULL_HANDLE) {
         vkDestroySampler(device, m_sampler, nullptr);
@@ -170,6 +171,13 @@ void GuiRenderer::beginFrame(f32 screenW, f32 screenH) {
 }
 
 void GuiRenderer::prepareFrame(VkCommandBuffer commandBuffer) {
+    // 首次使用时初始化纹理布局
+    static bool texturesInitialized = false;
+    if (!texturesInitialized) {
+        initializeTextureLayouts(commandBuffer);
+        texturesInitialized = true;
+    }
+
     // 在渲染通道外更新字体纹理
     if (m_needsTextureUpdate && m_font != nullptr) {
         updateFontTexture(commandBuffer);
@@ -277,6 +285,29 @@ void GuiRenderer::fillRect(f32 x, f32 y, f32 width, f32 height, u32 color) {
     m_vertices.emplace_back(x + width, y, SOLID_RECT_UV, SOLID_RECT_UV, color);          // 右上
     m_vertices.emplace_back(x + width, y + height, SOLID_RECT_UV, SOLID_RECT_UV, color); // 右下
     m_vertices.emplace_back(x, y + height, SOLID_RECT_UV, SOLID_RECT_UV, color);         // 左下
+
+    // 两个三角形
+    m_indices.push_back(baseIndex + 0);
+    m_indices.push_back(baseIndex + 1);
+    m_indices.push_back(baseIndex + 2);
+
+    m_indices.push_back(baseIndex + 0);
+    m_indices.push_back(baseIndex + 2);
+    m_indices.push_back(baseIndex + 3);
+}
+
+void GuiRenderer::drawTexturedRect(f32 x, f32 y, f32 width, f32 height,
+                                     f32 u0, f32 v0, f32 u1, f32 v1, u32 color) {
+    u32 baseIndex = static_cast<u32>(m_vertices.size());
+
+    // 物品纹理模式：alpha < 255 表示使用物品纹理采样（alpha=255是字体模式）
+    // 默认 ITEM_TEXTURE_COLOR = 0xFEFFFFFF，确保走物品分支且可见
+
+    // 四个顶点，设置纹理坐标
+    m_vertices.emplace_back(x, y, u0, v0, color);                  // 左上
+    m_vertices.emplace_back(x + width, y, u1, v0, color);          // 右上
+    m_vertices.emplace_back(x + width, y + height, u1, v1, color); // 右下
+    m_vertices.emplace_back(x, y + height, u0, v1, color);         // 左下
 
     // 两个三角形
     m_indices.push_back(baseIndex + 0);
@@ -522,17 +553,23 @@ Result<void> GuiRenderer::createPipeline(VkRenderPass renderPass) {
 Result<void> GuiRenderer::createDescriptors() {
     VkDevice device = m_context->device();
 
-    // 描述符集布局（采样器）
-    VkDescriptorSetLayoutBinding samplerBinding = {};
-    samplerBinding.binding = 0;
-    samplerBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    samplerBinding.descriptorCount = 1;
-    samplerBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    // 描述符集布局（两个采样器：字体纹理和物品纹理）
+    VkDescriptorSetLayoutBinding bindings[2] = {};
+    // Binding 0: 字体纹理 (R8)
+    bindings[0].binding = 0;
+    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[0].descriptorCount = 1;
+    bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    // Binding 1: 物品纹理图集 (RGBA)
+    bindings[1].binding = 1;
+    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[1].descriptorCount = 1;
+    bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
     VkDescriptorSetLayoutCreateInfo layoutInfo = {};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = 1;
-    layoutInfo.pBindings = &samplerBinding;
+    layoutInfo.bindingCount = 2;
+    layoutInfo.pBindings = bindings;
 
     if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS) {
         return Error(ErrorCode::InitializationFailed, "Failed to create descriptor set layout");
@@ -541,7 +578,7 @@ Result<void> GuiRenderer::createDescriptors() {
     // 描述符池
     VkDescriptorPoolSize poolSize = {};
     poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSize.descriptorCount = 1;
+    poolSize.descriptorCount = 2;  // 两个采样器
 
     VkDescriptorPoolCreateInfo poolInfo = {};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -661,22 +698,58 @@ Result<void> GuiRenderer::createFontTexture() {
         m_fontStagingBuffer->unmap();
     }
 
-    // 更新描述符集
-    VkDescriptorImageInfo imageInfo = {};
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.imageView = m_fontTexture->imageView();
-    imageInfo.sampler = m_sampler;
+    // 立即上传初始数据并转换布局
+    // 由于这里没有commandBuffer，我们将在首次prepareFrame时上传
+    // 先创建一个空的RGBA纹理作为物品纹理占位符
+    m_itemPlaceholderTexture = std::make_unique<VulkanTexture>();
+    TextureConfig placeholderConfig;
+    placeholderConfig.width = 1;
+    placeholderConfig.height = 1;
+    placeholderConfig.format = VK_FORMAT_R8G8B8A8_SRGB;
+    placeholderConfig.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    placeholderConfig.mipLevels = 1;
 
-    VkWriteDescriptorSet descriptorWrite = {};
-    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrite.dstSet = m_descriptorSet;
-    descriptorWrite.dstBinding = 0;
-    descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.pImageInfo = &imageInfo;
+    result = m_itemPlaceholderTexture->create(device, physicalDevice, placeholderConfig);
+    if (!result.success()) {
+        return result.error();
+    }
 
-    vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+    result = m_itemPlaceholderTexture->createImageView(VK_IMAGE_ASPECT_COLOR_BIT);
+    if (!result.success()) {
+        return result.error();
+    }
+
+    // 更新描述符集（字体纹理 = binding 0）
+    VkDescriptorImageInfo fontImageInfo = {};
+    fontImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    fontImageInfo.imageView = m_fontTexture->imageView();
+    fontImageInfo.sampler = m_sampler;
+
+    VkWriteDescriptorSet descriptorWrites[2] = {};
+    // Binding 0: 字体纹理
+    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[0].dstSet = m_descriptorSet;
+    descriptorWrites[0].dstBinding = 0;
+    descriptorWrites[0].dstArrayElement = 0;
+    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrites[0].descriptorCount = 1;
+    descriptorWrites[0].pImageInfo = &fontImageInfo;
+
+    // Binding 1: 物品纹理占位符（使用占位纹理）
+    VkDescriptorImageInfo placeholderImageInfo = {};
+    placeholderImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    placeholderImageInfo.imageView = m_itemPlaceholderTexture->imageView();
+    placeholderImageInfo.sampler = m_sampler;
+
+    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[1].dstSet = m_descriptorSet;
+    descriptorWrites[1].dstBinding = 1;
+    descriptorWrites[1].dstArrayElement = 0;
+    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrites[1].descriptorCount = 1;
+    descriptorWrites[1].pImageInfo = &placeholderImageInfo;
+
+    vkUpdateDescriptorSets(device, 2, descriptorWrites, 0, nullptr);
 
     m_needsTextureUpdate = true;
     return {};
@@ -727,6 +800,27 @@ void GuiRenderer::updateFontTexture(VkCommandBuffer commandBuffer) {
                                      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                      VK_PIPELINE_STAGE_TRANSFER_BIT,
                                      VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+}
+
+void GuiRenderer::initializeTextureLayouts(VkCommandBuffer commandBuffer) {
+    // 初始化字体纹理布局
+    // 注意：从 UNDEFINED 布局转换时，源阶段使用 TOP_OF_PIPE，但访问掩码为0
+    if (m_fontTexture && m_fontTexture->image() != VK_NULL_HANDLE) {
+        m_fontTexture->transitionLayout(commandBuffer,
+                                        VK_IMAGE_LAYOUT_UNDEFINED,
+                                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+    }
+
+    // 初始化物品占位纹理布局
+    if (m_itemPlaceholderTexture && m_itemPlaceholderTexture->image() != VK_NULL_HANDLE) {
+        m_itemPlaceholderTexture->transitionLayout(commandBuffer,
+                                                   VK_IMAGE_LAYOUT_UNDEFINED,
+                                                   VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                                   VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                                   VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+    }
 }
 
 void GuiRenderer::uploadBufferData(VkCommandBuffer commandBuffer) {
@@ -785,6 +879,31 @@ void GuiRenderer::uploadBufferData(VkCommandBuffer commandBuffer) {
     // 由于使用HOST_COHERENT内存，不需要手动flush
     // 数据会自动对GPU可见
     (void)commandBuffer; // 不再需要commandBuffer
+}
+
+void GuiRenderer::setItemTextureAtlas(VkImageView itemView, VkSampler itemSampler) {
+    if (!m_initialized || itemView == VK_NULL_HANDLE || itemSampler == VK_NULL_HANDLE) {
+        return;
+    }
+
+    VkDevice device = m_context->device();
+
+    // 更新 binding 1 的描述符
+    VkDescriptorImageInfo itemImageInfo = {};
+    itemImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    itemImageInfo.imageView = itemView;
+    itemImageInfo.sampler = itemSampler;
+
+    VkWriteDescriptorSet descriptorWrite = {};
+    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet = m_descriptorSet;
+    descriptorWrite.dstBinding = 1;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pImageInfo = &itemImageInfo;
+
+    vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
 }
 
 } // namespace mc::client

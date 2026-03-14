@@ -1,5 +1,6 @@
 #include "InventoryScreen.hpp"
 #include "../GuiRenderer.hpp"
+#include "../../renderer/item/ItemRenderer.hpp"
 #include "../../../common/entity/Player.hpp"
 #include "../../../common/entity/inventory/Container.hpp"
 #include "../../../common/entity/inventory/PlayerInventory.hpp"
@@ -106,7 +107,11 @@ void InventoryScreen::render(GuiRenderer& gui, const Player& player,
 
     // 绘制鼠标持有的物品
     if (!m_cursorItem.isEmpty()) {
-        gui.fillRect(mouseX - 8, mouseY - 8, 16, 16, 0xFFAAAAAA);
+        if (m_itemRenderer != nullptr) {
+            m_itemRenderer->renderItem(gui, m_cursorItem, mouseX - 8.0f, mouseY - 8.0f, 16.0f);
+        } else {
+            gui.fillRect(mouseX - 8, mouseY - 8, 16, 16, 0xFFAAAAAA);
+        }
         // 绘制数量
         if (m_cursorItem.getCount() > 1) {
             std::string countText = std::to_string(m_cursorItem.getCount());
@@ -210,9 +215,12 @@ void InventoryScreen::renderSlot(GuiRenderer& gui, i32 slotIndex, f32 x, f32 y,
 
     // 如果有物品，绘制物品
     if (!stack.isEmpty()) {
-        // TODO: 绘制物品图标
-        // 目前绘制占位符
-        gui.fillRect(x + 1, y + 1, SLOT_SIZE - 2, SLOT_SIZE - 2, 0xFF55FF55);
+        if (m_itemRenderer != nullptr) {
+            m_itemRenderer->renderItem(gui, stack, x + 1.0f, y + 1.0f, SLOT_SIZE - 2.0f);
+        } else {
+            // 后备占位符
+            gui.fillRect(x + 1, y + 1, SLOT_SIZE - 2, SLOT_SIZE - 2, 0xFF55FF55);
+        }
 
         // 绘制数量
         if (stack.getCount() > 1) {

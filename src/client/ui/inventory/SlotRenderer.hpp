@@ -13,6 +13,7 @@ namespace client {
 
 // Forward declarations
 class GuiRenderer;
+class ItemRenderer;
 
 /**
  * @brief 槽位渲染器
@@ -32,9 +33,10 @@ public:
 
     /**
      * @brief 初始化槽位渲染器
+     * @param itemRenderer 物品渲染器
      * @return 成功或错误
      */
-    [[nodiscard]] bool initialize();
+    [[nodiscard]] bool initialize(ItemRenderer* itemRenderer);
 
     /**
      * @brief 渲染槽位
@@ -78,6 +80,7 @@ public:
     static constexpr f32 ITEM_SIZE = 16.0f;
 
 private:
+    ItemRenderer* m_itemRenderer = nullptr;
     bool m_initialized = false;
 };
 

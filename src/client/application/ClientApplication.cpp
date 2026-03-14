@@ -449,8 +449,8 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
             spdlog::info("Crosshair initialized");
         }
 
-        // 初始化HUD渲染器
-        if (m_hudRenderer.initialize()) {
+        // 初始化HUD渲染器（ItemRenderer已在VulkanRenderer中初始化）
+        if (m_hudRenderer.initialize(&m_renderer->itemRenderer())) {
             spdlog::info("HUD renderer initialized");
         } else {
             spdlog::warn("Failed to initialize HUD renderer");
