@@ -267,7 +267,7 @@ TagId deduce_tag(std::istream& input) {
     }
     if (std::isdigit(a) || a == '-' || a == '+') {
         std::string buffer(&a, 1);
-        TagId deduced;
+        TagId deduced = TagId::Int;  // 默认为Int类型
         for (;;) {
             char b = cheof(input);
             buffer.push_back(b);

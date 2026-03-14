@@ -17,6 +17,7 @@
 
 #include <spdlog/spdlog.h>
 #include <GLFW/glfw3.h>
+#include <vulkan/vulkan.h>
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
@@ -393,6 +394,50 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         } else {
             m_debugScreen.setCamera(&m_camera);
             m_debugScreen.setWorld(&m_world);
+
+            // 设置GPU信息
+            auto* context = m_renderer->context();
+            if (context != nullptr) {
+                DebugGpuInfo gpuInfo;
+                gpuInfo.name = context->deviceProperties().deviceName;
+                gpuInfo.apiMajorVersion = VK_API_VERSION_MAJOR(context->deviceProperties().apiVersion);
+                gpuInfo.apiMinorVersion = VK_API_VERSION_MINOR(context->deviceProperties().apiVersion);
+                gpuInfo.driverVersion = std::to_string(VK_API_VERSION_MAJOR(context->deviceProperties().driverVersion)) + "." +
+                                        std::to_string(VK_API_VERSION_MINOR(context->deviceProperties().driverVersion)) + "." +
+                                        std::to_string(VK_API_VERSION_PATCH(context->deviceProperties().driverVersion));
+
+                // 计算显存
+                u64 dedicatedVideoMemory = 0;
+                u64 sharedSystemMemory = 0;
+                for (u32 i = 0; i < context->memoryProperties().memoryHeapCount; ++i) {
+                    const auto& heap = context->memoryProperties().memoryHeaps[i];
+                    if (heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) {
+                        dedicatedVideoMemory += heap.size;
+                    } else {
+                        sharedSystemMemory += heap.size;
+                    }
+                }
+                gpuInfo.dedicatedVideoMB = dedicatedVideoMemory / (1024 * 1024);
+                gpuInfo.sharedSystemMB = sharedSystemMemory / (1024 * 1024);
+
+                // 厂商名称
+                switch (context->deviceProperties().vendorID) {
+                    case 0x10DE: gpuInfo.vendor = "NVIDIA"; break;
+                    case 0x1002:
+                    case 0x1022: gpuInfo.vendor = "AMD"; break;
+                    case 0x8086:
+                    case 0x8087: gpuInfo.vendor = "Intel"; break;
+                    case 0x13B5: gpuInfo.vendor = "ARM"; break;
+                    case 0x1010: gpuInfo.vendor = "Apple"; break;
+                    case 0x5143: gpuInfo.vendor = "Qualcomm"; break;
+                    default: gpuInfo.vendor = "Unknown"; break;
+                }
+
+                m_debugScreen.setGpuInfo(gpuInfo);
+                m_debugScreen.setVersion("Minecraft Reborn 0.1.0");
+                m_debugScreen.setRendererInfo(gpuInfo.name);
+            }
+
             spdlog::info("Debug screen initialized");
         }
 

@@ -204,6 +204,9 @@ add_library(mc_common STATIC
 
     # NBT (Named Binary Tag) Library
     util/nbt/Nbt.cpp
+
+    # Platform utilities
+    util/PlatformInfo.cpp
 )
 
 target_include_directories(mc_common

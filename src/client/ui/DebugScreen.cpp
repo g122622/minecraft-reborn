@@ -9,6 +9,7 @@
 #include "../../common/util/Direction.hpp"
 #include "../../common/entity/Entity.hpp"
 #include "../../common/world/time/GameTime.hpp"
+#include "../../common/util/PlatformInfo.hpp"
 #include <sstream>
 #include <iomanip>
 #include <spdlog/spdlog.h>
@@ -18,6 +19,8 @@ namespace mc::client {
 DebugScreen::DebugScreen()
     : m_version("Minecraft Reborn 0.1.0")
     , m_rendererInfo("Vulkan") {
+    // 初始化时获取一次系统信息
+    m_cpuInfo = util::PlatformInfo::getCpuInfo();
 }
 
 Result<void> DebugScreen::initialize(GuiRenderer* guiRenderer) {
@@ -27,6 +30,10 @@ Result<void> DebugScreen::initialize(GuiRenderer* guiRenderer) {
 
     m_guiRenderer = guiRenderer;
     m_initialized = true;
+
+    // 初始化时获取CPU信息
+    m_cpuInfo = util::PlatformInfo::getCpuInfo();
+
     return {};
 }
 
@@ -34,10 +41,9 @@ void DebugScreen::update(f32 deltaTime) {
     if (!m_visible) return;
 
     updateFps(deltaTime);
+    updateSystemInfo();
     buildLeftDebugText();
     buildRightDebugText();
-    // 注：logColumnBlocks() 仅在调试时启用
-    // logColumnBlocks();
 }
 
 void DebugScreen::render() {
@@ -66,19 +72,28 @@ void DebugScreen::updateFps(f32 deltaTime) {
     }
 }
 
+void DebugScreen::updateSystemInfo() {
+    // 每秒更新一次系统信息
+    m_systemInfoTimer += m_frameTime;
+    if (m_systemInfoTimer >= SYSTEM_INFO_UPDATE_INTERVAL) {
+        m_systemInfoTimer = 0.0f;
+        m_memoryInfo = util::PlatformInfo::getMemoryInfo();
+    }
+}
+
 void DebugScreen::buildLeftDebugText() {
     m_leftLines.clear();
 
     std::ostringstream oss;
 
     // ========== 版本信息 ==========
-    // Minecraft 1.16.5 格式: "Minecraft 1.16.5 (1.16.5/vanilla)"
+    // MC格式: "Minecraft 1.16.5 (1.16.5/vanilla)"
     oss.str("");
     oss << m_version << " (" << m_version << "/" << m_rendererInfo << ")";
     m_leftLines.push_back(oss.str());
 
     // ========== FPS 信息 ==========
-    // MC格式: "FPS: XX T: XX ms"
+    // MC格式: "XX fps T: XX ms"
     oss.str("");
     oss << std::fixed << std::setprecision(0) << m_fps << " fps"
         << " T: " << std::setprecision(1) << (m_frameTime * 1000.0f) << " ms";
@@ -88,9 +103,10 @@ void DebugScreen::buildLeftDebugText() {
     // MC格式: "Integrated server @ XX ms ticks, XX tx, XX rx"
     if (m_networkClient != nullptr) {
         oss.str("");
-        oss << "Server: " << m_networkClient->packetsSent() << " tx, "
-            << m_networkClient->packetsReceived() << " rx"
-            << " ping: " << m_networkClient->ping() << "ms";
+        oss << "Integrated server @ " << std::fixed << std::setprecision(0)
+            << m_serverTickTimeMs << " ms ticks, "
+            << m_networkClient->packetsSent() << " tx, "
+            << m_networkClient->packetsReceived() << " rx";
         m_leftLines.push_back(oss.str());
     } else {
         m_leftLines.push_back("Server: local (integrated)");
@@ -98,27 +114,33 @@ void DebugScreen::buildLeftDebugText() {
 
     // ========== 渲染统计 ==========
     // MC格式: "C: XX/XX (s) D: XX, L: XX, E: XX"
-    // 这里简化为区块计数
+    // C: 已渲染区块/总区块数 (s: 实体渲染)
+    // D: 渲染距离
+    // L: 灯光更新
+    // E: 实体数
     if (m_world != nullptr) {
         oss.str("");
-        oss << "Chunks: " << m_world->chunkCount()
-            << " Render: " << m_world->renderDistance();
+        oss << "C: 0/" << m_world->chunkCount()
+            << " D: " << m_renderDistance
+            << ", L: 0"
+            << ", E: " << (m_entityManager ? m_entityManager->entityCount() : 0);
         m_leftLines.push_back(oss.str());
     }
 
     // ========== 实体统计 ==========
     // MC格式: "P: XX. T: XX"  (粒子数和实体数)
-    if (m_entityManager != nullptr) {
-        oss.str("");
-        oss << "P: 0. T: " << m_entityManager->entityCount();
-        m_leftLines.push_back(oss.str());
-    }
+    oss.str("");
+    oss << "P: " << m_particleCount << ". T: " << (m_entityManager ? m_entityManager->entityCount() : 0);
+    m_leftLines.push_back(oss.str());
 
     // ========== 维度信息 ==========
     m_leftLines.push_back("Dimension: minecraft:overworld");
 
     // ========== 强制加载区块 ==========
     // MC格式: "minecraft:overworld FC: 0"
+    m_leftLines.push_back("minecraft:overworld FC: 0");
+
+    // 空行
     m_leftLines.push_back("");
 
     // ========== 位置信息 ==========
@@ -164,58 +186,110 @@ void DebugScreen::buildLeftDebugText() {
 
         // ========== 光照信息 ==========
         if (m_world != nullptr) {
-            // Client Light: 总光照 (天空, 方块)
-            u8 skyLight = m_world->getSkyLight(blockX, blockY, blockZ);
-            u8 blockLight = m_world->getBlockLight(blockX, blockY, blockZ);
-            u8 totalLight = std::max(skyLight, blockLight);
-            oss.str("");
-            oss << "Client Light: " << static_cast<i32>(totalLight)
-                << " (" << static_cast<i32>(skyLight) << " sky, "
-                << static_cast<i32>(blockLight) << " block)";
-            m_leftLines.push_back(oss.str());
+            // 检查是否在已加载区块内
+            bool blockLoaded = m_world->getChunkAt(chunkX, chunkZ) != nullptr;
 
-            // Server Light: 服务端光照（占位）
-            m_leftLines.push_back("Server Light: (?? sky, ?? block)");
+            if (blockLoaded) {
+                // Client Light: 总光照 (天空, 方块)
+                u8 skyLight = m_world->getSkyLight(blockX, blockY, blockZ);
+                u8 blockLight = m_world->getBlockLight(blockX, blockY, blockZ);
+                u8 totalLight = std::max(skyLight, blockLight);
+                oss.str("");
+                oss << "Client Light: " << static_cast<i32>(totalLight)
+                    << " (" << static_cast<i32>(skyLight) << " sky, "
+                    << static_cast<i32>(blockLight) << " block)";
+                m_leftLines.push_back(oss.str());
+
+                // Server Light: 服务端光照（如果有服务端数据）
+                // 当前显示为占位符
+                m_leftLines.push_back("Server Light: (?? sky, ?? block)");
+            } else {
+                m_leftLines.push_back("Outside of world...");
+            }
+
+            // ========== 高度图信息 ==========
+            // MC格式: "CH S: XX O: XX M: XX ML: XX"
+            if (m_heightmapInfo.available && blockLoaded) {
+                oss.str("");
+                oss << "CH S:" << m_heightmapInfo.worldSurface
+                    << " O:" << m_heightmapInfo.oceanFloor
+                    << " M:" << m_heightmapInfo.motionBlocking
+                    << " ML:" << m_heightmapInfo.motionBlockingNoLeaves;
+                m_leftLines.push_back(oss.str());
+
+                // SH: 服务端高度图 (如果有)
+                oss.str("");
+                oss << "SH S:?? O:?? M:?? ML:??";
+                m_leftLines.push_back(oss.str());
+            }
+
+            // ========== 生物群系 ==========
+            if (blockLoaded && blockY >= 0 && blockY < 256) {
+                if (const Biome* biome = m_world->getBiomeAtBlock(blockX, blockY, blockZ)) {
+                    oss.str("");
+                    oss << "Biome: minecraft:" << biome->name();
+                    m_leftLines.push_back(oss.str());
+
+                    // 气候信息
+                    oss.str("");
+                    oss << "Climate: T=" << std::fixed << std::setprecision(2)
+                        << biome->temperature()
+                        << " H=" << biome->humidity()
+                        << " C=" << biome->continentalness();
+                    m_leftLines.push_back(oss.str());
+                }
+
+                // ========== 本地难度 ==========
+                if (m_gameTime != nullptr) {
+                    i64 dayCount = m_gameTime->dayCount();
+                    i32 moonPhase = CelestialCalculations::calculateMoonPhase(m_gameTime->gameTime());
+                    // 本地难度计算需要 DifficultyManager，当前使用简化公式
+                    f32 localDifficulty = 0.0f; // TODO: 需要 DifficultyManager 实现
+                    oss.str("");
+                    oss << "Local Difficulty: " << std::fixed << std::setprecision(2)
+                        << localDifficulty << " // " << localDifficulty
+                        << " (Day " << dayCount << ", Moon " << moonPhase << ")";
+                    m_leftLines.push_back(oss.str());
+                }
+            }
+        } else {
+            m_leftLines.push_back("Outside of world...");
         }
 
-        // ========== 生物群系 ==========
-        if (const Biome* biome = m_world != nullptr ? m_world->getBiomeAtBlock(blockX, blockY, blockZ) : nullptr) {
+        // ========== Spawn统计 ==========
+        // MC格式: "SC: XX, M: XX C: XX A: XX W: XX N: XX"
+        if (m_spawnStats.available) {
             oss.str("");
-            oss << "Biome: minecraft:" << biome->name();
-            m_leftLines.push_back(oss.str());
-
-            // 气候信息
-            oss.str("");
-            oss << "Climate: T=" << std::fixed << std::setprecision(2)
-                << biome->temperature()
-                << " H=" << biome->humidity()
-                << " C=" << biome->continentalness();
+            oss << "SC: " << m_spawnStats.spawnableChunkCount
+                << ", M:" << m_spawnStats.categoryCounts[0]  // Monster
+                << " C:" << m_spawnStats.categoryCounts[1]   // Creature
+                << " A:" << m_spawnStats.categoryCounts[2]   // Ambient
+                << " W:" << m_spawnStats.categoryCounts[3]   // WaterCreature
+                << " N:" << m_spawnStats.categoryCounts[4];  // NetherCreature
             m_leftLines.push_back(oss.str());
         }
 
-        // ========== 本地难度 ==========
-        if (m_gameTime != nullptr) {
-            // MC格式: "Local Difficulty: X.XX // X.XX (Day XXXX)"
-            i64 dayCount = m_gameTime->dayCount();
-            i32 moonPhase = CelestialCalculations::calculateMoonPhase(m_gameTime->gameTime());
-            // 月相因子影响本地难度，但完整实现需要 DifficultyManager
-            // f32 moonFactor = CelestialCalculations::getMoonPhaseFactor(moonPhase);
-            // 本地难度 = 基础难度 + (dayCount * 因子) + (月相因子)
-            // 注：完整实现需要 DifficultyManager 和区块占用时间
-            // 这里使用简化公式展示概念
-            f32 localDifficulty = 0.0f; // TODO: 需要 DifficultyManager 实现
+        // ========== Shader信息 ==========
+        if (!m_activeShader.empty()) {
             oss.str("");
-            oss << "Local Difficulty: " << std::fixed << std::setprecision(2)
-                << localDifficulty << " // " << localDifficulty
-                << " (Day " << dayCount << ", Moon " << moonPhase << ")";
+            oss << "Shader: " << m_activeShader;
             m_leftLines.push_back(oss.str());
         }
+
+        // ========== 声音信息 ==========
+        // MC格式: "XX/XX sounds (Mood XX%)"
+        oss.str("");
+        oss << m_activeSounds << "/" << m_activeSounds << " sounds"
+            << " (Mood " << static_cast<i32>(m_moodPercentage * 100.0f) << "%)";
+        m_leftLines.push_back(oss.str());
+
     } else {
         m_leftLines.push_back("No camera");
     }
 
     // ========== 帮助提示 ==========
     m_leftLines.push_back("");
+    m_leftLines.push_back("Debug: Pie [shift]: hidden FPS + TPS [alt]: hidden");
     m_leftLines.push_back("For help: press F3 + Q");
 }
 
@@ -224,29 +298,46 @@ void DebugScreen::buildRightDebugText() {
 
     std::ostringstream oss;
 
-    // ========== Java 信息 ==========
+    // ========== 语言/编译器信息 ==========
     // MC格式: "Java: 1.8.0_xx 64bit"
-    m_rightLines.push_back("C++17 (64bit)");
+    oss.str("");
+    oss << "C++17 " << (util::PlatformInfo::is64BitSystem() ? "64bit" : "32bit");
+    m_rightLines.push_back(oss.str());
 
     // ========== 内存信息 ==========
     // MC格式: "Mem: XX% XXX/XXXMB"
-    // 注意：C++标准库不提供进程内存API，需要平台特定实现
-    // Windows: GlobalMemoryStatusEx / Linux: /proc/self/status
-    // 当前使用占位符，未来可集成平台API
     oss.str("");
-    oss << "Mem: " << std::setw(3) << "?" << "% " << std::setw(3) << "?/" << std::setw(3) << "?MB";
+    oss << "Mem: " << std::setw(3) << m_memoryInfo.usagePercent << "% "
+        << std::setw(4) << m_memoryInfo.processUsedMB << "/"
+        << std::setw(4) << m_memoryInfo.totalPhysicalMB << "MB";
     m_rightLines.push_back(oss.str());
 
     // Allocated
     oss.str("");
-    oss << "Allocated: " << std::setw(3) << "?%";
+    f32 allocatedPercent = m_memoryInfo.totalPhysicalMB > 0
+        ? (static_cast<f32>(m_memoryInfo.processUsedMB) / m_memoryInfo.totalPhysicalMB) * 100.0f
+        : 0.0f;
+    oss << "Allocated: " << std::setw(3) << static_cast<i32>(allocatedPercent) << "%";
     m_rightLines.push_back(oss.str());
 
     m_rightLines.push_back("");
 
     // ========== CPU 信息 ==========
     // MC格式: "CPU: XXX"
-    m_rightLines.push_back("CPU: Unknown");
+    oss.str("");
+    if (!m_cpuInfo.brand.empty()) {
+        // 截断过长的CPU名称
+        String cpuName = m_cpuInfo.brand;
+        if (cpuName.length() > 40) {
+            cpuName = cpuName.substr(0, 37) + "...";
+        }
+        oss << "CPU: " << cpuName;
+    } else if (!m_cpuInfo.vendor.empty()) {
+        oss << "CPU: " << m_cpuInfo.vendor << " " << m_cpuInfo.coreCount << " cores";
+    } else {
+        oss << "CPU: " << m_cpuInfo.coreCount << " cores";
+    }
+    m_rightLines.push_back(oss.str());
 
     m_rightLines.push_back("");
 
@@ -256,23 +347,39 @@ void DebugScreen::buildRightDebugText() {
         oss.str("");
         oss << "Display: " << static_cast<i32>(m_guiRenderer->screenWidth())
             << "x" << static_cast<i32>(m_guiRenderer->screenHeight());
+        if (m_gpuInfoSet && !m_gpuInfo.vendor.empty()) {
+            oss << " (" << m_gpuInfo.vendor << ")";
+        }
         m_rightLines.push_back(oss.str());
     } else {
         m_rightLines.push_back("Display: Unknown");
     }
 
     // GPU Renderer
-    m_rightLines.push_back(m_rendererInfo);
+    if (m_gpuInfoSet && !m_gpuInfo.name.empty()) {
+        m_rightLines.push_back(m_gpuInfo.name);
+    } else {
+        m_rightLines.push_back(m_rendererInfo);
+    }
 
     // Vulkan版本
-    m_rightLines.push_back("Vulkan 1.x");
+    if (m_gpuInfoSet) {
+        oss.str("");
+        oss << "Vulkan " << m_gpuInfo.apiMajorVersion << "." << m_gpuInfo.apiMinorVersion;
+        if (!m_gpuInfo.driverVersion.empty()) {
+            oss << " (Driver: " << m_gpuInfo.driverVersion << ")";
+        }
+        m_rightLines.push_back(oss.str());
+    } else {
+        m_rightLines.push_back("Vulkan 1.x");
+    }
 
     // ========== 目标方块信息 ==========
     if (m_targetBlock != nullptr && !m_targetBlock->isMiss()) {
         const auto& blockPos = m_targetBlock->blockPos();
 
         m_rightLines.push_back("");
-        // MC格式: "Targeted Block: X, Y, Z"
+        // MC格式: "Targeted Block: X, Y, Z" (带下划线)
         oss.str("");
         oss << "Targeted Block: " << blockPos.x << ", " << blockPos.y << ", " << blockPos.z;
         m_rightLines.push_back(oss.str());
@@ -288,13 +395,10 @@ void DebugScreen::buildRightDebugText() {
 
                 // 显示方块属性
                 String stateStr = state->toString();
-                // toString() 格式为 "namespace:block[property1=value1,property2=value2]"
-                // 如果有属性，显示属性信息
                 size_t bracketPos = stateStr.find('[');
                 if (bracketPos != String::npos && stateStr.back() == ']') {
                     String props = stateStr.substr(bracketPos + 1, stateStr.length() - bracketPos - 2);
                     if (!props.empty()) {
-                        // 解析并显示每个属性
                         std::istringstream propStream(props);
                         String prop;
                         while (std::getline(propStream, prop, ',')) {
@@ -307,7 +411,7 @@ void DebugScreen::buildRightDebugText() {
     }
 
     // ========== 目标流体信息 ==========
-    // 注：流体系统尚未实现，待 FluidState 和流体射线检测完成后添加
+    // TODO: 流体系统实现后添加
     // 参考 MC: "Targeted Fluid: minecraft:water[level=0]"
 
     // ========== 目标实体信息 ==========
@@ -317,7 +421,7 @@ void DebugScreen::buildRightDebugText() {
         if (!entityIds.empty()) {
             m_rightLines.push_back("");
             oss.str("");
-            oss << "Nearby Entities: " << entityIds.size();
+            oss << "Targeted Entity";  // MC格式，带下划线
             m_rightLines.push_back(oss.str());
 
             // 显示前几个实体类型
@@ -359,11 +463,6 @@ std::string DebugScreen::getDirectionName(f32 yaw) const {
     return name;
 }
 
-std::string DebugScreen::formatMemory(i64 bytes) {
-    const i64 MB = 1024 * 1024;
-    return std::to_string(bytes / MB);
-}
-
 void DebugScreen::renderPanel(const std::vector<std::string>& lines, f32 startX, bool alignRight) {
     if (lines.empty()) return;
 
@@ -400,48 +499,6 @@ void DebugScreen::renderPanel(const std::vector<std::string>& lines, f32 startX,
         }
         y += lineHeight;
     }
-}
-
-void DebugScreen::logColumnBlocks() {
-    // 每秒输出一次
-    m_columnLogTimer += m_frameTime;
-    if (m_columnLogTimer < COLUMN_LOG_INTERVAL) {
-        return;
-    }
-    m_columnLogTimer = 0.0f;
-
-    // 检查必要对象
-    if (m_camera == nullptr || m_world == nullptr) {
-        return;
-    }
-
-    const auto& pos = m_camera->position();
-    i32 blockX = static_cast<i32>(std::floor(pos.x));
-    i32 blockZ = static_cast<i32>(std::floor(pos.z));
-
-    // 获取世界高度范围
-    i32 minY = m_world->getMinBuildHeight();
-    i32 maxY = m_world->getMaxBuildHeight();
-
-    spdlog::info("=== Column at X={}, Z={} (Y: {} to {}) ===", blockX, blockZ, minY, maxY - 1);
-
-    // 从底层开始遍历到最顶层
-    for (i32 y = minY; y < maxY; ++y) {
-        const BlockState* state = m_world->getBlockState(blockX, y, blockZ);
-        if (state == nullptr) {
-            continue;  // 区块未加载，跳过
-        }
-
-        // 跳过空气方块
-        if (state->isAir()) {
-            continue;
-        }
-
-        const ResourceLocation& loc = state->blockLocation();
-        spdlog::info("  Y={}: {} (id={})", y, loc.toString(), state->blockId());
-    }
-
-    spdlog::info("=== End of column ===");
 }
 
 } // namespace mc::client
