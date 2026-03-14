@@ -32,14 +32,14 @@ bool BlockItem::tryPlace(BlockItemUseContext& context) const
     return placeBlock(context, state);
 }
 
-const BlockState* BlockItem::getStateForPlacement(const BlockItemUseContext& context) const
+const BlockState* BlockItem::getStateForPlacement(const BlockItemUseContext& /* context */) const
 {
     // 默认实现返回方块的默认状态
     // 子类可以重写以支持有方向的方块（如楼梯、门等）
     return &m_block->defaultState();
 }
 
-bool BlockItem::canPlace(const BlockItemUseContext& context, const BlockState& state) const
+bool BlockItem::canPlace(const BlockItemUseContext& context, const BlockState& /* state */) const
 {
     // 检查位置是否有效
     if (!checkPositionValid(context)) {
@@ -79,7 +79,7 @@ bool BlockItem::checkPositionValid(const BlockItemUseContext& context) const
     return true;
 }
 
-bool BlockItem::placeBlock(BlockItemUseContext& context, const BlockState* state) const
+bool BlockItem::placeBlock(BlockItemUseContext& /* context */, const BlockState* state) const
 {
     if (state == nullptr) {
         return false;

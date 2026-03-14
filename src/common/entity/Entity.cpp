@@ -144,7 +144,7 @@ void Entity::updateFallDistance() {
     }
 }
 
-void Entity::handleFallDamage(f32 distance, f32 damageMultiplier) {
+void Entity::handleFallDamage(f32 /* distance */, f32 /* damageMultiplier */) {
     // 基础实体不处理摔落伤害
     // LivingEntity 会重写此方法
 }

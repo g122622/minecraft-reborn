@@ -407,7 +407,7 @@ Result<void> SkyRenderer::createSkyDomeVBO() {
     // 每格 64 单位，共 12x12 个四边形
 
     constexpr f32 SKY_HEIGHT = 16.0f;
-    constexpr f32 SKY_RADIUS = 384.0f;
+    // SKY_RADIUS = 384.0f 用于定义网格范围 (GRID_COUNT * GRID_SIZE)
     constexpr i32 GRID_SIZE = 64;
     constexpr i32 GRID_COUNT = 12; // (384 * 2) / 64 = 12
 

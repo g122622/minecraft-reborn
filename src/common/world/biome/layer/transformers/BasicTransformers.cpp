@@ -13,7 +13,7 @@ IslandLayer::IslandLayer(u64 seed)
 {
 }
 
-i32 IslandLayer::apply(IAreaContext& context, const IArea& area, i32 x, i32 z) const
+i32 IslandLayer::apply(IAreaContext& context, const IArea& /* area */, i32 x, i32 z) const
 {
     // 初始化随机数
     context.initRandom(m_seed + static_cast<u64>(x) * 341873128712ULL + static_cast<u64>(z) * 132897987541ULL);
@@ -61,8 +61,8 @@ i32 ZoomLayer::apply(IAreaContext& context, const IArea& area, i32 x, i32 z) con
 
         case Mode::Voroni: {
             // Voroni 缩放：根据距离选择
-            const i32 localX = x & 1;
-            const i32 localZ = z & 1;
+            // localX 和 localZ 用于确定相对于区块单元的位置
+            // 当前实现通过随机距离来模拟 Voronoi 效果
 
             // 初始化位置相关随机
             context.initRandom(static_cast<u64>(x) * 341873128712ULL + static_cast<u64>(z) * 132897987541ULL);

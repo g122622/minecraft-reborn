@@ -3,8 +3,10 @@
 #include <set>
 #include <cstring>
 
-// GLFW包含Vulkan
+// GLFW包含Vulkan（如果尚未定义）
+#ifndef GLFW_INCLUDE_VULKAN
 #define GLFW_INCLUDE_VULKAN
+#endif
 #include <GLFW/glfw3.h>
 
 namespace mc::client {

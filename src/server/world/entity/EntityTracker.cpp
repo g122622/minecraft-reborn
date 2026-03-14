@@ -211,7 +211,7 @@ void EntityTracker::sendSpawnPacket(ServerWorld& world, PlayerId playerId, Entit
     // 后续可以根据实体类型选择 SpawnMobPacket
 
     network::SpawnEntityPacket packet;
-    packet.setEntityId(entity->id());
+    packet.setEntityId(static_cast<u32>(entity->id()));  // EntityId 转 u32（协议限制）
 
     // 生成 UUID（简化：使用实体ID作为基础）
     std::array<u8, 16> uuid = {};
@@ -254,7 +254,7 @@ void EntityTracker::sendDestroyPacket(ServerWorld& world, PlayerId playerId, Ent
     if (!player || !player->hasConnection()) return;
 
     network::EntityDestroyPacket packet;
-    packet.addEntityId(entityId);
+    packet.addEntityId(static_cast<u32>(entityId));  // EntityId 转 u32（协议限制）
 
     auto result = packet.serialize();
     if (result.success()) {
@@ -279,7 +279,7 @@ void EntityTracker::sendMovePacket(ServerWorld& world, PlayerId playerId, Entity
 
     // 发送传送包（完整位置）
     network::EntityTeleportPacket packet;
-    packet.setEntityId(entity->id());
+    packet.setEntityId(static_cast<u32>(entity->id()));  // EntityId 转 u32（协议限制）
     packet.setPosition(entity->x(), entity->y(), entity->z());
     packet.setRotation(entity->yaw(), entity->pitch());
     packet.setOnGround(entity->onGround());

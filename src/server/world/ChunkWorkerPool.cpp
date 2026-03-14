@@ -205,7 +205,7 @@ void ChunkWorkerPool::executeTask(InternalTask& task)
         if (task.generator && task.task.targetStatus) {
             task.generator(*primer, *task.task.targetStatus);
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         success = false;
     } catch (...) {
         success = false;

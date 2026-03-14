@@ -4,6 +4,11 @@
 #include <fstream>
 #include <sstream>
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4996)  // 禁用 getenv 不安全警告
+#endif
+
 namespace mc {
 
 Result<void> SettingsBase::load(const std::filesystem::path& path)
@@ -237,3 +242,7 @@ std::filesystem::path SettingsBase::ensureSettingsDir(const String& appName)
 }
 
 } // namespace mc
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif

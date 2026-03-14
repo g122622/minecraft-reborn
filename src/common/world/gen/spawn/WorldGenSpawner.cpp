@@ -197,7 +197,7 @@ i32 WorldGenSpawner::spawnGroup(
 
 i32 WorldGenSpawner::getSpawnHeight(
     WorldGenRegion& region,
-    const entity::EntityType& entityType,
+    const entity::EntityType& /* entityType */,
     i32 x,
     i32 z) const
 {

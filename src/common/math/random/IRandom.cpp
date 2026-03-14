@@ -129,7 +129,7 @@ void IRandom::setSeedWithHash(i64 seed) {
 
 void IRandom::skip(u64 count) {
     for (u64 i = 0; i < count; ++i) {
-        nextU64();
+        (void)nextU64();  // 故意丢弃返回值，用于跳过随机数序列
     }
 }
 

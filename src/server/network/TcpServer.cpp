@@ -8,6 +8,7 @@
     #define CLOSE_SOCKET closesocket
     #define INVALID_SOCKET_VALUE INVALID_SOCKET
     #define SOCKET_ERROR_VALUE SOCKET_ERROR
+    #define SOCKET_TYPE SOCKET
 #else
     #include <sys/socket.h>
     #include <netinet/in.h>
@@ -18,6 +19,7 @@
     #define CLOSE_SOCKET close
     #define INVALID_SOCKET_VALUE -1
     #define SOCKET_ERROR_VALUE -1
+    #define SOCKET_TYPE int
 #endif
 
 namespace mc::server {
@@ -211,7 +213,7 @@ void TcpServer::acceptNewConnection() {
     sockaddr_in clientAddr{};
     int clientAddrLen = sizeof(clientAddr);
 
-    int clientSocket = accept(static_cast<int>(m_listenSocket),
+    SOCKET_TYPE clientSocket = accept(static_cast<SOCKET_TYPE>(m_listenSocket),
                               reinterpret_cast<sockaddr*>(&clientAddr),
                               &clientAddrLen);
 
@@ -266,13 +268,13 @@ void TcpServer::acceptNewConnection() {
     }
 }
 
-void TcpServer::handleSessionData(TcpSession* session) {
+void TcpServer::handleSessionData(TcpSession* /* session */) {
     // TODO: 实现数据接收
     // 这需要TcpSession存储socket句柄
     // 当前是简化实现
 }
 
-void TcpServer::sendSessionData(TcpSession* session) {
+void TcpServer::sendSessionData(TcpSession* /* session */) {
     // TODO: 实现数据发送
     // 这需要TcpSession存储socket句柄
     // 当前是简化实现

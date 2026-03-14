@@ -225,7 +225,7 @@ void LivingEntity::tickHealth() {
     // 更新属性缓存
     for (auto& [name, instance] : m_attributes.allInstances()) {
         if (instance->isDirty()) {
-            instance->getValue();  // 重新计算并缓存
+            (void)instance->getValue();  // 重新计算并缓存，故意丢弃返回值
         }
     }
 }

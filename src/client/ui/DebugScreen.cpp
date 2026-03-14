@@ -198,7 +198,8 @@ void DebugScreen::buildLeftDebugText() {
             // MC格式: "Local Difficulty: X.XX // X.XX (Day XXXX)"
             i64 dayCount = m_gameTime->dayCount();
             i32 moonPhase = CelestialCalculations::calculateMoonPhase(m_gameTime->gameTime());
-            f32 moonFactor = CelestialCalculations::getMoonPhaseFactor(moonPhase);
+            // 月相因子影响本地难度，但完整实现需要 DifficultyManager
+            // f32 moonFactor = CelestialCalculations::getMoonPhaseFactor(moonPhase);
             // 本地难度 = 基础难度 + (dayCount * 因子) + (月相因子)
             // 注：完整实现需要 DifficultyManager 和区块占用时间
             // 这里使用简化公式展示概念
