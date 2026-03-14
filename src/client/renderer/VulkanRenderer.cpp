@@ -162,6 +162,12 @@ Result<void> VulkanRenderer::initialize(GLFWwindow* window, const RendererConfig
         spdlog::warn("Failed to create GUI renderer: {}", guiResult.error().toString());
     }
 
+    // 创建实体渲染管线
+    auto entityPipelineResult = createEntityPipeline();
+    if (entityPipelineResult.failed()) {
+        spdlog::warn("Failed to create entity pipeline: {}", entityPipelineResult.error().toString());
+    }
+
     // 注意：区块由 ClientWorld 管理，不再自动创建测试区块
 
     m_initialized = true;
@@ -175,6 +181,9 @@ void VulkanRenderer::destroy() {
     }
 
     m_context->waitIdle();
+
+    // 销毁实体渲染资源
+    destroyEntityResources();
 
     // 销毁天空渲染器
     m_skyRenderer.destroy();
@@ -446,6 +455,11 @@ Result<void> VulkanRenderer::render() {
         renderChunks(cmd);
     }
 
+    // 渲染实体
+    if (m_entityRendererInitialized && m_entityRenderCallback) {
+        renderEntities(cmd);
+    }
+
     // 渲染GUI
     if (m_guiRendererInitialized) {
         MC_TRACE_GUI("GuiRender");
@@ -514,6 +528,24 @@ void VulkanRenderer::renderChunks(VkCommandBuffer cmd) {
                 vkCmdPushConstants(cmd, m_chunkPipeline->pipelineLayout(),
                                    VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pushConstants), &pushConstants);
             });
+    }
+}
+
+void VulkanRenderer::renderEntities(VkCommandBuffer cmd) {
+    if (!m_entityPipeline || !m_entityPipeline->isInitialized() || !m_entityRendererManager) {
+        return;
+    }
+
+    // 绑定相机描述符集 (set = 0)
+    if (!m_chunkDescriptorSets.empty() && m_chunkDescriptorSets[m_currentFrame] != VK_NULL_HANDLE) {
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                m_entityPipeline->pipelineLayout(), 0, 1,
+                                &m_chunkDescriptorSets[m_currentFrame], 0, nullptr);
+    }
+
+    // 调用外部回调来渲染实体
+    if (m_entityRenderCallback) {
+        m_entityRenderCallback(cmd, m_partialTick);
     }
 }
 
@@ -949,7 +981,7 @@ Result<void> VulkanRenderer::createDescriptorSetLayouts() {
     cameraBindings[1].binding = 1;
     cameraBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     cameraBindings[1].descriptorCount = 1;
-    cameraBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    cameraBindings[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;  // 实体顶点着色器也需要lighting
     cameraBindings[1].pImmutableSamplers = nullptr;
 
     VkDescriptorSetLayoutCreateInfo cameraLayoutInfo{};
@@ -1324,22 +1356,36 @@ Result<void> VulkanRenderer::createChunkPipeline() {
             return Error(ErrorCode::Unknown, "Failed to allocate chunk descriptor set: " + std::to_string(vkResult));
         }
 
-        // 更新描述符集
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = m_cameraUBO.buffer(i).buffer();
-        bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(CameraUBO);
+        // 更新描述符集 - binding 0: CameraUBO, binding 1: LightingUBO
+        std::array<VkDescriptorBufferInfo, 2> bufferInfos{};
+        bufferInfos[0].buffer = m_cameraUBO.buffer(i).buffer();
+        bufferInfos[0].offset = 0;
+        bufferInfos[0].range = sizeof(CameraUBO);
 
-        VkWriteDescriptorSet descriptorWrite{};
-        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = m_chunkDescriptorSets[i];
-        descriptorWrite.dstBinding = 0;
-        descriptorWrite.dstArrayElement = 0;
-        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrite.descriptorCount = 1;
-        descriptorWrite.pBufferInfo = &bufferInfo;
+        bufferInfos[1].buffer = m_lightingUBO.buffer(i).buffer();
+        bufferInfos[1].offset = 0;
+        bufferInfos[1].range = sizeof(LightingUBO);
 
-        vkUpdateDescriptorSets(m_context->device(), 1, &descriptorWrite, 0, nullptr);
+        std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+        // CameraUBO
+        descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[0].dstSet = m_chunkDescriptorSets[i];
+        descriptorWrites[0].dstBinding = 0;
+        descriptorWrites[0].dstArrayElement = 0;
+        descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrites[0].descriptorCount = 1;
+        descriptorWrites[0].pBufferInfo = &bufferInfos[0];
+
+        // LightingUBO
+        descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[1].dstSet = m_chunkDescriptorSets[i];
+        descriptorWrites[1].dstBinding = 1;
+        descriptorWrites[1].dstArrayElement = 0;
+        descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrites[1].descriptorCount = 1;
+        descriptorWrites[1].pBufferInfo = &bufferInfos[1];
+
+        vkUpdateDescriptorSets(m_context->device(), static_cast<u32>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     }
 
     spdlog::info("Chunk pipeline created");
@@ -1674,6 +1720,13 @@ Result<void> VulkanRenderer::updateTextureAtlas(const AtlasBuildResult& atlasRes
 
     vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
 
+    // 更新实体管线的纹理描述符
+    if (m_entityPipeline && m_entityPipeline->isInitialized()) {
+        m_entityPipeline->setTextureAtlas(
+            m_chunkTextureAtlas.texture().imageView(),
+            m_chunkTextureAtlas.texture().sampler());
+    }
+
     // 保存纹理区域映射
     m_textureRegions = atlasResult.regions;
 
@@ -1785,6 +1838,56 @@ Result<void> VulkanRenderer::initializeItemRenderer(ResourceManager* resourceMan
     m_itemTextureAtlasInitialized = true;
     spdlog::info("Item renderer initialized successfully");
     return Result<void>::ok();
+}
+
+// ============================================================================
+// 实体渲染
+// ============================================================================
+
+Result<void> VulkanRenderer::createEntityPipeline() {
+    spdlog::info("Creating entity pipeline...");
+
+    m_entityPipeline = std::make_unique<EntityPipeline>();
+
+    auto result = m_entityPipeline->initialize(
+        m_context.get(),
+        m_renderPass,
+        m_cameraDescriptorLayout,
+        m_descriptorPool,
+        m_commandPool);
+
+    if (result.failed()) {
+        m_entityPipeline.reset();
+        spdlog::warn("Failed to create entity pipeline: {}", result.error().toString());
+        return result.error();
+    }
+
+    // 如果区块纹理图集已经创建，设置实体管线的纹理
+    if (m_chunkTextureAtlas.isValid()) {
+        m_entityPipeline->setTextureAtlas(
+            m_chunkTextureAtlas.texture().imageView(),
+            m_chunkTextureAtlas.texture().sampler());
+    }
+
+    // 初始化实体渲染器管理器
+    m_entityRendererManager = std::make_unique<renderer::EntityRendererManager>();
+    m_entityRendererManager->setPipeline(m_entityPipeline.get());
+    m_entityRendererManager->initializeDefaults();
+
+    m_entityRendererInitialized = true;
+    spdlog::info("Entity pipeline created successfully");
+    return Result<void>::ok();
+}
+
+void VulkanRenderer::destroyEntityResources() {
+    if (!m_entityRendererInitialized) {
+        return;
+    }
+
+    m_entityRendererManager.reset();
+    m_entityPipeline.reset();
+    m_entityRendererInitialized = false;
+    spdlog::info("Entity resources destroyed");
 }
 
 } // namespace mc::client

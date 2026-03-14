@@ -68,6 +68,7 @@ private:
                 .size(0.9f, 0.9f)
                 .trackingRange(10)
                 .updateInterval(3)
+                .canSummon(true)
                 .build()
         );
 
@@ -78,6 +79,7 @@ private:
                 .size(0.9f, 1.4f)
                 .trackingRange(10)
                 .updateInterval(3)
+                .canSummon(true)
                 .build()
         );
 
@@ -88,6 +90,7 @@ private:
                 .size(0.9f, 1.3f)
                 .trackingRange(10)
                 .updateInterval(3)
+                .canSummon(true)
                 .build()
         );
 
@@ -98,6 +101,7 @@ private:
                 .size(0.4f, 0.7f)
                 .trackingRange(10)
                 .updateInterval(3)
+                .canSummon(true)
                 .build()
         );
 
@@ -108,6 +112,7 @@ private:
                 .size(0.25f, 0.25f)
                 .trackingRange(4)
                 .updateInterval(20)
+                .canSummon(true)
                 .build()
         );
 

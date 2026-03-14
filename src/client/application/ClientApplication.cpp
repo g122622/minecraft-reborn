@@ -365,6 +365,13 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         }
     });
 
+    // 设置实体渲染回调
+    m_renderer->setEntityRenderCallback([this](VkCommandBuffer cmd, f32 partialTick) {
+        m_world.entityManager().forEachEntity([&](client::ClientEntity& entity) {
+            m_renderer->entityRendererManager().renderWithPipeline(cmd, entity, partialTick);
+        });
+    });
+
     // 初始化方块碰撞注册表
     spdlog::info("Initializing block collision registry...");
 
@@ -804,6 +811,13 @@ void ClientApplication::update(f32 deltaTime)
     // 更新世界（根据相机位置加载/卸载区块）
     m_world.update(m_camera.position(), m_settings.renderDistance.get());
 
+    // 更新客户端实体（每tick调用）
+    m_world.entityManager().tick();
+
+    // 更新实体动画状态（用于渲染插值）
+    constexpr f32 partialTick = 0.0f;  // TODO: 从主循环获取实际的部分tick
+    m_world.entityManager().updateAnimations(partialTick);
+
     // 处理异步网格构建结果
     m_world.processMeshBuildResults(4);  // 每帧最多处理 4 个网格
 
@@ -1144,6 +1158,88 @@ void ClientApplication::setupNetworkCallbacks()
                 }
             }
         }
+    };
+
+    // ========== 实体事件回调 ==========
+    callbacks.onSpawnMob = [this](u32 entityId, const String& typeId,
+                                   f32 x, f32 y, f32 z,
+                                   f32 yaw, f32 pitch, f32 headYaw) {
+        auto* entity = m_world.entityManager().spawnEntity(
+            static_cast<EntityId>(entityId), typeId);
+        if (entity) {
+            entity->setPosition(x, y, z);
+            entity->setRotation(yaw, pitch);
+            entity->setHeadRotation(headYaw);
+            spdlog::info("Client received SpawnMob: {} (ID: {}) at ({:.1f}, {:.1f}, {:.1f})",
+                          typeId, entityId, x, y, z);
+        }
+    };
+
+    callbacks.onSpawnEntity = [this](u32 entityId, const String& typeId,
+                                      f32 x, f32 y, f32 z,
+                                      f32 yaw, f32 pitch) {
+        auto* entity = m_world.entityManager().spawnEntity(
+            static_cast<EntityId>(entityId), typeId);
+        if (entity) {
+            entity->setPosition(x, y, z);
+            entity->setRotation(yaw, pitch);
+            spdlog::info("Client received SpawnEntity: {} (ID: {}) at ({:.1f}, {:.1f}, {:.1f})",
+                          typeId, entityId, x, y, z);
+        }
+    };
+
+    callbacks.onEntityDestroy = [this](const std::vector<u32>& entityIds) {
+        for (u32 id : entityIds) {
+            m_world.entityManager().removeEntity(static_cast<EntityId>(id));
+            spdlog::debug("Destroyed entity {}", id);
+        }
+    };
+
+    callbacks.onEntityMove = [this](u32 entityId, f32 dx, f32 dy, f32 dz) {
+        auto* entity = m_world.entityManager().getEntity(static_cast<EntityId>(entityId));
+        if (entity) {
+            entity->setTargetPosition(
+                entity->x() + dx,
+                entity->y() + dy,
+                entity->z() + dz);
+        }
+    };
+
+    callbacks.onEntityTeleport = [this](u32 entityId, f32 x, f32 y, f32 z,
+                                         f32 yaw, f32 pitch) {
+        auto* entity = m_world.entityManager().getEntity(static_cast<EntityId>(entityId));
+        if (entity) {
+            entity->setPosition(x, y, z);
+            entity->setRotation(yaw, pitch);
+        }
+    };
+
+    callbacks.onEntityVelocity = [this](u32 entityId, i16 vx, i16 vy, i16 vz) {
+        auto* entity = m_world.entityManager().getEntity(static_cast<EntityId>(entityId));
+        if (entity) {
+            // 速度单位转换: 1/8000 block/tick -> block/tick
+            entity->setVelocity(
+                static_cast<f32>(vx) / 8000.0f,
+                static_cast<f32>(vy) / 8000.0f,
+                static_cast<f32>(vz) / 8000.0f);
+        }
+    };
+
+    callbacks.onEntityHeadLook = [this](u32 entityId, f32 headYaw) {
+        auto* entity = m_world.entityManager().getEntity(static_cast<EntityId>(entityId));
+        if (entity) {
+            entity->setHeadRotation(headYaw);
+        }
+    };
+
+    callbacks.onEntityAnimation = [this](u32 entityId, u8 /*animation*/) {
+        // TODO: 处理实体动画（挥手等）
+        (void)entityId;
+    };
+
+    callbacks.onEntityStatus = [this](u32 entityId, u8 /*status*/) {
+        // TODO: 处理实体状态（受伤、死亡等）
+        (void)entityId;
     };
 
     m_networkClient->setCallbacks(callbacks);

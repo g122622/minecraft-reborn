@@ -481,6 +481,29 @@ enum class Operation : u8 {
 - 函数参数超过5个时，考虑使用配置结构体
 - 使用枚举或类型安全的标识符替代原始字符串比较
 
+### Shader 路径解析
+
+使用 `resolveShaderPath()` 工具函数来解析 shader 文件路径，它会自动搜索多个可能的位置：
+
+```cpp
+#include "renderer/ShaderPath.hpp"
+
+// 使用方式
+const auto vertPath = resolveShaderPath("entity.vert.spv");
+const auto fragPath = resolveShaderPath("entity.frag.spv");
+if (vertPath.empty() || fragPath.empty()) {
+    return Error(ErrorCode::FileNotFound, "Failed to resolve shader binaries");
+}
+config.vertexShaderPath = vertPath.string();
+config.fragmentShaderPath = fragPath.string();
+```
+
+搜索顺序包括：
+1. `当前目录/build/shaders/`
+2. `当前目录/shaders/`
+3. `当前目录/bin/shaders/`
+4. 向上级目录递归搜索
+
 ### Vulkan单次命令模式
 
 当需要在多个地方执行单次Vulkan命令时，使用以下模式：

@@ -17,6 +17,8 @@
 #include "../resource/ResourceManager.hpp"
 #include "../resource/ItemTextureAtlas.hpp"
 #include "item/ItemRenderer.hpp"
+#include "entity/EntityRendererManager.hpp"
+#include "entity/EntityPipeline.hpp"
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <functional>
@@ -24,6 +26,11 @@
 
 // 前置声明
 struct GLFWwindow;
+
+namespace mc::client::renderer {
+    class EntityRendererManager;
+    class EntityPipeline;
+}
 
 namespace mc::client {
 
@@ -44,6 +51,9 @@ struct FrameSync {
 
 // GUI渲染回调类型
 using GuiRenderCallback = std::function<void()>;
+
+// 实体渲染回调类型
+using EntityRenderCallback = std::function<void(VkCommandBuffer, f32)>;
 
 // 渲染器
 class VulkanRenderer {
@@ -133,6 +143,23 @@ public:
      * @return 成功或错误
      */
     [[nodiscard]] Result<void> initializeItemRenderer(ResourceManager* resourceManager);
+
+    /**
+     * @brief 设置实体渲染回调
+     * 回调会在每帧的实体渲染阶段被调用，用于渲染实体
+     */
+    void setEntityRenderCallback(EntityRenderCallback callback) { m_entityRenderCallback = std::move(callback); }
+
+    /**
+     * @brief 获取实体渲染器管理器
+     */
+    renderer::EntityRendererManager& entityRendererManager() { return *m_entityRendererManager; }
+    const renderer::EntityRendererManager& entityRendererManager() const { return *m_entityRendererManager; }
+
+    /**
+     * @brief 检查实体渲染器是否已初始化
+     */
+    bool isEntityRendererInitialized() const { return m_entityRendererInitialized; }
 
     // 状态
     bool isInitialized() const { return m_initialized; }
@@ -235,6 +262,12 @@ private:
     // GUI渲染回调
     GuiRenderCallback m_guiRenderCallback;
 
+    // 实体渲染
+    std::unique_ptr<EntityPipeline> m_entityPipeline;
+    std::unique_ptr<renderer::EntityRendererManager> m_entityRendererManager;
+    bool m_entityRendererInitialized = false;
+    EntityRenderCallback m_entityRenderCallback;
+
     // 创建函数
     [[nodiscard]] Result<void> createRenderPass();
     [[nodiscard]] Result<void> createDepthResources();
@@ -249,6 +282,7 @@ private:
     [[nodiscard]] Result<void> createChunkPipeline();
     [[nodiscard]] Result<void> createChunkTextureAtlas();
     [[nodiscard]] Result<void> createGuiRenderer();
+    [[nodiscard]] Result<void> createEntityPipeline();
 
     void destroyRenderPass();
     void destroyDepthResources();
@@ -259,6 +293,7 @@ private:
     void destroyDescriptors();
     void destroyChunkResources();
     void destroyGuiResources();
+    void destroyEntityResources();
 
     // 辅助函数
     [[nodiscard]] Result<void> recreateSwapchain();
@@ -266,6 +301,7 @@ private:
 
     // 渲染函数
     void renderChunks(VkCommandBuffer cmd);
+    void renderEntities(VkCommandBuffer cmd);
     void renderGui(VkCommandBuffer cmd);
 };
 

@@ -70,6 +70,9 @@ add_executable(mc_tests
     common/perfetto/PerfettoTest.cpp
     # 射线检测测试
     common/math/RaycastTest.cpp
+    # 实体生成回调测试
+    server/ServerChunkManagerCallbackTest.cpp
+    common/world/EntityManagerSpawnTest.cpp
 )
 
 # 添加服务端源文件
