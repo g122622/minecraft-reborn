@@ -10,6 +10,7 @@
 #include "common/perfetto/TraceEvents.hpp"
 #include <algorithm>
 #include <cmath>
+#include <mutex>
 #include <spdlog/spdlog.h>
 
 namespace mc {
@@ -686,12 +687,11 @@ void NoiseChunkGenerator::applyCarvers(WorldGenRegion& /*region*/, ChunkPrimer& 
 void NoiseChunkGenerator::placeFeatures(WorldGenRegion& region, ChunkPrimer& chunk)
 {
     MC_TRACE_EVENT("world.chunk_gen", "PlaceFeatures", "x", chunk.x(), "z", chunk.z());
-    // 初始化特征注册表（首次调用时）
-    static bool s_featuresInitialized = false;
-    if (!s_featuresInitialized) {
+    // 初始化特征注册表（线程安全，仅初始化一次）
+    static std::once_flag s_featureRegistryInitFlag;
+    std::call_once(s_featureRegistryInitFlag, []() {
         FeatureRegistry::instance().initialize();
-        s_featuresInitialized = true;
-    }
+    });
 
     // 获取区块中心位置的主要生物群系
     const BiomeId biomeId = chunk.getBiomeAtBlock(8, 64, 8);
