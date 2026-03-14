@@ -5,26 +5,58 @@
 
 namespace mc::world {
 
+namespace {
+inline i32 clampLevel(i32 level) {
+    return std::clamp(level, 0, ChunkDistanceGraph::MAX_LEVEL);
+}
+} // namespace
+
 // ============================================================================
 // ChunkDistanceGraph 实现
 // ============================================================================
 
 void ChunkDistanceGraph::updateSourceLevel(ChunkCoord x, ChunkCoord z, i32 level, bool isDecreasing) {
-    m_updateQueue.emplace(x, z, level, isDecreasing);
+    const u64 key = posToKey(x, z);
+    const i32 clampedLevel = clampLevel(level);
+
+    auto sourceIt = m_sourceLevels.find(key);
+    const i32 oldSourceLevel = (sourceIt != m_sourceLevels.end()) ? sourceIt->second : MAX_LEVEL;
+    i32 newSourceLevel = oldSourceLevel;
+
+    if (isDecreasing) {
+        // 仅允许降低（更重要）
+        newSourceLevel = std::min(oldSourceLevel, clampedLevel);
+    } else {
+        // 允许升高/移除
+        newSourceLevel = clampedLevel;
+    }
+
+    if (newSourceLevel >= MAX_LEVEL) {
+        if (sourceIt != m_sourceLevels.end()) {
+            m_sourceLevels.erase(sourceIt);
+            enqueueUpdate(x, z);
+        }
+        return;
+    }
+
+    if (sourceIt == m_sourceLevels.end() || sourceIt->second != newSourceLevel) {
+        m_sourceLevels[key] = newSourceLevel;
+        enqueueUpdate(x, z);
+    }
 }
 
 i32 ChunkDistanceGraph::processUpdates(i32 maxToProcess) {
     i32 processed = 0;
 
     while (!m_updateQueue.empty() && processed < maxToProcess) {
-        auto [x, z, level, isDecreasing] = m_updateQueue.front();
+        const u64 key = m_updateQueue.front();
         m_updateQueue.pop();
+        m_pendingKeys.erase(key);
         ++processed;
 
-        (void)level;
-        (void)isDecreasing;
-
-        u64 key = posToKey(x, z);
+        ChunkCoord x = 0;
+        ChunkCoord z = 0;
+        keyToPos(key, x, z);
         const i32 currentLevel = getLevel(x, z);
 
         // 重新计算该区块的最优级别：
@@ -62,7 +94,7 @@ i32 ChunkDistanceGraph::processUpdates(i32 maxToProcess) {
 
         onLevelChanged(x, z, currentLevel, recomputedLevel);
 
-        // 当前节点级别变化后，邻居的最优值可能也会变化，统一重新入队。
+        // 当前节点级别变化后，邻居的最优值可能也会变化。
         propagateToNeighbors(x, z, recomputedLevel, recomputedLevel < currentLevel);
     }
 
@@ -80,16 +112,19 @@ i32 ChunkDistanceGraph::getLevel(ChunkCoord x, ChunkCoord z) const {
 
 void ChunkDistanceGraph::clear() {
     m_levels.clear();
+    m_sourceLevels.clear();
+    m_pendingKeys.clear();
     while (!m_updateQueue.empty()) {
         m_updateQueue.pop();
     }
 }
 
 i32 ChunkDistanceGraph::getSourceLevel(ChunkCoord x, ChunkCoord z) const {
-    // 默认实现：检查当前位置是否有票据
-    // 子类可以重写此方法以提供票据源
-    (void)x;
-    (void)z;
+    const u64 key = posToKey(x, z);
+    auto it = m_sourceLevels.find(key);
+    if (it != m_sourceLevels.end()) {
+        return it->second;
+    }
     return MAX_LEVEL;
 }
 
@@ -114,12 +149,22 @@ void ChunkDistanceGraph::propagateToNeighbors(ChunkCoord x, ChunkCoord z, i32 le
         propagatedLevel = MAX_LEVEL;
     }
 
+    (void)propagatedLevel;
+    (void)isDecreasing;
+
     for (i32 i = 0; i < 4; ++i) {
         ChunkCoord nx = neighbors[i].x;
         ChunkCoord nz = neighbors[i].z;
 
         // 无论升/降级，邻居都可能依赖当前节点，统一触发重计算。
-        m_updateQueue.emplace(nx, nz, propagatedLevel, isDecreasing);
+        enqueueUpdate(nx, nz);
+    }
+}
+
+void ChunkDistanceGraph::enqueueUpdate(ChunkCoord x, ChunkCoord z) {
+    const u64 key = posToKey(x, z);
+    if (m_pendingKeys.insert(key).second) {
+        m_updateQueue.push(key);
     }
 }
 
