@@ -196,6 +196,7 @@ add_library(mc_common STATIC
 
     # Physics
     physics/PhysicsEngine.cpp
+    physics/CollisionCache.cpp
     # physics/collision/BlockCollision.cpp  # 已移除 - 使用新的方块系统
 
     # Resource

@@ -26,6 +26,10 @@ public:
     [[nodiscard]] u8 getSkyLight(i32, i32, i32) const override { return 15; }
     [[nodiscard]] bool hasBlockCollision(const AxisAlignedBB&) const override { return false; }
     [[nodiscard]] std::vector<AxisAlignedBB> getBlockCollisions(const AxisAlignedBB&) const override { return {}; }
+    [[nodiscard]] bool hasEntityCollision(const AxisAlignedBB&, const Entity*) const override { return false; }
+    [[nodiscard]] std::vector<AxisAlignedBB> getEntityCollisions(const AxisAlignedBB&, const Entity*) const override { return {}; }
+    [[nodiscard]] PhysicsEngine* physicsEngine() override { return nullptr; }
+    [[nodiscard]] const PhysicsEngine* physicsEngine() const override { return nullptr; }
     [[nodiscard]] std::vector<Entity*> getEntitiesInAABB(const AxisAlignedBB&, const Entity*) const override { return {}; }
     [[nodiscard]] std::vector<Entity*> getEntitiesInRange(const Vector3&, f32, const Entity*) const override { return {}; }
     [[nodiscard]] DimensionId dimension() const override { return DimensionId(0); }

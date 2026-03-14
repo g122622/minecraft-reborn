@@ -75,6 +75,10 @@ add_executable(mc_tests
     # 实体生成回调测试
     server/ServerChunkManagerCallbackTest.cpp
     common/world/EntityManagerSpawnTest.cpp
+    # 碰撞缓存测试
+    physics/CollisionCacheTests.cpp
+    # ServerWorld 碰撞检测测试
+    server/ServerWorldCollisionTests.cpp
 )
 
 # 添加服务端源文件
@@ -162,6 +166,7 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/common/entity/Player.cpp
         ${CMAKE_SOURCE_DIR}/src/common/entity/Entity.cpp
         ${CMAKE_SOURCE_DIR}/src/common/physics/PhysicsEngine.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/physics/CollisionCache.cpp
         # ${CMAKE_SOURCE_DIR}/src/common/physics/collision/BlockCollision.cpp  # 已移除 - 使用新的方块系统
         # 新的方块系统源文件
         ${CMAKE_SOURCE_DIR}/src/common/world/block/Material.cpp

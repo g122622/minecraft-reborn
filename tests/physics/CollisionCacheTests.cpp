@@ -1,0 +1,232 @@
+#include <gtest/gtest.h>
+#include "physics/CollisionCache.hpp"
+
+using namespace mc;
+using namespace mc::physics;
+
+/**
+ * @brief CollisionCache 单元测试
+ *
+ * 测试碰撞箱缓存系统的基本功能：
+ * - 缓存存储和检索
+ * - 缓存失效
+ * - 统计信息
+ */
+class CollisionCacheTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        cache = std::make_unique<CollisionCache>();
+    }
+
+    void TearDown() override {
+        cache.reset();
+    }
+
+    std::unique_ptr<CollisionCache> cache;
+};
+
+// ========== 基本缓存操作测试 ==========
+
+TEST_F(CollisionCacheTest, CacheAndRetrieve) {
+    // 创建测试碰撞箱
+    std::vector<AxisAlignedBB> boxes = {
+        AxisAlignedBB(0, 0, 0, 1, 1, 1),
+        AxisAlignedBB(5, 0, 5, 6, 1, 6)
+    };
+
+    // 缓存碰撞箱
+    cache->cacheChunkCollisionBoxes(0, 0, std::move(boxes));
+
+    // 检索缓存
+    const auto* cached = cache->getChunkCollisionBoxes(0, 0);
+    ASSERT_NE(cached, nullptr);
+    EXPECT_EQ(cached->size(), 2);
+    EXPECT_EQ((*cached)[0], AxisAlignedBB(0, 0, 0, 1, 1, 1));
+    EXPECT_EQ((*cached)[1], AxisAlignedBB(5, 0, 5, 6, 1, 6));
+}
+
+TEST_F(CollisionCacheTest, CacheCopy) {
+    std::vector<AxisAlignedBB> boxes = {
+        AxisAlignedBB(0, 0, 0, 1, 1, 1)
+    };
+
+    // 使用拷贝版本
+    cache->cacheChunkCollisionBoxes(1, 2, boxes);
+
+    // 验证原始数据仍然存在
+    EXPECT_EQ(boxes.size(), 1);
+
+    // 检索缓存
+    const auto* cached = cache->getChunkCollisionBoxes(1, 2);
+    ASSERT_NE(cached, nullptr);
+    EXPECT_EQ(cached->size(), 1);
+}
+
+TEST_F(CollisionCacheTest, RetrieveNonExistent) {
+    const auto* cached = cache->getChunkCollisionBoxes(999, 999);
+    EXPECT_EQ(cached, nullptr);
+
+    // 检查统计
+    EXPECT_EQ(cache->missCount(), 1);
+    EXPECT_EQ(cache->hitCount(), 0);
+}
+
+TEST_F(CollisionCacheTest, MultipleChunks) {
+    // 缓存多个区块
+    for (int i = 0; i < 5; ++i) {
+        std::vector<AxisAlignedBB> boxes = {
+            AxisAlignedBB(i * 16, 0, i * 16, i * 16 + 16, 256, i * 16 + 16)
+        };
+        cache->cacheChunkCollisionBoxes(i, i, std::move(boxes));
+    }
+
+    // 验证所有区块都能检索
+    for (int i = 0; i < 5; ++i) {
+        const auto* cached = cache->getChunkCollisionBoxes(i, i);
+        ASSERT_NE(cached, nullptr);
+        EXPECT_EQ(cached->size(), 1);
+    }
+
+    EXPECT_EQ(cache->size(), 5);
+}
+
+// ========== 缓存失效测试 ==========
+
+TEST_F(CollisionCacheTest, InvalidateSingle) {
+    std::vector<AxisAlignedBB> boxes = { AxisAlignedBB(0, 0, 0, 1, 1, 1) };
+    cache->cacheChunkCollisionBoxes(0, 0, std::move(boxes));
+
+    EXPECT_EQ(cache->size(), 1);
+
+    // 使缓存失效
+    bool result = cache->invalidateChunk(0, 0);
+    EXPECT_TRUE(result);
+    EXPECT_EQ(cache->size(), 0);
+
+    // 再次检索应该返回 nullptr
+    const auto* cached = cache->getChunkCollisionBoxes(0, 0);
+    EXPECT_EQ(cached, nullptr);
+}
+
+TEST_F(CollisionCacheTest, InvalidateNonExistent) {
+    bool result = cache->invalidateChunk(999, 999);
+    EXPECT_FALSE(result);
+}
+
+TEST_F(CollisionCacheTest, InvalidateAndNeighbors) {
+    // 缓存中心区块及其邻居
+    for (int dx = -2; dx <= 2; ++dx) {
+        for (int dz = -2; dz <= 2; ++dz) {
+            std::vector<AxisAlignedBB> boxes = { AxisAlignedBB(dx, 0, dz, dx + 1, 1, dz + 1) };
+            cache->cacheChunkCollisionBoxes(dx, dz, std::move(boxes));
+        }
+    }
+
+    EXPECT_EQ(cache->size(), 25);
+
+    // 使 (0, 0) 及其邻居失效（半径 1）
+    cache->invalidateChunkAndNeighbors(0, 0, 1);
+
+    // 应该失效 9 个区块：(-1,-1) 到 (1,1)
+    EXPECT_EQ(cache->size(), 25 - 9);
+
+    // 验证失效的区块
+    for (int dx = -1; dx <= 1; ++dx) {
+        for (int dz = -1; dz <= 1; ++dz) {
+            const auto* cached = cache->getChunkCollisionBoxes(dx, dz);
+            EXPECT_EQ(cached, nullptr) << "Chunk (" << dx << ", " << dz << ") should be invalidated";
+        }
+    }
+
+    // 验证未失效的区块
+    const auto* cached = cache->getChunkCollisionBoxes(2, 2);
+    ASSERT_NE(cached, nullptr);
+    EXPECT_EQ(cached->size(), 1);
+}
+
+TEST_F(CollisionCacheTest, ClearAll) {
+    for (int i = 0; i < 10; ++i) {
+        std::vector<AxisAlignedBB> boxes = { AxisAlignedBB(i, 0, i, i + 1, 1, i + 1) };
+        cache->cacheChunkCollisionBoxes(i, i, std::move(boxes));
+    }
+
+    EXPECT_EQ(cache->size(), 10);
+
+    cache->clear();
+
+    EXPECT_EQ(cache->size(), 0);
+    EXPECT_TRUE(cache->empty());
+}
+
+// ========== 统计测试 ==========
+
+TEST_F(CollisionCacheTest, HitMissStats) {
+    std::vector<AxisAlignedBB> boxes = { AxisAlignedBB(0, 0, 0, 1, 1, 1) };
+    cache->cacheChunkCollisionBoxes(0, 0, std::move(boxes));
+
+    // 命中
+    cache->getChunkCollisionBoxes(0, 0);
+    cache->getChunkCollisionBoxes(0, 0);
+    EXPECT_EQ(cache->hitCount(), 2);
+
+    // 未命中
+    cache->getChunkCollisionBoxes(1, 1);
+    cache->getChunkCollisionBoxes(2, 2);
+    EXPECT_EQ(cache->missCount(), 2);
+
+    // 重置统计
+    cache->resetStats();
+    EXPECT_EQ(cache->hitCount(), 0);
+    EXPECT_EQ(cache->missCount(), 0);
+}
+
+// ========== 版本号测试 ==========
+
+TEST_F(CollisionCacheTest, VersionNumber) {
+    std::vector<AxisAlignedBB> boxes = { AxisAlignedBB(0, 0, 0, 1, 1, 1) };
+    cache->cacheChunkCollisionBoxes(0, 0, std::move(boxes), 42);
+
+    const auto* cacheEntry = cache->getChunkCache(0, 0);
+    ASSERT_NE(cacheEntry, nullptr);
+    EXPECT_EQ(cacheEntry->version, 42);
+    EXPECT_EQ(cacheEntry->boxes.size(), 1);
+}
+
+// ========== 负坐标测试 ==========
+
+TEST_F(CollisionCacheTest, NegativeCoordinates) {
+    std::vector<AxisAlignedBB> boxes = { AxisAlignedBB(-16, 0, -16, -15, 1, -15) };
+    cache->cacheChunkCollisionBoxes(-1, -1, std::move(boxes));
+
+    const auto* cached = cache->getChunkCollisionBoxes(-1, -1);
+    ASSERT_NE(cached, nullptr);
+    EXPECT_EQ(cached->size(), 1);
+}
+
+// ========== 空碰撞箱列表测试 ==========
+
+TEST_F(CollisionCacheTest, EmptyBoxList) {
+    std::vector<AxisAlignedBB> boxes;  // 空列表
+    cache->cacheChunkCollisionBoxes(0, 0, std::move(boxes));
+
+    const auto* cached = cache->getChunkCollisionBoxes(0, 0);
+    ASSERT_NE(cached, nullptr);
+    EXPECT_EQ(cached->size(), 0);
+}
+
+// ========== 大量数据测试 ==========
+
+TEST_F(CollisionCacheTest, LargeNumberOfBoxes) {
+    // 创建大量碰撞箱
+    std::vector<AxisAlignedBB> boxes;
+    for (int i = 0; i < 1000; ++i) {
+        boxes.emplace_back(i % 16, i / 256, (i / 16) % 16,
+                           (i % 16) + 1, (i / 256) + 1, ((i / 16) % 16) + 1);
+    }
+
+    cache->cacheChunkCollisionBoxes(0, 0, std::move(boxes));
+
+    const auto* cached = cache->getChunkCollisionBoxes(0, 0);
+    ASSERT_NE(cached, nullptr);
+    EXPECT_EQ(cached->size(), 1000);
+}

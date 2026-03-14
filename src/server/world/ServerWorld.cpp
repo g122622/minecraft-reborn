@@ -6,8 +6,10 @@
 #include "common/network/IServerConnection.hpp"
 #include "common/network/Packet.hpp"
 #include "common/network/PacketSerializer.hpp"
+#include "common/physics/collision/CollisionShape.hpp"
 #include <chrono>
 #include <spdlog/spdlog.h>
+#include <cmath>
 
 namespace mc::server {
 
@@ -66,9 +68,16 @@ Result<void> ServerWorld::initialize() {
     }
 
     m_chunkSyncManager.setDefaultViewDistance(m_config.viewDistance);
+
+    // 创建碰撞缓存
+    m_collisionCache = std::make_unique<physics::CollisionCache>();
+
+    // 创建物理引擎（ServerWorld 实现了 ICollisionWorld）
+    m_physicsEngine = std::make_unique<PhysicsEngine>(*this);
+
     m_initialized = true;
 
-    spdlog::info("Server world initialized");
+    spdlog::info("Server world initialized with physics engine");
     return Result<void>::ok();
 }
 
@@ -76,6 +85,10 @@ void ServerWorld::shutdown() {
     spdlog::info("Shutting down server world...");
 
     m_initialized = false;
+
+    // 清除物理引擎和碰撞缓存
+    m_physicsEngine.reset();
+    m_collisionCache.reset();
 
     if (m_chunkManager) {
         m_chunkManager->shutdown();
@@ -642,14 +655,133 @@ u8 ServerWorld::getSkyLight(i32 /*x*/, i32 /*y*/, i32 /*z*/) const {
     return 15;
 }
 
-bool ServerWorld::hasBlockCollision(const AxisAlignedBB& /*box*/) const {
-    // TODO: 实现碰撞检测
+// ============================================================================
+// 碰撞检测
+// ============================================================================
+
+bool ServerWorld::hasBlockCollision(const AxisAlignedBB& box) const {
+    // 计算 AABB 覆盖的区块范围
+    ChunkCoord minChunkX = blockToChunk(box.minX);
+    ChunkCoord maxChunkX = blockToChunk(box.maxX);
+    ChunkCoord minChunkZ = blockToChunk(box.minZ);
+    ChunkCoord maxChunkZ = blockToChunk(box.maxZ);
+
+    // 遍历所有覆盖的区块
+    for (ChunkCoord cz = minChunkZ; cz <= maxChunkZ; ++cz) {
+        for (ChunkCoord cx = minChunkX; cx <= maxChunkX; ++cx) {
+            const ChunkData* chunk = getChunk(cx, cz);
+            if (!chunk) continue;
+
+            // 计算区块内的 Y 范围
+            i32 minY = std::max(0, static_cast<i32>(std::floor(box.minY)));
+            i32 maxY = std::min(255, static_cast<i32>(std::ceil(box.maxY)));
+
+            // 遍历区块内的方块
+            for (i32 y = minY; y <= maxY; ++y) {
+                for (i32 z = 0; z < 16; ++z) {
+                    for (i32 x = 0; x < 16; ++x) {
+                        // 计算世界坐标
+                        i32 wx = cx * 16 + x;
+                        i32 wz = cz * 16 + z;
+
+                        // 检查是否在 AABB 范围内
+                        if (wx + 1 < box.minX || wx > box.maxX ||
+                            wz + 1 < box.minZ || wz > box.maxZ) {
+                            continue;
+                        }
+
+                        const BlockState* state = chunk->getBlock(x, y, z);
+                        if (!state || state->isAir()) continue;
+
+                        const CollisionShape& shape = state->getCollisionShape();
+                        if (shape.isEmpty()) continue;
+
+                        // 检测碰撞
+                        if (shape.intersects(box, wx, y, wz)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     return false;
 }
 
-std::vector<AxisAlignedBB> ServerWorld::getBlockCollisions(const AxisAlignedBB& /*box*/) const {
-    // TODO: 实现碰撞检测
-    return {};
+std::vector<AxisAlignedBB> ServerWorld::getBlockCollisions(const AxisAlignedBB& box) const {
+    std::vector<AxisAlignedBB> collisions;
+
+    // 计算 AABB 覆盖的区块范围
+    ChunkCoord minChunkX = blockToChunk(box.minX);
+    ChunkCoord maxChunkX = blockToChunk(box.maxX);
+    ChunkCoord minChunkZ = blockToChunk(box.minZ);
+    ChunkCoord maxChunkZ = blockToChunk(box.maxZ);
+
+    // 遍历所有覆盖的区块
+    for (ChunkCoord cz = minChunkZ; cz <= maxChunkZ; ++cz) {
+        for (ChunkCoord cx = minChunkX; cx <= maxChunkX; ++cx) {
+            const ChunkData* chunk = getChunk(cx, cz);
+            if (!chunk) continue;
+
+            // 计算区块内的 Y 范围
+            i32 minY = std::max(0, static_cast<i32>(std::floor(box.minY)));
+            i32 maxY = std::min(255, static_cast<i32>(std::ceil(box.maxY)));
+
+            // 遍历区块内的方块
+            for (i32 y = minY; y <= maxY; ++y) {
+                for (i32 z = 0; z < 16; ++z) {
+                    for (i32 x = 0; x < 16; ++x) {
+                        // 计算世界坐标
+                        i32 wx = cx * 16 + x;
+                        i32 wz = cz * 16 + z;
+
+                        // 检查是否在 AABB 范围内
+                        if (wx + 1 < box.minX || wx > box.maxX ||
+                            wz + 1 < box.minZ || wz > box.maxZ) {
+                            continue;
+                        }
+
+                        const BlockState* state = chunk->getBlock(x, y, z);
+                        if (!state || state->isAir()) continue;
+
+                        const CollisionShape& shape = state->getCollisionShape();
+                        if (shape.isEmpty()) continue;
+
+                        // 获取碰撞箱
+                        auto worldBoxes = shape.getWorldBoxes(wx, y, wz);
+                        for (const auto& worldBox : worldBoxes) {
+                            if (box.intersects(worldBox)) {
+                                collisions.push_back(worldBox);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return collisions;
+}
+
+bool ServerWorld::hasEntityCollision(const AxisAlignedBB& box, const Entity* except) const {
+    auto entities = m_entityManager.getEntitiesInAABB(box, except);
+    return !entities.empty();
+}
+
+std::vector<AxisAlignedBB> ServerWorld::getEntityCollisions(
+    const AxisAlignedBB& box, const Entity* except) const {
+
+    std::vector<AxisAlignedBB> collisions;
+
+    auto entities = m_entityManager.getEntitiesInAABB(box, except);
+    collisions.reserve(entities.size());
+
+    for (const Entity* entity : entities) {
+        collisions.push_back(entity->boundingBox());
+    }
+
+    return collisions;
 }
 
 std::vector<Entity*> ServerWorld::getEntitiesInAABB(const AxisAlignedBB& box, const Entity* except) const {
@@ -658,6 +790,22 @@ std::vector<Entity*> ServerWorld::getEntitiesInAABB(const AxisAlignedBB& box, co
 
 std::vector<Entity*> ServerWorld::getEntitiesInRange(const Vector3& pos, f32 range, const Entity* except) const {
     return m_entityManager.getEntitiesInRange(pos, range, except);
+}
+
+// ============================================================================
+// 碰撞缓存
+// ============================================================================
+
+void ServerWorld::invalidateCollisionCache(ChunkCoord chunkX, ChunkCoord chunkZ) {
+    if (m_collisionCache) {
+        m_collisionCache->invalidateChunkAndNeighbors(chunkX, chunkZ);
+    }
+}
+
+void ServerWorld::clearCollisionCache() {
+    if (m_collisionCache) {
+        m_collisionCache->clear();
+    }
 }
 
 // ============================================================================
