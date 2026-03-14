@@ -401,6 +401,9 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         } else {
             m_debugScreen.setCamera(&m_camera);
             m_debugScreen.setWorld(&m_world);
+            m_debugScreen.setEntityManager(&m_world.entityManager());
+            m_debugScreen.setNetworkClient(m_networkClient.get());
+            m_debugScreen.setRenderDistance(m_settings.renderDistance.get());
 
             // 设置GPU信息
             auto* context = m_renderer->context();
@@ -955,6 +958,7 @@ void ClientApplication::setupSettingCallbacks()
     // 渲染距离变更
     m_settings.renderDistance.onChange([this](i32 value) {
         spdlog::info("Render distance changed to: {}", value);
+        m_debugScreen.setRenderDistance(value);
         // 世界更新时会使用新值
     });
 

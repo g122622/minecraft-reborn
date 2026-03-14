@@ -16,17 +16,17 @@ $env:VCPKG_ROOT = "D:\tools\vcpkg"
 cmake -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=D:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake
 
 # Build
-cmake --build build --config Debug
+# 注：即使在开发过程中，也要尽量使用Release构建，因为Debug运行非常慢，除非必要否则不要用。
 cmake --build build --config Release
 
 # Run tests
-./build/bin/Debug/mc_tests.exe
+./build/bin/Release/mc_tests.exe
 
 # Run server
-./build/bin/Debug/minecraft-server.exe --help
+./build/bin/Release/minecraft-server.exe --help
 
 # Run client
-./build/bin/Debug/minecraft-client.exe
+./build/bin/Release/minecraft-client.exe
 ```
 
 ## Build Options

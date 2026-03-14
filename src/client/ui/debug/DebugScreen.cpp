@@ -240,17 +240,17 @@ void DebugScreen::buildLeftDebugText() {
                 }
 
                 // ========== 本地难度 ==========
-                if (m_gameTime != nullptr) {
-                    i64 dayCount = m_gameTime->dayCount();
-                    i32 moonPhase = CelestialCalculations::calculateMoonPhase(m_gameTime->gameTime());
-                    // 本地难度计算需要 DifficultyManager，当前使用简化公式
-                    f32 localDifficulty = 0.0f; // TODO: 需要 DifficultyManager 实现
-                    oss.str("");
-                    oss << "Local Difficulty: " << std::fixed << std::setprecision(2)
-                        << localDifficulty << " // " << localDifficulty
-                        << " (Day " << dayCount << ", Moon " << moonPhase << ")";
-                    m_leftLines.push_back(oss.str());
-                }
+                // 直接从 m_world 获取时间信息
+                i64 gameTime = m_world->gameTime();
+                i64 dayCount = gameTime / 24000; // TimeConstants::TICKS_PER_DAY
+                i32 moonPhase = CelestialCalculations::calculateMoonPhase(gameTime);
+                // 本地难度计算需要 DifficultyManager，当前使用简化公式
+                f32 localDifficulty = 0.0f; // TODO: 需要 DifficultyManager 实现
+                oss.str("");
+                oss << "Local Difficulty: " << std::fixed << std::setprecision(2)
+                    << localDifficulty << " // " << localDifficulty
+                    << " (Day " << dayCount << ", Moon " << moonPhase << ")";
+                m_leftLines.push_back(oss.str());
             }
         } else {
             m_leftLines.push_back("Outside of world...");

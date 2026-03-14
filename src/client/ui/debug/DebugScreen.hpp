@@ -110,11 +110,6 @@ public:
     void setNetworkClient(NetworkClient* client) { m_networkClient = client; }
 
     /**
-     * @brief 设置游戏时间
-     */
-    void setGameTime(const time::GameTime* gameTime) { m_gameTime = gameTime; }
-
-    /**
      * @brief 设置GPU信息
      * @param info GPU信息
      */
@@ -250,7 +245,6 @@ private:
     const BlockRaycastResult* m_targetBlock = nullptr;
     ClientEntityManager* m_entityManager = nullptr;
     NetworkClient* m_networkClient = nullptr;
-    const time::GameTime* m_gameTime = nullptr;
     Entity* m_playerEntity = nullptr;
 
     bool m_visible = true;
