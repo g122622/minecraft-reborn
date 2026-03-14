@@ -218,7 +218,7 @@ void LayerBiomeProvider::fillBiomeContainer(BiomeContainer& container, ChunkCoor
                 const i32 worldZ = startZ + (bz << 2);
 
                 const BiomeId biome = m_layerStack->sample(worldX, worldZ);
-                container.setBiome(bx << 2, by << 2, bz << 2, biome);
+                container.setBiome(bx, by, bz, biome);
             }
         }
     }
