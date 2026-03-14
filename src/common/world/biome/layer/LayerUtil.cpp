@@ -77,22 +77,13 @@ std::unique_ptr<IAreaFactory> buildOverworldLayers(
     i32 riverSize)
 {
     (void)riverSize; // 暂时未使用
-    (void)legacyBiomeInit; // 暂时未使用
 
     // 创建上下文工厂 - 使用 shared_ptr 保持生命周期
     auto createContext = [seed](u64 modifier) -> std::shared_ptr<LayerContext> {
         return std::make_shared<LayerContext>(1024, seed, modifier);
     };
 
-    // ========================================================================
-    // 参考 MC 1.16.5 LayerUtil.func_237216_a_
-    // 层链构建顺序：
-    // 1. IslandLayer -> FuzzyZoom -> AddIslandLayer -> NormalZoom
-    // 2. AddIslandLayer x3 -> RemoveTooMuchOcean -> AddSnowLayer -> ...
-    // 3. BiomeLayer 之后的最终缩放
-    // ========================================================================
-
-    // 创建源层 - IslandLayer 生成基础陆地/海洋模式
+    // 创建源层
     auto context = createContext(1);
     static layer::IslandLayer islandLayer;
     auto factory = islandLayer.apply(*context);
@@ -102,56 +93,40 @@ std::unique_ptr<IAreaFactory> buildOverworldLayers(
     context = createContext(2000);
     factory = fuzzyZoom.apply(*context, std::move(factory));
 
-    // 应用 AddIslandLayer - 增加岛屿
+    // 应用多个 AddIslandLayer
     static layer::AddIslandLayer addIslandLayer;
     context = createContext(1);
     factory = addIslandLayer.apply(*context, std::move(factory));
 
-    // 第一次普通缩放
+    // 应用普通缩放
     static layer::ZoomLayer normalZoom(layer::ZoomLayer::Mode::Normal);
     context = createContext(2001);
     factory = normalZoom.apply(*context, std::move(factory));
 
-    // 多次 AddIslandLayer - 创建更多岛屿细节
-    context = createContext(2);
-    factory = addIslandLayer.apply(*context, std::move(factory));
-    context = createContext(50);
-    factory = addIslandLayer.apply(*context, std::move(factory));
-    context = createContext(70);
-    factory = addIslandLayer.apply(*context, std::move(factory));
-
-    // 应用 AddSnowLayer - 添加雪地区域
+    // 应用 AddSnowLayer
     static layer::AddSnowLayer addSnowLayer;
     context = createContext(2);
     factory = addSnowLayer.apply(*context, std::move(factory));
 
-    // 两次缩放（MC 原版在这里有 2 次缩放）
-    context = createContext(2002);
-    factory = normalZoom.apply(*context, std::move(factory));
-    context = createContext(2003);
-    factory = normalZoom.apply(*context, std::move(factory));
+    // 更多缩放
+    i32 zoomCount = largeBiomes ? 6 : biomeSize;
+    for (i32 i = 0; i < zoomCount + 4; ++i) {
+        context = createContext(static_cast<u64>(2002 + i));
+        factory = normalZoom.apply(*context, std::move(factory));
+    }
 
-    // 应用 AddIslandLayer - 增加更多岛屿
-    context = createContext(4);
-    factory = addIslandLayer.apply(*context, std::move(factory));
-
-    // 应用 BiomeLayer - 根据温度分配生物群系
+    // 应用 BiomeLayer
     static layer::BiomeLayer biomeLayer(layer::BiomeLayer::Config{legacyBiomeInit});
     context = createContext(200);
     factory = biomeLayer.apply(*context, std::move(factory));
 
-    // ========================================================================
-    // 最终缩放阶段
-    // MC 原版: biomeSize 次缩放（默认 4 次，largeBiomes 是 6 次）
-    // 减少缩放次数可以让生物群系更小
-    // ========================================================================
-    i32 finalZoomCount = largeBiomes ? (biomeSize + 2) : biomeSize;
-    for (i32 i = 0; i < finalZoomCount; ++i) {
-        context = createContext(static_cast<u64>(1000 + i));
+    // 最终缩放
+    for (i32 i = 0; i < zoomCount; ++i) {
+        context = createContext(static_cast<u64>(3000 + i));
         factory = normalZoom.apply(*context, std::move(factory));
     }
 
-    // 应用 SmoothLayer - 平滑边界
+    // 应用 SmoothLayer
     static layer::SmoothLayer smoothLayer;
     context = createContext(1000);
     factory = smoothLayer.apply(*context, std::move(factory));
