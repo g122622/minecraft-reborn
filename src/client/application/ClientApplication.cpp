@@ -1412,16 +1412,16 @@ void ClientApplication::sendBlockInteraction(network::BlockInteractionAction act
                                              Direction face)
 {
     if (!m_networkClient || !m_networkClient->isLoggedIn()) {
-        spdlog::info("[Mining] Skip sending block interaction because client is not logged in");
+        spdlog::debug("[Mining] Skip sending block interaction because client is not logged in");
         return;
     }
 
-    spdlog::info("[Mining] Send action={} pos=({}, {}, {}) face={}",
-                 static_cast<i32>(action),
-                 pos.x,
-                 pos.y,
-                 pos.z,
-                 static_cast<i32>(face));
+    // spdlog::info("[Mining] Send action={} pos=({}, {}, {}) face={}",
+    //              static_cast<i32>(action),
+    //              pos.x,
+    //              pos.y,
+    //              pos.z,
+    //              static_cast<i32>(face));
 
     m_networkClient->sendBlockInteraction(action, pos.x, pos.y, pos.z, face);
 }

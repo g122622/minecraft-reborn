@@ -190,13 +190,13 @@ void ClientWorld::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {
     i32 localX = toLocalCoord(x);
     i32 localZ = toLocalCoord(z);
 
-    spdlog::info("[Mining] ClientWorld setBlock pos=({}, {}, {}) state={} loadedChunk=({}, {})",
-                 x,
-                 y,
-                 z,
-                 state ? state->blockLocation().toString() : String("<null>"),
-                 chunkX,
-                 chunkZ);
+    // spdlog::info("[Mining] ClientWorld setBlock pos=({}, {}, {}) state={} loadedChunk=({}, {})",
+    //              x,
+    //              y,
+    //              z,
+    //              state ? state->blockLocation().toString() : String("<null>"),
+    //              chunkX,
+    //              chunkZ);
 
     chunk->data->setBlock(localX, y, localZ, state);
     chunk->data->setDirty(true);
@@ -415,11 +415,11 @@ void ClientWorld::scheduleChunkMeshRebuild(const ChunkId& id) {
     chunk->needsMeshUpdate = true;
     chunk->meshBuilding = false;
 
-    spdlog::info("[Mining] Rebuilt chunk mesh synchronously for chunk ({}, {}), vertices={}, indices={}",
-                 id.x,
-                 id.z,
-                 chunk->solidMesh.vertexCount(),
-                 chunk->solidMesh.indexCount());
+    // spdlog::info("[Mining] Rebuilt chunk mesh synchronously for chunk ({}, {}), vertices={}, indices={}",
+    //              id.x,
+    //              id.z,
+    //              chunk->solidMesh.vertexCount(),
+    //              chunk->solidMesh.indexCount());
 }
 
 std::array<std::shared_ptr<const ChunkData>, 6> ClientWorld::getNeighborChunkData(const ChunkId& id) {

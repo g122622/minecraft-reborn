@@ -672,15 +672,15 @@ void IntegratedServer::handleBlockInteraction(const u8* data, size_t size) {
     }
 
     const auto& packet = result.value();
-    spdlog::info("[Mining] Server received action={} pos=({}, {}, {}) face={} playerPos=({}, {}, {})",
-                 static_cast<i32>(packet.action()),
-                 packet.x(),
-                 packet.y(),
-                 packet.z(),
-                 static_cast<i32>(packet.face()),
-                 player->x,
-                 player->y,
-                 player->z);
+    // spdlog::info("[Mining] Server received action={} pos=({}, {}, {}) face={} playerPos=({}, {}, {})",
+    //              static_cast<i32>(packet.action()),
+    //              packet.x(),
+    //              packet.y(),
+    //              packet.z(),
+    //              static_cast<i32>(packet.face()),
+    //              player->x,
+    //              player->y,
+    //              player->z);
 
     if (packet.action() != network::BlockInteractionAction::StopDestroyBlock) {
         return;
@@ -735,9 +735,9 @@ void IntegratedServer::handleBlockInteraction(const u8* data, size_t size) {
     chunk->setDirty(true);
     sendBlockUpdate(packet.x(), packet.y(), packet.z(), airBlock->defaultState().stateId());
 
-    spdlog::info("[Mining] Destroyed block {} at ({}, {}, {})",
-                 state->blockLocation().toString(),
-                 packet.x(), packet.y(), packet.z());
+    // spdlog::info("[Mining] Destroyed block {} at ({}, {}, {})",
+    //              state->blockLocation().toString(),
+    //              packet.x(), packet.y(), packet.z());
 }
 
 void IntegratedServer::handleBlockPlacement(const u8* data, size_t size)
