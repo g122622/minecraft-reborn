@@ -67,6 +67,9 @@ add_executable(mc_tests
     common/world/gen/ChunkSpawnIntegrationTest.cpp
     # Perfetto 测试（集成到主测试套件）
     common/perfetto/PerfettoTest.cpp
+    # 实体生成回调测试
+    server/ServerChunkManagerCallbackTest.cpp
+    common/world/EntityManagerSpawnTest.cpp
 )
 
 # 添加服务端源文件

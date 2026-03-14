@@ -28,7 +28,20 @@ String normalizeEntityTypeId(const String& typeId) {
 
 EntityRendererManager::EntityRendererManager()
 {
-    initializeDefaults();
+}
+
+EntityRendererManager::~EntityRendererManager() {
+    // 销毁所有实体网格的Vulkan资源
+    clearMeshes();
+}
+
+void EntityRendererManager::clearMeshes() {
+    if (m_pipeline) {
+        for (auto& [id, mesh] : m_meshes) {
+            m_pipeline->destroyMesh(mesh);
+        }
+    }
+    m_meshes.clear();
 }
 
 void EntityRendererManager::registerRenderer(const String& typeId, RendererCreator creator) {

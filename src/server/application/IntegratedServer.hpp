@@ -8,8 +8,10 @@
 #include "common/network/LocalServerConnection.hpp"
 #include "common/network/ProtocolPackets.hpp"
 #include "common/network/ChunkSync.hpp"
+#include "common/network/EntityPackets.hpp"
 #include "common/world/chunk/ChunkStatus.hpp"
 #include "common/world/chunk/ChunkLoadTicketManager.hpp"
+#include "common/world/entity/EntityManager.hpp"
 #include "common/entity/Player.hpp"
 #include "server/world/ServerChunkManager.hpp"
 #include "server/core/ServerCore.hpp"
@@ -225,6 +227,19 @@ private:
 
     // 日光周期
     bool m_daylightCycleEnabled = true;
+
+    // 服务端实体管理器
+    EntityManager m_entityManager;
+
+    /**
+     * @brief 处理从区块生成的实体
+     */
+    void handleSpawnedEntities(const std::vector<SpawnedEntityData>& entities);
+
+    /**
+     * @brief 发送实体生成包到客户端
+     */
+    void sendEntitySpawnPackets(const std::vector<std::pair<EntityId, const SpawnedEntityData*>>& entities);
 };
 
 } // namespace mc::server

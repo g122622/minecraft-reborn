@@ -675,6 +675,12 @@ EntityId ServerWorld::spawnEntity(std::unique_ptr<Entity> entity) {
     // 添加到实体管理器
     EntityId id = m_entityManager.addEntity(std::move(entity));
 
+    // 注册到实体追踪器，以便同步给客户端
+    Entity* addedEntity = m_entityManager.getEntity(id);
+    if (addedEntity) {
+        m_entityTracker.trackEntity(addedEntity);
+    }
+
     spdlog::debug("Spawned entity with ID {}", id);
     return id;
 }
@@ -748,6 +754,12 @@ i32 ServerWorld::spawnEntitiesFromChunkGeneration(const std::vector<SpawnedEntit
         // 添加到实体管理器
         EntityId entityId = m_entityManager.addEntity(std::move(entity));
         if (entityId != 0) {
+            // 注册到实体追踪器，以便同步给客户端
+            Entity* addedEntity = m_entityManager.getEntity(entityId);
+            if (addedEntity) {
+                m_entityTracker.trackEntity(addedEntity);
+            }
+
             ++spawnedCount;
 
             SPDLOG_TRACE("ServerWorld: Spawned {} at ({:.1f}, {:.1f}, {:.1f}) with ID {}",
@@ -758,7 +770,7 @@ i32 ServerWorld::spawnEntitiesFromChunkGeneration(const std::vector<SpawnedEntit
     }
 
     if (spawnedCount > 0) {
-        spdlog::debug("ServerWorld: Spawned {} entities from chunk generation", spawnedCount);
+        spdlog::info("ServerWorld: Spawned {} entities from chunk generation", spawnedCount);
     }
 
     return spawnedCount;

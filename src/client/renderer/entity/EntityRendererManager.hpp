@@ -33,7 +33,7 @@ public:
     using RendererCreator = std::function<std::unique_ptr<EntityRenderer>()>;
 
     EntityRendererManager();
-    ~EntityRendererManager() = default;
+    ~EntityRendererManager();
 
     // 禁止拷贝
     EntityRendererManager(const EntityRendererManager&) = delete;
@@ -78,6 +78,11 @@ public:
      * @param entityId 实体ID
      */
     void removeMesh(EntityId entityId);
+
+    /**
+     * @brief 清除所有实体网格
+     */
+    void clearMeshes();
 
     // ========== 渲染 ==========
 

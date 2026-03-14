@@ -19,6 +19,7 @@
 #include "common/util/TimeUtils.hpp"
 #include "common/perfetto/PerfettoManager.hpp"
 #include "common/perfetto/TraceEvents.hpp"
+#include "common/entity/EntityRegistry.hpp"
 #include "server/menu/CraftingMenu.hpp"
 #include "server/application/MinecraftServer.hpp"
 #include "server/command/CommandRegistry.hpp"
@@ -175,6 +176,12 @@ Result<void> IntegratedServer::initialize(const IntegratedServerConfig& config) 
     (void)m_chunkManager->initialize();
     m_chunkManager->startWorkers();
     m_chunkManager->setViewDistance(m_config.viewDistance);
+
+    // 设置实体生成回调
+    m_chunkManager->setEntitySpawnCallback(
+        [this](const std::vector<SpawnedEntityData>& entities) {
+            handleSpawnedEntities(entities);
+        });
 
     // 初始化票据管理器
     m_ticketManager = std::make_unique<world::ChunkLoadTicketManager>();
@@ -1285,6 +1292,102 @@ void IntegratedServer::openCraftingTableMenu() {
         std::lock_guard<std::mutex> lock(m_clientDataMutex);
         m_clientData.openContainerType = ContainerType::CraftingTable;
         m_clientData.openMenu = std::move(menu);
+    }
+}
+
+void IntegratedServer::handleSpawnedEntities(const std::vector<SpawnedEntityData>& entities) {
+    if (entities.empty()) {
+        return;
+    }
+
+    // 存储实体ID和类型用于发送网络包
+    std::vector<std::pair<EntityId, const SpawnedEntityData*>> spawnedEntities;
+
+    // 获取实体注册表
+    auto& registry = entity::EntityRegistry::instance();
+
+    for (const auto& entityData : entities) {
+        // 获取实体类型
+        const entity::EntityType* entityType = registry.getType(entityData.entityTypeId);
+        if (!entityType) {
+            spdlog::warn("IntegratedServer: Unknown entity type '{}' during chunk generation spawn",
+                         entityData.entityTypeId);
+            continue;
+        }
+
+        // 检查实体类型是否可以生成
+        if (!entityType->canSummon()) {
+            continue;
+        }
+
+        // 创建实体（使用 nullptr 作为世界，因为 IntegratedServer 不使用 ServerWorld）
+        std::unique_ptr<Entity> entity = entityType->create(nullptr);
+        if (!entity) {
+            continue;
+        }
+
+        // 设置实体位置
+        entity->setPosition(Vector3(entityData.x, entityData.y, entityData.z));
+
+        // 添加到实体管理器，获取分配的ID
+        EntityId entityId = m_entityManager.addEntity(std::move(entity));
+
+        spawnedEntities.emplace_back(entityId, &entityData);
+
+        spdlog::info("IntegratedServer: Spawned {} at ({:.1f}, {:.1f}, {:.1f}) with ID {}",
+                     entityData.entityTypeId, entityData.x, entityData.y, entityData.z, entityId);
+    }
+
+    // 发送实体生成包到客户端
+    sendEntitySpawnPackets(spawnedEntities);
+}
+
+void IntegratedServer::sendEntitySpawnPackets(const std::vector<std::pair<EntityId, const SpawnedEntityData*>>& entities) {
+    for (const auto& [entityId, entityData] : entities) {
+        // 发送 SpawnMobPacket 或 SpawnEntityPacket
+        // 对于动物（LivingEntity），使用 SpawnMobPacket
+        // 对于其他实体，使用 SpawnEntityPacket
+
+        // 判断是否是生物
+        // 这里简化处理：所有动物都是生物
+        bool isMob = (entityData->entityTypeId == "minecraft:pig" ||
+                      entityData->entityTypeId == "minecraft:cow" ||
+                      entityData->entityTypeId == "minecraft:sheep" ||
+                      entityData->entityTypeId == "minecraft:chicken");
+
+        if (isMob) {
+            network::SpawnMobPacket packet;
+            packet.setEntityId(static_cast<u32>(entityId));
+            packet.setEntityTypeId(entityData->entityTypeId);
+            packet.setPosition(entityData->x, entityData->y, entityData->z);
+            packet.setRotation(0.0f, 0.0f, 0.0f);  // yaw, pitch, headYaw
+            packet.setVelocity(0, 0, 0);
+
+            auto result = packet.serialize();
+            if (result.success()) {
+                auto fullPacket = core::ConnectionManager::encapsulatePacket(
+                    network::PacketType::SpawnMob, result.value());
+                sendToClient(fullPacket.data(), fullPacket.size());
+                spdlog::info("IntegratedServer: Sent SpawnMob packet for {} (ID: {}) at ({:.1f}, {:.1f}, {:.1f})",
+                             entityData->entityTypeId, entityId, entityData->x, entityData->y, entityData->z);
+            }
+        } else {
+            network::SpawnEntityPacket packet;
+            packet.setEntityId(static_cast<u32>(entityId));
+            packet.setEntityTypeId(entityData->entityTypeId);
+            packet.setPosition(entityData->x, entityData->y, entityData->z);
+            packet.setRotation(0.0f, 0.0f);
+            packet.setVelocity(0, 0, 0);
+
+            auto result = packet.serialize();
+            if (result.success()) {
+                auto fullPacket = core::ConnectionManager::encapsulatePacket(
+                    network::PacketType::SpawnEntity, result.value());
+                sendToClient(fullPacket.data(), fullPacket.size());
+                spdlog::info("IntegratedServer: Sent SpawnEntity packet for {} (ID: {}) at ({:.1f}, {:.1f}, {:.1f})",
+                             entityData->entityTypeId, entityId, entityData->x, entityData->y, entityData->z);
+            }
+        }
     }
 }
 

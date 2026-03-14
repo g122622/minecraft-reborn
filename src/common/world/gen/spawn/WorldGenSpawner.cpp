@@ -32,6 +32,7 @@ i32 WorldGenSpawner::spawnInitialMobs(
     std::vector<SpawnedEntityData>& outEntities)
 {
     if (!m_enabled) {
+        spdlog::debug("WorldGenSpawner: Disabled, skipping spawn");
         return 0;
     }
 
@@ -44,8 +45,12 @@ i32 WorldGenSpawner::spawnInitialMobs(
     // 怪物通过 NaturalSpawner 在夜间/黑暗环境生成
     const std::vector<world::spawn::SpawnEntry>& creatures = spawnInfo.getCreatureSpawns();
     if (creatures.empty()) {
+        spdlog::debug("WorldGenSpawner: No creature spawns for biome {}", biome.name());
         return 0;
     }
+
+    spdlog::debug("WorldGenSpawner: Biome {} has {} creature types, probability {:.4f}",
+                  biome.name(), creatures.size(), biome.creatureSpawnProbability());
 
     // 区块世界坐标起点（使用工具函数）
     const i32 startX = world::toWorldCoord(chunkX);
@@ -138,6 +143,10 @@ i32 WorldGenSpawner::spawnInitialMobs(
             groupX = startX + random.nextInt(16);
             groupZ = startZ + random.nextInt(16);
         }
+    }
+
+    if (totalSpawned > 0) {
+        spdlog::info("WorldGenSpawner: Spawned {} entities at chunk ({}, {})", totalSpawned, chunkX, chunkZ);
     }
 
     return totalSpawned;

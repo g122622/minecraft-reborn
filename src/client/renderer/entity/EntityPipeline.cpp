@@ -2,6 +2,7 @@
 #include "../VulkanContext.hpp"
 #include "../VulkanPipeline.hpp"
 #include "../Descriptor.hpp"
+#include "../ShaderPath.hpp"
 #include <spdlog/spdlog.h>
 #include <cstring>
 #include <array>
@@ -84,9 +85,14 @@ Result<void> EntityPipeline::initialize(VulkanContext* context,
     // 创建管线
     PipelineConfig config{};
 
-    // 着色器路径
-    config.vertexShaderPath = "shaders/entity.vert.spv";
-    config.fragmentShaderPath = "shaders/entity.frag.spv";
+    // 着色器路径 - 使用 resolveShaderPath 解析路径
+    const auto entityVertPath = resolveShaderPath("entity.vert.spv");
+    const auto entityFragPath = resolveShaderPath("entity.frag.spv");
+    if (entityVertPath.empty() || entityFragPath.empty()) {
+        return Error(ErrorCode::FileNotFound, "Failed to resolve entity shader binaries");
+    }
+    config.vertexShaderPath = entityVertPath.string();
+    config.fragmentShaderPath = entityFragPath.string();
 
     // 顶点输入
     auto bindingDesc = getVertexBindingDescription();
