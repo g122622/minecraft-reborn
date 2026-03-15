@@ -1,5 +1,6 @@
 #include "LayerContext.hpp"
 #include "transformers/TransformerTraits.hpp"
+#include "common/perfetto/TraceEvents.hpp"
 
 namespace mc {
 
@@ -14,6 +15,7 @@ Long2IntLRUCache::Long2IntLRUCache(i32 maxSize)
 }
 
 bool Long2IntLRUCache::get(i64 key, i32& value) {
+    // MC_TRACE_EVENT("world.biome", "LRUCache_Get");
     std::lock_guard<std::mutex> lock(m_mutex);
     auto it = m_cache.find(key);
     if (it != m_cache.end()) {
@@ -26,6 +28,7 @@ bool Long2IntLRUCache::get(i64 key, i32& value) {
 }
 
 void Long2IntLRUCache::put(i64 key, i32 value) {
+    // MC_TRACE_EVENT("world.biome", "LRUCache_Put");
     std::lock_guard<std::mutex> lock(m_mutex);
 
     // 检查是否已存在
@@ -71,6 +74,7 @@ LayerContext::LayerContext(i32 maxCacheSize, u64 worldSeed, u64 modifier)
     , m_noise(worldSeed)  // 使用种子初始化噪声生成器
     , m_cache(maxCacheSize)
 {
+    // MC_TRACE_EVENT("world.biome", "LayerContext_Construct", "maxCacheSize", maxCacheSize, "modifier", static_cast<i64>(modifier));
 }
 
 void LayerContext::setPosition(i64 x, i64 z) {
@@ -208,6 +212,7 @@ LazyArea::LazyArea(Long2IntLRUCache& cache, i32 maxCacheSize, PixelFunc pixelFun
 }
 
 i32 LazyArea::getValue(i32 x, i32 z) const {
+    // MC_TRACE_EVENT("world.biome", "LazyArea_GetValue", "x", x, "z", z);
     i64 key = Long2IntLRUCache::packCoords(x, z);
     i32 value;
 

@@ -1,5 +1,6 @@
 #include "LayerUtil.hpp"
 #include "../BiomeRegistry.hpp"
+#include "common/perfetto/TraceEvents.hpp"
 #include <algorithm>
 
 namespace mc {
@@ -14,6 +15,7 @@ LayerStack::LayerStack(std::unique_ptr<IArea> area)
 }
 
 BiomeId LayerStack::sample(i32 x, i32 z) const {
+    MC_TRACE_EVENT("world.biome", "LayerStack_Sample", "x", x, "z", z);
     if (!m_area) {
         return Biomes::Plains;
     }
@@ -44,6 +46,7 @@ BiomeId LayerStack::sample(i32 x, i32 z) const {
 }
 
 std::vector<BiomeId> LayerStack::sampleArea(i32 startX, i32 startZ, i32 width, i32 height) const {
+    MC_TRACE_EVENT("world.biome", "LayerStack_SampleArea", "startX", startX, "startZ", startZ, "width", width, "height", height);
     std::vector<BiomeId> result;
     result.reserve(static_cast<size_t>(width) * height);
 
@@ -76,6 +79,8 @@ std::unique_ptr<IAreaFactory> buildClimateLayers(
     u64 seed,
     const std::function<std::shared_ptr<LayerContext>(u64)>& createContext)
 {
+    MC_TRACE_EVENT("world.biome", "BuildClimateLayers");
+
     static layer::IslandLayer islandLayer;
     static layer::ZoomLayer fuzzyZoom(layer::ZoomLayer::Mode::Fuzzy);
     static layer::ZoomLayer normalZoom(layer::ZoomLayer::Mode::Normal);
@@ -154,6 +159,7 @@ std::unique_ptr<IAreaFactory> repeatZoom(
     i32 count,
     std::function<std::shared_ptr<LayerContext>(u64)> contextFactory)
 {
+    MC_TRACE_EVENT("world.biome", "RepeatZoom", "count", count);
     std::unique_ptr<IAreaFactory> result = std::move(input);
 
     for (i32 i = 0; i < count; ++i) {
@@ -171,6 +177,8 @@ std::unique_ptr<IAreaFactory> buildOverworldLayers(
     i32 biomeSize,
     i32 riverSize)
 {
+    MC_TRACE_EVENT("world.biome", "BuildOverworldLayers", "biomeSize", biomeSize, "riverSize", riverSize);
+
     // 创建上下文工厂 - 使用 shared_ptr 保持生命周期
     auto createContext = [seed](u64 modifier) -> std::shared_ptr<LayerContext> {
         return std::make_shared<LayerContext>(1024, seed, modifier);
@@ -293,6 +301,7 @@ std::unique_ptr<IAreaFactory> buildOverworldLayers(
 }
 
 std::unique_ptr<LayerStack> createOverworldLayers(u64 seed, bool isLargeBiomes) {
+    MC_TRACE_EVENT("world.biome", "CreateOverworldLayers", "seed", static_cast<i64>(seed), "isLargeBiomes", isLargeBiomes);
     // 初始化生物群系注册表
     BiomeRegistry::instance().initialize();
 
@@ -338,23 +347,27 @@ LayerBiomeProvider::LayerBiomeProvider(u64 seed, bool isLargeBiomes)
 }
 
 BiomeId LayerBiomeProvider::getBiome(i32 x, i32 y, i32 z) const {
+    MC_TRACE_EVENT("world.biome", "LayerBiomeProvider_GetBiome", "x", x, "z", z);
     (void)y;  // Layer 系统不使用 Y 坐标
     return m_layerStack->sample(x, z);
 }
 
 BiomeId LayerBiomeProvider::getNoiseBiome(i32 noiseX, i32 noiseY, i32 noiseZ) const {
+    MC_TRACE_EVENT("world.biome", "LayerBiomeProvider_GetNoiseBiome", "noiseX", noiseX, "noiseZ", noiseZ);
     (void)noiseY;  // Layer 系统不使用 Y 坐标
     // 噪声坐标是 4x4 方块一个大块
     return m_layerStack->sample(noiseX << 2, noiseZ << 2);
 }
 
 f32 LayerBiomeProvider::getDepth(i32 x, i32 z) const {
+    MC_TRACE_EVENT("world.biome", "LayerBiomeProvider_GetDepth", "x", x, "z", z);
     const BiomeId biomeId = m_layerStack->sample(x, z);
     const Biome& biome = BiomeRegistry::instance().get(biomeId);
     return biome.depth();
 }
 
 f32 LayerBiomeProvider::getScale(i32 x, i32 z) const {
+    MC_TRACE_EVENT("world.biome", "LayerBiomeProvider_GetScale", "x", x, "z", z);
     const BiomeId biomeId = m_layerStack->sample(x, z);
     const Biome& biome = BiomeRegistry::instance().get(biomeId);
     return biome.scale();
@@ -365,6 +378,7 @@ const Biome& LayerBiomeProvider::getBiomeDefinition(BiomeId id) const {
 }
 
 void LayerBiomeProvider::fillBiomeContainer(BiomeContainer& container, ChunkCoord chunkX, ChunkCoord chunkZ) {
+    MC_TRACE_EVENT("world.biome", "LayerBiomeProvider_FillBiomeContainer", "chunkX", chunkX, "chunkZ", chunkZ);
     const i32 startX = chunkX << 4;
     const i32 startZ = chunkZ << 4;
 
