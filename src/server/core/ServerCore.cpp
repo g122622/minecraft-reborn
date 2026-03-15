@@ -199,6 +199,10 @@ void ServerCore::updatePlayerPosition(PlayerId playerId, f64 x, f64 y, f64 z, f3
 // 心跳管理
 // ============================================================================
 
+// ============================================================================
+// 心跳管理
+// ============================================================================
+
 void ServerCore::updateKeepAlive(PlayerId playerId, u64 timestamp) {
     m_keepAliveManager->updateKeepAlive(playerId, timestamp);
 }
@@ -211,6 +215,27 @@ bool ServerCore::needsKeepAlive(PlayerId playerId, u64 currentTick) const {
 
 void ServerCore::recordKeepAliveSent(PlayerId playerId, u64 timestamp) {
     m_keepAliveManager->recordKeepAliveSent(playerId, timestamp, currentTick());
+}
+
+// ============================================================================
+// 游戏模式管理
+// ============================================================================
+
+bool ServerCore::setPlayerGameMode(PlayerId playerId, GameMode mode) {
+    auto* player = m_playerManager->getPlayer(playerId);
+    if (!player) {
+        return false;
+    }
+    player->gameMode = mode;
+    return true;
+}
+
+GameMode ServerCore::getPlayerGameMode(PlayerId playerId) const {
+    const auto* player = m_playerManager->getPlayer(playerId);
+    if (!player) {
+        return GameMode::NotSet;
+    }
+    return player->gameMode;
 }
 
 // ============================================================================

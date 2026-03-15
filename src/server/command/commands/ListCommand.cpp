@@ -24,10 +24,11 @@ void ListCommand::registerTo(CommandDispatcher<ServerCommandSource>& dispatcher)
 i32 ListCommand::listPlayers(CommandContext<ServerCommandSource>& context) {
     auto& source = context.getSource();
     size_t playerCount = 0;
-    if (auto* world = source.world()) {
+
+    if (auto* server = source.server()) {
+        playerCount = server->playerCount();
+    } else if (auto* world = source.world()) {
         playerCount = world->playerCount();
-    } else if (auto* server = source.server()) {
-        playerCount = server->getPlayers().size();
     }
 
     std::ostringstream ss;

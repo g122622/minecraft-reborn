@@ -73,6 +73,11 @@ public:
     [[nodiscard]] virtual ServerPlayer* getPlayer(const String& name) = 0;
 
     /**
+     * @brief 获取在线玩家数量
+     */
+    [[nodiscard]] virtual size_t playerCount() const = 0;
+
+    /**
      * @brief 发送消息给所有玩家
      */
     virtual void broadcast(const String& message) = 0;
