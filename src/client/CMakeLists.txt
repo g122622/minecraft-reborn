@@ -23,21 +23,17 @@ add_executable(minecraft-client
     renderer/trident/render/FrameManager.cpp
     renderer/trident/render/DescriptorManager.cpp
     renderer/trident/render/UniformManager.cpp
-    # Vulkan 渲染实现 (兼容层)
+    # Vulkan 工具类 (仍被部分子渲染器使用)
     renderer/VulkanContext.cpp
-    renderer/VulkanSwapchain.cpp
-    renderer/VulkanPipeline.cpp
-    renderer/VulkanRenderer.cpp
     renderer/VulkanBuffer.cpp
     renderer/VulkanTexture.cpp
+    renderer/VulkanPipeline.cpp
+    # 子渲染器
     renderer/ChunkRenderer.cpp
     renderer/mesh/MeshWorkerPool.cpp
     renderer/MeshTypes.cpp
     renderer/chunk/ChunkMesher.cpp
     renderer/Camera.cpp
-    renderer/UniformBuffer.cpp
-    renderer/Descriptor.cpp
-    renderer/DefaultTextureAtlas.cpp
     renderer/sky/CelestialCalculations.cpp
     renderer/sky/SkyRenderer.cpp
     resource/BlockModelLoader.cpp
