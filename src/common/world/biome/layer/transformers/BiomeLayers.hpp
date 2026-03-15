@@ -10,7 +10,14 @@ namespace layer {
  * @brief 生物群系分配层
  *
  * 将温度值转换为实际的生物群系 ID。
- * 参考 MC BiomeLayer (IC0Transformer)
+ * 参考 MC 1.16.5 BiomeLayer (IC0Transformer)
+ *
+ * 温度值：
+ * - 0: 海洋（保持不变）
+ * - 1: 温暖区域（沙漠、热带草原、平原）
+ * - 2: 中等温度（丛林等）
+ * - 3: 凉爽区域（森林、针叶林、山地等）
+ * - 4: 冰冻区域（雪地）
  */
 class BiomeLayer : public IC0Transformer {
 public:
@@ -29,13 +36,21 @@ public:
 private:
     Config m_config;
 
-    // 各温度区域的生物群系列表
+    // MC 1.16.5 温暖生物群系列表: {Desert, Desert, Desert, Savanna, Savanna, Plains}
+    // field_202744_r = new int[]{2, 2, 2, 35, 35, 1};
     static constexpr i32 WARM_BIOMES[] = {BiomeValues::Desert, BiomeValues::Desert, BiomeValues::Desert,
                                            BiomeValues::Savanna, BiomeValues::Savanna, BiomeValues::Plains};
-    static constexpr i32 COOL_BIOMES[] = {BiomeValues::Forest, BiomeValues::Mountains, BiomeValues::Mountains,
-                                          BiomeValues::Plains, BiomeValues::Taiga, BiomeValues::Plains};
-    static constexpr i32 ICY_BIOMES[] = {BiomeValues::SnowyPlains, BiomeValues::SnowyPlains, BiomeValues::SnowyPlains,
-                                         BiomeValues::SnowyTaiga, BiomeValues::SnowyTaiga, BiomeValues::SnowyPlains};
+
+    // MC 1.16.5 凉爽生物群系列表: {Forest, GiantTreeTaigaHills, Mountains, Plains, BirchForest, Swamp}
+    // field_202745_s = new int[]{4, 29, 3, 1, 27, 6};
+    static constexpr i32 COOL_BIOMES[] = {BiomeValues::Forest, BiomeValues::GiantTreeTaigaHills,
+                                          BiomeValues::Mountains, BiomeValues::Plains,
+                                          BiomeValues::BirchForest, BiomeValues::Swamp};
+
+    // MC 1.16.5 冰冻生物群系列表: {SnowyPlains, SnowyPlains, SnowyPlains, WoodedMountains}
+    // field_202747_u = new int[]{12, 12, 12, 30};
+    static constexpr i32 ICY_BIOMES[] = {BiomeValues::SnowyPlains, BiomeValues::SnowyPlains,
+                                         BiomeValues::SnowyPlains, BiomeValues::WoodedMountains};
 };
 
 /**

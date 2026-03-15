@@ -12,6 +12,9 @@ namespace layer {
  * 参考 MC 1.16.5 LayerUtil 和各个 Layer 类中使用的值。
  *
  * 注意：这些值与 Biomes 命名空间中的 ID 是相同的，因为 MC 直接使用 ID 进行处理。
+ *
+ * MC 1.16.5 biome IDs 参考:
+ * https://minecraft.gamepedia.com/Java_Edition_1.16.5
  */
 namespace BiomeValues {
 
@@ -19,7 +22,7 @@ namespace BiomeValues {
 // 基础生物群系 ID（与 MC 1.16.5 完全一致）
 // ============================================================================
 
-// 海洋类型
+// 基础生物群系 (0-9)
 constexpr i32 Ocean = 0;
 constexpr i32 Plains = 1;
 constexpr i32 Desert = 2;
@@ -30,44 +33,64 @@ constexpr i32 Swamp = 6;
 constexpr i32 River = 7;
 constexpr i32 NetherWastes = 8;
 constexpr i32 TheEnd = 9;
+
+// 寒冷/雪地生物群系 (10-13)
 constexpr i32 FrozenOcean = 10;
 constexpr i32 FrozenRiver = 11;
 constexpr i32 SnowyPlains = 12;        // snowy_tundra
 constexpr i32 SnowyMountains = 13;
+
+// 蘑菇岛 (14-15)
 constexpr i32 MushroomFields = 14;
 constexpr i32 MushroomFieldShore = 15;
+
+// 海滩 (16)
 constexpr i32 Beach = 16;
-constexpr i32 Jungle = 17;
-constexpr i32 JungleHills = 18;
-constexpr i32 JungleEdge = 19;
-constexpr i32 DeepOcean = 20;
-constexpr i32 StoneShore = 21;
-constexpr i32 SnowyBeach = 22;
-constexpr i32 BirchForest = 23;
-constexpr i32 BirchForestHills = 24;
-constexpr i32 DarkForest = 25;
-constexpr i32 SnowyTaiga = 26;
-constexpr i32 SnowyTaigaHills = 27;
-constexpr i32 GiantTreeTaiga = 28;
-constexpr i32 GiantTreeTaigaHills = 29;
-constexpr i32 WoodedMountains = 30;    // wooded_hills (原名 extreme_hills_with_trees)
-constexpr i32 Savanna = 31;
-constexpr i32 SavannaPlateau = 32;
-constexpr i32 Badlands = 33;
-constexpr i32 WoodedBadlandsPlateau = 34;
-constexpr i32 BadlandsPlateau = 35;
-constexpr i32 WoodedHills = 36;        // 也称作 wooded_hills
 
-// 注：MC 1.16.5 中 DesertHills 和 TaigaHills 使用不同的 ID
-// 这些是内部使用的常量，映射到合理的值
-constexpr i32 DesertHills = 17;        // 复用 Jungle ID（简化）
-constexpr i32 TaigaHills = 19;         // 复用 JungleEdge ID（简化）
-constexpr i32 MountainEdge = 20;       // MC 中已弃用，这里保留兼容性
+// 山地变体和丘陵 (17-20)
+constexpr i32 DesertHills = 17;
+constexpr i32 WoodedHills = 18;        // 也称作 wooded_hills
+constexpr i32 TaigaHills = 19;
+constexpr i32 MountainEdge = 20;       // MC 中已弃用，但 ID 保留
 
-// 虚空生物群系
-constexpr i32 TheVoid = 60;
+// 丛林 (21-23)
+constexpr i32 Jungle = 21;
+constexpr i32 JungleHills = 22;
+constexpr i32 JungleEdge = 23;
 
-// 小生物群系 ID（37-43 部分）
+// 深海和石岸 (24-25)
+constexpr i32 DeepOcean = 24;
+constexpr i32 StoneShore = 25;
+
+// 雪地海滩 (26)
+constexpr i32 SnowyBeach = 26;
+
+// 桦木森林 (27-28)
+constexpr i32 BirchForest = 27;
+constexpr i32 BirchForestHills = 28;
+
+// 黑森林 (29)
+constexpr i32 DarkForest = 29;
+
+// 雪地针叶林 (30-31)
+constexpr i32 SnowyTaiga = 30;
+constexpr i32 SnowyTaigaHills = 31;
+
+// 大型针叶林 (32-33)
+constexpr i32 GiantTreeTaiga = 32;
+constexpr i32 GiantTreeTaigaHills = 33;
+
+// 热带草原 (34-36)
+constexpr i32 WoodedMountains = 34;    // extreme_hills_with_trees
+constexpr i32 Savanna = 35;
+constexpr i32 SavannaPlateau = 36;
+
+// 恶地 (37-39)
+constexpr i32 Badlands = 37;
+constexpr i32 WoodedBadlandsPlateau = 38;
+constexpr i32 BadlandsPlateau = 39;
+
+// 小型生物群系 (40-43)
 constexpr i32 SmallEndIslands = 40;
 constexpr i32 EndMidlands = 41;
 constexpr i32 EndHighlands = 42;

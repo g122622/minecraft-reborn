@@ -82,12 +82,6 @@ public:
         IExtendedAreaContext& context,
         std::unique_ptr<IAreaFactory> input1,
         std::unique_ptr<IAreaFactory> input2) override;
-
-private:
-    /**
-     * @brief 山丘变体映射表
-     */
-    static const std::unordered_map<i32, i32> s_hillsBiomes;
 };
 
 /**

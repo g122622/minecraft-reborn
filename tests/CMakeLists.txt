@@ -83,6 +83,9 @@ add_executable(mc_tests
     common/resource/compat/CompatLayerTest.cpp
     # 缓存性能对比测试
     common/util/cache/CacheBenchmark.cpp
+    # 生物群系层测试
+    common/world/biome/layer/BiomeLayerTest.cpp
+    common/world/biome/layer/MergeLayersTest.cpp
 )
 
 # 添加服务端源文件
