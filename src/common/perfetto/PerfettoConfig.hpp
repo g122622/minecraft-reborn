@@ -3,11 +3,10 @@
  * @brief Perfetto 性能追踪编译时配置
  *
  * 此文件定义了 Perfetto 追踪系统的编译时开关和配置选项。
- * 所有追踪功能默认禁用，需要通过 CMake 选项或手动定义启用。
+ * 所有追踪功能默认禁用，能且只能通过 CMake 选项启用。
  *
  * 使用方法：
- * 1. CMake 配置时启用：cmake -DMC_ENABLE_TRACING=ON ..
- * 2. 或在编译前定义：#define MC_ENABLE_TRACING 1
+ * 在 CMake 配置时启用：cmake -DMC_ENABLE_TRACING=ON ..
  */
 
 #pragma once
@@ -19,8 +18,8 @@
 /**
  * @brief 追踪系统总开关
  *
- * 默认为 0（禁用）。设置为 1 启用所有追踪功能。
  * 当禁用时，所有 MC_TRACE_* 宏展开为空操作，无任何性能开销。
+ * 不允许手动修改这个宏！应当通过 CMake 选项 MC_ENABLE_TRACING 启用或禁用追踪。
  */
 #ifndef MC_ENABLE_TRACING
 #define MC_ENABLE_TRACING 1
