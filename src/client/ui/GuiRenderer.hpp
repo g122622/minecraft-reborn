@@ -11,9 +11,7 @@
 namespace mc::client {
 
 // 前向声明
-class VulkanBuffer;
-class VulkanPipeline;
-class VulkanTexture;
+class Font;
 
 /**
  * @brief GUI渲染器
@@ -258,6 +256,22 @@ private:
      */
     void uploadBufferData(VkCommandBuffer commandBuffer);
 
+    // ========== Vulkan 辅助函数 ==========
+
+    /**
+     * @brief 查找内存类型
+     */
+    [[nodiscard]] Result<u32> findMemoryType(u32 typeFilter, VkMemoryPropertyFlags properties);
+
+    /**
+     * @brief 创建缓冲区
+     */
+    [[nodiscard]] Result<void> createBuffer(VkDeviceSize size,
+                                            VkBufferUsageFlags usage,
+                                            VkMemoryPropertyFlags properties,
+                                            VkBuffer& buffer,
+                                            VkDeviceMemory& memory);
+
     // Vulkan资源
     VkDevice m_device = VK_NULL_HANDLE;
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
@@ -269,13 +283,25 @@ private:
     VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
 
     // 缓冲区
-    std::unique_ptr<VulkanBuffer> m_vertexBuffer;
-    std::unique_ptr<VulkanBuffer> m_indexBuffer;
-    std::unique_ptr<VulkanBuffer> m_fontStagingBuffer;
+    VkBuffer m_vertexBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory m_vertexBufferMemory = VK_NULL_HANDLE;
+    VkDeviceSize m_vertexBufferSize = 64 * 1024;  // 64KB 初始大小
+    VkBuffer m_indexBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory m_indexBufferMemory = VK_NULL_HANDLE;
+    VkDeviceSize m_indexBufferSize = 128 * 1024;  // 128KB 初始大小
+    VkBuffer m_fontStagingBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory m_fontStagingMemory = VK_NULL_HANDLE;
 
-    // 纹理
-    std::unique_ptr<VulkanTexture> m_fontTexture;
-    std::unique_ptr<VulkanTexture> m_itemPlaceholderTexture;  // 物品纹理占位符（RGBA格式）
+    // 字体纹理
+    VkImage m_fontTexture = VK_NULL_HANDLE;
+    VkDeviceMemory m_fontTextureMemory = VK_NULL_HANDLE;
+    VkImageView m_fontTextureView = VK_NULL_HANDLE;
+
+    // 物品纹理占位符
+    VkImage m_itemPlaceholderTexture = VK_NULL_HANDLE;
+    VkDeviceMemory m_itemPlaceholderMemory = VK_NULL_HANDLE;
+    VkImageView m_itemPlaceholderView = VK_NULL_HANDLE;
+
     VkSampler m_sampler = VK_NULL_HANDLE;
 
     // 字体

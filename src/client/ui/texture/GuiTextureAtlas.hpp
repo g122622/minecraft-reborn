@@ -4,16 +4,12 @@
 #include "common/core/Result.hpp"
 #include "common/resource/ResourceLocation.hpp"
 #include <vulkan/vulkan.h>
-#include <memory>
 #include <unordered_map>
 #include <string>
 
 namespace mc::client {
 
 // 前向声明
-class VulkanContext;
-class VulkanTexture;
-class VulkanBuffer;
 class GuiRenderer;
 
 /**
@@ -40,7 +36,7 @@ struct GuiTextureRegion {
  * 使用示例：
  * @code
  * GuiTextureAtlas atlas;
- * atlas.initialize(context);
+ * atlas.initialize(device, physicalDevice, commandPool, graphicsQueue);
  * atlas.loadGuiTexture("minecraft:textures/gui/container/crafting_table");
  *
  * // 渲染
@@ -63,10 +59,16 @@ public:
 
     /**
      * @brief 初始化GUI纹理图集
-     * @param context Vulkan上下文
+     * @param device Vulkan设备
+     * @param physicalDevice 物理设备
+     * @param commandPool 命令池
+     * @param graphicsQueue 图形队列
      * @return 成功或错误
      */
-    [[nodiscard]] Result<void> initialize(VulkanContext* context);
+    [[nodiscard]] Result<void> initialize(VkDevice device,
+                                           VkPhysicalDevice physicalDevice,
+                                           VkCommandPool commandPool,
+                                           VkQueue graphicsQueue);
 
     /**
      * @brief 销毁资源
@@ -132,10 +134,14 @@ public:
     [[nodiscard]] const GuiTextureRegion* getRegion(const String& textureId) const;
 
     /**
-     * @brief 获取纹理图集
+     * @brief 获取纹理图集图像视图
      */
-    [[nodiscard]] VulkanTexture* getAtlasTexture() { return m_atlasTexture.get(); }
-    [[nodiscard]] const VulkanTexture* getAtlasTexture() const { return m_atlasTexture.get(); }
+    [[nodiscard]] VkImageView imageView() const { return m_imageView; }
+
+    /**
+     * @brief 获取纹理图集采样器
+     */
+    [[nodiscard]] VkSampler sampler() const { return m_sampler; }
 
     /**
      * @brief 检查是否已初始化
@@ -158,9 +164,58 @@ private:
      */
     void createContainerBackground(u8* data, i32 width, i32 height);
 
+    /**
+     * @brief 创建图像
+     */
+    [[nodiscard]] Result<void> createImage(u32 width, u32 height);
+
+    /**
+     * @brief 创建图像视图
+     */
+    [[nodiscard]] Result<void> createImageView();
+
+    /**
+     * @brief 创建采样器
+     */
+    [[nodiscard]] Result<void> createSampler();
+
+    /**
+     * @brief 上传纹理数据
+     */
+    [[nodiscard]] Result<void> uploadTextureData(const std::vector<u8>& data);
+
+    /**
+     * @brief 查找内存类型
+     */
+    [[nodiscard]] Result<u32> findMemoryType(u32 typeFilter, VkMemoryPropertyFlags properties);
+
+    /**
+     * @brief 开始单次命令
+     */
+    VkCommandBuffer beginSingleTimeCommands();
+
+    /**
+     * @brief 结束单次命令
+     */
+    void endSingleTimeCommands(VkCommandBuffer cmd);
+
 private:
-    VulkanContext* m_context = nullptr;
-    std::unique_ptr<VulkanTexture> m_atlasTexture;
+    VkDevice m_device = VK_NULL_HANDLE;
+    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
+    VkCommandPool m_commandPool = VK_NULL_HANDLE;
+    VkQueue m_graphicsQueue = VK_NULL_HANDLE;
+
+    // 纹理资源
+    VkImage m_image = VK_NULL_HANDLE;
+    VkDeviceMemory m_imageMemory = VK_NULL_HANDLE;
+    VkImageView m_imageView = VK_NULL_HANDLE;
+    VkSampler m_sampler = VK_NULL_HANDLE;
+
+    // 图集尺寸
+    u32 m_width = 0;
+    u32 m_height = 0;
+
+    // 纹理区域映射
     std::unordered_map<String, GuiTextureRegion> m_regions;
 
     // 默认纹理尺寸

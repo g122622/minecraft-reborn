@@ -4,8 +4,6 @@
 #include "../../common/core/Result.hpp"
 #include "MeshTypes.hpp"
 #include "chunk/ChunkMesher.hpp"
-#include "VulkanBuffer.hpp"
-#include "VulkanTexture.hpp"
 #include <vulkan/vulkan.h>
 #include <unordered_map>
 #include <memory>
@@ -16,20 +14,18 @@
 
 namespace mc::client {
 
-// 区块GPU缓冲区
+// 区块GPU缓冲区 - 使用原始 Vulkan handles
 struct ChunkGpuBuffer {
-    VertexBuffer vertexBuffer;
-    IndexBuffer indexBuffer;
+    VkBuffer vertexBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory vertexMemory = VK_NULL_HANDLE;
+    VkBuffer indexBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory indexMemory = VK_NULL_HANDLE;
     u32 indexCount = 0;
+    u32 vertexCount = 0;
     ChunkId chunkId{0, 0};
     bool isValid = false;
 
-    void destroy() {
-        vertexBuffer.destroy();
-        indexBuffer.destroy();
-        indexCount = 0;
-        isValid = false;
-    }
+    void destroy(VkDevice device);
 };
 
 // 待上传的网格数据
@@ -54,6 +50,26 @@ struct FenceManager {
 
     void cleanup(VkDevice device, VkCommandPool commandPool);
     void destroy(VkDevice device, VkCommandPool commandPool);
+};
+
+// 纹理图集 - 使用原始 Vulkan handles
+struct ChunkTextureAtlas {
+    VkImage image = VK_NULL_HANDLE;
+    VkDeviceMemory memory = VK_NULL_HANDLE;
+    VkImageView imageView = VK_NULL_HANDLE;
+    VkSampler sampler = VK_NULL_HANDLE;
+    u32 width = 0;
+    u32 height = 0;
+    u32 tileSize = 16;
+    u32 tilesPerRow = 0;
+    f32 tileU = 0.0f;
+    f32 tileV = 0.0f;
+    bool isValid = false;
+
+    void destroy(VkDevice device);
+
+    [[nodiscard]] TextureRegion getRegion(u32 tileX, u32 tileY) const;
+    [[nodiscard]] TextureRegion getRegion(u32 tileIndex) const;
 };
 
 // 区块渲染器
@@ -91,8 +107,8 @@ public:
         u32 textureSize,
         u32 tileSize);
 
-    VulkanTextureAtlas& textureAtlas() { return m_textureAtlas; }
-    const VulkanTextureAtlas& textureAtlas() const { return m_textureAtlas; }
+    ChunkTextureAtlas& textureAtlas() { return m_textureAtlas; }
+    const ChunkTextureAtlas& textureAtlas() const { return m_textureAtlas; }
 
     // 渲染
     void render(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout);
@@ -136,7 +152,7 @@ public:
      * @brief 处理延迟销毁队列
      *
      * 每帧调用一次，销毁不再使用的 GPU 缓冲区。
-     * 应该在 VulkanRenderer::beginFrame() 之后调用，因为此时 GPU 命令已完成。
+     * 应该在帧开始后调用，因为此时 GPU 命令已完成。
      *
      * @param framesToKeep 缓冲区保留帧数（应该 >= MAX_FRAMES_IN_FLIGHT，默认 3）
      */
@@ -162,11 +178,13 @@ private:
     u32 m_totalIndices = 0;
 
     // 纹理图集
-    VulkanTextureAtlas m_textureAtlas;
+    ChunkTextureAtlas m_textureAtlas;
 
     // 暂存缓冲区
-    std::unique_ptr<StagingBuffer> m_stagingBuffer;
+    VkBuffer m_stagingBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory m_stagingMemory = VK_NULL_HANDLE;
     VkDeviceSize m_stagingBufferSize = 16 * 1024 * 1024; // 16MB
+    void* m_stagingMapped = nullptr;
 
     // ========== 异步上传支持 ==========
 
@@ -188,15 +206,40 @@ private:
     [[nodiscard]] Result<VkCommandBuffer> beginSingleTimeCommands();
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
+    // 创建缓冲区
+    [[nodiscard]] Result<void> createBuffer(
+        VkDeviceSize size,
+        VkBufferUsageFlags usage,
+        VkMemoryPropertyFlags properties,
+        VkBuffer& buffer,
+        VkDeviceMemory& memory);
+
     // 创建/更新缓冲区
     [[nodiscard]] Result<void> createChunkBuffer(
         ChunkGpuBuffer& buffer,
         const MeshData& meshData);
 
+    // 上传缓冲区数据
     [[nodiscard]] Result<void> uploadBufferData(
-        VulkanBuffer& dstBuffer,
+        VkBuffer dstBuffer,
         const void* data,
         VkDeviceSize size);
+
+    // 查找内存类型
+    [[nodiscard]] Result<u32> findMemoryType(
+        u32 typeFilter,
+        VkMemoryPropertyFlags properties);
+
+    // 创建纹理图集
+    [[nodiscard]] Result<void> createTextureAtlas(
+        u32 width,
+        u32 height);
+
+    // 上传纹理数据
+    [[nodiscard]] Result<void> uploadTextureData(
+        const u8* pixelData,
+        u32 width,
+        u32 height);
 };
 
 } // namespace mc::client

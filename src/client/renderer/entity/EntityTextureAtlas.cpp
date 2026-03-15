@@ -1,5 +1,4 @@
 #include "EntityTextureAtlas.hpp"
-#include "../VulkanContext.hpp"
 #include "../../../common/resource/IResourcePack.hpp"
 #include <spdlog/spdlog.h>
 #include <cstring>
@@ -15,16 +14,30 @@ EntityTextureAtlas::~EntityTextureAtlas() {
     destroy();
 }
 
-Result<void> EntityTextureAtlas::initialize(VulkanContext* context,
+Result<void> EntityTextureAtlas::initialize(VkDevice device,
+                                             VkPhysicalDevice physicalDevice,
                                              VkCommandPool commandPool,
+                                             VkQueue graphicsQueue,
                                              u32 maxTextures,
                                              u32 textureSize) {
     if (m_initialized) {
-        return Result<void>::ok();
+        return {};
     }
 
-    m_context = context;
+    if (device == VK_NULL_HANDLE) {
+        return Error(ErrorCode::NullPointer, "Device is null");
+    }
+    if (commandPool == VK_NULL_HANDLE) {
+        return Error(ErrorCode::NullPointer, "Command pool is null");
+    }
+    if (graphicsQueue == VK_NULL_HANDLE) {
+        return Error(ErrorCode::NullPointer, "Graphics queue is null");
+    }
+
+    m_device = device;
+    m_physicalDevice = physicalDevice;
     m_commandPool = commandPool;
+    m_graphicsQueue = graphicsQueue;
     m_maxTextures = maxTextures;
     m_textureSize = textureSize;
     m_textures.reserve(maxTextures);
@@ -37,7 +50,7 @@ Result<void> EntityTextureAtlas::initialize(VulkanContext* context,
 
     m_initialized = true;
     spdlog::info("EntityTextureAtlas initialized (max: {}, size: {})", maxTextures, textureSize);
-    return Result<void>::ok();
+    return {};
 }
 
 void EntityTextureAtlas::destroy() {
@@ -45,25 +58,23 @@ void EntityTextureAtlas::destroy() {
         return;
     }
 
-    VkDevice device = m_context->device();
-
     if (m_imageView != VK_NULL_HANDLE) {
-        vkDestroyImageView(device, m_imageView, nullptr);
+        vkDestroyImageView(m_device, m_imageView, nullptr);
         m_imageView = VK_NULL_HANDLE;
     }
 
     if (m_image != VK_NULL_HANDLE) {
-        vkDestroyImage(device, m_image, nullptr);
+        vkDestroyImage(m_device, m_image, nullptr);
         m_image = VK_NULL_HANDLE;
     }
 
     if (m_imageMemory != VK_NULL_HANDLE) {
-        vkFreeMemory(device, m_imageMemory, nullptr);
+        vkFreeMemory(m_device, m_imageMemory, nullptr);
         m_imageMemory = VK_NULL_HANDLE;
     }
 
     if (m_sampler != VK_NULL_HANDLE) {
-        vkDestroySampler(device, m_sampler, nullptr);
+        vkDestroySampler(m_device, m_sampler, nullptr);
         m_sampler = VK_NULL_HANDLE;
     }
 
@@ -83,7 +94,7 @@ Result<void> EntityTextureAtlas::addTexture(mc::IResourcePack& pack, const Resou
     // 检查是否已存在（在已加载纹理中）
     for (const auto& tex : m_textures) {
         if (tex.location == location) {
-            return Result<void>::ok();  // 已存在，忽略
+            return {};  // 已存在，忽略
         }
     }
 
@@ -94,11 +105,11 @@ Result<void> EntityTextureAtlas::addTexture(mc::IResourcePack& pack, const Resou
     auto result = loadTextureWithFallback(pack, location, texData.pixels, texData.width, texData.height);
     if (!result.success()) {
         spdlog::warn("Failed to load entity texture: {} - {}", location.toString(), result.error().toString());
-        return Result<void>::ok();  // 继续加载其他纹理
+        return {};  // 继续加载其他纹理
     }
 
     m_textures.push_back(std::move(texData));
-    return Result<void>::ok();
+    return {};
 }
 
 Result<EntityAtlasBuildResult> EntityTextureAtlas::build() {
@@ -203,7 +214,7 @@ Result<EntityAtlasBuildResult> EntityTextureAtlas::build() {
     viewInfo.subresourceRange.baseArrayLayer = 0;
     viewInfo.subresourceRange.layerCount = 1;
 
-    if (vkCreateImageView(m_context->device(), &viewInfo, nullptr, &m_imageView) != VK_SUCCESS) {
+    if (vkCreateImageView(m_device, &viewInfo, nullptr, &m_imageView) != VK_SUCCESS) {
         return Error(ErrorCode::InitializationFailed, "Failed to create image view");
     }
 
@@ -254,7 +265,7 @@ Result<void> EntityTextureAtlas::loadTextureWithFallback(mc::IResourcePack& pack
             outData.resize(width * height * 4);
             std::memcpy(outData.data(), pixels, outData.size());
             stbi_image_free(pixels);
-            return Result<void>::ok();
+            return {};
         }
     }
 
@@ -282,7 +293,7 @@ Result<void> EntityTextureAtlas::loadTextureWithFallback(mc::IResourcePack& pack
                     outData.resize(width * height * 4);
                     std::memcpy(outData.data(), pixels, outData.size());
                     stbi_image_free(pixels);
-                    return Result<void>::ok();
+                    return {};
                 }
             }
         }
@@ -311,16 +322,14 @@ Result<void> EntityTextureAtlas::createSampler() {
     samplerInfo.minLod = 0.0f;
     samplerInfo.maxLod = 0.0f;
 
-    if (vkCreateSampler(m_context->device(), &samplerInfo, nullptr, &m_sampler) != VK_SUCCESS) {
+    if (vkCreateSampler(m_device, &samplerInfo, nullptr, &m_sampler) != VK_SUCCESS) {
         return Error(ErrorCode::InitializationFailed, "Failed to create sampler");
     }
 
-    return Result<void>::ok();
+    return {};
 }
 
 Result<void> EntityTextureAtlas::createImage(u32 width, u32 height) {
-    VkDevice device = m_context->device();
-
     // 创建图像
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -337,39 +346,38 @@ Result<void> EntityTextureAtlas::createImage(u32 width, u32 height) {
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 
-    if (vkCreateImage(device, &imageInfo, nullptr, &m_image) != VK_SUCCESS) {
+    if (vkCreateImage(m_device, &imageInfo, nullptr, &m_image) != VK_SUCCESS) {
         return Error(ErrorCode::OutOfMemory, "Failed to create image");
     }
 
     // 分配内存
     VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(device, m_image, &memRequirements);
+    vkGetImageMemoryRequirements(m_device, m_image, &memRequirements);
 
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    auto memTypeResult = m_context->findMemoryType(memRequirements.memoryTypeBits,
-                                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    auto memTypeResult = findMemoryType(memRequirements.memoryTypeBits,
+                                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     if (!memTypeResult.success()) {
-        vkDestroyImage(device, m_image, nullptr);
+        vkDestroyImage(m_device, m_image, nullptr);
         m_image = VK_NULL_HANDLE;
         return memTypeResult.error();
     }
     allocInfo.memoryTypeIndex = memTypeResult.value();
 
-    if (vkAllocateMemory(device, &allocInfo, nullptr, &m_imageMemory) != VK_SUCCESS) {
-        vkDestroyImage(device, m_image, nullptr);
+    if (vkAllocateMemory(m_device, &allocInfo, nullptr, &m_imageMemory) != VK_SUCCESS) {
+        vkDestroyImage(m_device, m_image, nullptr);
         m_image = VK_NULL_HANDLE;
         return Error(ErrorCode::OutOfMemory, "Failed to allocate image memory");
     }
 
-    vkBindImageMemory(device, m_image, m_imageMemory, 0);
+    vkBindImageMemory(m_device, m_image, m_imageMemory, 0);
 
-    return Result<void>::ok();
+    return {};
 }
 
 Result<void> EntityTextureAtlas::uploadTextureData(const std::vector<u8>& data) {
-    VkDevice device = m_context->device();
     VkDeviceSize imageSize = data.size();
 
     // 创建暂存缓冲区
@@ -382,37 +390,37 @@ Result<void> EntityTextureAtlas::uploadTextureData(const std::vector<u8>& data) 
     bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    if (vkCreateBuffer(device, &bufferInfo, nullptr, &stagingBuffer) != VK_SUCCESS) {
+    if (vkCreateBuffer(m_device, &bufferInfo, nullptr, &stagingBuffer) != VK_SUCCESS) {
         return Error(ErrorCode::OutOfMemory, "Failed to create staging buffer");
     }
 
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(device, stagingBuffer, &memRequirements);
+    vkGetBufferMemoryRequirements(m_device, stagingBuffer, &memRequirements);
 
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    auto memTypeResult = m_context->findMemoryType(memRequirements.memoryTypeBits,
-                                                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                                          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    auto memTypeResult = findMemoryType(memRequirements.memoryTypeBits,
+                                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     if (!memTypeResult.success()) {
-        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkDestroyBuffer(m_device, stagingBuffer, nullptr);
         return memTypeResult.error();
     }
     allocInfo.memoryTypeIndex = memTypeResult.value();
 
-    if (vkAllocateMemory(device, &allocInfo, nullptr, &stagingMemory) != VK_SUCCESS) {
-        vkDestroyBuffer(device, stagingBuffer, nullptr);
+    if (vkAllocateMemory(m_device, &allocInfo, nullptr, &stagingMemory) != VK_SUCCESS) {
+        vkDestroyBuffer(m_device, stagingBuffer, nullptr);
         return Error(ErrorCode::OutOfMemory, "Failed to allocate staging memory");
     }
 
-    vkBindBufferMemory(device, stagingBuffer, stagingMemory, 0);
+    vkBindBufferMemory(m_device, stagingBuffer, stagingMemory, 0);
 
     // 复制数据
     void* mappedData;
-    vkMapMemory(device, stagingMemory, 0, imageSize, 0, &mappedData);
+    vkMapMemory(m_device, stagingMemory, 0, imageSize, 0, &mappedData);
     std::memcpy(mappedData, data.data(), imageSize);
-    vkUnmapMemory(device, stagingMemory);
+    vkUnmapMemory(m_device, stagingMemory);
 
     // 转换图像布局并复制
     VkCommandBuffer cmd = beginSingleTimeCommands();
@@ -462,10 +470,24 @@ Result<void> EntityTextureAtlas::uploadTextureData(const std::vector<u8>& data) 
     endSingleTimeCommands(cmd);
 
     // 清理暂存缓冲区
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vkFreeMemory(device, stagingMemory, nullptr);
+    vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+    vkFreeMemory(m_device, stagingMemory, nullptr);
 
-    return Result<void>::ok();
+    return {};
+}
+
+Result<u32> EntityTextureAtlas::findMemoryType(u32 typeFilter, VkMemoryPropertyFlags properties) {
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
+
+    for (u32 i = 0; i < memProperties.memoryTypeCount; ++i) {
+        if ((typeFilter & (1 << i)) &&
+            (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+
+    return Error(ErrorCode::OutOfMemory, "Failed to find suitable memory type");
 }
 
 VkCommandBuffer EntityTextureAtlas::beginSingleTimeCommands() {
@@ -476,7 +498,7 @@ VkCommandBuffer EntityTextureAtlas::beginSingleTimeCommands() {
     allocInfo.commandBufferCount = 1;
 
     VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(m_context->device(), &allocInfo, &commandBuffer);
+    vkAllocateCommandBuffers(m_device, &allocInfo, &commandBuffer);
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -495,10 +517,10 @@ void EntityTextureAtlas::endSingleTimeCommands(VkCommandBuffer cmd) {
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &cmd;
 
-    vkQueueSubmit(m_context->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(m_context->graphicsQueue());
+    vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(m_graphicsQueue);
 
-    vkFreeCommandBuffers(m_context->device(), m_commandPool, 1, &cmd);
+    vkFreeCommandBuffers(m_device, m_commandPool, 1, &cmd);
 }
 
 } // namespace mc::client

@@ -7,13 +7,12 @@
 #include <vulkan/vulkan.h>
 #include <memory>
 #include <vector>
+#include <filesystem>
 
 namespace mc::client {
 
 // 前向声明
-class VulkanPipeline;
 class UniformBuffer;
-class VulkanTextureAtlas;
 
 // 物理设备内存属性回调
 using FindMemoryTypeCallback = Result<u32> (*)(VkPhysicalDevice physicalDevice, u32 typeFilter, VkMemoryPropertyFlags properties);
@@ -154,7 +153,8 @@ private:
     VkDevice m_device = VK_NULL_HANDLE;
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkQueue m_graphicsQueue = VK_NULL_HANDLE;
-    std::unique_ptr<VulkanPipeline> m_pipeline;
+    VkPipeline m_pipeline = VK_NULL_HANDLE;
+    VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
     VkDescriptorSetLayout m_textureDescriptorLayout = VK_NULL_HANDLE;
     VkDescriptorSet m_textureDescriptorSet = VK_NULL_HANDLE;
@@ -186,6 +186,12 @@ private:
      * @brief 创建描述符集
      */
     [[nodiscard]] Result<void> createDescriptorSets();
+
+    /**
+     * @brief 创建图形管线
+     */
+    [[nodiscard]] Result<void> createGraphicsPipeline(VkRenderPass renderPass,
+                                                       VkDescriptorSetLayout cameraDescriptorLayout);
 
     /**
      * @brief 创建缓冲区

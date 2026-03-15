@@ -9,7 +9,6 @@
 namespace mc::client {
 
 // 前向声明
-class VulkanBuffer;
 class Camera;
 
 /**
@@ -175,6 +174,32 @@ private:
      */
     void updateUniformBuffer(u32 frameIndex);
 
+    // ========== Vulkan 辅助函数 ==========
+
+    /**
+     * @brief 查找内存类型
+     */
+    [[nodiscard]] Result<u32> findMemoryType(u32 typeFilter, VkMemoryPropertyFlags properties);
+
+    /**
+     * @brief 创建缓冲区
+     */
+    [[nodiscard]] Result<void> createBuffer(VkDeviceSize size,
+                                            VkBufferUsageFlags usage,
+                                            VkMemoryPropertyFlags properties,
+                                            VkBuffer& buffer,
+                                            VkDeviceMemory& memory);
+
+    /**
+     * @brief 开始单次命令
+     */
+    VkCommandBuffer beginSingleTimeCommands();
+
+    /**
+     * @brief 结束单次命令
+     */
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer);
+
     // ========== 渲染方法 ==========
 
     /**
@@ -219,17 +244,23 @@ private:
     VkPipeline m_starPipeline = VK_NULL_HANDLE;      // 星星管线
 
     // 顶点缓冲区
-    std::unique_ptr<VulkanBuffer> m_skyDomeVBO;      // 天空穹顶
-    std::unique_ptr<VulkanBuffer> m_skyDomeIBO;      // 天空穹顶索引
-    std::unique_ptr<VulkanBuffer> m_starVBO;         // 星星
-    std::unique_ptr<VulkanBuffer> m_sunMoonVBO;      // 太阳/月亮 (共享)
+    VkBuffer m_skyDomeVBO = VK_NULL_HANDLE;
+    VkDeviceMemory m_skyDomeVBOMemory = VK_NULL_HANDLE;
+    VkBuffer m_skyDomeIBO = VK_NULL_HANDLE;
+    VkDeviceMemory m_skyDomeIBOMemory = VK_NULL_HANDLE;
+    VkBuffer m_starVBO = VK_NULL_HANDLE;
+    VkDeviceMemory m_starVBOMemory = VK_NULL_HANDLE;
+    VkBuffer m_sunMoonVBO = VK_NULL_HANDLE;
+    VkDeviceMemory m_sunMoonVBOMemory = VK_NULL_HANDLE;
 
     u32 m_skyDomeIndexCount = 0;
     u32 m_starVertexCount = 0;
 
     // Uniform 缓冲区 (每帧一个)
     static constexpr u32 MAX_FRAMES_IN_FLIGHT = 2;
-    std::unique_ptr<VulkanBuffer> m_uniformBuffers[MAX_FRAMES_IN_FLIGHT];
+    VkBuffer m_uniformBuffers[MAX_FRAMES_IN_FLIGHT] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
+    VkDeviceMemory m_uniformBuffersMemory[MAX_FRAMES_IN_FLIGHT] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
+    void* m_uniformBuffersMapped[MAX_FRAMES_IN_FLIGHT] = {nullptr, nullptr};
     VkDescriptorSet m_descriptorSets[MAX_FRAMES_IN_FLIGHT] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
     u32 m_currentFrame = 0;
     glm::mat4 m_lastViewProjection = glm::mat4(1.0f);

@@ -4,11 +4,9 @@
 #include "../../common/item/Item.hpp"
 #include "../../common/item/ItemRegistry.hpp"
 #include "../../common/item/BlockItem.hpp"
-#include "../renderer/VulkanContext.hpp"
-#include "../renderer/VulkanBuffer.hpp"
 #include <spdlog/spdlog.h>
 
-// stb_image - 只需要头文件，实现在TextureAtlasBuilder.cpp中
+// stb_image - only header, implementation in TextureAtlasBuilder.cpp
 #include <stb_image.h>
 #include <cstring>
 
@@ -21,9 +19,14 @@ ItemTextureAtlas::~ItemTextureAtlas() {
 }
 
 ItemTextureAtlas::ItemTextureAtlas(ItemTextureAtlas&& other) noexcept
-    : m_texture(std::move(other.m_texture))
+    : m_device(other.m_device)
+    , m_physicalDevice(other.m_physicalDevice)
+    , m_commandPool(other.m_commandPool)
+    , m_graphicsQueue(other.m_graphicsQueue)
+    , m_image(other.m_image)
+    , m_imageMemory(other.m_imageMemory)
+    , m_imageView(other.m_imageView)
     , m_sampler(other.m_sampler)
-    , m_device(other.m_device)
     , m_width(other.m_width)
     , m_height(other.m_height)
     , m_uploaded(other.m_uploaded)
@@ -31,8 +34,14 @@ ItemTextureAtlas::ItemTextureAtlas(ItemTextureAtlas&& other) noexcept
     , m_regionsByLocation(std::move(other.m_regionsByLocation))
     , m_pixels(std::move(other.m_pixels))
 {
-    other.m_sampler = VK_NULL_HANDLE;
     other.m_device = VK_NULL_HANDLE;
+    other.m_physicalDevice = VK_NULL_HANDLE;
+    other.m_commandPool = VK_NULL_HANDLE;
+    other.m_graphicsQueue = VK_NULL_HANDLE;
+    other.m_image = VK_NULL_HANDLE;
+    other.m_imageMemory = VK_NULL_HANDLE;
+    other.m_imageView = VK_NULL_HANDLE;
+    other.m_sampler = VK_NULL_HANDLE;
     other.m_width = 0;
     other.m_height = 0;
     other.m_uploaded = false;
@@ -41,9 +50,14 @@ ItemTextureAtlas::ItemTextureAtlas(ItemTextureAtlas&& other) noexcept
 ItemTextureAtlas& ItemTextureAtlas::operator=(ItemTextureAtlas&& other) noexcept {
     if (this != &other) {
         destroy();
-        m_texture = std::move(other.m_texture);
-        m_sampler = other.m_sampler;
         m_device = other.m_device;
+        m_physicalDevice = other.m_physicalDevice;
+        m_commandPool = other.m_commandPool;
+        m_graphicsQueue = other.m_graphicsQueue;
+        m_image = other.m_image;
+        m_imageMemory = other.m_imageMemory;
+        m_imageView = other.m_imageView;
+        m_sampler = other.m_sampler;
         m_width = other.m_width;
         m_height = other.m_height;
         m_uploaded = other.m_uploaded;
@@ -51,8 +65,14 @@ ItemTextureAtlas& ItemTextureAtlas::operator=(ItemTextureAtlas&& other) noexcept
         m_regionsByLocation = std::move(other.m_regionsByLocation);
         m_pixels = std::move(other.m_pixels);
 
-        other.m_sampler = VK_NULL_HANDLE;
         other.m_device = VK_NULL_HANDLE;
+        other.m_physicalDevice = VK_NULL_HANDLE;
+        other.m_commandPool = VK_NULL_HANDLE;
+        other.m_graphicsQueue = VK_NULL_HANDLE;
+        other.m_image = VK_NULL_HANDLE;
+        other.m_imageMemory = VK_NULL_HANDLE;
+        other.m_imageView = VK_NULL_HANDLE;
+        other.m_sampler = VK_NULL_HANDLE;
         other.m_width = 0;
         other.m_height = 0;
         other.m_uploaded = false;
@@ -63,43 +83,57 @@ ItemTextureAtlas& ItemTextureAtlas::operator=(ItemTextureAtlas&& other) noexcept
 Result<void> ItemTextureAtlas::create(
     VkDevice device,
     VkPhysicalDevice physicalDevice,
+    VkCommandPool commandPool,
+    VkQueue graphicsQueue,
     u32 width,
     u32 height)
 {
     if (device == VK_NULL_HANDLE) {
         return Error(ErrorCode::NullPointer, "Device is null");
     }
+    if (commandPool == VK_NULL_HANDLE) {
+        return Error(ErrorCode::NullPointer, "Command pool is null");
+    }
+    if (graphicsQueue == VK_NULL_HANDLE) {
+        return Error(ErrorCode::NullPointer, "Graphics queue is null");
+    }
 
     m_device = device;
+    m_physicalDevice = physicalDevice;
+    m_commandPool = commandPool;
+    m_graphicsQueue = graphicsQueue;
     m_width = width;
     m_height = height;
 
-    // 创建纹理
-    TextureConfig config;
-    config.width = width;
-    config.height = height;
-    config.format = VK_FORMAT_R8G8B8A8_SRGB;  // RGBA格式
-    config.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    config.mipLevels = 1;
-
-    auto result = m_texture.create(device, physicalDevice, config);
-    if (!result.success()) {
-        return result.error();
+    // Create image
+    auto imageResult = createImage();
+    if (!imageResult.success()) {
+        return imageResult.error();
     }
 
-    // 创建图像视图
-    result = m_texture.createImageView(VK_IMAGE_ASPECT_COLOR_BIT);
-    if (!result.success()) {
-        return result.error();
+    // Create image view
+    auto viewResult = createImageView();
+    if (!viewResult.success()) {
+        vkDestroyImage(m_device, m_image, nullptr);
+        vkFreeMemory(m_device, m_imageMemory, nullptr);
+        m_image = VK_NULL_HANDLE;
+        m_imageMemory = VK_NULL_HANDLE;
+        return viewResult.error();
     }
 
-    // 创建采样器
+    // Create sampler
     auto samplerResult = createSampler();
     if (!samplerResult.success()) {
+        vkDestroyImageView(m_device, m_imageView, nullptr);
+        vkDestroyImage(m_device, m_image, nullptr);
+        vkFreeMemory(m_device, m_imageMemory, nullptr);
+        m_imageView = VK_NULL_HANDLE;
+        m_image = VK_NULL_HANDLE;
+        m_imageMemory = VK_NULL_HANDLE;
         return samplerResult.error();
     }
 
-    // 初始化像素缓冲区（透明）
+    // Initialize pixel buffer (transparent)
     m_pixels.resize(static_cast<size_t>(width) * height * 4, 0);
 
     return {};
@@ -111,9 +145,25 @@ void ItemTextureAtlas::destroy() {
         m_sampler = VK_NULL_HANDLE;
     }
 
-    m_texture.destroy();
+    if (m_imageView != VK_NULL_HANDLE && m_device != VK_NULL_HANDLE) {
+        vkDestroyImageView(m_device, m_imageView, nullptr);
+        m_imageView = VK_NULL_HANDLE;
+    }
+
+    if (m_image != VK_NULL_HANDLE && m_device != VK_NULL_HANDLE) {
+        vkDestroyImage(m_device, m_image, nullptr);
+        m_image = VK_NULL_HANDLE;
+    }
+
+    if (m_imageMemory != VK_NULL_HANDLE && m_device != VK_NULL_HANDLE) {
+        vkFreeMemory(m_device, m_imageMemory, nullptr);
+        m_imageMemory = VK_NULL_HANDLE;
+    }
 
     m_device = VK_NULL_HANDLE;
+    m_physicalDevice = VK_NULL_HANDLE;
+    m_commandPool = VK_NULL_HANDLE;
+    m_graphicsQueue = VK_NULL_HANDLE;
     m_width = 0;
     m_height = 0;
     m_uploaded = false;
@@ -133,20 +183,19 @@ Result<void> ItemTextureAtlas::loadFromResourcePacks(
     TextureAtlasBuilder builder;
     builder.setMaxSize(m_width, m_height);
 
-    // 遍历所有物品，加载非方块物品的纹理
-    ItemRegistry::instance().forEachItem([&](Item& item) {
-        // 跳过方块物品（它们使用方块纹理图集）
+    // Iterate all items and load non-block item textures
+    ItemRegistry::instance().forEachItem([this, &builder, &resourcePacks](Item& item) {
+        // Skip block items (they use block texture atlas)
         const BlockItem* blockItem = dynamic_cast<const BlockItem*>(&item);
         if (blockItem != nullptr) {
-            return;  // 继续下一个物品
+            return;
         }
 
-        // 构建纹理路径: textures/item/<item_name>.png
+        // Build texture path: textures/item/<item_name>.png
         const ResourceLocation& itemId = item.itemLocation();
         String texturePath = "textures/item/" + itemId.path() + ".png";
-        ResourceLocation textureLocation(itemId.namespace_(), "item/" + itemId.path());
 
-        // 尝试从资源包加载纹理
+        // Try to load texture from resource packs
         for (const auto& pack : resourcePacks) {
             auto result = builder.addTexture(*pack, ResourceLocation(itemId.namespace_(), texturePath));
             if (result.success()) {
@@ -156,7 +205,7 @@ Result<void> ItemTextureAtlas::loadFromResourcePacks(
         }
     });
 
-    // 构建图集
+    // Build atlas
     auto atlasResult = builder.build();
     if (!atlasResult.success()) {
         spdlog::warn("ItemTextureAtlas: Failed to build atlas: {}", atlasResult.error().message());
@@ -169,26 +218,24 @@ Result<void> ItemTextureAtlas::loadFromResourcePacks(
         return {};
     }
 
-    // 更新图集尺寸
+    // Update atlas size
     m_width = atlas.width;
     m_height = atlas.height;
     m_pixels = atlas.pixels;
 
-    // 存储纹理区域
-    for (const auto& [location, region] : atlas.regions) {
-        m_regionsByLocation[location] = region;
+    // Store texture regions
+    for (const auto& pair : atlas.regions) {
+        m_regionsByLocation[pair.first] = pair.second;
     }
 
-    // 映射物品ID到纹理区域
-    ItemRegistry::instance().forEachItem([&](Item& item) {
+    // Map item ID to texture region
+    ItemRegistry::instance().forEachItem([this, &atlas](Item& item) {
         const BlockItem* blockItem = dynamic_cast<const BlockItem*>(&item);
         if (blockItem != nullptr) {
-            return;  // 跳过方块物品
+            return;
         }
 
         const ResourceLocation& itemId = item.itemLocation();
-        ResourceLocation textureLocation(itemId.namespace_(), "item/" + itemId.path());
-
         auto it = atlas.regions.find(ResourceLocation(itemId.namespace_(),
                                      "textures/item/" + itemId.path() + ".png"));
         if (it != atlas.regions.end()) {
@@ -202,40 +249,87 @@ Result<void> ItemTextureAtlas::loadFromResourcePacks(
     return {};
 }
 
-Result<void> ItemTextureAtlas::upload(
-    VkCommandBuffer commandBuffer,
-    VulkanBuffer& stagingBuffer)
-{
+Result<void> ItemTextureAtlas::upload() {
     if (m_pixels.empty()) {
         return {};
     }
 
-    VkDeviceSize requiredSize = static_cast<VkDeviceSize>(m_pixels.size());
+    if (m_image == VK_NULL_HANDLE) {
+        // Need to recreate image (size may have changed)
+        auto imageResult = createImage();
+        if (!imageResult.success()) {
+            return imageResult.error();
+        }
 
-    // 检查暂存缓冲区大小
-    if (stagingBuffer.size() < requiredSize) {
-        return Error(ErrorCode::CapacityExceeded,
-                     "Staging buffer too small for item texture atlas");
+        auto viewResult = createImageView();
+        if (!viewResult.success()) {
+            vkDestroyImage(m_device, m_image, nullptr);
+            vkFreeMemory(m_device, m_imageMemory, nullptr);
+            m_image = VK_NULL_HANDLE;
+            m_imageMemory = VK_NULL_HANDLE;
+            return viewResult.error();
+        }
     }
 
-    // 映射并复制数据
-    auto mapResult = stagingBuffer.map();
-    if (!mapResult.success()) {
-        return mapResult.error();
+    VkDeviceSize imageSize = static_cast<VkDeviceSize>(m_pixels.size());
+
+    // Create staging buffer
+    VkBuffer stagingBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
+
+    VkBufferCreateInfo bufferInfo = {};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = imageSize;
+    bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(m_device, &bufferInfo, nullptr, &stagingBuffer) != VK_SUCCESS) {
+        return Error(ErrorCode::OutOfMemory, "Failed to create staging buffer");
     }
 
-    void* mapped = mapResult.value();
-    std::memcpy(mapped, m_pixels.data(), m_pixels.size());
-    stagingBuffer.unmap();
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(m_device, stagingBuffer, &memRequirements);
 
-    // 转换图像布局
-    m_texture.transitionLayout(commandBuffer,
-                                VK_IMAGE_LAYOUT_UNDEFINED,
-                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                VK_PIPELINE_STAGE_TRANSFER_BIT);
+    VkMemoryAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    auto memTypeResult = findMemoryType(memRequirements.memoryTypeBits,
+                                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (!memTypeResult.success()) {
+        vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+        return memTypeResult.error();
+    }
+    allocInfo.memoryTypeIndex = memTypeResult.value();
 
-    // 复制缓冲到图像
+    if (vkAllocateMemory(m_device, &allocInfo, nullptr, &stagingMemory) != VK_SUCCESS) {
+        vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+        return Error(ErrorCode::OutOfMemory, "Failed to allocate staging memory");
+    }
+
+    vkBindBufferMemory(m_device, stagingBuffer, stagingMemory, 0);
+
+    // Map and copy data
+    void* mappedData = nullptr;
+    if (vkMapMemory(m_device, stagingMemory, 0, imageSize, 0, &mappedData) != VK_SUCCESS) {
+        vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+        vkFreeMemory(m_device, stagingMemory, nullptr);
+        return Error(ErrorCode::OperationFailed, "Failed to map staging memory");
+    }
+    std::memcpy(mappedData, m_pixels.data(), m_pixels.size());
+    vkUnmapMemory(m_device, stagingMemory);
+
+    // Use single-time command to upload texture
+    VkCommandBuffer cmd = beginSingleTimeCommands();
+
+    // Transition image layout to transfer destination
+    transitionImageLayout(cmd,
+                          VK_IMAGE_LAYOUT_UNDEFINED,
+                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                          VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                          VK_PIPELINE_STAGE_TRANSFER_BIT);
+
+    // Copy buffer to image
     VkBufferImageCopy region = {};
     region.bufferOffset = 0;
     region.bufferRowLength = 0;
@@ -247,22 +341,28 @@ Result<void> ItemTextureAtlas::upload(
     region.imageOffset = {0, 0, 0};
     region.imageExtent = {m_width, m_height, 1};
 
-    vkCmdCopyBufferToImage(commandBuffer,
-                           stagingBuffer.buffer(),
-                           m_texture.image(),
+    vkCmdCopyBufferToImage(cmd,
+                           stagingBuffer,
+                           m_image,
                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                            1, &region);
 
-    // 转换到着色器读取布局
-    m_texture.transitionLayout(commandBuffer,
-                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+    // Transition to shader read-only layout
+    transitionImageLayout(cmd,
+                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                          VK_PIPELINE_STAGE_TRANSFER_BIT,
+                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+
+    endSingleTimeCommands(cmd);
+
+    // Cleanup staging buffer
+    vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+    vkFreeMemory(m_device, stagingMemory, nullptr);
 
     m_uploaded = true;
 
-    // 清理像素数据（已上传到GPU）
+    // Clear pixel data (uploaded to GPU)
     m_pixels.clear();
     m_pixels.shrink_to_fit();
 
@@ -291,10 +391,58 @@ void ItemTextureAtlas::addTextureRegion(const ResourceLocation& location, const 
     m_regionsByLocation[location] = region;
 }
 
+Result<void> ItemTextureAtlas::createImage() {
+    // Create image
+    VkImageCreateInfo imageInfo = {};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = m_width;
+    imageInfo.extent.height = m_height;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+
+    if (vkCreateImage(m_device, &imageInfo, nullptr, &m_image) != VK_SUCCESS) {
+        return Error(ErrorCode::OutOfMemory, "Failed to create item texture atlas image");
+    }
+
+    // Allocate memory
+    VkMemoryRequirements memRequirements;
+    vkGetImageMemoryRequirements(m_device, m_image, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    auto memTypeResult = findMemoryType(memRequirements.memoryTypeBits,
+                                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (!memTypeResult.success()) {
+        vkDestroyImage(m_device, m_image, nullptr);
+        m_image = VK_NULL_HANDLE;
+        return memTypeResult.error();
+    }
+    allocInfo.memoryTypeIndex = memTypeResult.value();
+
+    if (vkAllocateMemory(m_device, &allocInfo, nullptr, &m_imageMemory) != VK_SUCCESS) {
+        vkDestroyImage(m_device, m_image, nullptr);
+        m_image = VK_NULL_HANDLE;
+        return Error(ErrorCode::OutOfMemory, "Failed to allocate item texture atlas memory");
+    }
+
+    vkBindImageMemory(m_device, m_image, m_imageMemory, 0);
+
+    return {};
+}
+
 Result<void> ItemTextureAtlas::createSampler() {
     VkSamplerCreateInfo samplerInfo = {};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter = VK_FILTER_NEAREST;  // 物品纹理使用最近邻过滤（像素风格）
+    samplerInfo.magFilter = VK_FILTER_NEAREST;
     samplerInfo.minFilter = VK_FILTER_NEAREST;
     samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
@@ -311,10 +459,108 @@ Result<void> ItemTextureAtlas::createSampler() {
     samplerInfo.maxLod = 0.0f;
 
     if (vkCreateSampler(m_device, &samplerInfo, nullptr, &m_sampler) != VK_SUCCESS) {
-        return Error(ErrorCode::InitializationFailed, "Failed to create item texture sampler");
+        return Error(ErrorCode::InitializationFailed, "Failed to create item texture atlas sampler");
     }
 
     return {};
+}
+
+Result<void> ItemTextureAtlas::createImageView() {
+    VkImageViewCreateInfo viewInfo = {};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = m_image;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = 1;
+
+    if (vkCreateImageView(m_device, &viewInfo, nullptr, &m_imageView) != VK_SUCCESS) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create item texture atlas image view");
+    }
+
+    return {};
+}
+
+Result<u32> ItemTextureAtlas::findMemoryType(u32 typeFilter, VkMemoryPropertyFlags properties) {
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
+
+    for (u32 i = 0; i < memProperties.memoryTypeCount; ++i) {
+        if ((typeFilter & (1 << i)) &&
+            (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+
+    return Error(ErrorCode::OutOfMemory, "Failed to find suitable memory type");
+}
+
+VkCommandBuffer ItemTextureAtlas::beginSingleTimeCommands() {
+    VkCommandBufferAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = m_commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(m_device, &allocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    return commandBuffer;
+}
+
+void ItemTextureAtlas::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(m_graphicsQueue);
+
+    vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
+}
+
+void ItemTextureAtlas::transitionImageLayout(VkCommandBuffer cmd,
+                                              VkImageLayout oldLayout,
+                                              VkImageLayout newLayout,
+                                              VkPipelineStageFlags srcStage,
+                                              VkPipelineStageFlags dstStage) {
+    VkImageMemoryBarrier barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = oldLayout;
+    barrier.newLayout = newLayout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = m_image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    } else {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = 0;
+    }
+
+    vkCmdPipelineBarrier(cmd, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
 } // namespace mc::client

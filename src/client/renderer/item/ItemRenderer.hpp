@@ -14,7 +14,6 @@ class ResourceManager;
 
 namespace client {
 
-class VulkanContext;
 class GuiRenderer;
 class ItemTextureAtlas;
 

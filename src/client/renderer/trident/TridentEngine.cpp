@@ -11,14 +11,12 @@
 #include "../api/IRenderEngine.hpp"
 #include "../ChunkRenderer.hpp"
 #include "../sky/SkyRenderer.hpp"
-#include "../VulkanBuffer.hpp"
 #include "../../ui/GuiRenderer.hpp"
 #include "../../ui/Font.hpp"
 #include "../item/ItemRenderer.hpp"
 #include "../../resource/ItemTextureAtlas.hpp"
 #include "../entity/EntityRendererManager.hpp"
 #include "../entity/EntityTextureAtlas.hpp"
-#include "../VulkanTexture.hpp"
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -872,9 +870,15 @@ Result<void> TridentEngine::initializeEntityTextureAtlas(ResourceManager* resour
     spdlog::info("Initializing entity texture atlas...");
 
     // 初始化实体纹理图集
-    // 注意：EntityTextureAtlas 仍需要 VulkanContext，使用原始 Vulkan handles
-    // 这里暂时跳过实际的纹理加载，留待后续迁移
-    // auto initResult = m_entityTextureAtlas.initialize(...);
+    auto initResult = m_entityTextureAtlas.initialize(
+        device(),
+        physicalDevice(),
+        commandPool(),
+        graphicsQueue()
+    );
+    if (initResult.failed()) {
+        return initResult.error();
+    }
 
     m_entityTextureAtlasInitialized = true;
     spdlog::info("Entity texture atlas initialized");
@@ -893,71 +897,6 @@ Result<void> TridentEngine::updateTextureAtlas(const AtlasBuildResult& atlasResu
     spdlog::info("Updating texture atlas: {}x{}, {} regions",
                  atlasResult.width, atlasResult.height, atlasResult.regions.size());
 
-    VkDevice vkDevice = device();
-    VkPhysicalDevice vkPhysicalDevice = physicalDevice();
-
-    // 销毁旧的纹理图集
-    if (m_chunkTextureAtlas.isValid()) {
-        m_context->waitIdle();
-        m_chunkTextureAtlas.destroy();
-    }
-
-    // 创建新的纹理图集
-    auto result = m_chunkTextureAtlas.create(
-        vkDevice,
-        vkPhysicalDevice,
-        atlasResult.width,
-        atlasResult.height
-    );
-
-    if (result.failed()) {
-        return Error(ErrorCode::InitializationFailed,
-            "Failed to create texture atlas: " + result.error().toString());
-    }
-
-    // 创建暂存缓冲区
-    VulkanBuffer stagingBuffer;
-    VkDeviceSize imageSize = static_cast<VkDeviceSize>(atlasResult.pixels.size());
-    auto stagingResult = stagingBuffer.create(
-        vkDevice,
-        vkPhysicalDevice,
-        imageSize,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    );
-
-    if (stagingResult.failed()) {
-        m_chunkTextureAtlas.destroy();
-        return Error(ErrorCode::InitializationFailed,
-            "Failed to create staging buffer: " + stagingResult.error().toString());
-    }
-
-    // 复制数据到暂存缓冲区
-    auto mapResult = stagingBuffer.map();
-    if (mapResult.failed() || !mapResult.value()) {
-        stagingBuffer.destroy();
-        m_chunkTextureAtlas.destroy();
-        return Error(ErrorCode::OperationFailed, "Failed to map staging buffer");
-    }
-    void* data = mapResult.value();
-    std::memcpy(data, atlasResult.pixels.data(), atlasResult.pixels.size());
-    stagingBuffer.unmap();
-
-    // 使用单次命令上传纹理
-    VkCommandBuffer cmd = beginSingleTimeCommands();
-
-    auto uploadResult = m_chunkTextureAtlas.upload(cmd, stagingBuffer);
-    if (uploadResult.failed()) {
-        endSingleTimeCommands(cmd);
-        stagingBuffer.destroy();
-        m_chunkTextureAtlas.destroy();
-        return Error(ErrorCode::OperationFailed,
-            "Failed to upload texture atlas: " + uploadResult.error().toString());
-    }
-
-    endSingleTimeCommands(cmd);
-    stagingBuffer.destroy();
-
     // 保存纹理区域映射
     m_textureRegions = atlasResult.regions;
 
@@ -966,22 +905,24 @@ Result<void> TridentEngine::updateTextureAtlas(const AtlasBuildResult& atlasResu
         auto chunkResult = initializeChunkRenderer();
         if (chunkResult.failed()) {
             spdlog::warn("Failed to initialize chunk renderer: {}", chunkResult.error().toString());
-        } else {
-            // 加载纹理图集到区块渲染器
-            auto loadResult = m_chunkRenderer->loadTextureAtlas(
-                atlasResult.pixels.data(),
-                atlasResult.width,
-                16  // tileSize
-            );
-            if (loadResult.failed()) {
-                spdlog::warn("Failed to load texture atlas to chunk renderer: {}", loadResult.error().toString());
-            }
+            return chunkResult.error();
         }
+    }
+
+    // 加载纹理图集到区块渲染器
+    auto loadResult = m_chunkRenderer->loadTextureAtlas(
+        atlasResult.pixels.data(),
+        atlasResult.width,
+        16  // tileSize
+    );
+    if (loadResult.failed()) {
+        spdlog::error("Failed to load texture atlas to chunk renderer: {}", loadResult.error().toString());
+        return loadResult.error();
     }
 
     // 更新实体管线的纹理（如果已初始化）
     if (m_entityRendererInitialized && m_entityRendererManager) {
-        // 实体渲染器可以从 ChunkTextureAtlas 获取纹理
+        // 实体渲染器可以从 ChunkRenderer 的纹理图集获取纹理
     }
 
     spdlog::info("Texture atlas updated successfully");

@@ -16,9 +16,6 @@ class IResourcePack;  // Forward declaration in mc namespace
 
 namespace mc::client {
 
-// 前向声明
-class VulkanContext;
-
 /**
  * @brief 实体纹理图集构建结果
  */
@@ -50,13 +47,17 @@ public:
 
     /**
      * @brief 初始化图集
-     * @param context Vulkan上下文
+     * @param device Vulkan设备
+     * @param physicalDevice 物理设备
      * @param commandPool 命令池（用于纹理上传）
+     * @param graphicsQueue 图形队列（用于纹理上传）
      * @param maxTextures 最大纹理数量
      * @param textureSize 单个纹理大小（默认64）
      */
-    [[nodiscard]] Result<void> initialize(VulkanContext* context,
+    [[nodiscard]] Result<void> initialize(VkDevice device,
+                                           VkPhysicalDevice physicalDevice,
                                            VkCommandPool commandPool,
+                                           VkQueue graphicsQueue,
                                            u32 maxTextures = 256,
                                            u32 textureSize = 64);
 
@@ -119,7 +120,10 @@ public:
     [[nodiscard]] u32 height() const { return m_height; }
 
 private:
-    VulkanContext* m_context = nullptr;
+    VkDevice m_device = VK_NULL_HANDLE;
+    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
+    VkCommandPool m_commandPool = VK_NULL_HANDLE;
+    VkQueue m_graphicsQueue = VK_NULL_HANDLE;
 
     // 配置
     u32 m_maxTextures = 256;
@@ -179,6 +183,11 @@ private:
     [[nodiscard]] Result<void> uploadTextureData(const std::vector<u8>& data);
 
     /**
+     * @brief 查找内存类型
+     */
+    [[nodiscard]] Result<u32> findMemoryType(u32 typeFilter, VkMemoryPropertyFlags properties);
+
+    /**
      * @brief 开始单次命令
      */
     VkCommandBuffer beginSingleTimeCommands();
@@ -187,9 +196,6 @@ private:
      * @brief 结束单次命令
      */
     void endSingleTimeCommands(VkCommandBuffer cmd);
-
-    // 单次命令所需的资源
-    VkCommandPool m_commandPool = VK_NULL_HANDLE;
 };
 
 } // namespace mc::client

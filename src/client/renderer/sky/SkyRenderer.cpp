@@ -1,7 +1,6 @@
 #include "SkyRenderer.hpp"
 #include "CelestialCalculations.hpp"
 #include "../util/ShaderPath.hpp"
-#include "../VulkanBuffer.hpp"
 #include "../../../common/core/Constants.hpp"
 #include "../../../common/math/random/Random.hpp"
 #include "../../../common/perfetto/TraceEvents.hpp"
@@ -208,14 +207,50 @@ void SkyRenderer::destroy() {
 
     // 销毁 Uniform 缓冲区
     for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-        m_uniformBuffers[i].reset();
+        if (m_uniformBuffers[i] != VK_NULL_HANDLE) {
+            vkDestroyBuffer(device, m_uniformBuffers[i], nullptr);
+            m_uniformBuffers[i] = VK_NULL_HANDLE;
+        }
+        if (m_uniformBuffersMemory[i] != VK_NULL_HANDLE) {
+            vkFreeMemory(device, m_uniformBuffersMemory[i], nullptr);
+            m_uniformBuffersMemory[i] = VK_NULL_HANDLE;
+        }
+        m_uniformBuffersMapped[i] = nullptr;
     }
 
     // 销毁顶点缓冲区
-    m_skyDomeVBO.reset();
-    m_skyDomeIBO.reset();
-    m_starVBO.reset();
-    m_sunMoonVBO.reset();
+    if (m_skyDomeVBO != VK_NULL_HANDLE) {
+        vkDestroyBuffer(device, m_skyDomeVBO, nullptr);
+        m_skyDomeVBO = VK_NULL_HANDLE;
+    }
+    if (m_skyDomeVBOMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, m_skyDomeVBOMemory, nullptr);
+        m_skyDomeVBOMemory = VK_NULL_HANDLE;
+    }
+    if (m_skyDomeIBO != VK_NULL_HANDLE) {
+        vkDestroyBuffer(device, m_skyDomeIBO, nullptr);
+        m_skyDomeIBO = VK_NULL_HANDLE;
+    }
+    if (m_skyDomeIBOMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, m_skyDomeIBOMemory, nullptr);
+        m_skyDomeIBOMemory = VK_NULL_HANDLE;
+    }
+    if (m_starVBO != VK_NULL_HANDLE) {
+        vkDestroyBuffer(device, m_starVBO, nullptr);
+        m_starVBO = VK_NULL_HANDLE;
+    }
+    if (m_starVBOMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, m_starVBOMemory, nullptr);
+        m_starVBOMemory = VK_NULL_HANDLE;
+    }
+    if (m_sunMoonVBO != VK_NULL_HANDLE) {
+        vkDestroyBuffer(device, m_sunMoonVBO, nullptr);
+        m_sunMoonVBO = VK_NULL_HANDLE;
+    }
+    if (m_sunMoonVBOMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, m_sunMoonVBOMemory, nullptr);
+        m_sunMoonVBOMemory = VK_NULL_HANDLE;
+    }
 
     m_initialized = false;
     spdlog::info("SkyRenderer destroyed");
@@ -343,16 +378,15 @@ void SkyRenderer::render(VkCommandBuffer cmd,
 }
 
 void SkyRenderer::renderSkyDome(VkCommandBuffer cmd) {
-    if (m_skyPipeline == VK_NULL_HANDLE || !m_skyDomeVBO || !m_skyDomeIBO || m_skyDomeIndexCount == 0) {
+    if (m_skyPipeline == VK_NULL_HANDLE || m_skyDomeVBO == VK_NULL_HANDLE || m_skyDomeIBO == VK_NULL_HANDLE || m_skyDomeIndexCount == 0) {
         return;
     }
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_skyPipeline);
 
     VkDeviceSize offset = 0;
-    VkBuffer vertexBuffer = m_skyDomeVBO->buffer();
-    vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer, &offset);
-    vkCmdBindIndexBuffer(cmd, m_skyDomeIBO->buffer(), 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindVertexBuffers(cmd, 0, 1, &m_skyDomeVBO, &offset);
+    vkCmdBindIndexBuffer(cmd, m_skyDomeIBO, 0, VK_INDEX_TYPE_UINT16);
 
     vkCmdDrawIndexed(cmd, m_skyDomeIndexCount, 1, 0, 0, 0);
 }
@@ -360,12 +394,12 @@ void SkyRenderer::renderSkyDome(VkCommandBuffer cmd) {
 void SkyRenderer::renderSun(VkCommandBuffer cmd) {
     // 太阳强度太低时不渲染
     const bool shouldLog = (++m_sunDebugLogCounter % 240) == 0;
-    if (m_sunIntensity < 0.03f || m_sunPipeline == VK_NULL_HANDLE || !m_sunMoonVBO) {
+    if (m_sunIntensity < 0.03f || m_sunPipeline == VK_NULL_HANDLE || m_sunMoonVBO == VK_NULL_HANDLE) {
         if (shouldLog) {
             spdlog::info("[Sky] Sun skipped: intensity={:.4f}, pipelineValid={}, vboValid={}",
                         m_sunIntensity,
                         m_sunPipeline != VK_NULL_HANDLE,
-                        m_sunMoonVBO != nullptr);
+                        m_sunMoonVBO != VK_NULL_HANDLE);
         }
         return;
     }
@@ -393,8 +427,7 @@ void SkyRenderer::renderSun(VkCommandBuffer cmd) {
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_sunPipeline);
 
     VkDeviceSize offset = 0;
-    VkBuffer vertexBuffer = m_sunMoonVBO->buffer();
-    vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer, &offset);
+    vkCmdBindVertexBuffers(cmd, 0, 1, &m_sunMoonVBO, &offset);
 
     // 太阳使用 2 个三角形（6 顶点）
     vkCmdDraw(cmd, 6, 1, 0, 0);
@@ -402,26 +435,24 @@ void SkyRenderer::renderSun(VkCommandBuffer cmd) {
 
 void SkyRenderer::renderMoon(VkCommandBuffer cmd) {
     // 白天不渲染月亮（晨昏允许短暂过渡）
-    if (m_sunIntensity > 0.18f || m_moonPipeline == VK_NULL_HANDLE || !m_sunMoonVBO) return;
+    if (m_sunIntensity > 0.18f || m_moonPipeline == VK_NULL_HANDLE || m_sunMoonVBO == VK_NULL_HANDLE) return;
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_moonPipeline);
 
     VkDeviceSize offset = 0;
-    VkBuffer vertexBuffer = m_sunMoonVBO->buffer();
-    vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer, &offset);
+    vkCmdBindVertexBuffers(cmd, 0, 1, &m_sunMoonVBO, &offset);
 
     // 月亮使用 2 个三角形（6 顶点，从索引 6 开始）
     vkCmdDraw(cmd, 6, 1, 6, 0);
 }
 
 void SkyRenderer::renderStars(VkCommandBuffer cmd) {
-    if (m_starVertexCount == 0 || m_starPipeline == VK_NULL_HANDLE || !m_starVBO) return;
+    if (m_starVertexCount == 0 || m_starPipeline == VK_NULL_HANDLE || m_starVBO == VK_NULL_HANDLE) return;
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_starPipeline);
 
     VkDeviceSize offset = 0;
-    VkBuffer vertexBuffer = m_starVBO->buffer();
-    vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer, &offset);
+    vkCmdBindVertexBuffers(cmd, 0, 1, &m_starVBO, &offset);
 
     // 星星使用点渲染
     vkCmdDraw(cmd, m_starVertexCount, 1, 0, 0);
@@ -434,7 +465,7 @@ void SkyRenderer::renderStars(VkCommandBuffer cmd) {
 Result<void> SkyRenderer::createSkyDomeVBO() {
     // 创建天空球网格。
     // 说明：
-    // - 原先的平面天空无法区分“上半天空/下半天空”，无法实现 MC 晨昏时下半天空填充。
+    // - 原先的平面天空无法区分”上半天空/下半天空”，无法实现 MC 晨昏时下半天空填充。
     // - 使用球面后，可基于方向向量按半球分别着色并叠加日出日落扇形效果。
     constexpr f32 SKY_RADIUS = 384.0f;
     constexpr i32 STACK_COUNT = 32;
@@ -490,33 +521,34 @@ Result<void> SkyRenderer::createSkyDomeVBO() {
 
     // 创建 VBO
     VkDeviceSize vertexSize = vertices.size() * sizeof(SkyVertex);
-    m_skyDomeVBO = std::make_unique<VulkanBuffer>();
-    auto result1 = m_skyDomeVBO->create(
-        m_device,
-        m_physicalDevice,
-        vertexSize,
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    );
-    if (result1.failed()) {
-        return result1.error();
+    auto result = createBuffer(vertexSize,
+                               VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                               m_skyDomeVBO, m_skyDomeVBOMemory);
+    if (result.failed()) {
+        return result;
     }
-    m_skyDomeVBO->upload(vertices.data(), vertexSize);
+
+    // 上传数据
+    void* data;
+    vkMapMemory(m_device, m_skyDomeVBOMemory, 0, vertexSize, 0, &data);
+    std::memcpy(data, vertices.data(), vertexSize);
+    vkUnmapMemory(m_device, m_skyDomeVBOMemory);
 
     // 创建 IBO
     VkDeviceSize indexSize = indices.size() * sizeof(u16);
-    m_skyDomeIBO = std::make_unique<VulkanBuffer>();
-    auto result2 = m_skyDomeIBO->create(
-        m_device,
-        m_physicalDevice,
-        indexSize,
-        VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    );
-    if (result2.failed()) {
-        return result2.error();
+    result = createBuffer(indexSize,
+                          VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                          m_skyDomeIBO, m_skyDomeIBOMemory);
+    if (result.failed()) {
+        return result;
     }
-    m_skyDomeIBO->upload(indices.data(), indexSize);
+
+    // 上传数据
+    vkMapMemory(m_device, m_skyDomeIBOMemory, 0, indexSize, 0, &data);
+    std::memcpy(data, indices.data(), indexSize);
+    vkUnmapMemory(m_device, m_skyDomeIBOMemory);
 
     return Result<void>::ok();
 }
@@ -549,18 +581,19 @@ Result<void> SkyRenderer::createStarVBO() {
 
     // 创建 VBO
     VkDeviceSize vertexSize = vertices.size() * sizeof(SkyVertex);
-    m_starVBO = std::make_unique<VulkanBuffer>();
-    auto result = m_starVBO->create(
-        m_device,
-        m_physicalDevice,
-        vertexSize,
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    );
+    auto result = createBuffer(vertexSize,
+                               VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                               m_starVBO, m_starVBOMemory);
     if (result.failed()) {
-        return result.error();
+        return result;
     }
-    m_starVBO->upload(vertices.data(), vertexSize);
+
+    // 上传数据
+    void* data;
+    vkMapMemory(m_device, m_starVBOMemory, 0, vertexSize, 0, &data);
+    std::memcpy(data, vertices.data(), vertexSize);
+    vkUnmapMemory(m_device, m_starVBOMemory);
 
     return Result<void>::ok();
 }
@@ -588,35 +621,35 @@ Result<void> SkyRenderer::createSunMoonVBO() {
 
     // 创建 VBO
     VkDeviceSize vertexSize = vertices.size() * sizeof(SkyVertex);
-    m_sunMoonVBO = std::make_unique<VulkanBuffer>();
-    auto result = m_sunMoonVBO->create(
-        m_device,
-        m_physicalDevice,
-        vertexSize,
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    );
+    auto result = createBuffer(vertexSize,
+                               VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                               m_sunMoonVBO, m_sunMoonVBOMemory);
     if (result.failed()) {
-        return result.error();
+        return result;
     }
-    m_sunMoonVBO->upload(vertices.data(), vertexSize);
+
+    // 上传数据
+    void* data;
+    vkMapMemory(m_device, m_sunMoonVBOMemory, 0, vertexSize, 0, &data);
+    std::memcpy(data, vertices.data(), vertexSize);
+    vkUnmapMemory(m_device, m_sunMoonVBOMemory);
 
     return Result<void>::ok();
 }
 
 Result<void> SkyRenderer::createUniformBuffers() {
     for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-        m_uniformBuffers[i] = std::make_unique<VulkanBuffer>();
-        auto result = m_uniformBuffers[i]->create(
-            m_device,
-            m_physicalDevice,
-            sizeof(SkyUBO),
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        );
+        auto result = createBuffer(sizeof(SkyUBO),
+                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                   m_uniformBuffers[i], m_uniformBuffersMemory[i]);
         if (result.failed()) {
-            return result.error();
+            return result;
         }
+
+        // 持久映射
+        vkMapMemory(m_device, m_uniformBuffersMemory[i], 0, sizeof(SkyUBO), 0, &m_uniformBuffersMapped[i]);
     }
     return Result<void>::ok();
 }
@@ -681,7 +714,7 @@ Result<void> SkyRenderer::createDescriptorSets() {
     // 更新描述符集
     for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         VkDescriptorBufferInfo bufferInfo = {};
-        bufferInfo.buffer = m_uniformBuffers[i]->buffer();
+        bufferInfo.buffer = m_uniformBuffers[i];
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(SkyUBO);
 
@@ -970,7 +1003,104 @@ void SkyRenderer::updateUniformBuffer(u32 frameIndex) {
     ubo.moonPhase = m_moonPhase;
     ubo.padding = 0.0f;
 
-    m_uniformBuffers[frameIndex]->upload(&ubo, sizeof(SkyUBO));
+    // 使用持久映射的内存
+    if (m_uniformBuffersMapped[frameIndex] != nullptr) {
+        std::memcpy(m_uniformBuffersMapped[frameIndex], &ubo, sizeof(SkyUBO));
+    }
+}
+
+// ============================================================================
+// Vulkan 辅助函数
+// ============================================================================
+
+Result<u32> SkyRenderer::findMemoryType(u32 typeFilter, VkMemoryPropertyFlags properties) {
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
+
+    for (u32 i = 0; i < memProperties.memoryTypeCount; ++i) {
+        if ((typeFilter & (1 << i)) &&
+            (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+
+    return Error(ErrorCode::NotFound, "Failed to find suitable memory type");
+}
+
+Result<void> SkyRenderer::createBuffer(VkDeviceSize size,
+                                        VkBufferUsageFlags usage,
+                                        VkMemoryPropertyFlags properties,
+                                        VkBuffer& buffer,
+                                        VkDeviceMemory& memory) {
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VkResult result = vkCreateBuffer(m_device, &bufferInfo, nullptr, &buffer);
+    if (result != VK_SUCCESS) {
+        return Error(ErrorCode::OutOfMemory, "Failed to create buffer");
+    }
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(m_device, buffer, &memRequirements);
+
+    auto memTypeResult = findMemoryType(memRequirements.memoryTypeBits, properties);
+    if (!memTypeResult.success()) {
+        vkDestroyBuffer(m_device, buffer, nullptr);
+        buffer = VK_NULL_HANDLE;
+        return memTypeResult.error();
+    }
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = memTypeResult.value();
+
+    result = vkAllocateMemory(m_device, &allocInfo, nullptr, &memory);
+    if (result != VK_SUCCESS) {
+        vkDestroyBuffer(m_device, buffer, nullptr);
+        buffer = VK_NULL_HANDLE;
+        return Error(ErrorCode::OutOfMemory, "Failed to allocate buffer memory");
+    }
+
+    vkBindBufferMemory(m_device, buffer, memory, 0);
+
+    return Result<void>::ok();
+}
+
+VkCommandBuffer SkyRenderer::beginSingleTimeCommands() {
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = m_commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(m_device, &allocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    return commandBuffer;
+}
+
+void SkyRenderer::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(m_graphicsQueue);
+
+    vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
 }
 
 } // namespace mc::client

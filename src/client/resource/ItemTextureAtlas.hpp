@@ -4,10 +4,10 @@
 #include "../../common/core/Result.hpp"
 #include "../../common/resource/ResourceLocation.hpp"
 #include "../renderer/MeshTypes.hpp"
-#include "../renderer/VulkanTexture.hpp"
-#include <memory>
+#include <vulkan/vulkan.h>
 #include <unordered_map>
 #include <vector>
+#include <memory>
 
 namespace mc {
 
@@ -16,14 +16,11 @@ class Item;
 
 namespace client {
 
-class VulkanContext;
-class VulkanBuffer;
-
 /**
  * @brief 物品纹理图集
  *
  * 管理非方块物品的纹理图集（如工具、食物、材料等）。
- * 方块物品使用方块纹理图集（VulkanTextureAtlas）。
+ * 方块物品使用方块纹理图集。
  *
  * 纹理来源：
  * - 资源包中的 textures/item/*.png
@@ -47,6 +44,8 @@ public:
      *
      * @param device Vulkan设备
      * @param physicalDevice 物理设备
+     * @param commandPool 命令池（用于纹理上传）
+     * @param graphicsQueue 图形队列（用于纹理上传）
      * @param width 图集宽度
      * @param height 图集高度
      * @return 成功或错误
@@ -54,6 +53,8 @@ public:
     [[nodiscard]] Result<void> create(
         VkDevice device,
         VkPhysicalDevice physicalDevice,
+        VkCommandPool commandPool,
+        VkQueue graphicsQueue,
         u32 width = 256,
         u32 height = 256);
 
@@ -76,13 +77,12 @@ public:
     /**
      * @brief 上传纹理数据到GPU
      *
-     * @param commandBuffer 命令缓冲区
-     * @param stagingBuffer 暂存缓冲区
+     * 必须在调用 loadFromResourcePacks() 之后调用。
+     * 使用内部暂存缓冲区上传数据。
+     *
      * @return 成功或错误
      */
-    [[nodiscard]] Result<void> upload(
-        VkCommandBuffer commandBuffer,
-        VulkanBuffer& stagingBuffer);
+    [[nodiscard]] Result<void> upload();
 
     /**
      * @brief 获取物品纹理区域
@@ -124,10 +124,9 @@ public:
     void addTextureRegion(const ResourceLocation& location, const TextureRegion& region);
 
     /**
-     * @brief 获取Vulkan纹理
+     * @brief 获取图像视图
      */
-    VulkanTexture& texture() { return m_texture; }
-    const VulkanTexture& texture() const { return m_texture; }
+    VkImageView imageView() const { return m_imageView; }
 
     /**
      * @brief 获取采样器
@@ -135,14 +134,9 @@ public:
     VkSampler sampler() const { return m_sampler; }
 
     /**
-     * @brief 获取图像视图
-     */
-    VkImageView imageView() const { return m_texture.imageView(); }
-
-    /**
      * @brief 检查是否有效
      */
-    [[nodiscard]] bool isValid() const { return m_texture.isValid(); }
+    [[nodiscard]] bool isValid() const { return m_image != VK_NULL_HANDLE; }
 
     /**
      * @brief 检查纹理数据是否已上传
@@ -165,9 +159,16 @@ public:
     [[nodiscard]] size_t textureCount() const { return m_regionsByItemId.size(); }
 
 private:
-    VulkanTexture m_texture;
-    VkSampler m_sampler = VK_NULL_HANDLE;
     VkDevice m_device = VK_NULL_HANDLE;
+    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
+    VkCommandPool m_commandPool = VK_NULL_HANDLE;
+    VkQueue m_graphicsQueue = VK_NULL_HANDLE;
+
+    // 纹理资源
+    VkImage m_image = VK_NULL_HANDLE;
+    VkDeviceMemory m_imageMemory = VK_NULL_HANDLE;
+    VkImageView m_imageView = VK_NULL_HANDLE;
+    VkSampler m_sampler = VK_NULL_HANDLE;
 
     u32 m_width = 0;
     u32 m_height = 0;
@@ -183,9 +184,43 @@ private:
     std::vector<u8> m_pixels;
 
     /**
+     * @brief 创建图像
+     */
+    [[nodiscard]] Result<void> createImage();
+
+    /**
      * @brief 创建采样器
      */
     [[nodiscard]] Result<void> createSampler();
+
+    /**
+     * @brief 创建图像视图
+     */
+    [[nodiscard]] Result<void> createImageView();
+
+    /**
+     * @brief 查找内存类型
+     */
+    [[nodiscard]] Result<u32> findMemoryType(u32 typeFilter, VkMemoryPropertyFlags properties);
+
+    /**
+     * @brief 开始单次命令
+     */
+    VkCommandBuffer beginSingleTimeCommands();
+
+    /**
+     * @brief 结束单次命令
+     */
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer);
+
+    /**
+     * @brief 转换图像布局
+     */
+    void transitionImageLayout(VkCommandBuffer cmd,
+                                VkImageLayout oldLayout,
+                                VkImageLayout newLayout,
+                                VkPipelineStageFlags srcStage,
+                                VkPipelineStageFlags dstStage);
 };
 
 } // namespace client

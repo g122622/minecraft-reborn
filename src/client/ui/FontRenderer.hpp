@@ -8,12 +8,6 @@
 
 namespace mc::client {
 
-// 前向声明
-class VulkanContext;
-class VulkanPipeline;
-class VulkanBuffer;
-class VulkanTexture;
-
 /**
  * @brief 文本渲染器
  *

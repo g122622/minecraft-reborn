@@ -1,7 +1,5 @@
 #include "GuiRenderer.hpp"
 #include "../renderer/util/ShaderPath.hpp"
-#include "../renderer/VulkanBuffer.hpp"
-#include "../renderer/VulkanTexture.hpp"
 #include <cstring>
 #include <algorithm>
 #include <filesystem>
@@ -116,8 +114,31 @@ void GuiRenderer::destroy() {
     vkDeviceWaitIdle(device);
 
     // 销毁纹理
-    m_fontTexture.reset();
-    m_itemPlaceholderTexture.reset();
+    if (m_fontTextureView != VK_NULL_HANDLE) {
+        vkDestroyImageView(device, m_fontTextureView, nullptr);
+        m_fontTextureView = VK_NULL_HANDLE;
+    }
+    if (m_fontTexture != VK_NULL_HANDLE) {
+        vkDestroyImage(device, m_fontTexture, nullptr);
+        m_fontTexture = VK_NULL_HANDLE;
+    }
+    if (m_fontTextureMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, m_fontTextureMemory, nullptr);
+        m_fontTextureMemory = VK_NULL_HANDLE;
+    }
+
+    if (m_itemPlaceholderView != VK_NULL_HANDLE) {
+        vkDestroyImageView(device, m_itemPlaceholderView, nullptr);
+        m_itemPlaceholderView = VK_NULL_HANDLE;
+    }
+    if (m_itemPlaceholderTexture != VK_NULL_HANDLE) {
+        vkDestroyImage(device, m_itemPlaceholderTexture, nullptr);
+        m_itemPlaceholderTexture = VK_NULL_HANDLE;
+    }
+    if (m_itemPlaceholderMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, m_itemPlaceholderMemory, nullptr);
+        m_itemPlaceholderMemory = VK_NULL_HANDLE;
+    }
 
     if (m_sampler != VK_NULL_HANDLE) {
         vkDestroySampler(device, m_sampler, nullptr);
@@ -125,9 +146,30 @@ void GuiRenderer::destroy() {
     }
 
     // 销毁缓冲区
-    m_vertexBuffer.reset();
-    m_indexBuffer.reset();
-    m_fontStagingBuffer.reset();
+    if (m_vertexBuffer != VK_NULL_HANDLE) {
+        vkDestroyBuffer(device, m_vertexBuffer, nullptr);
+        m_vertexBuffer = VK_NULL_HANDLE;
+    }
+    if (m_vertexBufferMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, m_vertexBufferMemory, nullptr);
+        m_vertexBufferMemory = VK_NULL_HANDLE;
+    }
+    if (m_indexBuffer != VK_NULL_HANDLE) {
+        vkDestroyBuffer(device, m_indexBuffer, nullptr);
+        m_indexBuffer = VK_NULL_HANDLE;
+    }
+    if (m_indexBufferMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, m_indexBufferMemory, nullptr);
+        m_indexBufferMemory = VK_NULL_HANDLE;
+    }
+    if (m_fontStagingBuffer != VK_NULL_HANDLE) {
+        vkDestroyBuffer(device, m_fontStagingBuffer, nullptr);
+        m_fontStagingBuffer = VK_NULL_HANDLE;
+    }
+    if (m_fontStagingMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, m_fontStagingMemory, nullptr);
+        m_fontStagingMemory = VK_NULL_HANDLE;
+    }
 
     // 销毁管线
     if (m_pipeline != VK_NULL_HANDLE) {
@@ -217,12 +259,11 @@ void GuiRenderer::render(VkCommandBuffer commandBuffer) {
                             m_pipelineLayout, 0, 1, &m_descriptorSet, 0, nullptr);
 
     // 绑定顶点缓冲
-    VkBuffer vertexBuffer = m_vertexBuffer->buffer();
     VkDeviceSize vertexOffset = 0;
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, &vertexOffset);
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_vertexBuffer, &vertexOffset);
 
     // 绑定索引缓冲
-    vkCmdBindIndexBuffer(commandBuffer, m_indexBuffer->buffer(), 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindIndexBuffer(commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
     // 绘制
     vkCmdDrawIndexed(commandBuffer, static_cast<u32>(m_indices.size()), 1, 0, 0, 0);
@@ -610,60 +651,112 @@ Result<void> GuiRenderer::createDescriptors() {
 }
 
 Result<void> GuiRenderer::createBuffers() {
-    VkDevice device = m_device;
-    VkPhysicalDevice physicalDevice = m_physicalDevice;
-
     // 创建顶点缓冲（使用HOST_VISIBLE内存，以便在render pass内直接更新数据）
-    m_vertexBuffer = std::make_unique<VulkanBuffer>();
-    auto result = m_vertexBuffer->create(device, physicalDevice, 64 * 1024,
-                                          VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    auto result = createBuffer(64 * 1024,
+                               VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                               m_vertexBuffer, m_vertexBufferMemory);
     if (!result.success()) {
-        return result.error();
+        return result;
     }
 
     // 创建索引缓冲（使用HOST_VISIBLE内存）
-    m_indexBuffer = std::make_unique<VulkanBuffer>();
-    result = m_indexBuffer->create(device, physicalDevice, 128 * 1024,
-                                    VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    result = createBuffer(128 * 1024,
+                          VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                          m_indexBuffer, m_indexBufferMemory);
     if (!result.success()) {
-        return result.error();
+        return result;
     }
 
-    // 不再需要暂存缓冲
+    // 创建字体纹理暂存缓冲
+    result = createBuffer(256 * 256,
+                          VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                          m_fontStagingBuffer, m_fontStagingMemory);
+    if (!result.success()) {
+        return result;
+    }
+
+    // 初始清空暂存缓冲
+    void* mapped = nullptr;
+    vkMapMemory(m_device, m_fontStagingMemory, 0, 256 * 256, 0, &mapped);
+    if (mapped != nullptr) {
+        std::memset(mapped, 0, 256 * 256);
+        vkUnmapMemory(m_device, m_fontStagingMemory);
+    }
+
     return {};
 }
 
 Result<void> GuiRenderer::createFontTexture() {
     VkDevice device = m_device;
-    VkPhysicalDevice physicalDevice = m_physicalDevice;
 
     // 创建字体纹理（256x256，单通道）
-    m_fontTexture = std::make_unique<VulkanTexture>();
+    constexpr u32 FONT_TEXTURE_SIZE = 256;
 
-    TextureConfig config;
-    config.width = 256;
-    config.height = 256;
-    config.format = VK_FORMAT_R8_UNORM; // 单通道灰度
-    config.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    config.mipLevels = 1;
+    // 创建图像
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = FONT_TEXTURE_SIZE;
+    imageInfo.extent.height = FONT_TEXTURE_SIZE;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = VK_FORMAT_R8_UNORM;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 
-    auto result = m_fontTexture->create(device, physicalDevice, config);
-    if (!result.success()) {
-        return result.error();
+    VkResult result = vkCreateImage(device, &imageInfo, nullptr, &m_fontTexture);
+    if (result != VK_SUCCESS) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create font texture image");
     }
 
+    // 分配内存
+    VkMemoryRequirements memRequirements;
+    vkGetImageMemoryRequirements(device, m_fontTexture, &memRequirements);
+
+    auto memTypeResult = findMemoryType(memRequirements.memoryTypeBits,
+                                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (!memTypeResult.success()) {
+        return memTypeResult.error();
+    }
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = memTypeResult.value();
+
+    result = vkAllocateMemory(device, &allocInfo, nullptr, &m_fontTextureMemory);
+    if (result != VK_SUCCESS) {
+        return Error(ErrorCode::InitializationFailed, "Failed to allocate font texture memory");
+    }
+
+    vkBindImageMemory(device, m_fontTexture, m_fontTextureMemory, 0);
+
     // 创建图像视图
-    result = m_fontTexture->createImageView(VK_IMAGE_ASPECT_COLOR_BIT);
-    if (!result.success()) {
-        return result.error();
+    VkImageViewCreateInfo viewInfo{};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = m_fontTexture;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = VK_FORMAT_R8_UNORM;
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = 1;
+
+    result = vkCreateImageView(device, &viewInfo, nullptr, &m_fontTextureView);
+    if (result != VK_SUCCESS) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create font texture image view");
     }
 
     // 创建采样器
-    VkSamplerCreateInfo samplerInfo = {};
+    VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     samplerInfo.magFilter = VK_FILTER_LINEAR;
     samplerInfo.minFilter = VK_FILTER_LINEAR;
@@ -685,66 +778,79 @@ Result<void> GuiRenderer::createFontTexture() {
         return Error(ErrorCode::InitializationFailed, "Failed to create sampler");
     }
 
-    // 创建字体纹理暂存缓冲
-    m_fontStagingBuffer = std::make_unique<VulkanBuffer>();
-    result = m_fontStagingBuffer->create(device, physicalDevice, 256 * 256,
-                                          VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    if (!result.success()) {
-        return result.error();
+    // 创建物品占位纹理（1x1 RGBA）
+    VkImageCreateInfo placeholderImageInfo{};
+    placeholderImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    placeholderImageInfo.imageType = VK_IMAGE_TYPE_2D;
+    placeholderImageInfo.extent.width = 1;
+    placeholderImageInfo.extent.height = 1;
+    placeholderImageInfo.extent.depth = 1;
+    placeholderImageInfo.mipLevels = 1;
+    placeholderImageInfo.arrayLayers = 1;
+    placeholderImageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+    placeholderImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    placeholderImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    placeholderImageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    placeholderImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    placeholderImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+
+    result = vkCreateImage(device, &placeholderImageInfo, nullptr, &m_itemPlaceholderTexture);
+    if (result != VK_SUCCESS) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create placeholder texture image");
     }
 
-    // 初始清空纹理
-    auto mapResult1 = m_fontStagingBuffer->map();
-    void* mapped1 = mapResult1.success() ? mapResult1.value() : nullptr;
-    if (mapped1 != nullptr) {
-        std::memset(mapped1, 0, 256 * 256);
-        m_fontStagingBuffer->unmap();
+    vkGetImageMemoryRequirements(device, m_itemPlaceholderTexture, &memRequirements);
+
+    memTypeResult = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (!memTypeResult.success()) {
+        return memTypeResult.error();
     }
 
-    // 立即上传初始数据并转换布局
-    // 由于这里没有commandBuffer，我们将在首次prepareFrame时上传
-    // 先创建一个空的RGBA纹理作为物品纹理占位符
-    m_itemPlaceholderTexture = std::make_unique<VulkanTexture>();
-    TextureConfig placeholderConfig;
-    placeholderConfig.width = 1;
-    placeholderConfig.height = 1;
-    placeholderConfig.format = VK_FORMAT_R8G8B8A8_SRGB;
-    placeholderConfig.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    placeholderConfig.mipLevels = 1;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = memTypeResult.value();
 
-    result = m_itemPlaceholderTexture->create(device, physicalDevice, placeholderConfig);
-    if (!result.success()) {
-        return result.error();
+    result = vkAllocateMemory(device, &allocInfo, nullptr, &m_itemPlaceholderMemory);
+    if (result != VK_SUCCESS) {
+        return Error(ErrorCode::InitializationFailed, "Failed to allocate placeholder texture memory");
     }
 
-    result = m_itemPlaceholderTexture->createImageView(VK_IMAGE_ASPECT_COLOR_BIT);
-    if (!result.success()) {
-        return result.error();
+    vkBindImageMemory(device, m_itemPlaceholderTexture, m_itemPlaceholderMemory, 0);
+
+    VkImageViewCreateInfo placeholderViewInfo{};
+    placeholderViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    placeholderViewInfo.image = m_itemPlaceholderTexture;
+    placeholderViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    placeholderViewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+    placeholderViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    placeholderViewInfo.subresourceRange.baseMipLevel = 0;
+    placeholderViewInfo.subresourceRange.levelCount = 1;
+    placeholderViewInfo.subresourceRange.baseArrayLayer = 0;
+    placeholderViewInfo.subresourceRange.layerCount = 1;
+
+    result = vkCreateImageView(device, &placeholderViewInfo, nullptr, &m_itemPlaceholderView);
+    if (result != VK_SUCCESS) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create placeholder texture image view");
     }
 
-    // 更新描述符集（字体纹理 = binding 0）
-    VkDescriptorImageInfo fontImageInfo = {};
-    fontImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    fontImageInfo.imageView = m_fontTexture->imageView();
-    fontImageInfo.sampler = m_sampler;
+    // 更新描述符集
+    VkDescriptorImageInfo fontDescImageInfo{};
+    fontDescImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    fontDescImageInfo.imageView = m_fontTextureView;
+    fontDescImageInfo.sampler = m_sampler;
+
+    VkDescriptorImageInfo placeholderDescImageInfo{};
+    placeholderDescImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    placeholderDescImageInfo.imageView = m_itemPlaceholderView;
+    placeholderDescImageInfo.sampler = m_sampler;
 
     VkWriteDescriptorSet descriptorWrites[2] = {};
-    // Binding 0: 字体纹理
     descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrites[0].dstSet = m_descriptorSet;
     descriptorWrites[0].dstBinding = 0;
     descriptorWrites[0].dstArrayElement = 0;
     descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorWrites[0].descriptorCount = 1;
-    descriptorWrites[0].pImageInfo = &fontImageInfo;
-
-    // Binding 1: 物品纹理占位符（使用占位纹理）
-    VkDescriptorImageInfo placeholderImageInfo = {};
-    placeholderImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    placeholderImageInfo.imageView = m_itemPlaceholderTexture->imageView();
-    placeholderImageInfo.sampler = m_sampler;
+    descriptorWrites[0].pImageInfo = &fontDescImageInfo;
 
     descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrites[1].dstSet = m_descriptorSet;
@@ -752,7 +858,7 @@ Result<void> GuiRenderer::createFontTexture() {
     descriptorWrites[1].dstArrayElement = 0;
     descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorWrites[1].descriptorCount = 1;
-    descriptorWrites[1].pImageInfo = &placeholderImageInfo;
+    descriptorWrites[1].pImageInfo = &placeholderDescImageInfo;
 
     vkUpdateDescriptorSets(device, 2, descriptorWrites, 0, nullptr);
 
@@ -769,22 +875,36 @@ void GuiRenderer::updateFontTexture(VkCommandBuffer commandBuffer) {
     if (pixels == nullptr || size == 0) return;
 
     // 上传到暂存缓冲
-    auto mapResult2 = m_fontStagingBuffer->map();
-    void* mapped = mapResult2.success() ? mapResult2.value() : nullptr;
+    void* mapped = nullptr;
+    vkMapMemory(m_device, m_fontStagingMemory, 0, size * size, 0, &mapped);
     if (mapped != nullptr) {
         std::memcpy(mapped, pixels, size * size);
-        m_fontStagingBuffer->unmap();
+        vkUnmapMemory(m_device, m_fontStagingMemory);
     }
 
-    // 转换图像布局
-    m_fontTexture->transitionLayout(commandBuffer,
-                                     VK_IMAGE_LAYOUT_UNDEFINED,
-                                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                     VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                     VK_PIPELINE_STAGE_TRANSFER_BIT);
+    // 转换图像布局到 TRANSFER_DST
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = m_fontTexture;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+    barrier.srcAccessMask = 0;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+    vkCmdPipelineBarrier(commandBuffer,
+                          VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                          VK_PIPELINE_STAGE_TRANSFER_BIT,
+                          0, 0, nullptr, 0, nullptr, 1, &barrier);
 
     // 复制缓冲到图像
-    VkBufferImageCopy region = {};
+    VkBufferImageCopy region{};
     region.bufferOffset = 0;
     region.bufferRowLength = 0;
     region.bufferImageHeight = 0;
@@ -795,95 +915,137 @@ void GuiRenderer::updateFontTexture(VkCommandBuffer commandBuffer) {
     region.imageOffset = {0, 0, 0};
     region.imageExtent = {size, size, 1};
 
-    vkCmdCopyBufferToImage(commandBuffer, m_fontStagingBuffer->buffer(),
-                           m_fontTexture->image(),
+    vkCmdCopyBufferToImage(commandBuffer, m_fontStagingBuffer,
+                           m_fontTexture,
                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
     // 转换到着色器读取布局
-    m_fontTexture->transitionLayout(commandBuffer,
-                                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                     VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    vkCmdPipelineBarrier(commandBuffer,
+                          VK_PIPELINE_STAGE_TRANSFER_BIT,
+                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                          0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
 void GuiRenderer::initializeTextureLayouts(VkCommandBuffer commandBuffer) {
     // 初始化字体纹理布局
-    // 注意：从 UNDEFINED 布局转换时，源阶段使用 TOP_OF_PIPE，但访问掩码为0
-    if (m_fontTexture && m_fontTexture->image() != VK_NULL_HANDLE) {
-        m_fontTexture->transitionLayout(commandBuffer,
-                                        VK_IMAGE_LAYOUT_UNDEFINED,
-                                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+    if (m_fontTexture != VK_NULL_HANDLE) {
+        VkImageMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = m_fontTexture;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseMipLevel = 0;
+        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        vkCmdPipelineBarrier(commandBuffer,
+                              VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                              VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                              0, 0, nullptr, 0, nullptr, 1, &barrier);
     }
 
     // 初始化物品占位纹理布局
-    if (m_itemPlaceholderTexture && m_itemPlaceholderTexture->image() != VK_NULL_HANDLE) {
-        m_itemPlaceholderTexture->transitionLayout(commandBuffer,
-                                                   VK_IMAGE_LAYOUT_UNDEFINED,
-                                                   VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                                   VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                                   VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+    if (m_itemPlaceholderTexture != VK_NULL_HANDLE) {
+        VkImageMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = m_itemPlaceholderTexture;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseMipLevel = 0;
+        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        vkCmdPipelineBarrier(commandBuffer,
+                              VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                              VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                              0, 0, nullptr, 0, nullptr, 1, &barrier);
     }
 }
 
 void GuiRenderer::uploadBufferData(VkCommandBuffer commandBuffer) {
+    (void)commandBuffer;  // 不需要 command buffer，使用 HOST_VISIBLE 内存
+
     if (m_vertices.empty() && m_indices.empty()) return;
 
     VkDeviceSize vertexSize = m_vertices.size() * sizeof(GuiVertex);
     VkDeviceSize indexSize = m_indices.size() * sizeof(u32);
 
-    VkDevice device = m_device;
-    VkPhysicalDevice physicalDevice = m_physicalDevice;
-
     // 若顶点数据超出缓冲容量，则以2倍所需大小重建缓冲
-    if (vertexSize > m_vertexBuffer->size()) {
-        m_vertexBuffer->destroy();
-        auto result = m_vertexBuffer->create(device, physicalDevice,
-                                              vertexSize * 2,
-                                              VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                              VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                              VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (vertexSize > m_vertexBufferSize) {
+        if (m_vertexBuffer != VK_NULL_HANDLE) {
+            vkDestroyBuffer(m_device, m_vertexBuffer, nullptr);
+            m_vertexBuffer = VK_NULL_HANDLE;
+        }
+        if (m_vertexBufferMemory != VK_NULL_HANDLE) {
+            vkFreeMemory(m_device, m_vertexBufferMemory, nullptr);
+            m_vertexBufferMemory = VK_NULL_HANDLE;
+        }
+
+        auto result = createBuffer(vertexSize * 2,
+                                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                   m_vertexBuffer, m_vertexBufferMemory);
         if (!result.success()) {
             spdlog::error("GuiRenderer: failed to reallocate vertex buffer ({}B)", vertexSize);
             return;
         }
+        m_vertexBufferSize = vertexSize * 2;
     }
 
     // 若索引数据超出缓冲容量，则以2倍所需大小重建缓冲
-    if (indexSize > m_indexBuffer->size()) {
-        m_indexBuffer->destroy();
-        auto result = m_indexBuffer->create(device, physicalDevice,
-                                             indexSize * 2,
-                                             VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (indexSize > m_indexBufferSize) {
+        if (m_indexBuffer != VK_NULL_HANDLE) {
+            vkDestroyBuffer(m_device, m_indexBuffer, nullptr);
+            m_indexBuffer = VK_NULL_HANDLE;
+        }
+        if (m_indexBufferMemory != VK_NULL_HANDLE) {
+            vkFreeMemory(m_device, m_indexBufferMemory, nullptr);
+            m_indexBufferMemory = VK_NULL_HANDLE;
+        }
+
+        auto result = createBuffer(indexSize * 2,
+                                   VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                   m_indexBuffer, m_indexBufferMemory);
         if (!result.success()) {
             spdlog::error("GuiRenderer: failed to reallocate index buffer ({}B)", indexSize);
             return;
         }
+        m_indexBufferSize = indexSize * 2;
     }
 
     // 直接映射顶点缓冲并复制数据
-    auto vertexMapResult = m_vertexBuffer->map();
-    if (vertexMapResult.success()) {
-        void* vertexMapped = vertexMapResult.value();
+    void* vertexMapped = nullptr;
+    vkMapMemory(m_device, m_vertexBufferMemory, 0, vertexSize, 0, &vertexMapped);
+    if (vertexMapped != nullptr) {
         std::memcpy(vertexMapped, m_vertices.data(), vertexSize);
-        m_vertexBuffer->unmap();
+        vkUnmapMemory(m_device, m_vertexBufferMemory);
     }
 
     // 直接映射索引缓冲并复制数据
-    auto indexMapResult = m_indexBuffer->map();
-    if (indexMapResult.success()) {
-        void* indexMapped = indexMapResult.value();
+    void* indexMapped = nullptr;
+    vkMapMemory(m_device, m_indexBufferMemory, 0, indexSize, 0, &indexMapped);
+    if (indexMapped != nullptr) {
         std::memcpy(indexMapped, m_indices.data(), indexSize);
-        m_indexBuffer->unmap();
+        vkUnmapMemory(m_device, m_indexBufferMemory);
     }
-
-    // 由于使用HOST_COHERENT内存，不需要手动flush
-    // 数据会自动对GPU可见
-    (void)commandBuffer; // 不再需要commandBuffer
 }
 
 void GuiRenderer::setItemTextureAtlas(VkImageView itemView, VkSampler itemSampler) {
@@ -909,6 +1071,67 @@ void GuiRenderer::setItemTextureAtlas(VkImageView itemView, VkSampler itemSample
     descriptorWrite.pImageInfo = &itemImageInfo;
 
     vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+}
+
+// ============================================================================
+// Vulkan 辅助函数
+// ============================================================================
+
+Result<u32> GuiRenderer::findMemoryType(u32 typeFilter, VkMemoryPropertyFlags properties) {
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
+
+    for (u32 i = 0; i < memProperties.memoryTypeCount; ++i) {
+        if ((typeFilter & (1 << i)) &&
+            (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+
+    return Error(ErrorCode::NotFound, "Failed to find suitable memory type");
+}
+
+Result<void> GuiRenderer::createBuffer(VkDeviceSize size,
+                                        VkBufferUsageFlags usage,
+                                        VkMemoryPropertyFlags properties,
+                                        VkBuffer& buffer,
+                                        VkDeviceMemory& memory) {
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VkResult result = vkCreateBuffer(m_device, &bufferInfo, nullptr, &buffer);
+    if (result != VK_SUCCESS) {
+        return Error(ErrorCode::OutOfMemory, "Failed to create buffer");
+    }
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(m_device, buffer, &memRequirements);
+
+    auto memTypeResult = findMemoryType(memRequirements.memoryTypeBits, properties);
+    if (!memTypeResult.success()) {
+        vkDestroyBuffer(m_device, buffer, nullptr);
+        buffer = VK_NULL_HANDLE;
+        return memTypeResult.error();
+    }
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = memTypeResult.value();
+
+    result = vkAllocateMemory(m_device, &allocInfo, nullptr, &memory);
+    if (result != VK_SUCCESS) {
+        vkDestroyBuffer(m_device, buffer, nullptr);
+        buffer = VK_NULL_HANDLE;
+        return Error(ErrorCode::OutOfMemory, "Failed to allocate buffer memory");
+    }
+
+    vkBindBufferMemory(m_device, buffer, memory, 0);
+
+    return {};
 }
 
 } // namespace mc::client

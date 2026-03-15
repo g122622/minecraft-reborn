@@ -2,7 +2,6 @@
 
 #include "../api/IRenderEngine.hpp"
 #include "TridentContext.hpp"
-#include "../VulkanTexture.hpp"
 #include "../../resource/ItemTextureAtlas.hpp"
 #include "../../resource/ResourceManager.hpp"
 #include "../../resource/TextureAtlasBuilder.hpp"
@@ -26,7 +25,6 @@ class SkyRenderer;
 class GuiRenderer;
 class Font;
 class ItemRenderer;
-class VulkanPipeline;
 
 namespace renderer {
 class EntityRendererManager;
@@ -438,7 +436,6 @@ private:
     std::unique_ptr<Font> m_font;
 
     // 纹理图集
-    VulkanTextureAtlas m_chunkTextureAtlas;
     ItemTextureAtlas m_itemTextureAtlas;
     EntityTextureAtlas m_entityTextureAtlas;
     std::map<ResourceLocation, TextureRegion> m_textureRegions;

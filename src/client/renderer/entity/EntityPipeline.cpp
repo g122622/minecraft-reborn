@@ -1,9 +1,9 @@
 #include "EntityPipeline.hpp"
-#include "../VulkanPipeline.hpp"
 #include "../util/ShaderPath.hpp"
 #include <spdlog/spdlog.h>
 #include <cstring>
 #include <array>
+#include <fstream>
 
 namespace mc::client {
 
@@ -20,6 +20,39 @@ static Result<u32> findMemoryType(VkPhysicalDevice physicalDevice, u32 typeFilte
     }
 
     return Error(ErrorCode::NotFound, "Failed to find suitable memory type");
+}
+
+// 辅助函数：从文件读取着色器
+static std::vector<u8> readShaderFile(const std::filesystem::path& path) {
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+        return {};
+    }
+    const std::streamsize fileSize = file.tellg();
+    std::vector<u8> data(static_cast<size_t>(fileSize));
+    file.seekg(0);
+    file.read(reinterpret_cast<char*>(data.data()), fileSize);
+    return data;
+}
+
+// 辅助函数：创建着色器模块
+static Result<VkShaderModule> createShaderModule(VkDevice device, const std::vector<u8>& code) {
+    if (code.empty() || code.size() % 4 != 0) {
+        return Error(ErrorCode::InvalidData, "Invalid shader code");
+    }
+
+    VkShaderModuleCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.codeSize = code.size();
+    createInfo.pCode = reinterpret_cast<const u32*>(code.data());
+
+    VkShaderModule shaderModule = VK_NULL_HANDLE;
+    VkResult result = vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule);
+    if (result != VK_SUCCESS) {
+        return Error(ErrorCode::InitializationFailed, "Failed to create shader module");
+    }
+
+    return shaderModule;
 }
 
 // ============================================================================
@@ -100,75 +133,10 @@ Result<void> EntityPipeline::initialize(
         return result.error();
     }
 
-    // 创建管线
-    PipelineConfig config{};
-
-    // 着色器路径 - 使用 resolveShaderPath 解析路径
-    const auto entityVertPath = resolveShaderPath("entity.vert.spv");
-    const auto entityFragPath = resolveShaderPath("entity.frag.spv");
-    if (entityVertPath.empty() || entityFragPath.empty()) {
-        return Error(ErrorCode::FileNotFound, "Failed to resolve entity shader binaries");
-    }
-    config.vertexShaderPath = entityVertPath.string();
-    config.fragmentShaderPath = entityFragPath.string();
-
-    // 顶点输入
-    auto bindingDesc = getVertexBindingDescription();
-    auto attrDescs = getVertexAttributeDescriptions();
-    config.vertexBindings.push_back(bindingDesc);
-    config.vertexAttributes = attrDescs;
-
-    // 输入装配
-    config.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    config.primitiveRestartEnable = VK_FALSE;
-
-    // 光栅化
-    config.polygonMode = VK_POLYGON_MODE_FILL;
-    // 实体模型由运行时网格生成，部分面的绕序在当前实现下不完全一致。
-    // 禁用剔除可避免出现“刺状/破碎”外观。
-    config.cullMode = VK_CULL_MODE_NONE;
-    config.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    config.lineWidth = 1.0f;
-
-    // 多重采样
-    config.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-    // 深度/模板
-    config.depthTestEnable = VK_TRUE;
-    config.depthWriteEnable = VK_TRUE;
-    config.depthCompareOp = VK_COMPARE_OP_LESS;
-    config.stencilTestEnable = VK_FALSE;
-
-    // 颜色混合 - 启用alpha混合
-    config.blendEnable = VK_TRUE;
-    config.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    config.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    config.colorBlendOp = VK_BLEND_OP_ADD;
-    config.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    config.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    config.alphaBlendOp = VK_BLEND_OP_ADD;
-    config.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-                            VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-
-    // 渲染通道
-    config.renderPass = renderPass;
-    config.subpass = 0;
-
-    // 描述符布局
-    config.descriptorSetLayouts.push_back(cameraDescriptorLayout);
-    config.descriptorSetLayouts.push_back(m_textureDescriptorLayout);
-
-    // 推送常量
-    VkPushConstantRange pushConstantRange{};
-    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    pushConstantRange.offset = 0;
-    pushConstantRange.size = sizeof(f32) * 16 + sizeof(f32) * 4;  // mat4 + vec3 + float
-    config.pushConstantRanges.push_back(pushConstantRange);
-
-    m_pipeline = std::make_unique<VulkanPipeline>();
-    auto pipelineResult = m_pipeline->initialize(m_device, config);
-    if (!pipelineResult.success()) {
-        return pipelineResult.error();
+    // 创建图形管线
+    result = createGraphicsPipeline(renderPass, cameraDescriptorLayout);
+    if (!result.success()) {
+        return result.error();
     }
 
     m_initialized = true;
@@ -179,6 +147,18 @@ Result<void> EntityPipeline::initialize(
 void EntityPipeline::destroy() {
     if (!m_initialized) {
         return;
+    }
+
+    // 销毁管线
+    if (m_pipeline != VK_NULL_HANDLE) {
+        vkDestroyPipeline(m_device, m_pipeline, nullptr);
+        m_pipeline = VK_NULL_HANDLE;
+    }
+
+    // 销毁管线布局
+    if (m_pipelineLayout != VK_NULL_HANDLE) {
+        vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
+        m_pipelineLayout = VK_NULL_HANDLE;
     }
 
     // 销毁采样器
@@ -193,15 +173,12 @@ void EntityPipeline::destroy() {
         m_textureDescriptorLayout = VK_NULL_HANDLE;
     }
 
-    // 管线通过unique_ptr自动销毁
-    m_pipeline.reset();
-
     m_initialized = false;
     spdlog::info("EntityPipeline destroyed");
 }
 
 void EntityPipeline::bind(VkCommandBuffer cmd) {
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->pipeline());
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
 }
 
 Result<EntityMesh> EntityPipeline::createMesh(const std::vector<renderer::ModelVertex>& vertices,
@@ -378,7 +355,7 @@ void EntityPipeline::drawMesh(VkCommandBuffer cmd,
     pc.posZ = position.z;
     pc.scale = scale;
 
-    vkCmdPushConstants(cmd, m_pipeline->layout(), VK_SHADER_STAGE_VERTEX_BIT,
+    vkCmdPushConstants(cmd, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
                        0, sizeof(PushConstants), &pc);
 
     // 绘制
@@ -388,7 +365,7 @@ void EntityPipeline::drawMesh(VkCommandBuffer cmd,
 void EntityPipeline::bindTextureDescriptor(VkCommandBuffer cmd) {
     if (m_textureDescriptorSet != VK_NULL_HANDLE) {
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                m_pipeline->layout(), 1, 1, &m_textureDescriptorSet, 0, nullptr);
+                                m_pipelineLayout, 1, 1, &m_textureDescriptorSet, 0, nullptr);
     }
 }
 
@@ -418,7 +395,7 @@ void EntityPipeline::setTextureAtlas(VkImageView textureView, VkSampler sampler)
 }
 
 VkPipelineLayout EntityPipeline::pipelineLayout() const {
-    return m_pipeline ? m_pipeline->layout() : VK_NULL_HANDLE;
+    return m_pipelineLayout;
 }
 
 Result<void> EntityPipeline::createDescriptorLayouts() {
@@ -490,6 +467,182 @@ Result<void> EntityPipeline::createDescriptorSets() {
     if (result != VK_SUCCESS) {
         return Error(ErrorCode::InitializationFailed,
                      "Failed to allocate texture descriptor set");
+    }
+
+    return Result<void>::ok();
+}
+
+Result<void> EntityPipeline::createGraphicsPipeline(VkRenderPass renderPass,
+                                                      VkDescriptorSetLayout cameraDescriptorLayout) {
+    // 着色器路径
+    const auto vertPath = resolveShaderPath("entity.vert.spv");
+    const auto fragPath = resolveShaderPath("entity.frag.spv");
+    if (vertPath.empty() || fragPath.empty()) {
+        return Error(ErrorCode::FileNotFound, "Failed to resolve entity shader binaries");
+    }
+
+    // 加载着色器
+    auto vertCode = readShaderFile(vertPath);
+    auto fragCode = readShaderFile(fragPath);
+    if (vertCode.empty() || fragCode.empty()) {
+        return Error(ErrorCode::FileNotFound, "Failed to load entity shaders");
+    }
+
+    auto vertModuleResult = createShaderModule(m_device, vertCode);
+    if (!vertModuleResult.success()) {
+        return vertModuleResult.error();
+    }
+    VkShaderModule vertShaderModule = vertModuleResult.value();
+
+    auto fragModuleResult = createShaderModule(m_device, fragCode);
+    if (!fragModuleResult.success()) {
+        vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
+        return fragModuleResult.error();
+    }
+    VkShaderModule fragShaderModule = fragModuleResult.value();
+
+    // 着色器阶段
+    std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages{};
+    shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaderStages[0].module = vertShaderModule;
+    shaderStages[0].pName = "main";
+
+    shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaderStages[1].module = fragShaderModule;
+    shaderStages[1].pName = "main";
+
+    // 顶点输入
+    auto bindingDesc = getVertexBindingDescription();
+    auto attrDescs = getVertexAttributeDescriptions();
+
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDesc;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<u32>(attrDescs.size());
+    vertexInputInfo.pVertexAttributeDescriptions = attrDescs.data();
+
+    // 输入装配
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+    // 视口和裁剪（动态）
+    VkPipelineViewportStateCreateInfo viewportState{};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.scissorCount = 1;
+
+    // 光栅化
+    VkPipelineRasterizationStateCreateInfo rasterizer{};
+    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.depthClampEnable = VK_FALSE;
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.lineWidth = 1.0f;
+    rasterizer.cullMode = VK_CULL_MODE_NONE;  // 实体模型禁用剔除
+    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterizer.depthBiasEnable = VK_FALSE;
+
+    // 多重采样
+    VkPipelineMultisampleStateCreateInfo multisampling{};
+    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.sampleShadingEnable = VK_FALSE;
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    // 深度/模板
+    VkPipelineDepthStencilStateCreateInfo depthStencil{};
+    depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencil.depthTestEnable = VK_TRUE;
+    depthStencil.depthWriteEnable = VK_TRUE;
+    depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+    depthStencil.depthBoundsTestEnable = VK_FALSE;
+    depthStencil.stencilTestEnable = VK_FALSE;
+
+    // 颜色混合 - 启用alpha混合
+    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                                          VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.blendEnable = VK_TRUE;
+    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+    VkPipelineColorBlendStateCreateInfo colorBlending{};
+    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlending.logicOpEnable = VK_FALSE;
+    colorBlending.attachmentCount = 1;
+    colorBlending.pAttachments = &colorBlendAttachment;
+
+    // 动态状态
+    std::array<VkDynamicState, 2> dynamicStates = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = static_cast<u32>(dynamicStates.size());
+    dynamicState.pDynamicStates = dynamicStates.data();
+
+    // 管线布局
+    std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts = {
+        cameraDescriptorLayout,
+        m_textureDescriptorLayout
+    };
+
+    VkPushConstantRange pushConstantRange{};
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    pushConstantRange.offset = 0;
+    pushConstantRange.size = sizeof(f32) * 16 + sizeof(f32) * 4;  // mat4 + vec3 + float
+
+    VkPipelineLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    layoutInfo.setLayoutCount = static_cast<u32>(descriptorSetLayouts.size());
+    layoutInfo.pSetLayouts = descriptorSetLayouts.data();
+    layoutInfo.pushConstantRangeCount = 1;
+    layoutInfo.pPushConstantRanges = &pushConstantRange;
+
+    VkResult result = vkCreatePipelineLayout(m_device, &layoutInfo, nullptr, &m_pipelineLayout);
+    if (result != VK_SUCCESS) {
+        vkDestroyShaderModule(m_device, fragShaderModule, nullptr);
+        vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
+        return Error(ErrorCode::InitializationFailed, "Failed to create pipeline layout");
+    }
+
+    // 创建图形管线
+    VkGraphicsPipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.stageCount = static_cast<u32>(shaderStages.size());
+    pipelineInfo.pStages = shaderStages.data();
+    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssembly;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pDepthStencilState = &depthStencil;
+    pipelineInfo.pColorBlendState = &colorBlending;
+    pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.layout = m_pipelineLayout;
+    pipelineInfo.renderPass = renderPass;
+    pipelineInfo.subpass = 0;
+
+    result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline);
+
+    // 清理着色器模块
+    vkDestroyShaderModule(m_device, fragShaderModule, nullptr);
+    vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
+
+    if (result != VK_SUCCESS) {
+        vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
+        m_pipelineLayout = VK_NULL_HANDLE;
+        return Error(ErrorCode::InitializationFailed, "Failed to create graphics pipeline");
     }
 
     return Result<void>::ok();
