@@ -107,6 +107,19 @@ public:
      */
     [[nodiscard]] std::vector<BiomeId> sampleArea(i32 startX, i32 startZ, i32 width, i32 height) const;
 
+    /**
+     * @brief 批量采样指定区域的生物群系
+     *
+     * 单次加锁批量获取多个坐标的生物群系，减少锁竞争开销。
+     *
+     * @param startX 起始 X 坐标
+     * @param startZ 起始 Z 坐标
+     * @param width 宽度
+     * @param height 高度
+     * @param output 输出数组（大小必须 >= width * height）
+     */
+    void sampleBatch(i32 startX, i32 startZ, i32 width, i32 height, BiomeId* output) const;
+
 private:
     std::unique_ptr<IArea> m_area;
 };
@@ -128,6 +141,14 @@ public:
     [[nodiscard]] f32 getScale(i32 x, i32 z) const override;
     [[nodiscard]] const Biome& getBiomeDefinition(BiomeId id) const override;
     void fillBiomeContainer(BiomeContainer& container, ChunkCoord chunkX, ChunkCoord chunkZ) override;
+
+    /**
+     * @brief 批量获取生物群系
+     *
+     * 使用 LayerStack::sampleBatch 优化性能。
+     */
+    void getBiomesBatch(i32 startX, i32 startY, i32 startZ, i32 width, i32 height,
+                         BiomeId* output) const override;
 
 private:
     std::unique_ptr<LayerStack> m_layerStack;

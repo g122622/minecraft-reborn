@@ -5,65 +5,6 @@
 namespace mc {
 
 // ============================================================================
-// Long2IntLRUCache 实现 - O(1) LRU 缓存
-// ============================================================================
-
-Long2IntLRUCache::Long2IntLRUCache(i32 maxSize)
-    : m_maxSize(maxSize)
-{
-    m_cache.reserve(static_cast<size_t>(maxSize * 2));  // 预分配空间
-}
-
-bool Long2IntLRUCache::get(i64 key, i32& value) {
-    // MC_TRACE_EVENT("world.biome", "LRUCache_Get");
-    std::lock_guard<std::mutex> lock(m_mutex);
-    auto it = m_cache.find(key);
-    if (it != m_cache.end()) {
-        // 移动到链表前端（最近访问）
-        m_list.splice(m_list.begin(), m_list, it->second);
-        value = it->second->second;
-        return true;
-    }
-    return false;
-}
-
-void Long2IntLRUCache::put(i64 key, i32 value) {
-    // MC_TRACE_EVENT("world.biome", "LRUCache_Put");
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    // 检查是否已存在
-    auto it = m_cache.find(key);
-    if (it != m_cache.end()) {
-        // 更新值并移动到前端
-        it->second->second = value;
-        m_list.splice(m_list.begin(), m_list, it->second);
-        return;
-    }
-
-    // 检查是否需要淘汰
-    if (static_cast<i32>(m_cache.size()) >= m_maxSize) {
-        // 移除链表尾部（最旧）
-        i64 oldestKey = m_list.back().first;
-        m_cache.erase(oldestKey);
-        m_list.pop_back();
-    }
-
-    // 插入新条目到前端
-    m_list.emplace_front(key, value);
-    m_cache[key] = m_list.begin();
-}
-
-i32 Long2IntLRUCache::size() const {
-    return static_cast<i32>(m_cache.size());
-}
-
-void Long2IntLRUCache::clear() {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_cache.clear();
-    m_list.clear();
-}
-
-// ============================================================================
 // LayerContext 实现
 // ============================================================================
 
@@ -226,6 +167,55 @@ i32 LazyArea::getValue(i32 x, i32 z) const {
     value = m_pixelFunc(x, z);
     cache.put(key, value);
     return value;
+}
+
+void LazyArea::getValuesBatch(i32 startX, i32 startZ, i32 width, i32 height,
+                               i32* output) const {
+    MC_TRACE_EVENT("world.biome", "LazyArea_GetValuesBatch", "width", width, "height", height);
+
+    if (width <= 0 || height <= 0 || output == nullptr) {
+        return;
+    }
+
+    Long2IntLRUCache& cache = m_sharedCache ? *m_sharedCache : *m_ownCache;
+
+    // 批量预计算所有坐标键
+    const size_t totalSize = static_cast<size_t>(width) * height;
+    std::vector<i64> keys(totalSize);
+    std::vector<bool> needsCompute(totalSize, false);
+
+    // 单次加锁批量查询
+    std::lock_guard<std::mutex> lock(cache.getMutex());
+
+    // 第一遍：查询缓存
+    size_t idx = 0;
+    for (i32 z = 0; z < height; ++z) {
+        for (i32 x = 0; x < width; ++x) {
+            i64 key = Long2IntLRUCache::packCoords(startX + x, startZ + z);
+            keys[idx] = key;
+
+            i32 value;
+            if (cache.getLocked(key, value)) {
+                output[idx] = value;
+            } else {
+                needsCompute[idx] = true;
+            }
+            ++idx;
+        }
+    }
+
+    // 第二遍：计算未命中的值（在锁内计算并写入缓存）
+    idx = 0;
+    for (i32 z = 0; z < height; ++z) {
+        for (i32 x = 0; x < width; ++x) {
+            if (needsCompute[idx]) {
+                i32 value = m_pixelFunc(startX + x, startZ + z);
+                cache.putLocked(keys[idx], value);
+                output[idx] = value;
+            }
+            ++idx;
+        }
+    }
 }
 
 // ============================================================================

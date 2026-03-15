@@ -81,6 +81,8 @@ add_executable(mc_tests
     server/ServerWorldCollisionTests.cpp
     # 资源包兼容层测试
     common/resource/compat/CompatLayerTest.cpp
+    # 缓存性能对比测试
+    common/util/cache/CacheBenchmark.cpp
 )
 
 # 添加服务端源文件

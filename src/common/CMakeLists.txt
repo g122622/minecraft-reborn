@@ -222,6 +222,10 @@ add_library(mc_common STATIC
     # NBT (Named Binary Tag) Library
     util/nbt/Nbt.cpp
 
+    # Cache utilities
+    util/cache/Long2IntLRUCache.cpp
+    util/cache/OpenAddressingLRUCache.cpp
+
     # Platform utilities
     util/PlatformInfo.cpp
 )

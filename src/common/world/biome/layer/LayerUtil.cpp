@@ -1,4 +1,5 @@
 #include "LayerUtil.hpp"
+#include "LayerCacheConfig.hpp"
 #include "../BiomeRegistry.hpp"
 #include "common/perfetto/TraceEvents.hpp"
 #include <algorithm>
@@ -57,6 +58,39 @@ std::vector<BiomeId> LayerStack::sampleArea(i32 startX, i32 startZ, i32 width, i
     }
 
     return result;
+}
+
+void LayerStack::sampleBatch(i32 startX, i32 startZ, i32 width, i32 height, BiomeId* output) const {
+    MC_TRACE_EVENT("world.biome", "LayerStack_SampleBatch", "startX", startX, "startZ", startZ, "width", width, "height", height);
+
+    if (!m_area || output == nullptr || width <= 0 || height <= 0) {
+        return;
+    }
+
+    // 使用批量采样接口
+    const size_t totalSize = static_cast<size_t>(width) * height;
+    std::vector<i32> values(totalSize);
+    m_area->getValuesBatch(startX, startZ, width, height, values.data());
+
+    // 转换为 BiomeId
+    for (size_t i = 0; i < totalSize; ++i) {
+        i32 value = values[i];
+
+        // 确保值是有效的生物群系 ID
+        if (value >= 0 && value < static_cast<i32>(Biomes::Count)) {
+            output[i] = static_cast<BiomeId>(value);
+        } else if (value >= 129 && value <= 169) {
+            // 可能是稀有变体或其他有效 ID
+            output[i] = static_cast<BiomeId>(value);
+        } else if (value == layer::BiomeValues::River) {
+            output[i] = Biomes::River;
+        } else if (value == layer::BiomeValues::FrozenRiver) {
+            output[i] = Biomes::FrozenRiver;
+        } else {
+            // 默认返回 Plains
+            output[i] = Biomes::Plains;
+        }
+    }
 }
 
 // ============================================================================
@@ -181,7 +215,7 @@ std::unique_ptr<IAreaFactory> buildOverworldLayers(
 
     // 创建上下文工厂 - 使用 shared_ptr 保持生命周期
     auto createContext = [seed](u64 modifier) -> std::shared_ptr<LayerContext> {
-        return std::make_shared<LayerContext>(1024, seed, modifier);
+        return std::make_shared<LayerContext>(LayerCacheConfig::DEFAULT_CACHE_SIZE, seed, modifier);
     };
 
     // 静态层实例（避免重复构造）
@@ -317,7 +351,7 @@ std::unique_ptr<LayerStack> createOverworldLayers(u64 seed, bool isLargeBiomes) 
 std::unique_ptr<LayerStack> createNetherLayers(u64 seed) {
     // 下界使用简化的层堆叠
     BiomeRegistry::instance().initialize();
-    auto context = std::make_shared<LayerContext>(1024, seed, 1);
+    auto context = std::make_shared<LayerContext>(LayerCacheConfig::DEFAULT_CACHE_SIZE, seed, 1);
     static layer::IslandLayer islandLayer;
     auto factory = islandLayer.apply(*context);
     auto area = factory->create();
@@ -327,7 +361,7 @@ std::unique_ptr<LayerStack> createNetherLayers(u64 seed) {
 std::unique_ptr<LayerStack> createEndLayers(u64 seed) {
     // 末地使用简化的层堆叠
     BiomeRegistry::instance().initialize();
-    auto context = std::make_shared<LayerContext>(1024, seed, 1);
+    auto context = std::make_shared<LayerContext>(LayerCacheConfig::DEFAULT_CACHE_SIZE, seed, 1);
     static layer::IslandLayer islandLayer;
     auto factory = islandLayer.apply(*context);
     auto area = factory->create();
@@ -382,18 +416,29 @@ void LayerBiomeProvider::fillBiomeContainer(BiomeContainer& container, ChunkCoor
     const i32 startX = chunkX << 4;
     const i32 startZ = chunkZ << 4;
 
-    // 遍历生物群系采样点 (4x4x4 方块为一个采样点)
+    // 使用批量采样优化
+    // BiomeContainer 是 4x4x4 网格，每个采样点间隔 4 方块
+    // 水平方向是 4x4 = 16 个采样点
+    std::array<BiomeId, 16> horizontalBiomes;
+    m_layerStack->sampleBatch(startX, startZ, 4, 4, horizontalBiomes.data());
+
+    // 填充到容器（高度方向复用水平分布）
     for (i32 by = 0; by < BiomeContainer::BIOME_HEIGHT; ++by) {
         for (i32 bz = 0; bz < BiomeContainer::BIOME_DEPTH; ++bz) {
             for (i32 bx = 0; bx < BiomeContainer::BIOME_WIDTH; ++bx) {
-                const i32 worldX = startX + (bx << 2);
-                const i32 worldZ = startZ + (bz << 2);
-
-                const BiomeId biome = m_layerStack->sample(worldX, worldZ);
-                container.setBiome(bx, by, bz, biome);
+                const i32 idx = bz * BiomeContainer::BIOME_WIDTH + bx;
+                container.setBiome(bx, by, bz, horizontalBiomes[idx]);
             }
         }
     }
+}
+
+void LayerBiomeProvider::getBiomesBatch(i32 startX, i32 startY, i32 startZ, i32 width, i32 height,
+                                          BiomeId* output) const {
+    MC_TRACE_EVENT("world.biome", "LayerBiomeProvider_GetBiomesBatch", "startX", startX, "startZ", startZ, "width", width, "height", height);
+    (void)startY;  // Layer 系统不使用 Y 坐标
+
+    m_layerStack->sampleBatch(startX, startZ, width, height, output);
 }
 
 } // namespace mc

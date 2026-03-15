@@ -44,6 +44,32 @@ public:
      * @return 该位置的值
      */
     [[nodiscard]] virtual i32 getValue(i32 x, i32 z) const = 0;
+
+    /**
+     * @brief 批量采样多个位置的值
+     *
+     * 默认实现通过循环调用 getValue()，子类可以覆盖以优化性能。
+     * 批量采样可以减少锁竞争和提高缓存命中率。
+     *
+     * @param startX 起始 X 坐标
+     * @param startZ 起始 Z 坐标
+     * @param width 宽度（X 方向）
+     * @param height 高度（Z 方向）
+     * @param output 输出数组（大小必须 >= width * height）
+     */
+    virtual void getValuesBatch(i32 startX, i32 startZ, i32 width, i32 height,
+                                 i32* output) const {
+        // 默认实现：循环调用 getValue
+        if (output == nullptr || width <= 0 || height <= 0) {
+            return;
+        }
+        size_t idx = 0;
+        for (i32 z = 0; z < height; ++z) {
+            for (i32 x = 0; x < width; ++x) {
+                output[idx++] = getValue(startX + x, startZ + z);
+            }
+        }
+    }
 };
 
 // ============================================================================

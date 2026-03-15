@@ -1,74 +1,13 @@
 #pragma once
 
 #include "Layer.hpp"
+#include "LayerCacheConfig.hpp"
+#include "../../../util/cache/Long2IntLRUCache.hpp"
 #include "../../gen/noise/ImprovedNoiseGenerator.hpp"
 #include "../../../math/random/Random.hpp"
-#include <unordered_map>
-#include <list>
-#include <mutex>
 #include <memory>
 
 namespace mc {
-
-/**
- * @brief 高效 LRU 缓存的坐标到值映射
- *
- * 使用双向链表 + 哈希表实现 O(1) 的 get/put/evict 操作。
- * 参考 MC Long2IntLinkedOpenHashMap
- */
-class Long2IntLRUCache {
-public:
-    explicit Long2IntLRUCache(i32 maxSize = 1024);
-
-    /**
-     * @brief 获取缓存值（会更新访问顺序）
-     * @param key 坐标键（打包的 x, z）
-     * @param value 输出值
-     * @return 是否找到
-     */
-    [[nodiscard]] bool get(i64 key, i32& value);
-
-    /**
-     * @brief 设置缓存值
-     * @param key 坐标键
-     * @param value 值
-     */
-    void put(i64 key, i32 value);
-
-    /**
-     * @brief 打包坐标为键
-     * @param x X 坐标
-     * @param z Z 坐标
-     * @return 打包的键
-     */
-    [[nodiscard]] static i64 packCoords(i32 x, i32 z) {
-        // 使用位运算打包坐标
-        // 高 32 位为 x，低 32 位为 z
-        return (static_cast<i64>(x) << 32) | (static_cast<i64>(z) & 0xFFFFFFFFLL);
-    }
-
-    /**
-     * @brief 获取缓存大小
-     */
-    [[nodiscard]] i32 size() const;
-
-    /**
-     * @brief 清除缓存
-     */
-    void clear();
-
-private:
-    i32 m_maxSize;
-
-    // 双向链表节点：存储 (key, value)
-    using ListNode = std::pair<i64, i32>;
-    mutable std::list<ListNode> m_list;  // 前面是最新，后面是最旧
-
-    // 哈希表：key -> 链表迭代器
-    mutable std::unordered_map<i64, std::list<ListNode>::iterator> m_cache;
-
-    mutable std::mutex m_mutex;
-};
 
 /**
  * @brief Layer 上下文实现
@@ -225,6 +164,20 @@ public:
     ~LazyArea() override = default;
 
     [[nodiscard]] i32 getValue(i32 x, i32 z) const override;
+
+    /**
+     * @brief 批量采样接口
+     *
+     * 单次加锁批量获取多个坐标的值，减少锁竞争开销。
+     *
+     * @param startX 起始 X 坐标
+     * @param startZ 起始 Z 坐标
+     * @param width 宽度
+     * @param height 高度
+     * @param output 输出数组（大小必须 >= width * height）
+     */
+    void getValuesBatch(i32 startX, i32 startZ, i32 width, i32 height,
+                        i32* output) const override;
 
     /**
      * @brief 获取最大缓存大小
