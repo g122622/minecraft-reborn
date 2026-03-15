@@ -1,13 +1,26 @@
 #include "EntityPipeline.hpp"
-#include "../VulkanContext.hpp"
 #include "../VulkanPipeline.hpp"
-#include "../Descriptor.hpp"
-#include "../ShaderPath.hpp"
+#include "../util/ShaderPath.hpp"
 #include <spdlog/spdlog.h>
 #include <cstring>
 #include <array>
 
 namespace mc::client {
+
+// 辅助函数：查找内存类型
+static Result<u32> findMemoryType(VkPhysicalDevice physicalDevice, u32 typeFilter, VkMemoryPropertyFlags properties) {
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+
+    for (u32 i = 0; i < memProperties.memoryTypeCount; ++i) {
+        if ((typeFilter & (1 << i)) &&
+            (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+
+    return Error(ErrorCode::NotFound, "Failed to find suitable memory type");
+}
 
 // ============================================================================
 // EntityPipeline
@@ -51,16 +64,21 @@ std::vector<VkVertexInputAttributeDescription> EntityPipeline::getVertexAttribut
     return descs;
 }
 
-Result<void> EntityPipeline::initialize(VulkanContext* context,
-                                        VkRenderPass renderPass,
-                                        VkDescriptorSetLayout cameraDescriptorLayout,
-                                        VkDescriptorPool descriptorPool,
-                                        VkCommandPool commandPool) {
+Result<void> EntityPipeline::initialize(
+    VkDevice device,
+    VkPhysicalDevice physicalDevice,
+    VkQueue graphicsQueue,
+    VkRenderPass renderPass,
+    VkDescriptorSetLayout cameraDescriptorLayout,
+    VkDescriptorPool descriptorPool,
+    VkCommandPool commandPool) {
     if (m_initialized) {
         return Result<void>::ok();
     }
 
-    m_context = context;
+    m_device = device;
+    m_physicalDevice = physicalDevice;
+    m_graphicsQueue = graphicsQueue;
     m_descriptorPool = descriptorPool;
     m_commandPool = commandPool;
 
@@ -148,7 +166,7 @@ Result<void> EntityPipeline::initialize(VulkanContext* context,
     config.pushConstantRanges.push_back(pushConstantRange);
 
     m_pipeline = std::make_unique<VulkanPipeline>();
-    auto pipelineResult = m_pipeline->initialize(context, config);
+    auto pipelineResult = m_pipeline->initialize(m_device, config);
     if (!pipelineResult.success()) {
         return pipelineResult.error();
     }
@@ -165,13 +183,13 @@ void EntityPipeline::destroy() {
 
     // 销毁采样器
     if (m_textureSampler != VK_NULL_HANDLE) {
-        vkDestroySampler(m_context->device(), m_textureSampler, nullptr);
+        vkDestroySampler(m_device, m_textureSampler, nullptr);
         m_textureSampler = VK_NULL_HANDLE;
     }
 
     // 销毁描述符布局
     if (m_textureDescriptorLayout != VK_NULL_HANDLE) {
-        vkDestroyDescriptorSetLayout(m_context->device(), m_textureDescriptorLayout, nullptr);
+        vkDestroyDescriptorSetLayout(m_device, m_textureDescriptorLayout, nullptr);
         m_textureDescriptorLayout = VK_NULL_HANDLE;
     }
 
@@ -196,7 +214,7 @@ Result<EntityMesh> EntityPipeline::createMesh(const std::vector<renderer::ModelV
         return mesh;  // 隐式转换为Result<EntityMesh>
     }
 
-    VkDevice device = m_context->device();
+    VkDevice device = m_device;
 
     // 创建顶点缓冲区
     VkDeviceSize vertexBufferSize = sizeof(renderer::ModelVertex) * vertices.size();
@@ -304,7 +322,7 @@ Result<void> EntityPipeline::updateMesh(EntityMesh& mesh,
 }
 
 void EntityPipeline::destroyMesh(EntityMesh& mesh) {
-    VkDevice device = m_context->device();
+    VkDevice device = m_device;
 
     if (mesh.vertexBuffer != VK_NULL_HANDLE) {
         vkDestroyBuffer(device, mesh.vertexBuffer, nullptr);
@@ -379,7 +397,7 @@ void EntityPipeline::setTextureAtlas(VkImageView textureView, VkSampler sampler)
         return;
     }
 
-    VkDevice device = m_context->device();
+    VkDevice device = m_device;
 
     // 更新描述符集
     VkDescriptorImageInfo imageInfo{};
@@ -404,7 +422,7 @@ VkPipelineLayout EntityPipeline::pipelineLayout() const {
 }
 
 Result<void> EntityPipeline::createDescriptorLayouts() {
-    VkDevice device = m_context->device();
+    VkDevice device = m_device;
 
     // 纹理采样器描述符布局（绑定到 set 1）
     VkDescriptorSetLayoutBinding samplerBinding{};
@@ -430,7 +448,7 @@ Result<void> EntityPipeline::createDescriptorLayouts() {
 }
 
 Result<void> EntityPipeline::createTextureSampler() {
-    VkDevice device = m_context->device();
+    VkDevice device = m_device;
 
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -460,7 +478,7 @@ Result<void> EntityPipeline::createTextureSampler() {
 }
 
 Result<void> EntityPipeline::createDescriptorSets() {
-    VkDevice device = m_context->device();
+    VkDevice device = m_device;
 
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -482,7 +500,7 @@ Result<void> EntityPipeline::createBuffer(VkDeviceSize size,
                                            VkMemoryPropertyFlags properties,
                                            VkBuffer& buffer,
                                            VkDeviceMemory& memory) {
-    VkDevice device = m_context->device();
+    VkDevice device = m_device;
 
     // 创建缓冲区
     VkBufferCreateInfo bufferInfo{};
@@ -504,7 +522,7 @@ Result<void> EntityPipeline::createBuffer(VkDeviceSize size,
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    auto memTypeResult = m_context->findMemoryType(memRequirements.memoryTypeBits, properties);
+    auto memTypeResult = findMemoryType(m_physicalDevice, memRequirements.memoryTypeBits, properties);
     if (!memTypeResult.success()) {
         vkDestroyBuffer(device, buffer, nullptr);
         buffer = VK_NULL_HANDLE;
@@ -545,7 +563,7 @@ VkCommandBuffer EntityPipeline::beginSingleTimeCommands() {
     allocInfo.commandBufferCount = 1;
 
     VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(m_context->device(), &allocInfo, &commandBuffer);
+    vkAllocateCommandBuffers(m_device, &allocInfo, &commandBuffer);
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -564,10 +582,10 @@ void EntityPipeline::endSingleTimeCommands(VkCommandBuffer cmd) {
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &cmd;
 
-    vkQueueSubmit(m_context->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(m_context->graphicsQueue());
+    vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(m_graphicsQueue);
 
-    vkFreeCommandBuffers(m_context->device(), m_commandPool, 1, &cmd);
+    vkFreeCommandBuffers(m_device, m_commandPool, 1, &cmd);
 }
 
 } // namespace mc::client

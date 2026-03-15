@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <chrono>
 #include <thread>
-#include "client/renderer/MeshWorkerPool.hpp"
+#include "client/renderer/mesh/MeshWorkerPool.hpp"
 #include "common/world/chunk/ChunkData.hpp"
 #include "common/world/block/Block.hpp"
 #include "common/world/block/VanillaBlocks.hpp"

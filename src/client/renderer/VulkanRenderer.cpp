@@ -1,5 +1,5 @@
 #include "VulkanRenderer.hpp"
-#include "ShaderPath.hpp"
+#include "util/ShaderPath.hpp"
 #include "VulkanBuffer.hpp"
 #include "DefaultTextureAtlas.hpp"
 #include "sky/CelestialCalculations.hpp"
@@ -150,7 +150,13 @@ Result<void> VulkanRenderer::initialize(GLFWwindow* window, const RendererConfig
     }
 
     // 创建天空渲染器
-    auto skyResult = m_skyRenderer.initialize(m_context.get(), m_renderPass, m_swapchain->extent());
+    auto skyResult = m_skyRenderer.initialize(
+        m_context->device(),
+        m_context->physicalDevice(),
+        m_commandPool,
+        m_context->graphicsQueue(),
+        m_renderPass,
+        m_swapchain->extent());
     if (skyResult.failed()) {
         spdlog::warn("Failed to create sky renderer: {}", skyResult.error().toString());
     } else {
@@ -956,7 +962,13 @@ Result<void> VulkanRenderer::recreateSwapchain() {
     }
 
     // 重建天空渲染器
-    auto skyResult = m_skyRenderer.initialize(m_context.get(), m_renderPass, m_swapchain->extent());
+    auto skyResult = m_skyRenderer.initialize(
+        m_context->device(),
+        m_context->physicalDevice(),
+        m_commandPool,
+        m_context->graphicsQueue(),
+        m_renderPass,
+        m_swapchain->extent());
     if (skyResult.failed()) {
         spdlog::warn("Failed to recreate sky renderer: {}", skyResult.error().toString());
         m_skyRendererInitialized = false;
@@ -1339,7 +1351,7 @@ Result<void> VulkanRenderer::createChunkPipeline() {
     pushConstantRange.size = sizeof(ModelPushConstants);
     config.pushConstantRanges.push_back(pushConstantRange);
 
-    auto result = m_chunkPipeline->initialize(m_context.get(), config);
+    auto result = m_chunkPipeline->initialize(m_context->device(), config);
     if (result.failed()) {
         return result.error();
     }
@@ -1551,7 +1563,11 @@ Result<void> VulkanRenderer::createGuiRenderer() {
     m_guiRenderer = std::make_unique<GuiRenderer>();
 
     // 初始化GUI渲染器
-    auto result = m_guiRenderer->initialize(m_context.get(), m_renderPass);
+    auto result = m_guiRenderer->initialize(
+        m_context->device(),
+        m_context->physicalDevice(),
+        m_commandPool,
+        m_renderPass);
     if (result.failed()) {
         m_guiRenderer.reset();
         return result.error();
@@ -1853,7 +1869,9 @@ Result<void> VulkanRenderer::createEntityPipeline() {
     m_entityPipeline = std::make_unique<EntityPipeline>();
 
     auto result = m_entityPipeline->initialize(
-        m_context.get(),
+        m_context->device(),
+        m_context->physicalDevice(),
+        m_context->graphicsQueue(),
         m_renderPass,
         m_cameraDescriptorLayout,
         m_descriptorPool,

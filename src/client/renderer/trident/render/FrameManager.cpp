@@ -1,0 +1,370 @@
+#include "FrameManager.hpp"
+#include "../TridentContext.hpp"
+#include "../TridentSwapchain.hpp"
+#include <spdlog/spdlog.h>
+#include <algorithm>
+
+namespace mc::client::renderer::trident {
+
+// ============================================================================
+// 构造/析构
+// ============================================================================
+
+FrameManager::FrameManager() = default;
+
+FrameManager::~FrameManager() {
+    destroy();
+}
+
+FrameManager::FrameManager(FrameManager&& other) noexcept
+    : m_context(other.m_context)
+    , m_commandPool(other.m_commandPool)
+    , m_commandBuffers(std::move(other.m_commandBuffers))
+    , m_imageAvailableSemaphores(std::move(other.m_imageAvailableSemaphores))
+    , m_renderFinishedSemaphores(std::move(other.m_renderFinishedSemaphores))
+    , m_inFlightFences(std::move(other.m_inFlightFences))
+    , m_imageFences(std::move(other.m_imageFences))
+    , m_maxFramesInFlight(other.m_maxFramesInFlight)
+    , m_currentFrame(other.m_currentFrame)
+    , m_imageIndex(other.m_imageIndex)
+    , m_frameStarted(other.m_frameStarted)
+    , m_initialized(other.m_initialized)
+{
+    other.m_context = nullptr;
+    other.m_commandPool = VK_NULL_HANDLE;
+    other.m_initialized = false;
+}
+
+FrameManager& FrameManager::operator=(FrameManager&& other) noexcept {
+    if (this != &other) {
+        destroy();
+        m_context = other.m_context;
+        m_commandPool = other.m_commandPool;
+        m_commandBuffers = std::move(other.m_commandBuffers);
+        m_imageAvailableSemaphores = std::move(other.m_imageAvailableSemaphores);
+        m_renderFinishedSemaphores = std::move(other.m_renderFinishedSemaphores);
+        m_inFlightFences = std::move(other.m_inFlightFences);
+        m_imageFences = std::move(other.m_imageFences);
+        m_maxFramesInFlight = other.m_maxFramesInFlight;
+        m_currentFrame = other.m_currentFrame;
+        m_imageIndex = other.m_imageIndex;
+        m_frameStarted = other.m_frameStarted;
+        m_initialized = other.m_initialized;
+
+        other.m_context = nullptr;
+        other.m_commandPool = VK_NULL_HANDLE;
+        other.m_initialized = false;
+    }
+    return *this;
+}
+
+// ============================================================================
+// 初始化
+// ============================================================================
+
+Result<void> FrameManager::initialize(TridentContext* context, u32 maxFramesInFlight) {
+    if (m_initialized) {
+        return Error(ErrorCode::AlreadyExists, "FrameManager already initialized");
+    }
+
+    if (!context) {
+        return Error(ErrorCode::NullPointer, "Context is null");
+    }
+
+    m_context = context;
+    m_maxFramesInFlight = maxFramesInFlight;
+
+    // 创建命令池
+    auto poolResult = createCommandPool();
+    if (poolResult.failed()) {
+        return poolResult.error();
+    }
+
+    // 创建同步对象
+    auto syncResult = createSyncObjects();
+    if (syncResult.failed()) {
+        destroyCommandPool();
+        return syncResult.error();
+    }
+
+    m_initialized = true;
+    spdlog::info("FrameManager initialized with {} frames in flight", m_maxFramesInFlight);
+    return {};
+}
+
+void FrameManager::destroy() {
+    if (!m_initialized) return;
+
+    m_context->waitIdle();
+
+    destroySyncObjects();
+    destroyCommandBuffers();
+    destroyCommandPool();
+
+    m_context = nullptr;
+    m_initialized = false;
+    spdlog::info("FrameManager destroyed");
+}
+
+// ============================================================================
+// 帧管理
+// ============================================================================
+
+Result<u32> FrameManager::acquireNextImage(TridentSwapchain* swapchain) {
+    if (!m_initialized) {
+        return Error(ErrorCode::NotInitialized, "FrameManager not initialized");
+    }
+
+    // 等待当前帧完成
+    vkWaitForFences(
+        m_context->device(),
+        1,
+        &m_inFlightFences[m_currentFrame],
+        VK_TRUE,
+        UINT64_MAX);
+
+    // 获取下一帧图像
+    VkResult result = vkAcquireNextImageKHR(
+        m_context->device(),
+        swapchain->swapchain(),
+        UINT64_MAX,
+        m_imageAvailableSemaphores[m_currentFrame],
+        VK_NULL_HANDLE,
+        &m_imageIndex);
+
+    switch (result) {
+        case VK_SUCCESS:
+        case VK_SUBOPTIMAL_KHR:
+            // 检查该图像是否正在使用
+            if (m_imageFences[m_imageIndex] != VK_NULL_HANDLE) {
+                vkWaitForFences(m_context->device(), 1, &m_imageFences[m_imageIndex], VK_TRUE, UINT64_MAX);
+            }
+            m_imageFences[m_imageIndex] = m_inFlightFences[m_currentFrame];
+            return m_imageIndex;
+        case VK_ERROR_OUT_OF_DATE_KHR:
+            return Error(ErrorCode::InvalidState, "Swapchain out of date");
+        default:
+            return Error(ErrorCode::Unknown, "Failed to acquire swapchain image: " + std::to_string(result));
+    }
+}
+
+Result<void> FrameManager::submitAndPresent(TridentSwapchain* swapchain) {
+    if (!m_frameStarted) {
+        return Error(ErrorCode::InvalidState, "Frame not started");
+    }
+
+    // 提交命令缓冲区
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphores[m_currentFrame] };
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &m_commandBuffers[m_imageIndex];
+
+    VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[m_imageIndex] };
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    // 重置栅栏
+    vkResetFences(m_context->device(), 1, &m_inFlightFences[m_currentFrame]);
+
+    VkResult result = vkQueueSubmit(
+        m_context->graphicsQueue(),
+        1,
+        &submitInfo,
+        m_inFlightFences[m_currentFrame]);
+
+    if (result != VK_SUCCESS) {
+        return Error(ErrorCode::OperationFailed, "Failed to submit draw command buffer: " + std::to_string(result));
+    }
+
+    // 呈现
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+    presentInfo.swapchainCount = 1;
+    VkSwapchainKHR swapchainHandle = swapchain->swapchain();
+    presentInfo.pSwapchains = &swapchainHandle;
+    presentInfo.pImageIndices = &m_imageIndex;
+
+    result = vkQueuePresentKHR(m_context->presentQueue(), &presentInfo);
+
+    switch (result) {
+        case VK_SUCCESS:
+        case VK_SUBOPTIMAL_KHR:
+            break;
+        case VK_ERROR_OUT_OF_DATE_KHR:
+            return Error(ErrorCode::InvalidState, "Swapchain out of date");
+        default:
+            return Error(ErrorCode::Unknown, "Failed to present swapchain image: " + std::to_string(result));
+    }
+
+    // 推进帧索引
+    m_currentFrame = (m_currentFrame + 1) % m_maxFramesInFlight;
+    m_frameStarted = false;
+
+    return {};
+}
+
+void FrameManager::beginFrame() {
+    if (m_frameStarted) return;
+
+    // 重置命令缓冲区
+    vkResetCommandBuffer(m_commandBuffers[m_imageIndex], 0);
+
+    // 开始命令缓冲区录制
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(m_commandBuffers[m_imageIndex], &beginInfo);
+    m_frameStarted = true;
+}
+
+void FrameManager::endFrame() {
+    if (!m_frameStarted) return;
+
+    vkEndCommandBuffer(m_commandBuffers[m_imageIndex]);
+    // 注意：不在这里设置 m_frameStarted = false，因为 submitAndPresent 会处理
+}
+
+void FrameManager::waitForFrame(u32 frameIndex) {
+    if (frameIndex >= m_maxFramesInFlight) return;
+
+    vkWaitForFences(
+        m_context->device(),
+        1,
+        &m_inFlightFences[frameIndex],
+        VK_TRUE,
+        UINT64_MAX);
+}
+
+VkCommandBuffer FrameManager::currentCommandBuffer() const {
+    if (m_imageIndex < m_commandBuffers.size()) {
+        return m_commandBuffers[m_imageIndex];
+    }
+    return VK_NULL_HANDLE;
+}
+
+VkSemaphore FrameManager::imageAvailableSemaphore(u32 frameIndex) const {
+    if (frameIndex < m_imageAvailableSemaphores.size()) {
+        return m_imageAvailableSemaphores[frameIndex];
+    }
+    return VK_NULL_HANDLE;
+}
+
+VkSemaphore FrameManager::renderFinishedSemaphore(u32 imageIndex) const {
+    if (imageIndex < m_renderFinishedSemaphores.size()) {
+        return m_renderFinishedSemaphores[imageIndex];
+    }
+    return VK_NULL_HANDLE;
+}
+
+// ============================================================================
+// 私有方法 - 创建
+// ============================================================================
+
+Result<void> FrameManager::createCommandPool() {
+    const auto& queueFamilies = m_context->queueFamilies();
+
+    VkCommandPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.queueFamilyIndex = queueFamilies.graphicsFamily.value();
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+    VkResult result = vkCreateCommandPool(m_context->device(), &poolInfo, nullptr, &m_commandPool);
+    if (result != VK_SUCCESS) {
+        return Error(ErrorCode::OperationFailed, "Failed to create command pool: " + std::to_string(result));
+    }
+
+    return {};
+}
+
+Result<void> FrameManager::createCommandBuffers() {
+    // 需要在交换链创建后调用，这里预留接口
+    // 实际命令缓冲区数量取决于交换链图像数量
+    return {};
+}
+
+Result<void> FrameManager::createSyncObjects() {
+    m_imageAvailableSemaphores.resize(m_maxFramesInFlight);
+    m_inFlightFences.resize(m_maxFramesInFlight);
+
+    VkSemaphoreCreateInfo semaphoreInfo{};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkFenceCreateInfo fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    VkDevice device = m_context->device();
+
+    for (u32 i = 0; i < m_maxFramesInFlight; i++) {
+        VkResult result = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &m_imageAvailableSemaphores[i]);
+        if (result != VK_SUCCESS) {
+            destroySyncObjects();
+            return Error(ErrorCode::OperationFailed, "Failed to create semaphore: " + std::to_string(result));
+        }
+
+        result = vkCreateFence(device, &fenceInfo, nullptr, &m_inFlightFences[i]);
+        if (result != VK_SUCCESS) {
+            destroySyncObjects();
+            return Error(ErrorCode::OperationFailed, "Failed to create fence: " + std::to_string(result));
+        }
+    }
+
+    // renderFinishedSemaphores 和 imageFences 在交换链创建后初始化
+    return {};
+}
+
+// ============================================================================
+// 私有方法 - 销毁
+// ============================================================================
+
+void FrameManager::destroyCommandPool() {
+    if (m_commandPool != VK_NULL_HANDLE && m_context) {
+        vkDestroyCommandPool(m_context->device(), m_commandPool, nullptr);
+        m_commandPool = VK_NULL_HANDLE;
+    }
+}
+
+void FrameManager::destroyCommandBuffers() {
+    // 命令缓冲区随命令池销毁而销毁
+    m_commandBuffers.clear();
+}
+
+void FrameManager::destroySyncObjects() {
+    if (!m_context) return;
+
+    VkDevice device = m_context->device();
+
+    for (auto& semaphore : m_imageAvailableSemaphores) {
+        if (semaphore != VK_NULL_HANDLE) {
+            vkDestroySemaphore(device, semaphore, nullptr);
+        }
+    }
+    m_imageAvailableSemaphores.clear();
+
+    for (auto& semaphore : m_renderFinishedSemaphores) {
+        if (semaphore != VK_NULL_HANDLE) {
+            vkDestroySemaphore(device, semaphore, nullptr);
+        }
+    }
+    m_renderFinishedSemaphores.clear();
+
+    for (auto& fence : m_inFlightFences) {
+        if (fence != VK_NULL_HANDLE) {
+            vkDestroyFence(device, fence, nullptr);
+        }
+    }
+    m_inFlightFences.clear();
+
+    m_imageFences.clear();
+}
+
+} // namespace mc::client::renderer::trident

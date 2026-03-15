@@ -1,7 +1,7 @@
 #include "MeshWorkerPool.hpp"
-#include "ChunkMesher.hpp"
-#include "common/perfetto/PerfettoManager.hpp"
-#include "common/perfetto/TraceEvents.hpp"
+#include "../chunk/ChunkMesher.hpp"
+#include "../../../common/perfetto/PerfettoManager.hpp"
+#include "../../../common/perfetto/TraceEvents.hpp"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 

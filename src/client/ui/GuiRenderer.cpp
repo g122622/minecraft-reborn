@@ -1,6 +1,5 @@
 #include "GuiRenderer.hpp"
-#include "../renderer/ShaderPath.hpp"
-#include "../renderer/VulkanContext.hpp"
+#include "../renderer/util/ShaderPath.hpp"
 #include "../renderer/VulkanBuffer.hpp"
 #include "../renderer/VulkanTexture.hpp"
 #include <cstring>
@@ -29,22 +28,22 @@ static std::vector<u8> loadShaderFile(const std::filesystem::path& path) {
     return code;
 }
 
-static VkShaderModule createShaderModuleHelper(VulkanContext* context, const std::vector<u8>& code) {
+static VkShaderModule createShaderModuleHelper(VkDevice device, const std::vector<u8>& code) {
     if (code.empty()) {
         return VK_NULL_HANDLE;
     }
-    
+
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.codeSize = code.size();
     createInfo.pCode = reinterpret_cast<const u32*>(code.data());
-    
+
     VkShaderModule shaderModule;
-    if (vkCreateShaderModule(context->device(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+    if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
         spdlog::error("Failed to create shader module");
         return VK_NULL_HANDLE;
     }
-    
+
     return shaderModule;
 }
 
@@ -54,12 +53,18 @@ GuiRenderer::~GuiRenderer() {
     destroy();
 }
 
-Result<void> GuiRenderer::initialize(VulkanContext* context, VkRenderPass renderPass) {
-    if (context == nullptr) {
-        return Error(ErrorCode::NullPointer, "VulkanContext is null");
+Result<void> GuiRenderer::initialize(
+    VkDevice device,
+    VkPhysicalDevice physicalDevice,
+    VkCommandPool commandPool,
+    VkRenderPass renderPass) {
+    if (device == VK_NULL_HANDLE) {
+        return Error(ErrorCode::NullPointer, "VkDevice is null");
     }
 
-    m_context = context;
+    m_device = device;
+    m_physicalDevice = physicalDevice;
+    m_commandPool = commandPool;
 
     // 创建描述符布局
     auto result = createDescriptors();
@@ -105,7 +110,7 @@ Result<void> GuiRenderer::initialize(VulkanContext* context, VkRenderPass render
 void GuiRenderer::destroy() {
     if (!m_initialized) return;
 
-    VkDevice device = m_context->device();
+    VkDevice device = m_device;
 
     // 等待设备空闲
     vkDeviceWaitIdle(device);
@@ -351,7 +356,7 @@ void GuiRenderer::drawRect(f32 x, f32 y, f32 width, f32 height, u32 color) {
 }
 
 Result<void> GuiRenderer::createPipelineLayout() {
-    VkDevice device = m_context->device();
+    VkDevice device = m_device;
 
     // 推送常量范围
     VkPushConstantRange pushConstantRange = {};
@@ -376,7 +381,7 @@ Result<void> GuiRenderer::createPipelineLayout() {
 }
 
 Result<void> GuiRenderer::createPipeline(VkRenderPass renderPass) {
-    VkDevice device = m_context->device();
+    VkDevice device = m_device;
 
     const auto vertPath = resolveShaderPath("gui.vert.spv");
     const auto fragPath = resolveShaderPath("gui.frag.spv");
@@ -400,8 +405,8 @@ Result<void> GuiRenderer::createPipeline(VkRenderPass renderPass) {
     }
 
     // 创建着色器模块
-    VkShaderModule vertShaderModule = createShaderModuleHelper(m_context, vertCode);
-    VkShaderModule fragShaderModule = createShaderModuleHelper(m_context, fragCode);
+    VkShaderModule vertShaderModule = createShaderModuleHelper(m_device, vertCode);
+    VkShaderModule fragShaderModule = createShaderModuleHelper(m_device, fragCode);
     
     if (vertShaderModule == VK_NULL_HANDLE) {
         return Error(ErrorCode::InitializationFailed, "Failed to create vertex shader module");
@@ -551,7 +556,7 @@ Result<void> GuiRenderer::createPipeline(VkRenderPass renderPass) {
     return {};
 }
 Result<void> GuiRenderer::createDescriptors() {
-    VkDevice device = m_context->device();
+    VkDevice device = m_device;
 
     // 描述符集布局（两个采样器：字体纹理和物品纹理）
     VkDescriptorSetLayoutBinding bindings[2] = {};
@@ -605,8 +610,8 @@ Result<void> GuiRenderer::createDescriptors() {
 }
 
 Result<void> GuiRenderer::createBuffers() {
-    VkDevice device = m_context->device();
-    VkPhysicalDevice physicalDevice = m_context->physicalDevice();
+    VkDevice device = m_device;
+    VkPhysicalDevice physicalDevice = m_physicalDevice;
 
     // 创建顶点缓冲（使用HOST_VISIBLE内存，以便在render pass内直接更新数据）
     m_vertexBuffer = std::make_unique<VulkanBuffer>();
@@ -633,8 +638,8 @@ Result<void> GuiRenderer::createBuffers() {
 }
 
 Result<void> GuiRenderer::createFontTexture() {
-    VkDevice device = m_context->device();
-    VkPhysicalDevice physicalDevice = m_context->physicalDevice();
+    VkDevice device = m_device;
+    VkPhysicalDevice physicalDevice = m_physicalDevice;
 
     // 创建字体纹理（256x256，单通道）
     m_fontTexture = std::make_unique<VulkanTexture>();
@@ -829,8 +834,8 @@ void GuiRenderer::uploadBufferData(VkCommandBuffer commandBuffer) {
     VkDeviceSize vertexSize = m_vertices.size() * sizeof(GuiVertex);
     VkDeviceSize indexSize = m_indices.size() * sizeof(u32);
 
-    VkDevice device = m_context->device();
-    VkPhysicalDevice physicalDevice = m_context->physicalDevice();
+    VkDevice device = m_device;
+    VkPhysicalDevice physicalDevice = m_physicalDevice;
 
     // 若顶点数据超出缓冲容量，则以2倍所需大小重建缓冲
     if (vertexSize > m_vertexBuffer->size()) {
@@ -886,7 +891,7 @@ void GuiRenderer::setItemTextureAtlas(VkImageView itemView, VkSampler itemSample
         return;
     }
 
-    VkDevice device = m_context->device();
+    VkDevice device = m_device;
 
     // 更新 binding 1 的描述符
     VkDescriptorImageInfo itemImageInfo = {};

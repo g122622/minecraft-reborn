@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../../common/core/Types.hpp"
-#include "../../common/world/chunk/ChunkData.hpp"
-#include "../../common/world/block/Block.hpp"
-#include "MeshTypes.hpp"
+#include "../../../common/core/Types.hpp"
+#include "../../../common/world/chunk/ChunkData.hpp"
+#include "../../../common/world/block/Block.hpp"
+#include "../MeshTypes.hpp"
 #include <memory>
 #include <functional>
 

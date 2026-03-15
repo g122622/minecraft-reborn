@@ -2,7 +2,6 @@
 
 #include "../../common/core/Types.hpp"
 #include "../../common/core/Result.hpp"
-#include "VulkanContext.hpp"
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <string>
@@ -95,7 +94,7 @@ public:
     VulkanPipeline& operator=(const VulkanPipeline&) = delete;
 
     // 初始化
-    [[nodiscard]] Result<void> initialize(VulkanContext* context, const PipelineConfig& config);
+    [[nodiscard]] Result<void> initialize(VkDevice device, const PipelineConfig& config);
     void destroy();
 
     // 着色器加载
@@ -111,10 +110,10 @@ public:
     VkPipelineLayout pipelineLayout() const { return m_layout; }
 
     // 静态创建函数
-    [[nodiscard]] static Result<VkShaderModule> createShaderModule(VulkanContext* context, const std::vector<u8>& code);
+    [[nodiscard]] static Result<VkShaderModule> createShaderModule(VkDevice device, const std::vector<u8>& code);
 
 private:
-    VulkanContext* m_context = nullptr;
+    VkDevice m_device = VK_NULL_HANDLE;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
     VkPipelineLayout m_layout = VK_NULL_HANDLE;
 
@@ -128,13 +127,13 @@ public:
     VulkanPipelineCache();
     ~VulkanPipelineCache();
 
-    [[nodiscard]] Result<void> initialize(VulkanContext* context, const String& cachePath = "");
+    [[nodiscard]] Result<void> initialize(VkDevice device, const String& cachePath = "");
     void destroy();
 
     VkPipelineCache cache() const { return m_cache; }
 
 private:
-    VulkanContext* m_context = nullptr;
+    VkDevice m_device = VK_NULL_HANDLE;
     VkPipelineCache m_cache = VK_NULL_HANDLE;
     String m_cachePath;
     bool m_initialized = false;

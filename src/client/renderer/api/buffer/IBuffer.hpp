@@ -1,0 +1,141 @@
+#pragma once
+
+#include "../Types.hpp"
+#include "../../../../common/core/Result.hpp"
+
+namespace mc::client::renderer::api {
+
+/**
+ * @brief 缓冲区接口
+ *
+ * 平台无关的缓冲区抽象接口。
+ * 用于顶点、索引、Uniform等缓冲区的基础接口。
+ */
+class IBuffer {
+public:
+    virtual ~IBuffer() = default;
+
+    /**
+     * @brief 销毁缓冲区
+     */
+    virtual void destroy() = 0;
+
+    /**
+     * @brief 获取缓冲区大小（字节）
+     */
+    [[nodiscard]] virtual u64 size() const = 0;
+
+    /**
+     * @brief 获取缓冲区用途
+     */
+    [[nodiscard]] virtual BufferUsage usage() const = 0;
+
+    /**
+     * @brief 检查缓冲区是否有效
+     */
+    [[nodiscard]] virtual bool isValid() const = 0;
+
+    /**
+     * @brief 映射缓冲区到CPU内存
+     * @return 映射后的指针，失败返回 nullptr
+     */
+    [[nodiscard]] virtual void* map() = 0;
+
+    /**
+     * @brief 取消映射
+     */
+    virtual void unmap() = 0;
+
+    /**
+     * @brief 上传数据到缓冲区
+     * @param data 数据指针
+     * @param size 数据大小
+     * @param offset 缓冲区偏移量
+     * @return 成功或错误
+     */
+    [[nodiscard]] virtual Result<void> upload(const void* data, u64 size, u64 offset = 0) = 0;
+};
+
+/**
+ * @brief 顶点缓冲区接口
+ */
+class IVertexBuffer : public IBuffer {
+public:
+    /**
+     * @brief 获取顶点数量
+     */
+    [[nodiscard]] virtual u32 vertexCount() const = 0;
+
+    /**
+     * @brief 获取顶点步长（字节）
+     */
+    [[nodiscard]] virtual u32 vertexStride() const = 0;
+
+    /**
+     * @brief 绑定到渲染管线
+     */
+    virtual void bind(void* commandBuffer) = 0;
+};
+
+/**
+ * @brief 索引缓冲区接口
+ */
+class IIndexBuffer : public IBuffer {
+public:
+    /**
+     * @brief 获取索引类型
+     */
+    [[nodiscard]] virtual IndexType indexType() const = 0;
+
+    /**
+     * @brief 获取索引数量
+     */
+    [[nodiscard]] virtual u32 indexCount() const = 0;
+
+    /**
+     * @brief 绑定到渲染管线
+     */
+    virtual void bind(void* commandBuffer) = 0;
+};
+
+/**
+ * @brief Uniform 缓冲区接口
+ */
+class IUniformBuffer : public IBuffer {
+public:
+    /**
+     * @brief 获取当前帧索引
+     * 对于双缓冲/三缓冲 Uniform，返回当前帧的缓冲区索引
+     */
+    [[nodiscard]] virtual u32 currentFrameIndex() const = 0;
+
+    /**
+     * @brief 切换到下一帧
+     * 对于多帧 Uniform 缓冲区，切换到下一个缓冲区
+     */
+    virtual void advanceFrame() = 0;
+
+    /**
+     * @brief 获取帧数量
+     */
+    [[nodiscard]] virtual u32 frameCount() const = 0;
+};
+
+/**
+ * @brief 暂存缓冲区接口
+ *
+ * 用于CPU到GPU的数据传输。
+ */
+class IStagingBuffer : public IBuffer {
+public:
+    /**
+     * @brief 将数据复制到目标缓冲区
+     * @param commandBuffer 命令缓冲区
+     * @param dstBuffer 目标缓冲区
+     * @param size 复制大小
+     * @return 成功或错误
+     */
+    [[nodiscard]] virtual Result<void> copyTo(void* commandBuffer, IBuffer* dstBuffer, u64 size) = 0;
+};
+
+} // namespace mc::client::renderer::api

@@ -2,7 +2,7 @@
 #include <cmath>
 
 #include "client/renderer/MeshTypes.hpp"
-#include "client/renderer/ChunkMesher.hpp"
+#include "client/renderer/chunk/ChunkMesher.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
 
 using namespace mc;

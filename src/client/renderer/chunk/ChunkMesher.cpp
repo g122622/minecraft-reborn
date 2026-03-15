@@ -1,6 +1,6 @@
 #include "ChunkMesher.hpp"
-#include "../resource/BlockModelCache.hpp"
-#include "common/perfetto/TraceEvents.hpp"
+#include "../../resource/BlockModelCache.hpp"
+#include "../../../common/perfetto/TraceEvents.hpp"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 

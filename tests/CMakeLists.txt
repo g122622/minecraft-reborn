@@ -60,6 +60,7 @@ add_executable(mc_tests
     server/core/ServerCoreTest.cpp
     client/test_mesh_worker_pool.cpp
     client/renderer/test_renderer.cpp
+    client/renderer/test_trident_api.cpp
     client/renderer/entity/AnimalModelTests.cpp
     client/renderer/test_gui_item_color.cpp
     client/resource/test_entity_texture_loader.cpp
@@ -210,14 +211,16 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/common/world/drop/DropTables.cpp
         # 天体计算
         ${CMAKE_SOURCE_DIR}/src/client/renderer/sky/CelestialCalculations.cpp
+        # Trident 渲染 API 层
+        ${CMAKE_SOURCE_DIR}/src/client/renderer/api/Types.cpp
         # 射线检测
         ${CMAKE_SOURCE_DIR}/src/common/math/ray/Raycast.cpp
         # 设置系统
         ${CMAKE_SOURCE_DIR}/src/client/settings/ClientSettings.cpp
         # 网格构建线程池
-        ${CMAKE_SOURCE_DIR}/src/client/renderer/MeshWorkerPool.cpp
-        # 区块网格生成（已在 client/renderer）
-        ${CMAKE_SOURCE_DIR}/src/client/renderer/ChunkMesher.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/renderer/mesh/MeshWorkerPool.cpp
+        # 区块网格生成
+        ${CMAKE_SOURCE_DIR}/src/client/renderer/chunk/ChunkMesher.cpp
         ${CMAKE_SOURCE_DIR}/src/client/renderer/MeshTypes.cpp
         ${CMAKE_SOURCE_DIR}/src/client/renderer/entity/model/ModelRenderer.cpp
         ${CMAKE_SOURCE_DIR}/src/client/renderer/entity/model/EntityModel.cpp

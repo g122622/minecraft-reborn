@@ -9,16 +9,16 @@
 #include "client/settings/ClientSettings.hpp"
 #include "../window/Window.hpp"
 #include "../input/InputManager.hpp"
-#include "../renderer/VulkanRenderer.hpp"
 #include "../renderer/Camera.hpp"
+#include "../resource/ResourceManager.hpp"
+#include "../resource/BlockModelCache.hpp"
+#include "../renderer/trident/TridentEngine.hpp"
 #include "../world/ClientWorld.hpp"
 #include "../network/NetworkClient.hpp"
 #include "../ui/debug/DebugScreen.hpp"
 #include "../ui/crosshair/CrosshairRenderer.hpp"
 #include "../ui/hud/HudRenderer.hpp"
 #include "../ui/chat/ChatScreen.hpp"
-#include "../resource/ResourceManager.hpp"
-#include "../resource/BlockModelCache.hpp"
 #include "server/application/IntegratedServer.hpp"
 
 #include <string>
@@ -103,8 +103,8 @@ public:
     /**
      * @brief 获取渲染器
      */
-    [[nodiscard]] VulkanRenderer& renderer() noexcept { return *m_renderer; }
-    [[nodiscard]] const VulkanRenderer& renderer() const noexcept { return *m_renderer; }
+    [[nodiscard]] renderer::trident::TridentEngine& renderer() noexcept { return *m_renderer; }
+    [[nodiscard]] const renderer::trident::TridentEngine& renderer() const noexcept { return *m_renderer; }
 
     /**
      * @brief 获取相机
@@ -162,7 +162,7 @@ private:
     ClientSettings m_settings;
     Window m_window;
     InputManager m_input;
-    std::unique_ptr<VulkanRenderer> m_renderer;
+    std::unique_ptr<renderer::trident::TridentEngine> m_renderer;
 
     // 资源系统
     ResourcePackList m_resourcePackList;

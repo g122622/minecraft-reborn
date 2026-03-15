@@ -11,12 +11,12 @@ VulkanPipeline::~VulkanPipeline() {
     destroy();
 }
 
-Result<void> VulkanPipeline::initialize(VulkanContext* context, const PipelineConfig& config) {
+Result<void> VulkanPipeline::initialize(VkDevice device, const PipelineConfig& config) {
     if (m_initialized) {
         return Error(ErrorCode::AlreadyExists, "Pipeline already initialized");
     }
 
-    m_context = context;
+    m_device = device;
 
     // 创建管线布局
     VkPipelineLayoutCreateInfo layoutInfo{};
@@ -26,7 +26,7 @@ Result<void> VulkanPipeline::initialize(VulkanContext* context, const PipelineCo
     layoutInfo.pushConstantRangeCount = static_cast<u32>(config.pushConstantRanges.size());
     layoutInfo.pPushConstantRanges = config.pushConstantRanges.empty() ? nullptr : config.pushConstantRanges.data();
 
-    VkResult result = vkCreatePipelineLayout(m_context->device(), &layoutInfo, nullptr, &m_layout);
+    VkResult result = vkCreatePipelineLayout(m_device, &layoutInfo, nullptr, &m_layout);
     if (result != VK_SUCCESS) {
         return Error(ErrorCode::Unknown, "Failed to create pipeline layout: " + std::to_string(result));
     }
@@ -173,7 +173,7 @@ Result<void> VulkanPipeline::initialize(VulkanContext* context, const PipelineCo
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     pipelineInfo.basePipelineIndex = -1;
 
-    result = vkCreateGraphicsPipelines(m_context->device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline);
+    result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline);
     if (result != VK_SUCCESS) {
         destroy();
         return Error(ErrorCode::Unknown, "Failed to create graphics pipeline: " + std::to_string(result));
@@ -201,16 +201,16 @@ void VulkanPipeline::destroy() {
     m_shaders.clear();
 
     if (m_pipeline != VK_NULL_HANDLE) {
-        vkDestroyPipeline(m_context->device(), m_pipeline, nullptr);
+        vkDestroyPipeline(m_device, m_pipeline, nullptr);
         m_pipeline = VK_NULL_HANDLE;
     }
 
     if (m_layout != VK_NULL_HANDLE) {
-        vkDestroyPipelineLayout(m_context->device(), m_layout, nullptr);
+        vkDestroyPipelineLayout(m_device, m_layout, nullptr);
         m_layout = VK_NULL_HANDLE;
     }
 
-    m_context = nullptr;
+    m_device = VK_NULL_HANDLE;
     m_initialized = false;
 }
 
@@ -227,7 +227,7 @@ Result<ShaderModule> VulkanPipeline::loadShader(const String& path, ShaderStage 
     file.read(reinterpret_cast<char*>(code.data()), fileSize);
     file.close();
 
-    auto moduleResult = createShaderModule(m_context, code);
+    auto moduleResult = createShaderModule(m_device, code);
     if (moduleResult.failed()) {
         return moduleResult.error();
     }
@@ -242,8 +242,8 @@ Result<ShaderModule> VulkanPipeline::loadShader(const String& path, ShaderStage 
 }
 
 void VulkanPipeline::destroyShader(ShaderModule& shader) {
-    if (shader.module != VK_NULL_HANDLE && m_context != nullptr) {
-        vkDestroyShaderModule(m_context->device(), shader.module, nullptr);
+    if (shader.module != VK_NULL_HANDLE && m_device != VK_NULL_HANDLE) {
+        vkDestroyShaderModule(m_device, shader.module, nullptr);
         shader.module = VK_NULL_HANDLE;
     }
 }
@@ -252,14 +252,14 @@ void VulkanPipeline::bind(VkCommandBuffer commandBuffer) {
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
 }
 
-Result<VkShaderModule> VulkanPipeline::createShaderModule(VulkanContext* context, const std::vector<u8>& code) {
+Result<VkShaderModule> VulkanPipeline::createShaderModule(VkDevice device, const std::vector<u8>& code) {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.codeSize = code.size();
     createInfo.pCode = reinterpret_cast<const u32*>(code.data());
 
     VkShaderModule shaderModule;
-    VkResult result = vkCreateShaderModule(context->device(), &createInfo, nullptr, &shaderModule);
+    VkResult result = vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule);
     if (result != VK_SUCCESS) {
         return Error(ErrorCode::Unknown, "Failed to create shader module: " + std::to_string(result));
     }
@@ -277,12 +277,12 @@ VulkanPipelineCache::~VulkanPipelineCache() {
     destroy();
 }
 
-Result<void> VulkanPipelineCache::initialize(VulkanContext* context, const String& cachePath) {
+Result<void> VulkanPipelineCache::initialize(VkDevice device, const String& cachePath) {
     if (m_initialized) {
         return Error(ErrorCode::AlreadyExists, "Pipeline cache already initialized");
     }
 
-    m_context = context;
+    m_device = device;
     m_cachePath = cachePath;
 
     // 尝试从文件加载缓存
@@ -303,7 +303,7 @@ Result<void> VulkanPipelineCache::initialize(VulkanContext* context, const Strin
     cacheInfo.initialDataSize = cacheData.size();
     cacheInfo.pInitialData = cacheData.empty() ? nullptr : cacheData.data();
 
-    VkResult result = vkCreatePipelineCache(context->device(), &cacheInfo, nullptr, &m_cache);
+    VkResult result = vkCreatePipelineCache(m_device, &cacheInfo, nullptr, &m_cache);
     if (result != VK_SUCCESS) {
         return Error(ErrorCode::Unknown, "Failed to create pipeline cache: " + std::to_string(result));
     }
@@ -320,11 +320,11 @@ void VulkanPipelineCache::destroy() {
     // 保存缓存到文件
     if (!m_cachePath.empty() && m_cache != VK_NULL_HANDLE) {
         size_t dataSize = 0;
-        vkGetPipelineCacheData(m_context->device(), m_cache, &dataSize, nullptr);
+        vkGetPipelineCacheData(m_device, m_cache, &dataSize, nullptr);
 
         if (dataSize > 0) {
             std::vector<u8> cacheData(dataSize);
-            vkGetPipelineCacheData(m_context->device(), m_cache, &dataSize, cacheData.data());
+            vkGetPipelineCacheData(m_device, m_cache, &dataSize, cacheData.data());
 
             std::ofstream file(m_cachePath, std::ios::binary);
             if (file.is_open()) {
@@ -335,11 +335,11 @@ void VulkanPipelineCache::destroy() {
     }
 
     if (m_cache != VK_NULL_HANDLE) {
-        vkDestroyPipelineCache(m_context->device(), m_cache, nullptr);
+        vkDestroyPipelineCache(m_device, m_cache, nullptr);
         m_cache = VK_NULL_HANDLE;
     }
 
-    m_context = nullptr;
+    m_device = VK_NULL_HANDLE;
     m_initialized = false;
 }
 

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../../common/core/Types.hpp"
-#include "../../common/world/chunk/ChunkData.hpp"
-#include "MeshTypes.hpp"
+#include "../../../common/core/Types.hpp"
+#include "../../../common/world/chunk/ChunkData.hpp"
+#include "../MeshTypes.hpp"
 #include <thread>
 #include <mutex>
 #include <condition_variable>

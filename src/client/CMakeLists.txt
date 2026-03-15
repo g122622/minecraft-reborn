@@ -10,6 +10,20 @@ add_executable(minecraft-client
     window/Window.cpp
     input/InputManager.cpp
     settings/ClientSettings.cpp
+    # Trident 渲染引擎 API 层
+    renderer/api/Types.cpp
+    # Trident 渲染引擎核心 (Vulkan 实现)
+    renderer/trident/TridentContext.cpp
+    renderer/trident/TridentSwapchain.cpp
+    renderer/trident/TridentEngine.cpp
+    renderer/trident/buffer/TridentBuffer.cpp
+    renderer/trident/texture/TridentTexture.cpp
+    renderer/trident/pipeline/TridentPipeline.cpp
+    renderer/trident/render/RenderPassManager.cpp
+    renderer/trident/render/FrameManager.cpp
+    renderer/trident/render/DescriptorManager.cpp
+    renderer/trident/render/UniformManager.cpp
+    # Vulkan 渲染实现 (兼容层)
     renderer/VulkanContext.cpp
     renderer/VulkanSwapchain.cpp
     renderer/VulkanPipeline.cpp
@@ -17,9 +31,9 @@ add_executable(minecraft-client
     renderer/VulkanBuffer.cpp
     renderer/VulkanTexture.cpp
     renderer/ChunkRenderer.cpp
-    renderer/MeshWorkerPool.cpp
+    renderer/mesh/MeshWorkerPool.cpp
     renderer/MeshTypes.cpp
-    renderer/ChunkMesher.cpp
+    renderer/chunk/ChunkMesher.cpp
     renderer/Camera.cpp
     renderer/UniformBuffer.cpp
     renderer/Descriptor.cpp

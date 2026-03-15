@@ -11,7 +11,6 @@
 namespace mc::client {
 
 // 前向声明
-class VulkanContext;
 class VulkanBuffer;
 class VulkanPipeline;
 class VulkanTexture;
@@ -42,11 +41,17 @@ public:
 
     /**
      * @brief 初始化GUI渲染器
-     * @param context Vulkan上下文
+     * @param device Vulkan 逻辑设备
+     * @param physicalDevice Vulkan 物理设备
+     * @param commandPool 命令池
      * @param renderPass 渲染通道
      * @return 成功或错误
      */
-    [[nodiscard]] Result<void> initialize(VulkanContext* context, VkRenderPass renderPass);
+    [[nodiscard]] Result<void> initialize(
+        VkDevice device,
+        VkPhysicalDevice physicalDevice,
+        VkCommandPool commandPool,
+        VkRenderPass renderPass);
 
     /**
      * @brief 销毁资源
@@ -254,7 +259,9 @@ private:
     void uploadBufferData(VkCommandBuffer commandBuffer);
 
     // Vulkan资源
-    VulkanContext* m_context = nullptr;
+    VkDevice m_device = VK_NULL_HANDLE;
+    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
+    VkCommandPool m_commandPool = VK_NULL_HANDLE;
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
     VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;

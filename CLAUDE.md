@@ -108,14 +108,46 @@ src/
 │   ├── application/ # ClientApplication, GameLoop
 │   ├── window/      # Window (GLFW wrapper)
 │   ├── input/       # InputManager
-│   ├── renderer/    # Vulkan rendering
-│   │   ├── VulkanContext.hpp    # Vulkan instance, device, queues
-│   │   ├── VulkanSwapchain.hpp  # Swapchain management
-│   │   ├── VulkanPipeline.hpp   # Pipeline and render pass
-│   │   ├── VulkanRenderer.hpp   # Main renderer
+│   ├── renderer/    # Rendering system
+│   │   ├── api/     # Platform-agnostic rendering interface
+│   │   │   ├── IRenderEngine.hpp     # Main render engine interface
+│   │   │   ├── Types.hpp             # Vertex, Face, BlockGeometry
+│   │   │   ├── BlendMode.hpp         # Blend states
+│   │   │   ├── CompareOp.hpp         # Depth comparison
+│   │   │   ├── CullMode.hpp          # Face culling
+│   │   │   ├── buffer/IBuffer.hpp    # Buffer interfaces
+│   │   │   ├── texture/ITexture.hpp  # Texture interface
+│   │   │   ├── pipeline/RenderState.hpp  # Render state (blend, depth, rasterizer)
+│   │   │   ├── pipeline/RenderType.hpp   # Named render types (MC style)
+│   │   │   ├── camera/ICamera.hpp    # Camera interface
+│   │   │   └── mesh/MeshData.hpp     # Mesh data structures
+│   │   ├── trident/  # Trident Vulkan rendering engine
+│   │   │   ├── TridentEngine.hpp     # Main engine (implements IRenderEngine)
+│   │   │   ├── TridentContext.hpp    # Vulkan instance, device, queues
+│   │   │   ├── TridentSwapchain.hpp  # Swapchain management
+│   │   │   └── render/
+│   │   │       ├── RenderPassManager.hpp  # Render pass & framebuffers
+│   │   │       ├── FrameManager.hpp       # Command buffers & sync objects
+│   │   │       ├── DescriptorManager.hpp  # Descriptor sets
+│   │   │       └── UniformManager.hpp     # Uniform buffers
+│   │   ├── chunk/    # Chunk mesh generation
+│   │   │   └── ChunkMesher.hpp
+│   │   ├── mesh/     # Mesh worker pool
+│   │   │   └── MeshWorkerPool.hpp
+│   │   ├── util/     # Utility functions
+│   │   │   └── ShaderPath.hpp
+│   │   ├── entity/   # Entity rendering
+│   │   ├── item/     # Item rendering
+│   │   ├── sky/      # Sky rendering
+│   │   ├── VulkanRenderer.hpp   # High-level renderer (uses Trident backend)
 │   │   ├── VulkanBuffer.hpp     # GPU buffer management
 │   │   ├── VulkanTexture.hpp    # Texture and texture atlas
-│   │   └── ChunkRenderer.hpp    # Chunk mesh GPU buffers
+│   │   ├── VulkanPipeline.hpp   # Pipeline management
+│   │   ├── VulkanContext.hpp    # Legacy Vulkan context
+│   │   ├── VulkanSwapchain.hpp  # Legacy swapchain
+│   │   ├── ChunkRenderer.hpp    # Chunk mesh GPU buffers
+│   │   ├── Camera.hpp           # Camera controller
+│   │   └── MeshTypes.hpp        # Mesh types (Vertex, Face, etc.)
 │   └── resource/    # Client resource loading
 │       ├── BlockModelLoader.hpp    # Model JSON parsing
 │       ├── BlockStateLoader.hpp    # Block state JSON parsing
@@ -540,7 +572,29 @@ void endSingleTimeCommands(VkCommandBuffer cmd);
   - LayerBiomeProvider: Layer-based biome distribution (MC 1.16.5)
   - ChunkWorkerPool: Async generation thread pool
   - ServerChunkManager: Central chunk coordination
-- **Renderer**: In progress (Vulkan context, basic mesh generation, texture atlas with MC 1.12/1.13+ compatibility)
+- **Renderer**: Complete (Trident rendering engine refactored)
+  - Platform-agnostic API layer (`client/renderer/api/`):
+    - IRenderEngine: Main render engine interface
+    - IBuffer/IVertexBuffer/IIndexBuffer: Buffer interfaces
+    - ITexture/ITextureAtlas: Texture interfaces
+    - RenderState/RenderType: MC 1.16.5 style render state system
+    - ICamera: Camera interface
+    - MeshData: Mesh data structures
+  - Trident Vulkan implementation (`client/renderer/trident/`):
+    - TridentEngine: Main engine (implements IRenderEngine)
+    - TridentContext: Vulkan instance, device, queues
+    - TridentSwapchain: Swapchain management
+    - RenderPassManager: Render pass & framebuffers
+    - FrameManager: Command buffers & sync objects
+    - DescriptorManager: Descriptor sets
+    - UniformManager: Uniform buffers (CameraUBO, LightingUBO)
+  - Organized directory structure:
+    - `renderer/chunk/`: Chunk mesh generation (ChunkMesher)
+    - `renderer/mesh/`: Mesh worker pool (MeshWorkerPool)
+    - `renderer/util/`: Utility functions (ShaderPath)
+    - `renderer/entity/`: Entity rendering
+    - `renderer/item/`: Item rendering
+    - `renderer/sky/`: Sky rendering
 - **Resource Pack System**: Complete (model/blockstate parsing, texture atlas, MC version compatibility)
 - **Block Properties**: Complete (property encoding, variant mapping)
 - **Performance Tracing**: Complete (NEW - Perfetto integration)
@@ -549,7 +603,7 @@ void endSingleTimeCommands(VkCommandBuffer cmd);
   - PerfettoManager: Singleton manager for tracing lifecycle
   - TraceEvents.hpp: Convenient macros (MC_TRACE_EVENT, MC_TRACE_COUNTER, etc.)
   - Tests: 2 tests (disabled mode) / 29 tests (enabled mode)
-- **Tests**: 1251+ tests passing
+- **Tests**: 1469 tests passing
 
 ## Self-Maintenance Rule
 

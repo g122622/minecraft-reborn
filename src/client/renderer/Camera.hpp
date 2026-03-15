@@ -2,118 +2,98 @@
 
 #include "../../common/core/Types.hpp"
 #include "../../common/math/MathUtils.hpp"
+#include "api/camera/ICamera.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
 namespace mc::client {
 
-// 相机投影模式
-enum class ProjectionMode : u8 {
-    Perspective,
-    Orthographic
-};
+// 相机投影模式 (使用 api 命名空间中的枚举)
+using ProjectionMode = renderer::api::ProjectionMode;
 
-// 相机配置
-struct CameraConfig {
-    // 视角设置
-    f32 fov = 70.0f;                    // 视野角度（度）
-    f32 aspectRatio = 16.0f / 9.0f;     // 宽高比
-    f32 nearPlane = 0.1f;               // 近裁剪面
-    f32 farPlane = 1000.0f;             // 远裁剪面
+// 相机配置 (使用 api 命名空间中的配置)
+using CameraConfig = renderer::api::CameraConfig;
 
-    // 正交投影设置
-    f32 orthoSize = 10.0f;              // 正交投影大小
-
-    // 移动设置
-    f32 moveSpeed = 5.0f;               // 移动速度（单位/秒）
-    f32 sprintMultiplier = 2.0f;        // 冲刺倍率
-    f32 sneakMultiplier = 0.3f;         // 潜行倍率
-
-    // 视角设置
-    f32 mouseSensitivity = 0.1f;        // 鼠标灵敏度
-    f32 pitchLimit = 89.0f;             // 俯仰角限制（度）
-
-    // 默认投影模式
-    ProjectionMode projectionMode = ProjectionMode::Perspective;
-};
-
-// 相机类 - 第一人称视角
-class Camera {
+// 相机类 - 第一人称视角，实现 ICamera 接口
+class Camera : public renderer::api::ICamera {
 public:
     Camera() = default;
     explicit Camera(const CameraConfig& config);
+    ~Camera() override = default;
+
+    // ========================================================================
+    // ICamera 接口实现
+    // ========================================================================
 
     // 更新
-    void update(f32 deltaTime);
+    void update(f32 deltaTime) override;
 
     // 位置
-    void setPosition(const glm::vec3& position);
-    void setPosition(f32 x, f32 y, f32 z);
-    [[nodiscard]] const glm::vec3& position() const { return m_position; }
+    void setPosition(const glm::vec3& position) override;
+    void setPosition(f32 x, f32 y, f32 z) override;
+    [[nodiscard]] const glm::vec3& position() const override { return m_position; }
 
     // 旋转（欧拉角，度）
-    void setRotation(const glm::vec3& rotation);
-    void setRotation(f32 pitch, f32 yaw, f32 roll = 0.0f);
-    [[nodiscard]] const glm::vec3& rotation() const { return m_rotation; }
+    void setRotation(const glm::vec3& rotation) override;
+    void setRotation(f32 pitch, f32 yaw, f32 roll = 0.0f) override;
+    [[nodiscard]] const glm::vec3& rotation() const override { return m_rotation; }
 
     // 俯仰和偏航（更常用）
-    [[nodiscard]] f32 pitch() const { return m_rotation.x; }
-    [[nodiscard]] f32 yaw() const { return m_rotation.y; }
-    [[nodiscard]] f32 roll() const { return m_rotation.z; }
+    [[nodiscard]] f32 pitch() const override { return m_rotation.x; }
+    [[nodiscard]] f32 yaw() const override { return m_rotation.y; }
+    [[nodiscard]] f32 roll() const override { return m_rotation.z; }
 
-    void setPitch(f32 pitch);
-    void setYaw(f32 yaw);
-    void setRoll(f32 roll);
+    void setPitch(f32 pitch) override;
+    void setYaw(f32 yaw) override;
+    void setRoll(f32 roll) override;
 
     // 方向向量
-    [[nodiscard]] glm::vec3 forward() const;
-    [[nodiscard]] glm::vec3 right() const;
-    [[nodiscard]] glm::vec3 up() const;
+    [[nodiscard]] glm::vec3 forward() const override;
+    [[nodiscard]] glm::vec3 right() const override;
+    [[nodiscard]] glm::vec3 up() const override;
 
     // 移动
-    void moveForward(f32 distance);
-    void moveRight(f32 distance);
-    void moveUp(f32 distance);
+    void moveForward(f32 distance) override;
+    void moveRight(f32 distance) override;
+    void moveUp(f32 distance) override;
 
     // 旋转
-    void rotate(f32 pitchDelta, f32 yawDelta);
-
-    // 视角控制（通过鼠标增量）
-    void look(f32 mouseDeltaX, f32 mouseDeltaY);
+    void rotate(f32 pitchDelta, f32 yawDelta) override;
+    void look(f32 mouseDeltaX, f32 mouseDeltaY) override;
 
     // 投影
-    void setProjectionMode(ProjectionMode mode);
-    void setFOV(f32 fov);
-    void setAspectRatio(f32 aspectRatio);
-    void setNearFar(f32 nearPlane, f32 farPlane);
-    void setOrthoSize(f32 size);
+    void setProjectionMode(ProjectionMode mode) override;
+    void setFOV(f32 fov) override;
+    void setAspectRatio(f32 aspectRatio) override;
+    void setNearFar(f32 nearPlane, f32 farPlane) override;
+    void setOrthoSize(f32 size) override;
 
-    [[nodiscard]] ProjectionMode projectionMode() const { return m_config.projectionMode; }
-    [[nodiscard]] f32 fov() const { return m_config.fov; }
-    [[nodiscard]] f32 aspectRatio() const { return m_config.aspectRatio; }
-    [[nodiscard]] f32 nearPlane() const { return m_config.nearPlane; }
-    [[nodiscard]] f32 farPlane() const { return m_config.farPlane; }
+    [[nodiscard]] ProjectionMode projectionMode() const override { return m_config.projectionMode; }
+    [[nodiscard]] f32 fov() const override { return m_config.fov; }
+    [[nodiscard]] f32 aspectRatio() const override { return m_config.aspectRatio; }
+    [[nodiscard]] f32 nearPlane() const override { return m_config.nearPlane; }
+    [[nodiscard]] f32 farPlane() const override { return m_config.farPlane; }
 
     // 矩阵
-    [[nodiscard]] const glm::mat4& viewMatrix() const { return m_viewMatrix; }
-    [[nodiscard]] const glm::mat4& projectionMatrix() const { return m_projectionMatrix; }
-    [[nodiscard]] const glm::mat4& viewProjectionMatrix() const { return m_viewProjectionMatrix; }
+    [[nodiscard]] const glm::mat4& viewMatrix() const override { return m_viewMatrix; }
+    [[nodiscard]] const glm::mat4& projectionMatrix() const override { return m_projectionMatrix; }
+    [[nodiscard]] const glm::mat4& viewProjectionMatrix() const override { return m_viewProjectionMatrix; }
 
     // 配置
-    void setConfig(const CameraConfig& config);
-    [[nodiscard]] const CameraConfig& config() const { return m_config; }
+    void setConfig(const CameraConfig& config) override;
+    [[nodiscard]] const CameraConfig& config() const override { return m_config; }
 
     // 移动速度
-    void setMoveSpeed(f32 speed) { m_config.moveSpeed = speed; }
-    [[nodiscard]] f32 moveSpeed() const { return m_config.moveSpeed; }
+    void setMoveSpeed(f32 speed) override { m_config.moveSpeed = speed; }
+    [[nodiscard]] f32 moveSpeed() const override { return m_config.moveSpeed; }
 
     // 鼠标灵敏度
-    void setMouseSensitivity(f32 sensitivity) { m_config.mouseSensitivity = sensitivity; }
-    [[nodiscard]] f32 mouseSensitivity() const { return m_config.mouseSensitivity; }
+    void setMouseSensitivity(f32 sensitivity) override { m_config.mouseSensitivity = sensitivity; }
+    [[nodiscard]] f32 mouseSensitivity() const override { return m_config.mouseSensitivity; }
 
     // 脏标记
-    [[nodiscard]] bool isDirty() const { return m_dirty; }
-    void markClean() { m_dirty = false; }
+    [[nodiscard]] bool isDirty() const override { return m_dirty; }
+    void markClean() override { m_dirty = false; }
 
 private:
     void updateVectors();

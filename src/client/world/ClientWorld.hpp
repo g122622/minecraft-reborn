@@ -9,7 +9,7 @@
 #include "../../common/network/ChunkSync.hpp"
 #include "../../common/physics/PhysicsEngine.hpp"
 #include "../renderer/Camera.hpp"
-#include "../renderer/MeshWorkerPool.hpp"
+#include "../renderer/mesh/MeshWorkerPool.hpp"
 #include "entity/ClientEntityManager.hpp"
 #include <unordered_map>
 #include <unordered_set>

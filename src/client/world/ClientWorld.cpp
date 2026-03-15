@@ -1,5 +1,5 @@
 #include "ClientWorld.hpp"
-#include "../renderer/ChunkMesher.hpp"
+#include "../renderer/chunk/ChunkMesher.hpp"
 #include "../../common/world/WorldConstants.hpp"
 #include "../../common/network/ChunkSync.hpp"
 #include "../../common/core/Constants.hpp"

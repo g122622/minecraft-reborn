@@ -11,10 +11,12 @@
 namespace mc::client {
 
 // 前向声明
-class VulkanContext;
 class VulkanPipeline;
 class UniformBuffer;
 class VulkanTextureAtlas;
+
+// 物理设备内存属性回调
+using FindMemoryTypeCallback = Result<u32> (*)(VkPhysicalDevice physicalDevice, u32 typeFilter, VkMemoryPropertyFlags properties);
 
 /**
  * @brief 实体网格数据
@@ -57,17 +59,22 @@ public:
 
     /**
      * @brief 初始化管线
-     * @param context Vulkan上下文
+     * @param device Vulkan逻辑设备
+     * @param physicalDevice Vulkan物理设备
+     * @param graphicsQueue 图形队列
      * @param renderPass 渲染通道
      * @param cameraDescriptorLayout 相机描述符布局
      * @param descriptorPool 描述符池
      * @param commandPool 命令池（用于缓冲区复制）
      */
-    [[nodiscard]] Result<void> initialize(VulkanContext* context,
-                                          VkRenderPass renderPass,
-                                          VkDescriptorSetLayout cameraDescriptorLayout,
-                                          VkDescriptorPool descriptorPool,
-                                          VkCommandPool commandPool);
+    [[nodiscard]] Result<void> initialize(
+        VkDevice device,
+        VkPhysicalDevice physicalDevice,
+        VkQueue graphicsQueue,
+        VkRenderPass renderPass,
+        VkDescriptorSetLayout cameraDescriptorLayout,
+        VkDescriptorPool descriptorPool,
+        VkCommandPool commandPool);
 
     /**
      * @brief 销毁资源
@@ -144,7 +151,9 @@ public:
     [[nodiscard]] bool isInitialized() const { return m_initialized; }
 
 private:
-    VulkanContext* m_context = nullptr;
+    VkDevice m_device = VK_NULL_HANDLE;
+    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
+    VkQueue m_graphicsQueue = VK_NULL_HANDLE;
     std::unique_ptr<VulkanPipeline> m_pipeline;
     VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
     VkDescriptorSetLayout m_textureDescriptorLayout = VK_NULL_HANDLE;

@@ -2,8 +2,6 @@
 
 #include "../../../common/core/Types.hpp"
 #include "../../../common/core/Result.hpp"
-#include "../VulkanContext.hpp"
-#include "CelestialCalculations.hpp"
 #include <vulkan/vulkan.h>
 #include <glm/glm.hpp>
 #include <memory>
@@ -46,12 +44,21 @@ public:
 
     /**
      * @brief 初始化天空渲染器
-     * @param ctx Vulkan 上下文
+     * @param device Vulkan 逻辑设备
+     * @param physicalDevice Vulkan 物理设备
+     * @param commandPool 命令池
+     * @param graphicsQueue 图形队列
      * @param renderPass 渲染通道
      * @param extent 交换链图像尺寸
      * @return 成功或错误
      */
-    [[nodiscard]] Result<void> initialize(VulkanContext* ctx, VkRenderPass renderPass, VkExtent2D extent);
+    [[nodiscard]] Result<void> initialize(
+        VkDevice device,
+        VkPhysicalDevice physicalDevice,
+        VkCommandPool commandPool,
+        VkQueue graphicsQueue,
+        VkRenderPass renderPass,
+        VkExtent2D extent);
 
     /**
      * @brief 销毁资源
@@ -191,7 +198,10 @@ private:
     void renderStars(VkCommandBuffer cmd);
 
 private:
-    VulkanContext* m_ctx = nullptr;
+    VkDevice m_device = VK_NULL_HANDLE;
+    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
+    VkCommandPool m_commandPool = VK_NULL_HANDLE;
+    VkQueue m_graphicsQueue = VK_NULL_HANDLE;
     VkRenderPass m_renderPass = VK_NULL_HANDLE;
     VkExtent2D m_extent = {0, 0};
     bool m_initialized = false;

@@ -3,7 +3,7 @@
 #include "../../common/core/Types.hpp"
 #include "../../common/core/Result.hpp"
 #include "MeshTypes.hpp"
-#include "ChunkMesher.hpp"
+#include "chunk/ChunkMesher.hpp"
 #include "VulkanBuffer.hpp"
 #include "VulkanTexture.hpp"
 #include <vulkan/vulkan.h>

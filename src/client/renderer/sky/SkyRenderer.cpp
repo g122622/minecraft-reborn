@@ -1,5 +1,6 @@
 #include "SkyRenderer.hpp"
-#include "../ShaderPath.hpp"
+#include "CelestialCalculations.hpp"
+#include "../util/ShaderPath.hpp"
 #include "../VulkanBuffer.hpp"
 #include "../../../common/core/Constants.hpp"
 #include "../../../common/math/random/Random.hpp"
@@ -93,12 +94,21 @@ SkyRenderer::~SkyRenderer() {
 // 初始化
 // ============================================================================
 
-Result<void> SkyRenderer::initialize(VulkanContext* ctx, VkRenderPass renderPass, VkExtent2D extent) {
+Result<void> SkyRenderer::initialize(
+    VkDevice device,
+    VkPhysicalDevice physicalDevice,
+    VkCommandPool commandPool,
+    VkQueue graphicsQueue,
+    VkRenderPass renderPass,
+    VkExtent2D extent) {
     if (m_initialized) {
         return Result<void>::ok();
     }
 
-    m_ctx = ctx;
+    m_device = device;
+    m_physicalDevice = physicalDevice;
+    m_commandPool = commandPool;
+    m_graphicsQueue = graphicsQueue;
     m_renderPass = renderPass;
     m_extent = extent;
 
@@ -152,9 +162,9 @@ Result<void> SkyRenderer::initialize(VulkanContext* ctx, VkRenderPass renderPass
 }
 
 void SkyRenderer::destroy() {
-    if (m_ctx == nullptr) return;
+    if (m_device == VK_NULL_HANDLE) return;
 
-    VkDevice device = m_ctx->device();
+    VkDevice device = m_device;
 
     // 销毁管线
     if (m_skyPipeline != VK_NULL_HANDLE) {
@@ -208,7 +218,6 @@ void SkyRenderer::destroy() {
     m_sunMoonVBO.reset();
 
     m_initialized = false;
-    m_ctx = nullptr;
     spdlog::info("SkyRenderer destroyed");
 }
 
@@ -483,8 +492,8 @@ Result<void> SkyRenderer::createSkyDomeVBO() {
     VkDeviceSize vertexSize = vertices.size() * sizeof(SkyVertex);
     m_skyDomeVBO = std::make_unique<VulkanBuffer>();
     auto result1 = m_skyDomeVBO->create(
-        m_ctx->device(),
-        m_ctx->physicalDevice(),
+        m_device,
+        m_physicalDevice,
         vertexSize,
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
@@ -498,8 +507,8 @@ Result<void> SkyRenderer::createSkyDomeVBO() {
     VkDeviceSize indexSize = indices.size() * sizeof(u16);
     m_skyDomeIBO = std::make_unique<VulkanBuffer>();
     auto result2 = m_skyDomeIBO->create(
-        m_ctx->device(),
-        m_ctx->physicalDevice(),
+        m_device,
+        m_physicalDevice,
         indexSize,
         VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
@@ -542,8 +551,8 @@ Result<void> SkyRenderer::createStarVBO() {
     VkDeviceSize vertexSize = vertices.size() * sizeof(SkyVertex);
     m_starVBO = std::make_unique<VulkanBuffer>();
     auto result = m_starVBO->create(
-        m_ctx->device(),
-        m_ctx->physicalDevice(),
+        m_device,
+        m_physicalDevice,
         vertexSize,
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
@@ -581,8 +590,8 @@ Result<void> SkyRenderer::createSunMoonVBO() {
     VkDeviceSize vertexSize = vertices.size() * sizeof(SkyVertex);
     m_sunMoonVBO = std::make_unique<VulkanBuffer>();
     auto result = m_sunMoonVBO->create(
-        m_ctx->device(),
-        m_ctx->physicalDevice(),
+        m_device,
+        m_physicalDevice,
         vertexSize,
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
@@ -599,8 +608,8 @@ Result<void> SkyRenderer::createUniformBuffers() {
     for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         m_uniformBuffers[i] = std::make_unique<VulkanBuffer>();
         auto result = m_uniformBuffers[i]->create(
-            m_ctx->device(),
-            m_ctx->physicalDevice(),
+            m_device,
+            m_physicalDevice,
             sizeof(SkyUBO),
             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
@@ -626,7 +635,7 @@ Result<void> SkyRenderer::createDescriptorSetLayout() {
     layoutInfo.pBindings = &uboBinding;
 
     VkResult result = vkCreateDescriptorSetLayout(
-        m_ctx->device(), &layoutInfo, nullptr, &m_descriptorSetLayout);
+        m_device, &layoutInfo, nullptr, &m_descriptorSetLayout);
 
     if (result != VK_SUCCESS) {
         return Error(ErrorCode::InitializationFailed, "Failed to create sky descriptor set layout");
@@ -648,7 +657,7 @@ Result<void> SkyRenderer::createDescriptorSets() {
     poolInfo.pPoolSizes = &poolSize;
 
     VkResult result = vkCreateDescriptorPool(
-        m_ctx->device(), &poolInfo, nullptr, &m_descriptorPool);
+        m_device, &poolInfo, nullptr, &m_descriptorPool);
 
     if (result != VK_SUCCESS) {
         return Error(ErrorCode::InitializationFailed, "Failed to create sky descriptor pool");
@@ -663,7 +672,7 @@ Result<void> SkyRenderer::createDescriptorSets() {
     allocInfo.descriptorSetCount = MAX_FRAMES_IN_FLIGHT;
     allocInfo.pSetLayouts = layouts.data();
 
-    result = vkAllocateDescriptorSets(m_ctx->device(), &allocInfo, m_descriptorSets);
+    result = vkAllocateDescriptorSets(m_device, &allocInfo, m_descriptorSets);
 
     if (result != VK_SUCCESS) {
         return Error(ErrorCode::InitializationFailed, "Failed to allocate sky descriptor sets");
@@ -685,7 +694,7 @@ Result<void> SkyRenderer::createDescriptorSets() {
         descriptorWrite.descriptorCount = 1;
         descriptorWrite.pBufferInfo = &bufferInfo;
 
-        vkUpdateDescriptorSets(m_ctx->device(), 1, &descriptorWrite, 0, nullptr);
+        vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
     }
 
     return Result<void>::ok();
@@ -705,7 +714,7 @@ Result<void> SkyRenderer::createPipelineLayout() {
     layoutInfo.pPushConstantRanges = &pushConstantRange;
 
     VkResult result = vkCreatePipelineLayout(
-        m_ctx->device(), &layoutInfo, nullptr, &m_pipelineLayout);
+        m_device, &layoutInfo, nullptr, &m_pipelineLayout);
 
     if (result != VK_SUCCESS) {
         return Error(ErrorCode::InitializationFailed, "Failed to create sky pipeline layout");
@@ -715,7 +724,7 @@ Result<void> SkyRenderer::createPipelineLayout() {
 }
 
 Result<void> SkyRenderer::createPipelines() {
-    const VkDevice device = m_ctx->device();
+    const VkDevice device = m_device;
 
     const auto skyVertPath = resolveShaderPath("sky.vert.spv");
     const auto skyFragPath = resolveShaderPath("sky.frag.spv");

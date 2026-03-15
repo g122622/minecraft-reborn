@@ -9,7 +9,11 @@
 #include "common/entity/inventory/Slot.hpp"
 #include "common/perfetto/PerfettoManager.hpp"
 #include "common/perfetto/TraceEvents.hpp"
-#include "client/renderer/ChunkMesher.hpp"
+#include "client/renderer/chunk/ChunkMesher.hpp"
+#include "client/renderer/ChunkRenderer.hpp"
+#include "client/renderer/entity/EntityRendererManager.hpp"
+#include "client/resource/ResourceManager.hpp"
+#include "client/resource/TextureAtlasBuilder.hpp"
 #include "client/ui/hud/HudRenderer.hpp"
 #include "client/ui/screen/ScreenManager.hpp"
 #include "client/ui/screen/CraftingScreen.hpp"
@@ -253,16 +257,16 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         }
     }, this);
 
-    // 初始化Vulkan渲染器
-    spdlog::info("Initializing Vulkan renderer...");
-    m_renderer = std::make_unique<VulkanRenderer>();
+    // 初始化Trident渲染引擎
+    spdlog::info("Initializing Trident renderer...");
+    m_renderer = std::make_unique<renderer::trident::TridentEngine>();
 
-    RendererConfig rendererConfig;
-    rendererConfig.vulkanConfig.appName = "Minecraft Reborn";
-    rendererConfig.vulkanConfig.enableValidation = true; // Debug模式启用验证层
+    renderer::api::RenderEngineConfig rendererConfig;
+    rendererConfig.appName = "Minecraft Reborn";
+    rendererConfig.enableValidation = true; // Debug模式启用验证层
     rendererConfig.enableVSync = m_settings.vsync.get();
-    rendererConfig.swapChainConfig.width = static_cast<u32>(windowConfig.width);
-    rendererConfig.swapChainConfig.height = static_cast<u32>(windowConfig.height);
+    rendererConfig.initialWindowWidth = static_cast<u32>(windowConfig.width);
+    rendererConfig.initialWindowHeight = static_cast<u32>(windowConfig.height);
 
     auto rendererResult = m_renderer->initialize(m_window.handle(), rendererConfig);
     if (rendererResult.failed()) {
