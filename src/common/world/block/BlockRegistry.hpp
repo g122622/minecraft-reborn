@@ -183,6 +183,7 @@ private:
         }
 
         const String& path = id.path();
+        // 基础方块
         if (path == "air") return static_cast<u32>(BlockId::Air);
         if (path == "stone") return static_cast<u32>(BlockId::Stone);
         if (path == "grass_block") return static_cast<u32>(BlockId::Grass);
@@ -194,20 +195,73 @@ private:
         if (path == "lava") return static_cast<u32>(BlockId::Lava);
         if (path == "sand") return static_cast<u32>(BlockId::Sand);
         if (path == "gravel") return static_cast<u32>(BlockId::Gravel);
+        // 矿石
         if (path == "gold_ore") return static_cast<u32>(BlockId::GoldOre);
         if (path == "iron_ore") return static_cast<u32>(BlockId::IronOre);
         if (path == "coal_ore") return static_cast<u32>(BlockId::CoalOre);
+        // 原木和树叶
         if (path == "oak_log") return static_cast<u32>(BlockId::OakLog);
         if (path == "oak_leaves") return static_cast<u32>(BlockId::OakLeaves);
+        // 其他基础方块
         if (path == "sponge") return static_cast<u32>(BlockId::Sponge);
         if (path == "netherrack") return static_cast<u32>(BlockId::Netherrack);
         if (path == "soul_sand") return static_cast<u32>(BlockId::SoulSand);
         if (path == "glowstone") return static_cast<u32>(BlockId::Glowstone);
         if (path == "end_stone") return static_cast<u32>(BlockId::EndStone);
-        if (path == "terracotta") return static_cast<u32>(BlockId::Terracotta);
-        if (path == "red_sand") return static_cast<u32>(BlockId::RedSand);
         if (path == "snow") return static_cast<u32>(BlockId::Snow);
         if (path == "ice") return static_cast<u32>(BlockId::Ice);
+        // 石头变种
+        if (path == "granite") return static_cast<u32>(BlockId::Granite);
+        if (path == "diorite") return static_cast<u32>(BlockId::Diorite);
+        if (path == "andesite") return static_cast<u32>(BlockId::Andesite);
+        // 矿石变种
+        if (path == "diamond_ore") return static_cast<u32>(BlockId::DiamondOre);
+        if (path == "redstone_ore") return static_cast<u32>(BlockId::RedstoneOre);
+        if (path == "lapis_ore") return static_cast<u32>(BlockId::LapisOre);
+        if (path == "emerald_ore") return static_cast<u32>(BlockId::EmeraldOre);
+        // 下界方块
+        if (path == "basalt") return static_cast<u32>(BlockId::Basalt);
+        // 砂岩
+        if (path == "sandstone") return static_cast<u32>(BlockId::Sandstone);
+        if (path == "red_sandstone") return static_cast<u32>(BlockId::RedSandstone);
+        // 泥土变种
+        if (path == "coarse_dirt") return static_cast<u32>(BlockId::CoarseDirt);
+        if (path == "podzol") return static_cast<u32>(BlockId::Podzol);
+        // 树木变种原木
+        if (path == "spruce_log") return static_cast<u32>(BlockId::SpruceLog);
+        if (path == "birch_log") return static_cast<u32>(BlockId::BirchLog);
+        if (path == "jungle_log") return static_cast<u32>(BlockId::JungleLog);
+        if (path == "acacia_log") return static_cast<u32>(BlockId::AcaciaLog);
+        if (path == "dark_oak_log") return static_cast<u32>(BlockId::DarkOakLog);
+        // 树叶变种
+        if (path == "spruce_leaves") return static_cast<u32>(BlockId::SpruceLeaves);
+        if (path == "birch_leaves") return static_cast<u32>(BlockId::BirchLeaves);
+        if (path == "jungle_leaves") return static_cast<u32>(BlockId::JungleLeaves);
+        if (path == "acacia_leaves") return static_cast<u32>(BlockId::AcaciaLeaves);
+        if (path == "dark_oak_leaves") return static_cast<u32>(BlockId::DarkOakLeaves);
+        // 植被方块
+        if (path == "short_grass") return static_cast<u32>(BlockId::ShortGrass);
+        if (path == "tall_grass") return static_cast<u32>(BlockId::TallGrass);
+        if (path == "fern") return static_cast<u32>(BlockId::Fern);
+        if (path == "dandelion") return static_cast<u32>(BlockId::Dandelion);
+        if (path == "poppy") return static_cast<u32>(BlockId::Poppy);
+        if (path == "blue_orchid") return static_cast<u32>(BlockId::BlueOrchid);
+        if (path == "allium") return static_cast<u32>(BlockId::Allium);
+        if (path == "azure_bluet") return static_cast<u32>(BlockId::AzureBluet);
+        if (path == "red_tulip") return static_cast<u32>(BlockId::RedTulip);
+        if (path == "orange_tulip") return static_cast<u32>(BlockId::OrangeTulip);
+        if (path == "white_tulip") return static_cast<u32>(BlockId::WhiteTulip);
+        if (path == "pink_tulip") return static_cast<u32>(BlockId::PinkTulip);
+        if (path == "oxeye_daisy") return static_cast<u32>(BlockId::OxeyeDaisy);
+        if (path == "brown_mushroom") return static_cast<u32>(BlockId::BrownMushroom);
+        if (path == "red_mushroom") return static_cast<u32>(BlockId::RedMushroom);
+        // 树苗
+        if (path == "oak_sapling") return static_cast<u32>(BlockId::OakSapling);
+        if (path == "spruce_sapling") return static_cast<u32>(BlockId::SpruceSapling);
+        if (path == "birch_sapling") return static_cast<u32>(BlockId::BirchSapling);
+        if (path == "jungle_sapling") return static_cast<u32>(BlockId::JungleSapling);
+        if (path == "acacia_sapling") return static_cast<u32>(BlockId::AcaciaSapling);
+        if (path == "dark_oak_sapling") return static_cast<u32>(BlockId::DarkOakSapling);
 
         return std::nullopt;
     }
