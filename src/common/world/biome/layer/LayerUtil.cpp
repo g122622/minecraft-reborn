@@ -30,6 +30,16 @@ BiomeId LayerStack::sample(i32 x, i32 z) const {
         return static_cast<BiomeId>(value);
     }
 
+    // 河流值 (7) 是有效的
+    if (value == layer::BiomeValues::River) {
+        return Biomes::River;
+    }
+    if (value == layer::BiomeValues::FrozenRiver) {
+        return Biomes::FrozenRiver;
+    }
+
+    // 河流噪声值（>= 2 且不是生物群系 ID）或 -1（无河流）
+    // 返回 Plains 作为默认
     return Biomes::Plains;
 }
 
@@ -47,10 +57,95 @@ std::vector<BiomeId> LayerStack::sampleArea(i32 startX, i32 startZ, i32 width, i
 }
 
 // ============================================================================
-// LayerUtil 实现 - 完整的 MC 1.16.5 层链（简化版，无河流分支）
+// LayerUtil 实现 - 完整的 MC 1.16.5 层链（包含河流分支）
 // ============================================================================
 
 namespace LayerUtil {
+
+namespace {
+
+/**
+ * @brief 构建气候层链的基础部分
+ *
+ * 构建从 IslandLayer 到 DeepOceanLayer 的公共层链。
+ * 这部分被生物群系分支和河流分支共同使用。
+ *
+ * @return 气候层工厂
+ */
+std::unique_ptr<IAreaFactory> buildClimateLayers(
+    u64 seed,
+    const std::function<std::shared_ptr<LayerContext>(u64)>& createContext)
+{
+    static layer::IslandLayer islandLayer;
+    static layer::ZoomLayer fuzzyZoom(layer::ZoomLayer::Mode::Fuzzy);
+    static layer::ZoomLayer normalZoom(layer::ZoomLayer::Mode::Normal);
+    static layer::AddIslandLayer addIslandLayer;
+    static layer::RemoveTooMuchOceanLayer removeTooMuchOceanLayer;
+    static layer::AddSnowLayer addSnowLayer;
+    static layer::CoolWarmEdgeLayer coolWarmEdgeLayer;
+    static layer::HeatIceEdgeLayer heatIceEdgeLayer;
+    static layer::SpecialEdgeLayer specialEdgeLayer;
+    static layer::AddMushroomIslandLayer addMushroomIslandLayer;
+    static layer::DeepOceanLayer deepOceanLayer;
+
+    auto context = createContext(1L);
+    auto factory = islandLayer.apply(*context);
+
+    context = createContext(2000L);
+    factory = fuzzyZoom.apply(*context, std::move(factory));
+
+    context = createContext(1L);
+    factory = addIslandLayer.apply(*context, std::move(factory));
+
+    context = createContext(2001L);
+    factory = normalZoom.apply(*context, std::move(factory));
+
+    context = createContext(2L);
+    factory = addIslandLayer.apply(*context, std::move(factory));
+
+    context = createContext(50L);
+    factory = addIslandLayer.apply(*context, std::move(factory));
+
+    context = createContext(70L);
+    factory = addIslandLayer.apply(*context, std::move(factory));
+
+    context = createContext(2L);
+    factory = removeTooMuchOceanLayer.apply(*context, std::move(factory));
+
+    context = createContext(2L);
+    factory = addSnowLayer.apply(*context, std::move(factory));
+
+    context = createContext(3L);
+    factory = addIslandLayer.apply(*context, std::move(factory));
+
+    context = createContext(2L);
+    factory = coolWarmEdgeLayer.apply(*context, std::move(factory));
+
+    context = createContext(2L);
+    factory = heatIceEdgeLayer.apply(*context, std::move(factory));
+
+    context = createContext(3L);
+    factory = specialEdgeLayer.apply(*context, std::move(factory));
+
+    context = createContext(2002L);
+    factory = normalZoom.apply(*context, std::move(factory));
+
+    context = createContext(2003L);
+    factory = normalZoom.apply(*context, std::move(factory));
+
+    context = createContext(4L);
+    factory = addIslandLayer.apply(*context, std::move(factory));
+
+    context = createContext(5L);
+    factory = addMushroomIslandLayer.apply(*context, std::move(factory));
+
+    context = createContext(4L);
+    factory = deepOceanLayer.apply(*context, std::move(factory));
+
+    return factory;
+}
+
+} // anonymous namespace
 
 std::unique_ptr<IAreaFactory> repeatZoom(
     u64 seed,
@@ -76,121 +171,57 @@ std::unique_ptr<IAreaFactory> buildOverworldLayers(
     i32 biomeSize,
     i32 riverSize)
 {
-    (void)riverSize; // 暂时不使用河流大小参数
-
     // 创建上下文工厂 - 使用 shared_ptr 保持生命周期
     auto createContext = [seed](u64 modifier) -> std::shared_ptr<LayerContext> {
         return std::make_shared<LayerContext>(1024, seed, modifier);
     };
 
-    // ========================================================================
-    // 第一阶段：基础岛屿和海洋层
-    // 参考 MC LayerUtil.func_237216_a_ 行 97-116
-    // ========================================================================
-
-    auto context = createContext(1L);
-    static layer::IslandLayer islandLayer;
-    auto factory = islandLayer.apply(*context);
-
-    // FuzzyZoom
-    static layer::ZoomLayer fuzzyZoom(layer::ZoomLayer::Mode::Fuzzy);
-    context = createContext(2000L);
-    factory = fuzzyZoom.apply(*context, std::move(factory));
-
-    // 多次 AddIslandLayer
-    static layer::AddIslandLayer addIslandLayer;
-    context = createContext(1L);
-    factory = addIslandLayer.apply(*context, std::move(factory));
-
-    // NormalZoom
+    // 静态层实例（避免重复构造）
     static layer::ZoomLayer normalZoom(layer::ZoomLayer::Mode::Normal);
-    context = createContext(2001L);
-    factory = normalZoom.apply(*context, std::move(factory));
-
-    context = createContext(2L);
-    factory = addIslandLayer.apply(*context, std::move(factory));
-
-    context = createContext(50L);
-    factory = addIslandLayer.apply(*context, std::move(factory));
-
-    context = createContext(70L);
-    factory = addIslandLayer.apply(*context, std::move(factory));
-
-    // RemoveTooMuchOceanLayer
-    static layer::RemoveTooMuchOceanLayer removeTooMuchOceanLayer;
-    context = createContext(2L);
-    factory = removeTooMuchOceanLayer.apply(*context, std::move(factory));
+    static layer::StartRiverLayer startRiverLayer;
+    static layer::BiomeLayer biomeLayer(layer::BiomeLayer::Config{});
+    static layer::AddBambooForestLayer addBambooForestLayer;
+    static layer::BiomeEdgeLayer biomeEdgeLayer;
+    static layer::HillsLayer hillsLayer;
+    static layer::RiverLayer riverLayer;
+    static layer::SmoothLayer smoothLayer;
+    static layer::RareBiomeLayer rareBiomeLayer;
+    static layer::ShoreLayer shoreLayer;
+    static layer::MixRiverLayer mixRiverLayer;
+    static layer::MixOceansLayer mixOceansLayer;
+    static layer::OceanLayer oceanLayer;
+    static layer::AddIslandLayer addIslandLayer;
 
     // ========================================================================
-    // 第二阶段：温度和生物群系层
-    // 参考 MC 行 107-116
+    // 第一阶段：气候层（共享）
     // ========================================================================
-
-    // AddSnowLayer（温度分配）
-    static layer::AddSnowLayer addSnowLayer;
-    context = createContext(2L);
-    factory = addSnowLayer.apply(*context, std::move(factory));
-
-    // AddIslandLayer
-    context = createContext(3L);
-    factory = addIslandLayer.apply(*context, std::move(factory));
-
-    // CoolWarmEdgeLayer
-    static layer::CoolWarmEdgeLayer coolWarmEdgeLayer;
-    context = createContext(2L);
-    factory = coolWarmEdgeLayer.apply(*context, std::move(factory));
-
-    // HeatIceEdgeLayer
-    static layer::HeatIceEdgeLayer heatIceEdgeLayer;
-    context = createContext(2L);
-    factory = heatIceEdgeLayer.apply(*context, std::move(factory));
-
-    // SpecialEdgeLayer
-    static layer::SpecialEdgeLayer specialEdgeLayer;
-    context = createContext(3L);
-    factory = specialEdgeLayer.apply(*context, std::move(factory));
-
-    // 缩放两次
-    context = createContext(2002L);
-    factory = normalZoom.apply(*context, std::move(factory));
-    context = createContext(2003L);
-    factory = normalZoom.apply(*context, std::move(factory));
-
-    // AddIslandLayer
-    context = createContext(4L);
-    factory = addIslandLayer.apply(*context, std::move(factory));
-
-    // AddMushroomIslandLayer
-    static layer::AddMushroomIslandLayer addMushroomIslandLayer;
-    context = createContext(5L);
-    factory = addMushroomIslandLayer.apply(*context, std::move(factory));
-
-    // DeepOceanLayer
-    static layer::DeepOceanLayer deepOceanLayer;
-    context = createContext(4L);
-    factory = deepOceanLayer.apply(*context, std::move(factory));
+    auto climateFactory = buildClimateLayers(seed, createContext);
 
     // ========================================================================
-    // 第三阶段：生物群系分配
-    // 参考 MC 行 117-123
-    // 重要：MC 在 BiomeLayer 之前执行 0 次缩放！
+    // 第二阶段：海洋温度分支（独立）
     // ========================================================================
+    auto context = createContext(2L);
+    auto oceanFactory = oceanLayer.apply(*context);
+    oceanFactory = repeatZoom(2001L, normalZoom, std::move(oceanFactory), 6, createContext);
 
-    // 注意：MC 代码：iareafactory = repeat(1000L, ZoomLayer.NORMAL, iareafactory, 0, ...)
-    // 第4个参数是 0，表示 0 次缩放！
-    // 我们需要保存一个副本用于河流分支
+    // ========================================================================
+    // 第三阶段：河流分支（用于 HillsLayer）
+    // ========================================================================
+    auto riverFactory1 = buildClimateLayers(seed, createContext);
+    context = createContext(100L);
+    riverFactory1 = startRiverLayer.apply(*context, std::move(riverFactory1));
+    riverFactory1 = repeatZoom(1000L, normalZoom, std::move(riverFactory1), 2, createContext);
 
-    // 保存气候层副本用于河流分支
-    // 注意：由于 unique_ptr 不能复制，我们需要不同的策略
-    // 暂时简化实现：不创建并行河流分支
+    // ========================================================================
+    // 第四阶段：生物群系分支
+    // ========================================================================
+    auto biomeFactory = buildClimateLayers(seed, createContext);
 
-    // BiomeLayer - 将温度值转换为实际生物群系（在未缩放的气候层上）
-    static layer::BiomeLayer biomeLayer(layer::BiomeLayer::Config{legacyBiomeInit});
+    // BiomeLayer - 将温度值转换为实际生物群系
     context = createContext(200L);
-    auto biomeFactory = biomeLayer.apply(*context, std::move(factory));
+    biomeFactory = biomeLayer.apply(*context, std::move(biomeFactory));
 
     // AddBambooForestLayer
-    static layer::AddBambooForestLayer addBambooForestLayer;
     context = createContext(1001L);
     biomeFactory = addBambooForestLayer.apply(*context, std::move(biomeFactory));
 
@@ -198,48 +229,67 @@ std::unique_ptr<IAreaFactory> buildOverworldLayers(
     biomeFactory = repeatZoom(1000L, normalZoom, std::move(biomeFactory), 2, createContext);
 
     // BiomeEdgeLayer
-    static layer::BiomeEdgeLayer biomeEdgeLayer;
     context = createContext(1000L);
     biomeFactory = biomeEdgeLayer.apply(*context, std::move(biomeFactory));
 
     // ========================================================================
-    // 第四阶段：最终处理
-    // 参考 MC 行 130-143
+    // 第五阶段：山丘层（合并生物群系和河流噪声）
     // ========================================================================
+    context = createContext(1000L);
+    biomeFactory = hillsLayer.apply(*context, std::move(biomeFactory), std::move(riverFactory1));
 
-    // RareBiomeLayer
-    static layer::RareBiomeLayer rareBiomeLayer;
+    // ========================================================================
+    // 第六阶段：河流分支（用于 MixRiverLayer）
+    // ========================================================================
+    auto riverFactory2 = buildClimateLayers(seed, createContext);
+    context = createContext(100L);
+    riverFactory2 = startRiverLayer.apply(*context, std::move(riverFactory2));
+    riverFactory2 = repeatZoom(1000L, normalZoom, std::move(riverFactory2), 2, createContext);
+    riverFactory2 = repeatZoom(1000L, normalZoom, std::move(riverFactory2), riverSize, createContext);
+
+    context = createContext(1L);
+    riverFactory2 = riverLayer.apply(*context, std::move(riverFactory2));
+
+    context = createContext(1000L);
+    riverFactory2 = smoothLayer.apply(*context, std::move(riverFactory2));
+
+    // ========================================================================
+    // 第七阶段：稀有生物群系和海岸
+    // ========================================================================
     context = createContext(1001L);
     biomeFactory = rareBiomeLayer.apply(*context, std::move(biomeFactory));
 
-    // 按 biomeSize 缩放
     for (i32 i = 0; i < biomeSize; ++i) {
         context = createContext(static_cast<u64>(1000 + i));
         biomeFactory = normalZoom.apply(*context, std::move(biomeFactory));
 
-        // 第一次缩放后添加 AddIslandLayer
         if (i == 0) {
             context = createContext(3L);
             biomeFactory = addIslandLayer.apply(*context, std::move(biomeFactory));
         }
 
-        // 最后一次（或只有一次）缩放后添加 ShoreLayer
         if (i == biomeSize - 1 || biomeSize == 0) {
-            static layer::ShoreLayer shoreLayer;
             context = createContext(1000L);
             biomeFactory = shoreLayer.apply(*context, std::move(biomeFactory));
         }
     }
 
-    // SmoothLayer 最终
-    static layer::SmoothLayer smoothLayer;
     context = createContext(1000L);
     biomeFactory = smoothLayer.apply(*context, std::move(biomeFactory));
 
-    // 注意：暂时跳过河流层和海洋混合层，因为它们需要分支（unique_ptr 不支持复制）
-    // 河流层将在后续版本中实现
+    // ========================================================================
+    // 第八阶段：合并河流
+    // ========================================================================
+    context = createContext(100L);
+    auto finalFactory = mixRiverLayer.apply(*context, std::move(biomeFactory), std::move(riverFactory2));
 
-    return biomeFactory;
+    // ========================================================================
+    // 第九阶段：合并海洋温度
+    // ========================================================================
+    context = createContext(100L);
+    finalFactory = mixOceansLayer.apply(*context, std::move(finalFactory), std::move(oceanFactory));
+
+    return finalFactory;
 }
 
 std::unique_ptr<LayerStack> createOverworldLayers(u64 seed, bool isLargeBiomes) {

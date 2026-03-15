@@ -294,6 +294,65 @@ public:
 };
 
 // ============================================================================
+// SharedFactory - 共享工厂包装器
+// ============================================================================
+
+/**
+ * @brief 共享工厂包装器
+ *
+ * 包装一个 IAreaFactory 在 shared_ptr 中，允许多个消费者共享同一个工厂。
+ * 这对于河流生成分支架构是必需的，因为 MC 的层链需要将同一个工厂传递给多个下游分支。
+ *
+ * 用法示例：
+ * @code
+ * auto climateFactory = std::make_shared<SharedFactory>(std::move(factory));
+ * // 河流分支
+ * auto riverBranch = riverLayer.apply(ctx, climateFactory->clone());
+ * // 生物群系分支
+ * auto biomeBranch = biomeLayer.apply(ctx, climateFactory->clone());
+ * @endcode
+ */
+class SharedFactory : public IAreaFactory {
+public:
+    /**
+     * @brief 构造共享工厂
+     * @param factory 要共享的工厂
+     */
+    explicit SharedFactory(std::unique_ptr<IAreaFactory> factory)
+        : m_factory(std::move(factory))
+    {
+    }
+
+    /**
+     * @brief 创建区域（调用底层工厂的 create）
+     */
+    [[nodiscard]] std::unique_ptr<IArea> create() const override {
+        return m_factory->create();
+    }
+
+    /**
+     * @brief 创建一个引用相同底层工厂的新 SharedFactory
+     *
+     * 这允许在需要 unique_ptr 的 API 中共享工厂。
+     * 注意：返回的工厂与原始工厂共享相同的底层工厂实例。
+     */
+    [[nodiscard]] std::unique_ptr<SharedFactory> share() const {
+        // 创建一个新的 SharedFactory，共享同一个底层工厂
+        // 这里使用 const_cast 是安全的，因为我们只需要读取访问
+        return std::unique_ptr<SharedFactory>(new SharedFactory(m_factory));
+    }
+
+private:
+    // 私有构造函数，用于 share() 方法
+    explicit SharedFactory(std::shared_ptr<IAreaFactory> factory)
+        : m_factory(std::move(factory))
+    {
+    }
+
+    std::shared_ptr<IAreaFactory> m_factory;
+};
+
+// ============================================================================
 // IDimOffset0Transformer - 无偏移变换器特征
 // ============================================================================
 

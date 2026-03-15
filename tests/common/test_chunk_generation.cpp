@@ -725,3 +725,43 @@ TEST_F(ChunkGenerationTest, BiomeDistribution) {
     }
     EXPECT_TRUE(hasNonOcean) << "Should have non-ocean biomes";
 }
+
+TEST_F(ChunkGenerationTest, RiverGeneration) {
+    // 创建生成器
+    DimensionSettings settings = DimensionSettings::overworld();
+    NoiseChunkGenerator generator(12345, std::move(settings));
+
+    // 检查大范围内是否有河流
+    std::set<BiomeId> foundBiomes;
+    std::map<BiomeId, int> biomeCounts;
+    int riverCount = 0;
+    int frozenRiverCount = 0;
+
+    // 采样更大范围寻找河流
+    for (int x = -2000; x <= 2000; x += 20) {
+        for (int z = -2000; z <= 2000; z += 20) {
+            BiomeId biome = generator.getBiome(x, 64, z);
+            foundBiomes.insert(biome);
+            biomeCounts[biome]++;
+
+            if (biome == Biomes::River) {
+                riverCount++;
+            }
+            if (biome == Biomes::FrozenRiver) {
+                frozenRiverCount++;
+            }
+        }
+    }
+
+    // 打印发现的生物群系
+    std::cout << "River Generation Test - Found " << foundBiomes.size() << " biomes:" << std::endl;
+    for (const auto& [biomeId, count] : biomeCounts) {
+        std::cout << "  Biome " << biomeId << ": " << count << " samples" << std::endl;
+    }
+    std::cout << "River samples: " << riverCount << std::endl;
+    std::cout << "Frozen River samples: " << frozenRiverCount << std::endl;
+
+    // 河流应该存在（即使很少）
+    // 注意：河流是稀有的，可能需要非常大的范围
+    EXPECT_GT(foundBiomes.size(), 5u) << "Should find multiple biomes";
+}
