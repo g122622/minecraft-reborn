@@ -199,7 +199,7 @@ add_library(mc_common STATIC
     physics/CollisionCache.cpp
     # physics/collision/BlockCollision.cpp  # 已移除 - 使用新的方块系统
 
-    # Resource
+    # Resource - Core
     resource/ResourceLocation.cpp
     resource/PackMetadata.cpp
     resource/IResourcePack.cpp
@@ -208,6 +208,16 @@ add_library(mc_common STATIC
     resource/ResourcePackList.cpp
     resource/InMemoryResourcePack.cpp
     resource/VanillaResources.cpp
+
+    # Resource - Compatibility Layer
+    resource/compat/PackFormat.cpp
+    resource/compat/ResourceMapper.cpp
+    resource/compat/TextureMapper.cpp
+    resource/compat/v1_12/ResourceMapperV112.cpp
+    resource/compat/v1_13/ResourceMapperV113.cpp
+
+    # Resource - Loader
+    resource/loader/ResourceLoader.cpp
 
     # NBT (Named Binary Tag) Library
     util/nbt/Nbt.cpp

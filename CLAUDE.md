@@ -238,15 +238,94 @@ The client uses Vulkan for rendering:
 
 ## Resource Pack System
 
-The resource pack system parses standard Minecraft resource pack format:
+The resource pack system parses standard Minecraft resource pack format with a "compiler-style" frontend compatibility layer.
+
+### Resource Pack Compatibility Layer Architecture
+
+```
+src/common/resource/
+├── compat/                        # COMPATIBILITY LAYER
+│   ├── PackFormat.hpp/cpp         # Pack format version detection (1.12, 1.13+, etc.)
+│   ├── ResourceMapper.hpp/cpp     # Abstract resource mapping interface
+│   ├── TextureMapper.hpp/cpp      # 250+ texture name mappings (bidirectional)
+│   ├── v1_12/                     # MC 1.12.2 specific handling
+│   │   ├── ResourceMapperV112.hpp
+│   │   └── ResourceMapperV112.cpp
+│   ├── v1_13/                     # MC 1.13+ specific handling
+│   │   ├── ResourceMapperV113.hpp
+│   │   └── ResourceMapperV113.cpp
+│   └── unified/                   # Unified IR definitions
+│       ├── UnifiedResource.hpp    # Base unified resource types
+│       ├── UnifiedTexture.hpp     # Unified texture representation
+│       ├── UnifiedModel.hpp       # Unified model representation
+│       └── UnifiedBlockState.hpp  # Unified block state representation
+│
+├── loader/                        # RESOURCE LOADERS
+│   └── ResourceLoader.hpp/cpp     # Loading pipeline with format detection
+│
+└── ... (existing files)
+```
 
 ### MC Version Compatibility
-The system supports both MC 1.12 and MC 1.13+ resource packs with automatic texture path and name conversion:
-- **Path compatibility**: `textures/block/` ↔ `textures/blocks/` automatic conversion
-- **Name variants**: Handles naming differences like `white_wool` ↔ `wool_colored_white`, `oak_planks` ↔ `planks_oak`
-- **Stone variants**: `granite` ↔ `stone_granite`, `andesite` ↔ `stone_andesite`, etc.
-- **Grass block**: `grass_block_top` ↔ `grass_top`, `grass_block_side` ↔ `grass_side`
-- **Sandstone**: `cut_sandstone` ↔ `sandstone_carved`, `chiseled_sandstone` ↔ `sandstone_smooth`
+
+The system supports MC 1.12 through MC 1.19+ resource packs with automatic conversion:
+
+**Path Compatibility:**
+- MC 1.12: `textures/blocks/`, `textures/items/`
+- MC 1.13+: `textures/block/`, `textures/item/`
+
+**Name Mappings (250+ bidirectional mappings):**
+- Logs: `log_jungle` ↔ `jungle_log`, `log_oak` ↔ `oak_log`
+- Leaves: `leaves_jungle` ↔ `jungle_leaves`
+- Planks: `planks_oak` ↔ `oak_planks`
+- Wool: `wool_colored_white` ↔ `white_wool`
+- Stone: `stone_granite` ↔ `granite`, `stone_andesite` ↔ `andesite`
+- Grass: `grass_top` ↔ `grass_block_top`, `grass_side` ↔ `grass_block_side`
+- Flowers: `flower_rose` ↔ `poppy`, `flower_houstonia` ↔ `azure_bluet`
+- Terracotta: `hardened_clay_stained_white` ↔ `white_terracotta`
+
+### Using the Compat Layer
+
+```cpp
+#include "resource/compat/TextureMapper.hpp"
+#include "resource/compat/ResourceMapper.hpp"
+
+// Get texture name variants
+const auto& mapper = mc::resource::compat::TextureMapper::instance();
+auto variants = mapper.getNameVariants("jungle_log");
+// Returns: {"jungle_log", "log_jungle"}
+
+// Get all path variants for texture loading
+auto paths = mapper.getPathVariants("textures/block/jungle_log.png");
+// Returns: {"textures/block/jungle_log.png", "textures/blocks/log_jungle.png", ...}
+
+// Create format-specific mapper
+auto v112Mapper = mc::resource::compat::ResourceMapper::create(
+    mc::resource::compat::PackFormat::V1_11_to_1_12);
+String unified = v112Mapper->toUnifiedTexturePath("textures/blocks/log_jungle.png");
+// Returns: "textures/block/jungle_log.png"
+```
+
+### Pack Format Detection
+
+```cpp
+// PackFormat enum values
+enum class PackFormat : i32 {
+    V1_6_to_1_8 = 1,
+    V1_9_to_1_10 = 2,
+    V1_11_to_1_12 = 3,   // Old texture paths
+    V1_13_to_1_14 = 4,   // New texture paths (flattening)
+    V1_15_to_1_16_1 = 5,
+    V1_16_2_to_1_16_5 = 6,
+    V1_17 = 7,
+    V1_18 = 8,
+    V1_19 = 9,
+};
+
+// Detect format from pack.mcmeta
+PackFormat format = detectPackFormat(packFormatNumber);
+bool needsMapping = requiresTextureNameMapping(format);
+```
 
 ### Resource Location
 ```cpp
@@ -541,15 +620,22 @@ void endSingleTimeCommands(VkCommandBuffer cmd);
   - ChunkWorkerPool: Async generation thread pool
   - ServerChunkManager: Central chunk coordination
 - **Renderer**: In progress (Vulkan context, basic mesh generation, texture atlas with MC 1.12/1.13+ compatibility)
-- **Resource Pack System**: Complete (model/blockstate parsing, texture atlas, MC version compatibility)
+- **Resource Pack System**: Complete (NEW - Compat layer architecture)
+  - PackFormat: Version detection from pack.mcmeta
+  - TextureMapper: 250+ bidirectional texture name mappings
+  - ResourceMapper: Abstract interface for version-specific transformations
+  - v1_12/v1_13 mappers: Version-specific implementations
+  - Unified IR: UnifiedTexture, UnifiedModel, UnifiedBlockState
+  - ResourceLoader: Loading pipeline with format detection
+  - ResourceManager: Integrated with compat layer
 - **Block Properties**: Complete (property encoding, variant mapping)
-- **Performance Tracing**: Complete (NEW - Perfetto integration)
+- **Performance Tracing**: Complete (Perfetto integration)
   - PerfettoConfig.hpp: Compile-time configuration switches
   - TraceCategories.hpp/cpp: Category definitions for organized filtering
   - PerfettoManager: Singleton manager for tracing lifecycle
   - TraceEvents.hpp: Convenient macros (MC_TRACE_EVENT, MC_TRACE_COUNTER, etc.)
   - Tests: 2 tests (disabled mode) / 29 tests (enabled mode)
-- **Tests**: 1251+ tests passing
+- **Tests**: 1477 tests passing
 
 ## Self-Maintenance Rule
 
