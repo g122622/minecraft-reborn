@@ -7,6 +7,101 @@
 namespace mc::client::renderer::trident {
 
 // ============================================================================
+// 辅助转换函数
+// ============================================================================
+
+/**
+ * @brief 将 API BlendFactor 转换为 Vulkan VkBlendFactor
+ */
+static VkBlendFactor toVulkanBlendFactor(api::BlendFactor factor) {
+    switch (factor) {
+        case api::BlendFactor::Zero: return VK_BLEND_FACTOR_ZERO;
+        case api::BlendFactor::One: return VK_BLEND_FACTOR_ONE;
+        case api::BlendFactor::SrcColor: return VK_BLEND_FACTOR_SRC_COLOR;
+        case api::BlendFactor::OneMinusSrcColor: return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+        case api::BlendFactor::DstColor: return VK_BLEND_FACTOR_DST_COLOR;
+        case api::BlendFactor::OneMinusDstColor: return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+        case api::BlendFactor::SrcAlpha: return VK_BLEND_FACTOR_SRC_ALPHA;
+        case api::BlendFactor::OneMinusSrcAlpha: return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        case api::BlendFactor::DstAlpha: return VK_BLEND_FACTOR_DST_ALPHA;
+        case api::BlendFactor::OneMinusDstAlpha: return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+        case api::BlendFactor::ConstantColor: return VK_BLEND_FACTOR_CONSTANT_COLOR;
+        case api::BlendFactor::OneMinusConstantColor: return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR;
+        case api::BlendFactor::ConstantAlpha: return VK_BLEND_FACTOR_CONSTANT_ALPHA;
+        case api::BlendFactor::OneMinusConstantAlpha: return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA;
+        case api::BlendFactor::SrcAlphaSaturate: return VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
+        default: return VK_BLEND_FACTOR_ZERO;
+    }
+}
+
+/**
+ * @brief 将 API BlendOp 转换为 Vulkan VkBlendOp
+ */
+static VkBlendOp toVulkanBlendOp(api::BlendOp op) {
+    switch (op) {
+        case api::BlendOp::Add: return VK_BLEND_OP_ADD;
+        case api::BlendOp::Subtract: return VK_BLEND_OP_SUBTRACT;
+        case api::BlendOp::ReverseSubtract: return VK_BLEND_OP_REVERSE_SUBTRACT;
+        case api::BlendOp::Min: return VK_BLEND_OP_MIN;
+        case api::BlendOp::Max: return VK_BLEND_OP_MAX;
+        default: return VK_BLEND_OP_ADD;
+    }
+}
+
+/**
+ * @brief 将 API CompareOp 转换为 Vulkan VkCompareOp
+ */
+static VkCompareOp toVulkanCompareOp(api::CompareOp op) {
+    switch (op) {
+        case api::CompareOp::Never: return VK_COMPARE_OP_NEVER;
+        case api::CompareOp::Less: return VK_COMPARE_OP_LESS;
+        case api::CompareOp::Equal: return VK_COMPARE_OP_EQUAL;
+        case api::CompareOp::LessEqual: return VK_COMPARE_OP_LESS_OR_EQUAL;
+        case api::CompareOp::Greater: return VK_COMPARE_OP_GREATER;
+        case api::CompareOp::NotEqual: return VK_COMPARE_OP_NOT_EQUAL;
+        case api::CompareOp::GreaterEqual: return VK_COMPARE_OP_GREATER_OR_EQUAL;
+        case api::CompareOp::Always: return VK_COMPARE_OP_ALWAYS;
+        default: return VK_COMPARE_OP_LESS;
+    }
+}
+
+/**
+ * @brief 将 API CullMode 转换为 Vulkan VkCullModeFlags
+ */
+static VkCullModeFlags toVulkanCullMode(api::CullMode mode) {
+    switch (mode) {
+        case api::CullMode::None: return VK_CULL_MODE_NONE;
+        case api::CullMode::Front: return VK_CULL_MODE_FRONT_BIT;
+        case api::CullMode::Back: return VK_CULL_MODE_BACK_BIT;
+        case api::CullMode::FrontAndBack: return VK_CULL_MODE_FRONT_AND_BACK;
+        default: return VK_CULL_MODE_BACK_BIT;
+    }
+}
+
+/**
+ * @brief 将 API FrontFace 转换为 Vulkan VkFrontFace
+ */
+static VkFrontFace toVulkanFrontFace(api::FrontFace face) {
+    switch (face) {
+        case api::FrontFace::CounterClockwise: return VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        case api::FrontFace::Clockwise: return VK_FRONT_FACE_CLOCKWISE;
+        default: return VK_FRONT_FACE_CLOCKWISE;
+    }
+}
+
+/**
+ * @brief 将 API PolygonMode 转换为 Vulkan VkPolygonMode
+ */
+static VkPolygonMode toVulkanPolygonMode(api::PolygonMode mode) {
+    switch (mode) {
+        case api::PolygonMode::Fill: return VK_POLYGON_MODE_FILL;
+        case api::PolygonMode::Line: return VK_POLYGON_MODE_LINE;
+        case api::PolygonMode::Point: return VK_POLYGON_MODE_POINT;
+        default: return VK_POLYGON_MODE_FILL;
+    }
+}
+
+// ============================================================================
 // TridentPipeline 实现
 // ============================================================================
 
@@ -71,25 +166,28 @@ Result<void> TridentPipeline::create(TridentContext* context, const TridentPipel
         return Error(ErrorCode::InitializationFailed, "Failed to create pipeline layout: " + std::to_string(static_cast<i32>(result)));
     }
 
-    // 加载着色器
+    // 加载着色器（如果尚未通过 createFromDesc 加载）
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
 
-    if (!config.vertexShaderPath.empty()) {
-        auto shaderResult = loadShader(config.vertexShaderPath, api::ShaderStage::Vertex);
-        if (shaderResult.failed()) {
-            destroy();
-            return shaderResult.error();
+    // 仅当 m_shaders 为空时才从文件加载
+    if (m_shaders.empty()) {
+        if (!config.vertexShaderPath.empty()) {
+            auto shaderResult = loadShader(config.vertexShaderPath, api::ShaderStage::Vertex);
+            if (shaderResult.failed()) {
+                destroy();
+                return shaderResult.error();
+            }
+            m_shaders.push_back(shaderResult.value());
         }
-        m_shaders.push_back(shaderResult.value());
-    }
 
-    if (!config.fragmentShaderPath.empty()) {
-        auto shaderResult = loadShader(config.fragmentShaderPath, api::ShaderStage::Fragment);
-        if (shaderResult.failed()) {
-            destroy();
-            return shaderResult.error();
+        if (!config.fragmentShaderPath.empty()) {
+            auto shaderResult = loadShader(config.fragmentShaderPath, api::ShaderStage::Fragment);
+            if (shaderResult.failed()) {
+                destroy();
+                return shaderResult.error();
+            }
+            m_shaders.push_back(shaderResult.value());
         }
-        m_shaders.push_back(shaderResult.value());
     }
 
     // 着色器阶段
@@ -237,12 +335,72 @@ Result<void> TridentPipeline::createFromDesc(
     const api::PipelineDesc& desc,
     VkRenderPass renderPass)
 {
+    if (!context) {
+        return Error(ErrorCode::NullPointer, "Context is null");
+    }
+
     // 将 API 描述转换为 TridentPipelineConfig
     TridentPipelineConfig config;
     config.renderPass = renderPass;
+    m_name = desc.name;
+    m_renderState = desc.renderState;
 
-    // TODO: 从 desc.shaders 加载着色器
-    // TODO: 从 desc.renderState 配置管线状态
+    // 转换 BlendState
+    const auto& blend = desc.renderState.blend;
+    config.blendEnable = blend.enabled ? VK_TRUE : VK_FALSE;
+    config.srcColorBlendFactor = toVulkanBlendFactor(blend.srcColor);
+    config.dstColorBlendFactor = toVulkanBlendFactor(blend.dstColor);
+    config.colorBlendOp = toVulkanBlendOp(blend.colorOp);
+    config.srcAlphaBlendFactor = toVulkanBlendFactor(blend.srcAlpha);
+    config.dstAlphaBlendFactor = toVulkanBlendFactor(blend.dstAlpha);
+    config.alphaBlendOp = toVulkanBlendOp(blend.alphaOp);
+    config.colorWriteMask = blend.colorWriteMask;
+
+    // 转换 DepthState
+    const auto& depth = desc.renderState.depth;
+    config.depthTestEnable = depth.testEnabled ? VK_TRUE : VK_FALSE;
+    config.depthWriteEnable = depth.writeEnabled ? VK_TRUE : VK_FALSE;
+    config.depthCompareOp = toVulkanCompareOp(depth.compareOp);
+
+    // 转换 RasterizerState
+    const auto& rasterizer = desc.renderState.rasterizer;
+    config.cullMode = toVulkanCullMode(rasterizer.cullMode);
+    config.frontFace = toVulkanFrontFace(rasterizer.frontFace);
+    config.polygonMode = toVulkanPolygonMode(rasterizer.polygonMode);
+
+    // 顶点步长 - 设置默认顶点绑定
+    if (desc.vertexStride > 0 && config.vertexBindings.empty()) {
+        VkVertexInputBindingDescription binding{};
+        binding.binding = 0;
+        binding.stride = desc.vertexStride;
+        binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+        config.vertexBindings.push_back(binding);
+    }
+
+    // 加载着色器
+    for (const auto& shader : desc.shaders) {
+        if (shader.bytecode.empty()) {
+            continue;
+        }
+
+        auto moduleResult = createShaderModule(context, shader.bytecode);
+        if (moduleResult.failed()) {
+            destroy();
+            return moduleResult.error();
+        }
+
+        TridentShaderModule shaderModule;
+        shaderModule.module = moduleResult.value();
+        shaderModule.stage = shader.stage == api::ShaderStage::Vertex
+            ? VK_SHADER_STAGE_VERTEX_BIT
+            : (shader.stage == api::ShaderStage::Fragment
+                ? VK_SHADER_STAGE_FRAGMENT_BIT
+                : (shader.stage == api::ShaderStage::Geometry
+                    ? VK_SHADER_STAGE_GEOMETRY_BIT
+                    : VK_SHADER_STAGE_VERTEX_BIT));
+        shaderModule.entryPoint = shader.entryPoint;
+        m_shaders.push_back(shaderModule);
+    }
 
     return create(context, config);
 }

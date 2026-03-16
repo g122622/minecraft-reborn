@@ -54,6 +54,12 @@ public:
      * @return 成功或错误
      */
     [[nodiscard]] virtual Result<void> upload(const void* data, u64 size, u64 offset = 0) = 0;
+
+    /**
+     * @brief 获取原生句柄
+     * @return 平台特定的缓冲区句柄（Vulkan 为 VkBuffer）
+     */
+    [[nodiscard]] virtual void* nativeHandle() const = 0;
 };
 
 /**

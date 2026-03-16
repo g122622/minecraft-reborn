@@ -49,6 +49,7 @@ public:
     [[nodiscard]] void* map() override;
     void unmap() override;
     [[nodiscard]] Result<void> upload(const void* data, u64 size, u64 offset = 0) override;
+    [[nodiscard]] void* nativeHandle() const override { return m_buffer; }
 
     // Vulkan 特有访问器
     [[nodiscard]] VkBuffer buffer() const { return m_buffer; }
@@ -101,6 +102,7 @@ public:
 
     // IStagingBuffer 接口实现
     [[nodiscard]] Result<void> copyTo(void* commandBuffer, api::IBuffer* dstBuffer, u64 size) override;
+    [[nodiscard]] void* nativeHandle() const override { return m_buffer; }
 
     // Vulkan 特有访问器
     [[nodiscard]] VkBuffer buffer() const { return m_buffer; }
@@ -145,6 +147,7 @@ public:
     [[nodiscard]] void* map() override;
     void unmap() override;
     [[nodiscard]] Result<void> upload(const void* data, u64 size, u64 offset = 0) override;
+    [[nodiscard]] void* nativeHandle() const override { return m_buffer; }
 
     // IVertexBuffer 接口实现
     [[nodiscard]] u32 vertexCount() const override;
@@ -195,6 +198,7 @@ public:
     [[nodiscard]] void* map() override;
     void unmap() override;
     [[nodiscard]] Result<void> upload(const void* data, u64 size, u64 offset = 0) override;
+    [[nodiscard]] void* nativeHandle() const override { return m_buffer; }
 
     // IIndexBuffer 接口实现
     [[nodiscard]] api::IndexType indexType() const override { return m_indexType; }
@@ -252,6 +256,7 @@ public:
     [[nodiscard]] void* map() override;
     void unmap() override;
     [[nodiscard]] Result<void> upload(const void* data, u64 size, u64 offset = 0) override;
+    [[nodiscard]] void* nativeHandle() const override { return m_buffers[m_currentFrame]; }
 
     // IUniformBuffer 接口实现
     [[nodiscard]] u32 currentFrameIndex() const override { return m_currentFrame; }

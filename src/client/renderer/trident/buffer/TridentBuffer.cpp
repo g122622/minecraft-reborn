@@ -326,8 +326,25 @@ Result<void> TridentStagingBuffer::upload(const void* data, u64 size, u64 offset
 }
 
 Result<void> TridentStagingBuffer::copyTo(void* commandBuffer, api::IBuffer* dstBuffer, u64 size) {
-    // TODO: 实现缓冲区复制
-    return Error(ErrorCode::Unsupported, "copyTo not yet implemented");
+    if (!m_buffer || !dstBuffer || !commandBuffer) {
+        return Error(ErrorCode::InvalidArgument, "Invalid buffer or command buffer");
+    }
+
+    VkBuffer dstVkBuffer = static_cast<VkBuffer>(dstBuffer->nativeHandle());
+    if (dstVkBuffer == VK_NULL_HANDLE) {
+        return Error(ErrorCode::InvalidArgument, "Destination buffer is not valid");
+    }
+
+    VkCommandBuffer cmd = static_cast<VkCommandBuffer>(commandBuffer);
+
+    VkBufferCopy copyRegion{};
+    copyRegion.srcOffset = 0;
+    copyRegion.dstOffset = 0;
+    copyRegion.size = size > 0 ? size : m_size;
+
+    vkCmdCopyBuffer(cmd, m_buffer, dstVkBuffer, 1, &copyRegion);
+
+    return {};
 }
 
 // ============================================================================
