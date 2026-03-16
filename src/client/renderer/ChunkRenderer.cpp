@@ -1,4 +1,5 @@
 #include "ChunkRenderer.hpp"
+#include "VulkanUtils.hpp"
 #include <spdlog/spdlog.h>
 #include <cstring>
 
@@ -155,53 +156,11 @@ Result<void> ChunkRenderer::createBuffer(
     VkBuffer& buffer,
     VkDeviceMemory& memory)
 {
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = size;
-    bufferInfo.usage = usage;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    if (vkCreateBuffer(m_device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
-        return Error(ErrorCode::OperationFailed, "Failed to create buffer");
-    }
-
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_device, buffer, &memRequirements);
-
-    auto memTypeResult = findMemoryType(memRequirements.memoryTypeBits, properties);
-    if (memTypeResult.failed()) {
-        vkDestroyBuffer(m_device, buffer, nullptr);
-        buffer = VK_NULL_HANDLE;
-        return memTypeResult.error();
-    }
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = memTypeResult.value();
-
-    if (vkAllocateMemory(m_device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
-        vkDestroyBuffer(m_device, buffer, nullptr);
-        buffer = VK_NULL_HANDLE;
-        return Error(ErrorCode::OperationFailed, "Failed to allocate buffer memory");
-    }
-
-    vkBindBufferMemory(m_device, buffer, memory, 0);
-    return {};
+    return renderer::VulkanUtils::createBuffer(m_device, m_physicalDevice, size, usage, properties, buffer, memory);
 }
 
 Result<u32> ChunkRenderer::findMemoryType(u32 typeFilter, VkMemoryPropertyFlags properties) {
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
-
-    for (u32 i = 0; i < memProperties.memoryTypeCount; ++i) {
-        if ((typeFilter & (1 << i)) &&
-            (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-            return i;
-        }
-    }
-
-    return Error(ErrorCode::OperationFailed, "Failed to find suitable memory type");
+    return renderer::VulkanUtils::findMemoryType(m_physicalDevice, typeFilter, properties);
 }
 
 Result<void> ChunkRenderer::updateChunk(
@@ -426,86 +385,42 @@ Result<void> ChunkRenderer::createTextureAtlas(u32 width, u32 height) {
     m_textureAtlas.destroy(m_device);
 
     // 创建图像
-    VkImageCreateInfo imageInfo{};
-    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.extent.width = width;
-    imageInfo.extent.height = height;
-    imageInfo.extent.depth = 1;
-    imageInfo.mipLevels = 1;
-    imageInfo.arrayLayers = 1;
-    imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
-    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    auto imageResult = renderer::VulkanUtils::createImage(
+        m_device, m_physicalDevice,
+        width, height,
+        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        m_textureAtlas.image,
+        m_textureAtlas.memory);
 
-    if (vkCreateImage(m_device, &imageInfo, nullptr, &m_textureAtlas.image) != VK_SUCCESS) {
-        return Error(ErrorCode::OperationFailed, "Failed to create texture atlas image");
+    if (imageResult.failed()) {
+        return imageResult.error();
     }
-
-    // 分配内存
-    VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(m_device, m_textureAtlas.image, &memRequirements);
-
-    auto memTypeResult = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    if (memTypeResult.failed()) {
-        m_textureAtlas.destroy(m_device);
-        return memTypeResult.error();
-    }
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = memTypeResult.value();
-
-    if (vkAllocateMemory(m_device, &allocInfo, nullptr, &m_textureAtlas.memory) != VK_SUCCESS) {
-        m_textureAtlas.destroy(m_device);
-        return Error(ErrorCode::OperationFailed, "Failed to allocate texture atlas memory");
-    }
-
-    vkBindImageMemory(m_device, m_textureAtlas.image, m_textureAtlas.memory, 0);
 
     // 创建图像视图
-    VkImageViewCreateInfo viewInfo{};
-    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    viewInfo.image = m_textureAtlas.image;
-    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    viewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
-    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = 1;
-    viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount = 1;
+    auto viewResult = renderer::VulkanUtils::createImageView(
+        m_device, m_textureAtlas.image,
+        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_IMAGE_ASPECT_COLOR_BIT,
+        m_textureAtlas.imageView);
 
-    if (vkCreateImageView(m_device, &viewInfo, nullptr, &m_textureAtlas.imageView) != VK_SUCCESS) {
+    if (viewResult.failed()) {
         m_textureAtlas.destroy(m_device);
-        return Error(ErrorCode::OperationFailed, "Failed to create texture atlas image view");
+        return viewResult.error();
     }
 
     // 创建采样器
-    VkSamplerCreateInfo samplerInfo{};
-    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter = VK_FILTER_NEAREST;
-    samplerInfo.minFilter = VK_FILTER_NEAREST;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.anisotropyEnable = VK_FALSE;
-    samplerInfo.maxAnisotropy = 1.0f;
-    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerInfo.compareEnable = VK_FALSE;
-    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerInfo.mipLodBias = 0.0f;
-    samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = 0.0f;
+    auto samplerResult = renderer::VulkanUtils::createSampler(
+        m_device,
+        VK_FILTER_NEAREST, VK_FILTER_NEAREST,
+        VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        m_textureAtlas.sampler);
 
-    if (vkCreateSampler(m_device, &samplerInfo, nullptr, &m_textureAtlas.sampler) != VK_SUCCESS) {
+    if (samplerResult.failed()) {
         m_textureAtlas.destroy(m_device);
-        return Error(ErrorCode::OperationFailed, "Failed to create texture atlas sampler");
+        return samplerResult.error();
     }
 
     m_textureAtlas.width = width;
@@ -543,63 +458,19 @@ Result<void> ChunkRenderer::uploadTextureData(const u8* pixelData, u32 width, u3
     VkCommandBuffer cmd = beginSingleTimeCommands().value();
 
     // 转换到传输目标布局
-    VkImageMemoryBarrier barrier{};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image = m_textureAtlas.image;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = 1;
-    barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
-    barrier.srcAccessMask = 0;
-    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-    vkCmdPipelineBarrier(
-        cmd,
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-        VK_PIPELINE_STAGE_TRANSFER_BIT,
-        0,
-        0, nullptr,
-        0, nullptr,
-        1, &barrier);
+    renderer::VulkanUtils::transitionImageLayout(
+        cmd, m_textureAtlas.image,
+        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
 
     // 复制缓冲区到图像
-    VkBufferImageCopy region{};
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
-    region.imageOffset = {0, 0, 0};
-    region.imageExtent = {width, height, 1};
-
-    vkCmdCopyBufferToImage(
-        cmd,
-        stagingBuffer,
-        m_textureAtlas.image,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        1, &region);
+    renderer::VulkanUtils::copyBufferToImage(cmd, stagingBuffer, m_textureAtlas.image, width, height);
 
     // 转换到着色器只读布局
-    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-    vkCmdPipelineBarrier(
-        cmd,
-        VK_PIPELINE_STAGE_TRANSFER_BIT,
-        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-        0,
-        0, nullptr,
-        0, nullptr,
-        1, &barrier);
+    renderer::VulkanUtils::transitionImageLayout(
+        cmd, m_textureAtlas.image,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
 
     endSingleTimeCommands(cmd);
 
@@ -668,41 +539,16 @@ void ChunkRenderer::render(VkCommandBuffer commandBuffer, VkPipelineLayout /*pip
 }
 
 Result<VkCommandBuffer> ChunkRenderer::beginSingleTimeCommands() {
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = m_commandPool;
-    allocInfo.commandBufferCount = 1;
-
-    VkCommandBuffer commandBuffer;
-    if (vkAllocateCommandBuffers(m_device, &allocInfo, &commandBuffer) != VK_SUCCESS) {
+    VkCommandBuffer cmd = renderer::VulkanUtils::beginSingleTimeCommands(m_device, m_commandPool);
+    if (cmd == VK_NULL_HANDLE) {
         return Error(ErrorCode::OperationFailed, "Failed to allocate command buffer");
     }
-
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
-        vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
-        return Error(ErrorCode::OperationFailed, "Failed to begin command buffer");
-    }
-
-    return commandBuffer;
+    return cmd;
 }
 
 void ChunkRenderer::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
-    vkEndCommandBuffer(commandBuffer);
-
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer;
-
-    vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(m_graphicsQueue);
-
-    vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
+    // 使用 fence 版本，避免阻塞整个 GPU 队列
+    renderer::VulkanUtils::endSingleTimeCommands(m_device, m_commandPool, m_graphicsQueue, commandBuffer);
 }
 
 // ============================================================================

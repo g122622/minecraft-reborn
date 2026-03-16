@@ -1,4 +1,5 @@
 #include "EntityPipeline.hpp"
+#include "../VulkanUtils.hpp"
 #include "../util/ShaderPath.hpp"
 #include <spdlog/spdlog.h>
 #include <cstring>
@@ -6,21 +7,6 @@
 #include <fstream>
 
 namespace mc::client {
-
-// 辅助函数：查找内存类型
-static Result<u32> findMemoryType(VkPhysicalDevice physicalDevice, u32 typeFilter, VkMemoryPropertyFlags properties) {
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
-
-    for (u32 i = 0; i < memProperties.memoryTypeCount; ++i) {
-        if ((typeFilter & (1 << i)) &&
-            (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-            return i;
-        }
-    }
-
-    return Error(ErrorCode::NotFound, "Failed to find suitable memory type");
-}
 
 // 辅助函数：从文件读取着色器
 static std::vector<u8> readShaderFile(const std::filesystem::path& path) {
@@ -653,47 +639,7 @@ Result<void> EntityPipeline::createBuffer(VkDeviceSize size,
                                            VkMemoryPropertyFlags properties,
                                            VkBuffer& buffer,
                                            VkDeviceMemory& memory) {
-    VkDevice device = m_device;
-
-    // 创建缓冲区
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = size;
-    bufferInfo.usage = usage;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    VkResult result = vkCreateBuffer(device, &bufferInfo, nullptr, &buffer);
-    if (result != VK_SUCCESS) {
-        return Error(ErrorCode::OutOfMemory, "Failed to create buffer");
-    }
-
-    // 获取内存需求
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
-
-    // 分配内存
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    auto memTypeResult = findMemoryType(m_physicalDevice, memRequirements.memoryTypeBits, properties);
-    if (!memTypeResult.success()) {
-        vkDestroyBuffer(device, buffer, nullptr);
-        buffer = VK_NULL_HANDLE;
-        return memTypeResult.error();
-    }
-    allocInfo.memoryTypeIndex = memTypeResult.value();
-
-    result = vkAllocateMemory(device, &allocInfo, nullptr, &memory);
-    if (result != VK_SUCCESS) {
-        vkDestroyBuffer(device, buffer, nullptr);
-        buffer = VK_NULL_HANDLE;
-        return Error(ErrorCode::OutOfMemory, "Failed to allocate buffer memory");
-    }
-
-    // 绑定内存
-    vkBindBufferMemory(device, buffer, memory, 0);
-
-    return Result<void>::ok();
+    return renderer::VulkanUtils::createBuffer(m_device, m_physicalDevice, size, usage, properties, buffer, memory);
 }
 
 void EntityPipeline::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
@@ -709,36 +655,12 @@ void EntityPipeline::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDevice
 }
 
 VkCommandBuffer EntityPipeline::beginSingleTimeCommands() {
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = m_commandPool;
-    allocInfo.commandBufferCount = 1;
-
-    VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(m_device, &allocInfo, &commandBuffer);
-
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-    return commandBuffer;
+    return renderer::VulkanUtils::beginSingleTimeCommands(m_device, m_commandPool);
 }
 
 void EntityPipeline::endSingleTimeCommands(VkCommandBuffer cmd) {
-    vkEndCommandBuffer(cmd);
-
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &cmd;
-
-    vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(m_graphicsQueue);
-
-    vkFreeCommandBuffers(m_device, m_commandPool, 1, &cmd);
+    // 使用 fence 版本，避免阻塞整个 GPU 队列
+    renderer::VulkanUtils::endSingleTimeCommands(m_device, m_commandPool, m_graphicsQueue, cmd);
 }
 
 } // namespace mc::client

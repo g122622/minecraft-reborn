@@ -1,4 +1,5 @@
 #include "GuiRenderer.hpp"
+#include "../renderer/VulkanUtils.hpp"
 #include "../renderer/util/ShaderPath.hpp"
 #include <cstring>
 #include <algorithm>
@@ -1078,17 +1079,7 @@ void GuiRenderer::setItemTextureAtlas(VkImageView itemView, VkSampler itemSample
 // ============================================================================
 
 Result<u32> GuiRenderer::findMemoryType(u32 typeFilter, VkMemoryPropertyFlags properties) {
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
-
-    for (u32 i = 0; i < memProperties.memoryTypeCount; ++i) {
-        if ((typeFilter & (1 << i)) &&
-            (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-            return i;
-        }
-    }
-
-    return Error(ErrorCode::NotFound, "Failed to find suitable memory type");
+    return renderer::VulkanUtils::findMemoryType(m_physicalDevice, typeFilter, properties);
 }
 
 Result<void> GuiRenderer::createBuffer(VkDeviceSize size,
@@ -1096,42 +1087,7 @@ Result<void> GuiRenderer::createBuffer(VkDeviceSize size,
                                         VkMemoryPropertyFlags properties,
                                         VkBuffer& buffer,
                                         VkDeviceMemory& memory) {
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = size;
-    bufferInfo.usage = usage;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    VkResult result = vkCreateBuffer(m_device, &bufferInfo, nullptr, &buffer);
-    if (result != VK_SUCCESS) {
-        return Error(ErrorCode::OutOfMemory, "Failed to create buffer");
-    }
-
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_device, buffer, &memRequirements);
-
-    auto memTypeResult = findMemoryType(memRequirements.memoryTypeBits, properties);
-    if (!memTypeResult.success()) {
-        vkDestroyBuffer(m_device, buffer, nullptr);
-        buffer = VK_NULL_HANDLE;
-        return memTypeResult.error();
-    }
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = memTypeResult.value();
-
-    result = vkAllocateMemory(m_device, &allocInfo, nullptr, &memory);
-    if (result != VK_SUCCESS) {
-        vkDestroyBuffer(m_device, buffer, nullptr);
-        buffer = VK_NULL_HANDLE;
-        return Error(ErrorCode::OutOfMemory, "Failed to allocate buffer memory");
-    }
-
-    vkBindBufferMemory(m_device, buffer, memory, 0);
-
-    return {};
+    return renderer::VulkanUtils::createBuffer(m_device, m_physicalDevice, size, usage, properties, buffer, memory);
 }
 
 } // namespace mc::client

@@ -1,5 +1,6 @@
 #include "GuiTextureAtlas.hpp"
 #include "../GuiRenderer.hpp"
+#include "../../renderer/VulkanUtils.hpp"
 #include "../../../common/core/Result.hpp"
 #include <cstring>
 #include <vector>
@@ -506,50 +507,16 @@ Result<void> GuiTextureAtlas::uploadTextureData(const std::vector<u8>& data) {
 }
 
 Result<u32> GuiTextureAtlas::findMemoryType(u32 typeFilter, VkMemoryPropertyFlags properties) {
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
-
-    for (u32 i = 0; i < memProperties.memoryTypeCount; ++i) {
-        if ((typeFilter & (1 << i)) &&
-            (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-            return i;
-        }
-    }
-
-    return Error(ErrorCode::OutOfMemory, "Failed to find suitable memory type");
+    return renderer::VulkanUtils::findMemoryType(m_physicalDevice, typeFilter, properties);
 }
 
 VkCommandBuffer GuiTextureAtlas::beginSingleTimeCommands() {
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = m_commandPool;
-    allocInfo.commandBufferCount = 1;
-
-    VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(m_device, &allocInfo, &commandBuffer);
-
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-    return commandBuffer;
+    return renderer::VulkanUtils::beginSingleTimeCommands(m_device, m_commandPool);
 }
 
 void GuiTextureAtlas::endSingleTimeCommands(VkCommandBuffer cmd) {
-    vkEndCommandBuffer(cmd);
-
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &cmd;
-
-    vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(m_graphicsQueue);
-
-    vkFreeCommandBuffers(m_device, m_commandPool, 1, &cmd);
+    // 使用 fence 版本，避免阻塞整个 GPU 队列
+    renderer::VulkanUtils::endSingleTimeCommands(m_device, m_commandPool, m_graphicsQueue, cmd);
 }
 
 } // namespace mc::client
