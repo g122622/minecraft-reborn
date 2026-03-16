@@ -22,6 +22,7 @@ struct TextureRegion;
 namespace mc::client {
 class ChunkRenderer;
 class Font;
+class EntityPipeline;
 }
 
 namespace mc::client::renderer {
@@ -451,6 +452,9 @@ private:
     std::unique_ptr<gui::GuiRenderer> m_guiRendererPtr;
     std::unique_ptr<item::ItemRenderer> m_itemRendererPtr;
     std::unique_ptr<renderer::EntityRendererManager> m_entityRendererManager;
+
+    // 实体渲染管线（独立于区块管线）
+    std::unique_ptr<EntityPipeline> m_entityPipeline;
 
     // 字体
     std::unique_ptr<Font> m_font;

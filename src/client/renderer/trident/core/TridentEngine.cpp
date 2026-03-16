@@ -19,8 +19,10 @@
 #include "../../../ui/DefaultAsciiFont.hpp"
 #include "../item/ItemRenderer.hpp"
 #include "../../../resource/ItemTextureAtlas.hpp"
+#include "../../../resource/EntityTextureLoader.hpp"
 #include "../entity/EntityRendererManager.hpp"
 #include "../entity/EntityTextureAtlas.hpp"
+#include "../entity/EntityPipeline.hpp"
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -196,6 +198,12 @@ void TridentEngine::destroy() {
     if (m_guiRendererPtr) {
         m_guiRendererPtr->destroy();
         m_guiRendererPtr.reset();
+    }
+
+    // 销毁实体管线（必须在 EntityRendererManager 之前）
+    if (m_entityPipeline) {
+        m_entityPipeline->destroy();
+        m_entityPipeline.reset();
     }
 
     m_itemRendererPtr.reset();
@@ -452,7 +460,11 @@ Result<void> TridentEngine::render() {
     }
 
     // 5. 调用实体渲染回调
-    if (m_entityRenderCallback) {
+    if (m_entityRenderCallback && m_entityRendererInitialized && m_entityRendererManager) {
+        // 设置相机描述符集给实体渲染管理器
+        VkDescriptorSet cameraSet = m_uniformManager->cameraDescriptorSet(m_frameContext.frameIndex);
+        m_entityRendererManager->setCameraDescriptorSet(cameraSet);
+
         m_entityRenderCallback(cmd, m_partialTick);
     }
 
@@ -1088,6 +1100,31 @@ Result<void> TridentEngine::initializeEntityRenderer() {
     // 初始化默认实体渲染器
     m_entityRendererManager->initializeDefaults();
 
+    // 创建并初始化实体渲染管线
+    if (!m_entityPipeline) {
+        m_entityPipeline = std::make_unique<EntityPipeline>();
+    }
+
+    auto pipelineResult = m_entityPipeline->initialize(
+        device(),
+        physicalDevice(),
+        graphicsQueue(),
+        renderPass(),
+        cameraDescriptorLayout(),
+        descriptorPool(),
+        commandPool()
+    );
+
+    if (pipelineResult.failed()) {
+        spdlog::error("Failed to initialize entity pipeline: {}", pipelineResult.error().toString());
+        m_entityPipeline.reset();
+        // 继续初始化，管线失败只记录错误不中断
+    } else {
+        spdlog::info("Entity pipeline initialized");
+        // 设置管线到渲染器管理器
+        m_entityRendererManager->setPipeline(m_entityPipeline.get());
+    }
+
     m_entityRendererInitialized = true;
     spdlog::info("Entity renderer initialized");
     return {};
@@ -1113,6 +1150,48 @@ Result<void> TridentEngine::initializeEntityTextureAtlas(ResourceManager* resour
     );
     if (initResult.failed()) {
         return initResult.error();
+    }
+
+    // 加载默认实体纹理 - 遍历所有资源包
+    u32 loadedCount = 0;
+    for (size_t i = 0; i < resourceManager->resourcePackCount(); ++i) {
+        auto* pack = resourceManager->getResourcePack(i);
+        if (!pack) continue;
+
+        spdlog::info("EntityTextureAtlas: Trying resource pack {} for entity textures", i);
+        EntityTextureLoader textureLoader;
+        auto loadResult = textureLoader.loadDefaultTextures(*pack, m_entityTextureAtlas);
+        if (loadResult.success() && loadResult.value() > 0) {
+            loadedCount += loadResult.value();
+            spdlog::info("Loaded {} entity textures from resource pack {}", loadResult.value(), i);
+        }
+    }
+
+    if (loadedCount > 0) {
+        spdlog::info("Total {} entity textures loaded", loadedCount);
+
+        // 构建纹理图集
+        auto buildResult = m_entityTextureAtlas.build();
+        if (buildResult.failed()) {
+            spdlog::warn("Failed to build entity texture atlas: {}", buildResult.error().toString());
+        } else {
+            spdlog::info("Entity texture atlas built: {}x{}",
+                        buildResult.value().width, buildResult.value().height);
+
+            // 设置纹理图集到 EntityRendererManager（用于 UV 重映射）
+            m_entityRendererManager->setTextureAtlas(&m_entityTextureAtlas);
+
+            // 设置纹理图集到 EntityPipeline
+            if (m_entityPipeline && m_entityPipeline->isInitialized()) {
+                m_entityPipeline->setTextureAtlas(
+                    m_entityTextureAtlas.imageView(),
+                    m_entityTextureAtlas.sampler()
+                );
+                spdlog::info("Entity texture atlas bound to pipeline");
+            }
+        }
+    } else {
+        spdlog::warn("No entity textures loaded from any resource pack");
     }
 
     m_entityTextureAtlasInitialized = true;

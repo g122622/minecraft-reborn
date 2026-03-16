@@ -266,6 +266,7 @@ Result<void> EntityTextureAtlas::loadTextureWithFallback(mc::IResourcePack& pack
             outData.resize(width * height * 4);
             std::memcpy(outData.data(), pixels, outData.size());
             stbi_image_free(pixels);
+            spdlog::debug("EntityTextureAtlas: Loaded {} ({}x{})", filePath, width, height);
             return {};
         }
     }
@@ -294,8 +295,31 @@ Result<void> EntityTextureAtlas::loadTextureWithFallback(mc::IResourcePack& pack
                     outData.resize(width * height * 4);
                     std::memcpy(outData.data(), pixels, outData.size());
                     stbi_image_free(pixels);
+                    spdlog::debug("EntityTextureAtlas: Loaded fallback {} ({}x{})", altPath, width, height);
                     return {};
                 }
+            }
+        }
+    }
+
+    // 尝试不带 textures/ 前缀的路径（某些资源包格式）
+    String texturePath = location.path();
+    if (texturePath.find("textures/") == 0) {
+        String directPath = "assets/" + location.namespace_() + "/" + texturePath;
+        result = pack.readResource(directPath);
+        if (result.success()) {
+            auto& data = result.value();
+            int width, height, channels;
+            u8* pixels = stbi_load_from_memory(data.data(), static_cast<int>(data.size()),
+                                                &width, &height, &channels, 4);
+            if (pixels) {
+                outWidth = static_cast<u32>(width);
+                outHeight = static_cast<u32>(height);
+                outData.resize(width * height * 4);
+                std::memcpy(outData.data(), pixels, outData.size());
+                stbi_image_free(pixels);
+                spdlog::debug("EntityTextureAtlas: Loaded from direct path {} ({}x{})", directPath, width, height);
+                return {};
             }
         }
     }

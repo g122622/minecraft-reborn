@@ -116,6 +116,12 @@ public:
     void setTextureAtlas(const EntityTextureAtlas* textureAtlas);
 
     /**
+     * @brief 设置相机描述符集
+     * @param descriptorSet 相机描述符集（set = 0）
+     */
+    void setCameraDescriptorSet(VkDescriptorSet descriptorSet) { m_cameraDescriptorSet = descriptorSet; }
+
+    /**
      * @brief 获取实体渲染管线
      */
     [[nodiscard]] EntityPipeline* pipeline() { return m_pipeline; }
@@ -159,6 +165,9 @@ private:
     // 管线
     EntityPipeline* m_pipeline = nullptr;
     const EntityTextureAtlas* m_textureAtlas = nullptr;
+
+    // 相机描述符集（set = 0）
+    VkDescriptorSet m_cameraDescriptorSet = VK_NULL_HANDLE;
 
     bool m_renderShadows = true;
     bool m_renderNameTags = true;

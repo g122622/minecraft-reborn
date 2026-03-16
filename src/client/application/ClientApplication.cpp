@@ -302,13 +302,6 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         } else {
             spdlog::warn("Atlas not built, skipping renderer update");
         }
-
-        // 初始化实体纹理图集
-        spdlog::info("Initializing entity texture atlas...");
-        auto entityAtlasResult = m_renderer->initializeEntityTextureAtlas(m_resourceManager.get());
-        if (entityAtlasResult.failed()) {
-            spdlog::warn("Failed to initialize entity texture atlas: {}", entityAtlasResult.error().toString());
-        }
     } else {
         spdlog::warn("ResourceManager is null, skipping texture atlas update");
     }
@@ -325,9 +318,19 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
             spdlog::warn("Failed to initialize GUI renderer: {}", guiInitResult.error().toString());
         }
 
+        // 实体渲染器必须先初始化（创建 EntityPipeline）
         auto entityInitResult = m_renderer->initializeEntityRenderer();
         if (entityInitResult.failed()) {
             spdlog::warn("Failed to initialize entity renderer: {}", entityInitResult.error().toString());
+        }
+
+        // 实体纹理图集在 EntityPipeline 创建后初始化
+        if (m_resourceManager) {
+            spdlog::info("Initializing entity texture atlas...");
+            auto entityAtlasResult = m_renderer->initializeEntityTextureAtlas(m_resourceManager.get());
+            if (entityAtlasResult.failed()) {
+                spdlog::warn("Failed to initialize entity texture atlas: {}", entityAtlasResult.error().toString());
+            }
         }
 
         if (m_resourceManager) {

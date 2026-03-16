@@ -97,7 +97,21 @@ void EntityRendererManager::renderWithPipeline(VkCommandBuffer cmd, ClientEntity
     // 绑定管线
     m_pipeline->bind(cmd);
 
-    // 绑定纹理描述符
+    // 绑定相机描述符集（set = 0）
+    if (m_cameraDescriptorSet != VK_NULL_HANDLE) {
+        vkCmdBindDescriptorSets(
+            cmd,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            m_pipeline->pipelineLayout(),
+            0,  // set = 0
+            1,
+            &m_cameraDescriptorSet,
+            0,
+            nullptr
+        );
+    }
+
+    // 绑定纹理描述符（set = 1）
     m_pipeline->bindTextureDescriptor(cmd);
 
     // 计算模型矩阵（单位矩阵，旋转由实体yaw/pitch控制）
