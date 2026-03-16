@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../GuiRenderer.hpp"
+#include "../../renderer/trident/gui/GuiRenderer.hpp"
 #include "../../renderer/Camera.hpp"
 #include "../../../common/core/BlockRaycastResult.hpp"
 #include "../../../common/world/time/GameTime.hpp"

@@ -13,11 +13,19 @@ class PlayerInventory;
 class Container;
 class ItemStack;
 
+namespace client::renderer::trident::gui {
+class GuiRenderer;
+}
+
+namespace client::renderer::trident::item {
+class ItemRenderer;
+}
+
 namespace client {
 
-// Forward declarations
-class GuiRenderer;
-class ItemRenderer;
+// 引入GuiRenderer和ItemRenderer到mc::client命名空间（向后兼容）
+using GuiRenderer = renderer::trident::gui::GuiRenderer;
+using ItemRenderer = renderer::trident::item::ItemRenderer;
 
 /**
  * @brief 背包界面

@@ -7,7 +7,7 @@
 #include "../../../common/world/block/Block.hpp"
 #include "../../../common/world/time/GameTime.hpp"
 #include "../../network/NetworkClient.hpp"
-#include "../../renderer/sky/CelestialCalculations.hpp"
+#include "../../renderer/trident/sky/CelestialCalculations.hpp"
 #include "../../world/ClientWorld.hpp"
 #include "../../world/entity/ClientEntityManager.hpp"
 #include <iomanip>

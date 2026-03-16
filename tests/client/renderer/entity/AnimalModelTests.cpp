@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <algorithm>
 
-#include "client/renderer/entity/model/AnimalModels.hpp"
+#include "client/renderer/trident/entity/model/AnimalModels.hpp"
 
 namespace mc::client::renderer {
 namespace {

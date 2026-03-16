@@ -7,7 +7,7 @@
 
 #include "common/core/Types.hpp"
 #include "common/world/time/GameTime.hpp"
-#include "client/renderer/sky/CelestialCalculations.hpp"
+#include "client/renderer/trident/sky/CelestialCalculations.hpp"
 
 using namespace mc;
 using namespace mc::time;

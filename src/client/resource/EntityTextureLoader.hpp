@@ -3,7 +3,7 @@
 #include "../../common/core/Types.hpp"
 #include "../../common/core/Result.hpp"
 #include "../../common/resource/ResourceLocation.hpp"
-#include "../renderer/entity/EntityTextureAtlas.hpp"
+#include "../renderer/trident/entity/EntityTextureAtlas.hpp"
 #include <memory>
 #include <vector>
 #include <string>

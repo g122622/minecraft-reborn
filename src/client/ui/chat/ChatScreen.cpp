@@ -1,5 +1,5 @@
 #include "ChatScreen.hpp"
-#include "client/ui/GuiRenderer.hpp"
+#include "client/renderer/trident/gui/GuiRenderer.hpp"
 #include "client/ui/Font.hpp"
 #include <chrono>
 

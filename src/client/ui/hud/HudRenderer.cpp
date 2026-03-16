@@ -1,6 +1,6 @@
 #include "HudRenderer.hpp"
-#include "../GuiRenderer.hpp"
-#include "../../renderer/item/ItemRenderer.hpp"
+#include "../../renderer/trident/gui/GuiRenderer.hpp"
+#include "../../renderer/trident/item/ItemRenderer.hpp"
 #include "../../../common/entity/Player.hpp"
 #include "../../../common/entity/inventory/PlayerInventory.hpp"
 #include "../../../common/item/ItemStack.hpp"

@@ -9,11 +9,18 @@ namespace mc {
 // Forward declarations
 class ItemStack;
 
-namespace client {
-
-// Forward declarations
+namespace client::renderer::trident::gui {
 class GuiRenderer;
+}
+
+namespace client::renderer::trident::item {
 class ItemRenderer;
+}
+
+namespace client {
+// 引入GuiRenderer和ItemRenderer到mc::client命名空间（向后兼容）
+using GuiRenderer = renderer::trident::gui::GuiRenderer;
+using ItemRenderer = renderer::trident::item::ItemRenderer;
 
 /**
  * @brief 槽位渲染器

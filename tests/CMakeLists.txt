@@ -217,7 +217,7 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/common/entity/loot/LootTable.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/drop/DropTables.cpp
         # 天体计算
-        ${CMAKE_SOURCE_DIR}/src/client/renderer/sky/CelestialCalculations.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/sky/CelestialCalculations.cpp
         # Trident 渲染 API 层
         ${CMAKE_SOURCE_DIR}/src/client/renderer/api/Types.cpp
         # 射线检测
@@ -227,11 +227,11 @@ target_sources(mc_tests
         # 网格构建线程池
         ${CMAKE_SOURCE_DIR}/src/client/renderer/mesh/MeshWorkerPool.cpp
         # 区块网格生成
-        ${CMAKE_SOURCE_DIR}/src/client/renderer/chunk/ChunkMesher.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/chunk/ChunkMesher.cpp
         ${CMAKE_SOURCE_DIR}/src/client/renderer/MeshTypes.cpp
-        ${CMAKE_SOURCE_DIR}/src/client/renderer/entity/model/ModelRenderer.cpp
-        ${CMAKE_SOURCE_DIR}/src/client/renderer/entity/model/EntityModel.cpp
-        ${CMAKE_SOURCE_DIR}/src/client/renderer/entity/model/AnimalModels.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/entity/model/ModelRenderer.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/entity/model/EntityModel.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/entity/model/AnimalModels.cpp
         # 区块模型缓存
         ${CMAKE_SOURCE_DIR}/src/client/resource/BlockModelCache.cpp
         ${CMAKE_SOURCE_DIR}/src/client/resource/ResourceManager.cpp
@@ -350,19 +350,19 @@ if(MC_BUILD_CLIENT)
     target_sources(mc_trident_tests
         PRIVATE
             # Trident 核心（不含 TridentEngine）
-            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/TridentContext.cpp
-            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/TridentSwapchain.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/core/TridentContext.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/core/TridentSwapchain.cpp
             # Trident 缓冲区
-            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/buffer/TridentBuffer.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/core/buffer/TridentBuffer.cpp
             # Trident 纹理
-            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/texture/TridentTexture.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/core/texture/TridentTexture.cpp
             # Trident 管线
-            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/pipeline/TridentPipeline.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/core/pipeline/TridentPipeline.cpp
             # Trident 渲染管理器
-            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/render/FrameManager.cpp
-            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/render/UniformManager.cpp
-            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/render/DescriptorManager.cpp
-            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/render/RenderPassManager.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/core/render/FrameManager.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/core/render/UniformManager.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/core/render/DescriptorManager.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/core/render/RenderPassManager.cpp
             # Trident API 层
             ${CMAKE_SOURCE_DIR}/src/client/renderer/api/Types.cpp
             # 资源加载
@@ -373,7 +373,7 @@ if(MC_BUILD_CLIENT)
             ${CMAKE_SOURCE_DIR}/src/client/resource/BlockStateLoader.cpp
             # 网格相关
             ${CMAKE_SOURCE_DIR}/src/client/renderer/MeshTypes.cpp
-            ${CMAKE_SOURCE_DIR}/src/client/renderer/chunk/ChunkMesher.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/chunk/ChunkMesher.cpp
             # 常用资源
             ${CMAKE_SOURCE_DIR}/src/common/resource/ResourceLocation.cpp
             ${CMAKE_SOURCE_DIR}/src/common/resource/ResourcePackList.cpp

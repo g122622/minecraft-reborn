@@ -1,6 +1,6 @@
 #include "ItemTextureAtlas.hpp"
 #include "TextureAtlasBuilder.hpp"
-#include "../renderer/VulkanUtils.hpp"
+#include "../renderer/trident/util/VulkanUtils.hpp"
 #include "../../common/resource/IResourcePack.hpp"
 #include "../../common/item/Item.hpp"
 #include "../../common/item/ItemRegistry.hpp"

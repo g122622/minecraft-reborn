@@ -12,7 +12,7 @@
 #include "../renderer/Camera.hpp"
 #include "../resource/ResourceManager.hpp"
 #include "../resource/BlockModelCache.hpp"
-#include "../renderer/trident/TridentEngine.hpp"
+#include "../renderer/trident/core/TridentEngine.hpp"
 #include "../world/ClientWorld.hpp"
 #include "../network/NetworkClient.hpp"
 #include "../ui/debug/DebugScreen.hpp"

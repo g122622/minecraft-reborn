@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "client/ui/GuiRenderer.hpp"
+#include "client/renderer/trident/gui/GuiRenderer.hpp"
 
 namespace mc::client {
 

@@ -1,6 +1,6 @@
 #include "SlotRenderer.hpp"
-#include "../GuiRenderer.hpp"
-#include "../../renderer/item/ItemRenderer.hpp"
+#include "../../renderer/trident/gui/GuiRenderer.hpp"
+#include "../../renderer/trident/item/ItemRenderer.hpp"
 #include "../../../common/item/ItemStack.hpp"
 #include "../../../common/item/Item.hpp"
 

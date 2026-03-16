@@ -10,11 +10,19 @@ class Player;
 class PlayerInventory;
 class ItemStack;
 
+namespace client::renderer::trident::gui {
+class GuiRenderer;
+}
+
+namespace client::renderer::trident::item {
+class ItemRenderer;
+}
+
 namespace client {
 
-// Forward declarations
-class GuiRenderer;
-class ItemRenderer;
+// 引入GuiRenderer和ItemRenderer到mc::client命名空间（向后兼容）
+using GuiRenderer = renderer::trident::gui::GuiRenderer;
+using ItemRenderer = renderer::trident::item::ItemRenderer;
 
 /**
  * @brief HUD元素颜色常量
@@ -44,7 +52,7 @@ namespace HudColors {
     constexpr u32 TOOLTIP_BACKGROUND = 0xF0100010;  // 背景带透明
     constexpr u32 TOOLTIP_BORDER = 0xFF5000FF;      // 边框
     constexpr u32 TOOLTIP_TEXT = 0xFFFFFFFF;        // 文字
-}
+} // namespace HudColors
 
 /**
  * @brief HUD渲染器

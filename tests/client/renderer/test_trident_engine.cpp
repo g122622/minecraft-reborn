@@ -14,13 +14,13 @@
 
 #include <gtest/gtest.h>
 #include <GLFW/glfw3.h>
-#include "client/renderer/trident/Trident.hpp"
-#include "client/renderer/trident/buffer/TridentBuffer.hpp"
-#include "client/renderer/trident/texture/TridentTexture.hpp"
-#include "client/renderer/trident/pipeline/TridentPipeline.hpp"
-#include "client/renderer/trident/render/FrameManager.hpp"
-#include "client/renderer/trident/render/UniformManager.hpp"
-#include "client/renderer/trident/render/DescriptorManager.hpp"
+#include "client/renderer/trident/core/Trident.hpp"
+#include "client/renderer/trident/core/buffer/TridentBuffer.hpp"
+#include "client/renderer/trident/core/texture/TridentTexture.hpp"
+#include "client/renderer/trident/core/pipeline/TridentPipeline.hpp"
+#include "client/renderer/trident/core/render/FrameManager.hpp"
+#include "client/renderer/trident/core/render/UniformManager.hpp"
+#include "client/renderer/trident/core/render/DescriptorManager.hpp"
 #include "client/renderer/api/Types.hpp"
 #include "client/renderer/api/mesh/MeshData.hpp"
 #include <vector>
