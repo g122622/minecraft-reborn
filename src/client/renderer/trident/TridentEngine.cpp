@@ -16,6 +16,7 @@
 #include "../sky/SkyRenderer.hpp"
 #include "../../ui/GuiRenderer.hpp"
 #include "../../ui/Font.hpp"
+#include "../../ui/DefaultAsciiFont.hpp"
 #include "../item/ItemRenderer.hpp"
 #include "../../resource/ItemTextureAtlas.hpp"
 #include "../entity/EntityRendererManager.hpp"
@@ -397,6 +398,9 @@ Result<void> TridentEngine::render() {
     // 4. 渲染区块
     if (m_chunkRendererInitialized && m_chunkRenderer && m_chunkPipeline &&
         m_chunkPipeline->isValid() && m_chunkTextureDescriptorSet != VK_NULL_HANDLE) {
+
+        // 清理延迟销毁队列：避免在 GPU 仍在使用时立刻销毁旧缓冲区
+        m_chunkRenderer->processPendingDestroys(3);
 
         m_chunkPipeline->bind(cmd);
 
@@ -1022,6 +1026,12 @@ Result<void> TridentEngine::initializeGuiRenderer() {
 
     if (!m_font) {
         m_font = std::make_unique<Font>();
+        auto fontResult = DefaultAsciiFont::create(*m_font);
+        if (fontResult.failed()) {
+            m_guiRendererPtr.reset();
+            m_font.reset();
+            return fontResult.error();
+        }
     }
     m_guiRendererPtr->setFont(m_font.get());
 

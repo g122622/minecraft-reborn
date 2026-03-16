@@ -245,6 +245,9 @@ Result<void> ChunkRenderer::createChunkBuffer(
     ChunkGpuBuffer& buffer,
     const MeshData& meshData)
 {
+    const u32 oldVertexCount = buffer.vertexCount;
+    const u32 oldIndexCount = buffer.indexCount;
+
     VkDeviceSize vertexSize = static_cast<VkDeviceSize>(meshData.vertices.size() * sizeof(Vertex));
     VkDeviceSize indexSize = static_cast<VkDeviceSize>(meshData.indices.size() * sizeof(u32));
 
@@ -255,8 +258,22 @@ Result<void> ChunkRenderer::createChunkBuffer(
     // 创建顶点缓冲区
     if (needNewVertex) {
         if (buffer.vertexBuffer != VK_NULL_HANDLE) {
-            vkDestroyBuffer(m_device, buffer.vertexBuffer, nullptr);
-            vkFreeMemory(m_device, buffer.vertexMemory, nullptr);
+            // 延迟销毁旧缓冲区，避免 GPU 仍在使用时被提前释放导致 device lost
+            auto oldBuffer = std::make_unique<ChunkGpuBuffer>();
+            oldBuffer->vertexBuffer = buffer.vertexBuffer;
+            oldBuffer->vertexMemory = buffer.vertexMemory;
+            oldBuffer->chunkId = buffer.chunkId;
+            oldBuffer->vertexCount = oldVertexCount;
+            oldBuffer->isValid = true;
+
+            {
+                std::lock_guard<std::mutex> lock(m_pendingDestroysMutex);
+                PendingBufferDestroy pending;
+                pending.buffer = std::move(oldBuffer);
+                pending.frameIndex = m_destroyFrameCounter;
+                m_pendingDestroys.push_back(std::move(pending));
+            }
+
             buffer.vertexBuffer = VK_NULL_HANDLE;
             buffer.vertexMemory = VK_NULL_HANDLE;
         }
@@ -277,8 +294,22 @@ Result<void> ChunkRenderer::createChunkBuffer(
     // 创建索引缓冲区
     if (needNewIndex) {
         if (buffer.indexBuffer != VK_NULL_HANDLE) {
-            vkDestroyBuffer(m_device, buffer.indexBuffer, nullptr);
-            vkFreeMemory(m_device, buffer.indexMemory, nullptr);
+            // 延迟销毁旧缓冲区，避免 GPU 仍在使用时被提前释放导致 device lost
+            auto oldBuffer = std::make_unique<ChunkGpuBuffer>();
+            oldBuffer->indexBuffer = buffer.indexBuffer;
+            oldBuffer->indexMemory = buffer.indexMemory;
+            oldBuffer->chunkId = buffer.chunkId;
+            oldBuffer->indexCount = oldIndexCount;
+            oldBuffer->isValid = true;
+
+            {
+                std::lock_guard<std::mutex> lock(m_pendingDestroysMutex);
+                PendingBufferDestroy pending;
+                pending.buffer = std::move(oldBuffer);
+                pending.frameIndex = m_destroyFrameCounter;
+                m_pendingDestroys.push_back(std::move(pending));
+            }
+
             buffer.indexBuffer = VK_NULL_HANDLE;
             buffer.indexMemory = VK_NULL_HANDLE;
         }
@@ -354,6 +385,17 @@ Result<void> ChunkRenderer::createChunkBuffer(
     buffer.isValid = true;
 
     // 更新统计
+    if (m_totalVertices >= oldVertexCount) {
+        m_totalVertices -= oldVertexCount;
+    } else {
+        m_totalVertices = 0;
+    }
+    if (m_totalIndices >= oldIndexCount) {
+        m_totalIndices -= oldIndexCount;
+    } else {
+        m_totalIndices = 0;
+    }
+
     m_totalVertices += buffer.vertexCount;
     m_totalIndices += buffer.indexCount;
 
