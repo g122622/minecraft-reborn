@@ -339,6 +339,12 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
                 spdlog::warn("Failed to initialize item renderer: {}", itemInitResult.error().toString());
             }
         }
+
+        // 初始化雾效果管理器
+        auto fogInitResult = m_renderer->initializeFogManager();
+        if (fogInitResult.failed()) {
+            spdlog::warn("Failed to initialize fog manager: {}", fogInitResult.error().toString());
+        }
     }
 
     // 启动内置服务端

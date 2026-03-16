@@ -35,6 +35,31 @@ struct LightingUBO {
 };
 
 /**
+ * @brief 雾模式枚举
+ *
+ * 参考 MC 1.16.5 FogRenderer.java
+ */
+enum class FogMode : i32 {
+    None = 0,     // 禁用雾效果
+    Linear = 1,   // 线性雾（陆地）
+    Exp2 = 2      // 指数雾（水中/岩浆）
+};
+
+/**
+ * @brief 雾效果 Uniform 缓冲区数据
+ *
+ * 参考 MC 1.16.5 FogRenderer.java 实现。
+ * 线性雾用于陆地场景，指数雾用于水下和岩浆环境。
+ */
+struct FogUBO {
+    alignas(4)  f32 fogStart;       // 雾开始距离（线性雾）
+    alignas(4)  f32 fogEnd;         // 雾结束距离（线性雾）
+    alignas(4)  f32 fogDensity;     // 指数雾密度（水中/岩浆）
+    alignas(4)  i32 fogMode;        // 雾模式 (FogMode 枚举值)
+    alignas(16) glm::vec4 fogColor; // 雾颜色（RGBA）
+};
+
+/**
  * @brief Uniform 缓冲区管理器
  *
  * 管理 Uniform 缓冲区的创建、更新和绑定。

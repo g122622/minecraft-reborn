@@ -139,6 +139,8 @@ src/
 │   │   ├── entity/   # Entity rendering
 │   │   ├── item/     # Item rendering
 │   │   ├── sky/      # Sky rendering
+│   │   ├── fog/      # Fog effects
+│   │   │   └── FogManager.hpp     # Fog calculation and rendering
 │   │   ├── VulkanRenderer.hpp   # High-level renderer (uses Trident backend)
 │   │   ├── VulkanBuffer.hpp     # GPU buffer management
 │   │   ├── VulkanTexture.hpp    # Texture and texture atlas
@@ -182,6 +184,10 @@ All types are in namespace `mc` (client types in `mc::client`, server types in `
   - `NoiseSettings`, `DimensionSettings`: Noise configuration
   - `IChunkGenerator`, `NoiseChunkGenerator`: Terrain generation
 - **Renderer types**: `Vertex`, `Face`, `MeshData`, `TextureRegion`, `BlockModel`, `TextureAtlas`
+- **Fog types** (NEW):
+  - `FogMode`: Fog mode enum (None, Linear, Exp2)
+  - `FogUBO`: Fog uniform buffer data (fogStart, fogEnd, fogDensity, fogColor)
+  - `FogManager`: Fog effect manager (calculation, GPU update)
 - **Resource types**: `ResourceLocation`, `PackMetadata`, `IResourcePack`, `FolderResourcePack`
 - **Model types**: `Direction`, `ModelElement`, `ModelFace`, `UnbakedBlockModel`, `BakedBlockModel`
 - **Block state types**: `BlockStateVariant`, `VariantList`, `BlockStateDefinition`
@@ -666,7 +672,7 @@ void endSingleTimeCommands(VkCommandBuffer cmd);
     - RenderPassManager: Render pass & framebuffers
     - FrameManager: Command buffers & sync objects
     - DescriptorManager: Descriptor sets
-    - UniformManager: Uniform buffers (CameraUBO, LightingUBO)
+    - UniformManager: Uniform buffers (CameraUBO, LightingUBO, FogUBO)
   - Organized directory structure:
     - `renderer/chunk/`: Chunk mesh generation (ChunkMesher)
     - `renderer/mesh/`: Mesh worker pool (MeshWorkerPool)
@@ -674,6 +680,13 @@ void endSingleTimeCommands(VkCommandBuffer cmd);
     - `renderer/entity/`: Entity rendering
     - `renderer/item/`: Item rendering
     - `renderer/sky/`: Sky rendering
+    - `renderer/fog/`: Fog effects (FogManager)
+  - Fog system (NEW):
+    - FogManager: Fog effect calculation and GPU updates
+    - FogUBO: Uniform buffer data for fog parameters
+    - Linear fog: Used for land (fogStart/fogEnd based on render distance)
+    - Exponential fog: Used for underwater/lava (density-based)
+    - Integrated with SkyRenderer for fog color
 - **Resource Pack System**: Complete (model/blockstate parsing, texture atlas, MC version compatibility)
   - Compat layer architecture (NEW):
     - PackFormat: Version detection from pack.mcmeta
@@ -690,7 +703,7 @@ void endSingleTimeCommands(VkCommandBuffer cmd);
   - PerfettoManager: Singleton manager for tracing lifecycle
   - TraceEvents.hpp: Convenient macros (MC_TRACE_EVENT, MC_TRACE_COUNTER, etc.)
   - Tests: 2 tests (disabled mode) / 29 tests (enabled mode)
-- **Tests**: 1477+ tests passing (pending verification after merge)
+- **Tests**: 1595 tests passing
 
 ## Self-Maintenance Rule
 

@@ -18,6 +18,7 @@ DescriptorManager::DescriptorManager(DescriptorManager&& other) noexcept
     : m_context(other.m_context)
     , m_cameraLayout(other.m_cameraLayout)
     , m_textureLayout(other.m_textureLayout)
+    , m_fogLayout(other.m_fogLayout)
     , m_pipelineLayout(other.m_pipelineLayout)
     , m_pool(other.m_pool)
     , m_maxFramesInFlight(other.m_maxFramesInFlight)
@@ -26,6 +27,7 @@ DescriptorManager::DescriptorManager(DescriptorManager&& other) noexcept
     other.m_context = nullptr;
     other.m_cameraLayout = VK_NULL_HANDLE;
     other.m_textureLayout = VK_NULL_HANDLE;
+    other.m_fogLayout = VK_NULL_HANDLE;
     other.m_pipelineLayout = VK_NULL_HANDLE;
     other.m_pool = VK_NULL_HANDLE;
     other.m_initialized = false;
@@ -37,6 +39,7 @@ DescriptorManager& DescriptorManager::operator=(DescriptorManager&& other) noexc
         m_context = other.m_context;
         m_cameraLayout = other.m_cameraLayout;
         m_textureLayout = other.m_textureLayout;
+        m_fogLayout = other.m_fogLayout;
         m_pipelineLayout = other.m_pipelineLayout;
         m_pool = other.m_pool;
         m_maxFramesInFlight = other.m_maxFramesInFlight;
@@ -45,6 +48,7 @@ DescriptorManager& DescriptorManager::operator=(DescriptorManager&& other) noexc
         other.m_context = nullptr;
         other.m_cameraLayout = VK_NULL_HANDLE;
         other.m_textureLayout = VK_NULL_HANDLE;
+        other.m_fogLayout = VK_NULL_HANDLE;
         other.m_pipelineLayout = VK_NULL_HANDLE;
         other.m_pool = VK_NULL_HANDLE;
         other.m_initialized = false;
@@ -148,6 +152,27 @@ Result<VkDescriptorSet> DescriptorManager::allocateTextureSet() {
     return descriptorSet;
 }
 
+Result<VkDescriptorSet> DescriptorManager::allocateFogSet() {
+    if (!m_initialized || m_pool == VK_NULL_HANDLE || m_fogLayout == VK_NULL_HANDLE) {
+        return Error(ErrorCode::NotInitialized, "DescriptorManager not initialized");
+    }
+
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = m_pool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &m_fogLayout;
+
+    VkDescriptorSet descriptorSet;
+    VkResult result = vkAllocateDescriptorSets(m_context->device(), &allocInfo, &descriptorSet);
+
+    if (result != VK_SUCCESS) {
+        return Error(ErrorCode::OutOfMemory, "Failed to allocate fog descriptor set: " + std::to_string(result));
+    }
+
+    return descriptorSet;
+}
+
 // ============================================================================
 // 私有方法 - 创建
 // ============================================================================
@@ -213,13 +238,35 @@ Result<void> DescriptorManager::createDescriptorSetLayouts() {
         return Error(ErrorCode::OperationFailed, "Failed to create texture descriptor set layout: " + std::to_string(result));
     }
 
+    // Fog UBO 布局 (set = 2, binding = 0)
+    VkDescriptorSetLayoutBinding fogLayoutBinding{};
+    fogLayoutBinding.binding = 0;
+    fogLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    fogLayoutBinding.descriptorCount = 1;
+    fogLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fogLayoutBinding.pImmutableSamplers = nullptr;
+
+    VkDescriptorSetLayoutCreateInfo fogLayoutInfo{};
+    fogLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    fogLayoutInfo.bindingCount = 1;
+    fogLayoutInfo.pBindings = &fogLayoutBinding;
+
+    result = vkCreateDescriptorSetLayout(device, &fogLayoutInfo, nullptr, &m_fogLayout);
+    if (result != VK_SUCCESS) {
+        vkDestroyDescriptorSetLayout(device, m_cameraLayout, nullptr);
+        vkDestroyDescriptorSetLayout(device, m_textureLayout, nullptr);
+        m_cameraLayout = VK_NULL_HANDLE;
+        m_textureLayout = VK_NULL_HANDLE;
+        return Error(ErrorCode::OperationFailed, "Failed to create fog descriptor set layout: " + std::to_string(result));
+    }
+
     return {};
 }
 
 Result<void> DescriptorManager::createPipelineLayout() {
     VkDevice device = m_context->device();
 
-    std::array<VkDescriptorSetLayout, 2> setLayouts = { m_cameraLayout, m_textureLayout };
+    std::array<VkDescriptorSetLayout, 3> setLayouts = { m_cameraLayout, m_textureLayout, m_fogLayout };
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -242,14 +289,14 @@ Result<void> DescriptorManager::createDescriptorPool() {
     // 描述符池大小
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizes[0].descriptorCount = static_cast<u32>(m_maxFramesInFlight * 2 + 10); // 相机 + 光照
+    poolSizes[0].descriptorCount = static_cast<u32>(m_maxFramesInFlight * 3 + 20); // 相机 + 光照 + 雾
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     poolSizes[1].descriptorCount = 100; // 纹理采样器
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-    poolInfo.maxSets = static_cast<u32>(m_maxFramesInFlight * 2 + 100);
+    poolInfo.maxSets = static_cast<u32>(m_maxFramesInFlight * 3 + 100);
     poolInfo.poolSizeCount = static_cast<u32>(poolSizes.size());
     poolInfo.pPoolSizes = poolSizes.data();
 
@@ -276,6 +323,11 @@ void DescriptorManager::destroyDescriptorSetLayouts() {
     if (m_textureLayout != VK_NULL_HANDLE && device != VK_NULL_HANDLE) {
         vkDestroyDescriptorSetLayout(device, m_textureLayout, nullptr);
         m_textureLayout = VK_NULL_HANDLE;
+    }
+
+    if (m_fogLayout != VK_NULL_HANDLE && device != VK_NULL_HANDLE) {
+        vkDestroyDescriptorSetLayout(device, m_fogLayout, nullptr);
+        m_fogLayout = VK_NULL_HANDLE;
     }
 }
 

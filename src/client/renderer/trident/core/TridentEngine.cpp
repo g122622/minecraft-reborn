@@ -14,6 +14,7 @@
 #include "../../MeshTypes.hpp"
 #include "../../util/ShaderPath.hpp"
 #include "../sky/SkyRenderer.hpp"
+#include "../fog/FogManager.hpp"
 #include "../gui/GuiRenderer.hpp"
 #include "../../../ui/Font.hpp"
 #include "../../../ui/DefaultAsciiFont.hpp"
@@ -206,6 +207,12 @@ void TridentEngine::destroy() {
         m_entityPipeline.reset();
     }
 
+    // 销毁雾管理器
+    if (m_fogManager) {
+        m_fogManager->destroy();
+        m_fogManager.reset();
+    }
+
     m_itemRendererPtr.reset();
     m_entityRendererManager.reset();
     m_font.reset();
@@ -221,6 +228,7 @@ void TridentEngine::destroy() {
     m_itemTextureAtlasInitialized = false;
     m_entityRendererInitialized = false;
     m_entityTextureAtlasInitialized = false;
+    m_fogManagerInitialized = false;
 
     m_guiRenderCallback = nullptr;
     m_entityRenderCallback = nullptr;
@@ -404,7 +412,25 @@ Result<void> TridentEngine::render() {
         );
     }
 
-    // 4. 渲染区块
+    // 4. 更新雾效果（在渲染区块之前）
+    if (m_fogManagerInitialized && m_fogManager && m_skyRendererInitialized && m_skyRendererPtr) {
+        glm::vec3 cameraPos(0.0f);
+        if (m_frameContext.camera) {
+            cameraPos = m_frameContext.camera->position();
+        }
+
+        // TODO: 从游戏状态获取渲染距离和天气参数
+        // 目前使用默认值：12 区块渲染距离，无雨
+        m_fogManager->update(
+            12,  // 渲染距离（区块）
+            0.0f, // 雨强度
+            0.0f, // 雷暴强度
+            m_skyRendererPtr->fogColor(),
+            cameraPos
+        );
+    }
+
+    // 5. 渲染区块
     if (m_chunkRendererInitialized && m_chunkRenderer && m_chunkPipeline &&
         m_chunkPipeline->isValid() && m_chunkTextureDescriptorSet != VK_NULL_HANDLE) {
 
@@ -436,6 +462,23 @@ Result<void> TridentEngine::render() {
             nullptr
         );
 
+        // 绑定雾效果描述符集（set = 2）
+        if (m_fogManagerInitialized && m_fogManager) {
+            VkDescriptorSet fogSet = m_fogManager->descriptorSet(m_frameContext.frameIndex);
+            if (fogSet != VK_NULL_HANDLE) {
+                vkCmdBindDescriptorSets(
+                    cmd,
+                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    m_chunkPipeline->layout(),
+                    2,
+                    1,
+                    &fogSet,
+                    0,
+                    nullptr
+                );
+            }
+        }
+
         m_chunkRenderer->render(cmd, m_chunkPipeline->layout(),
             [this, cmd](const ChunkId& chunkId) {
                 ChunkPushConstants pushConstants{};
@@ -459,7 +502,7 @@ Result<void> TridentEngine::render() {
         );
     }
 
-    // 5. 调用实体渲染回调
+    // 6. 调用实体渲染回调
     if (m_entityRenderCallback && m_entityRendererInitialized && m_entityRendererManager) {
         // 设置相机描述符集给实体渲染管理器
         VkDescriptorSet cameraSet = m_uniformManager->cameraDescriptorSet(m_frameContext.frameIndex);
@@ -468,7 +511,7 @@ Result<void> TridentEngine::render() {
         m_entityRenderCallback(cmd, m_partialTick);
     }
 
-    // 6. 渲染 GUI
+    // 7. 渲染 GUI
     if (m_guiRendererInitialized && m_guiRendererPtr) {
         m_guiRendererPtr->beginFrame(static_cast<f32>(m_windowWidth), static_cast<f32>(m_windowHeight));
         if (m_guiRenderCallback) {
@@ -477,7 +520,7 @@ Result<void> TridentEngine::render() {
         m_guiRendererPtr->render(cmd);
     }
 
-    // 7. 结束帧
+    // 8. 结束帧
     auto endResult = endFrame();
     if (endResult.failed()) {
         return endResult.error();
@@ -689,6 +732,10 @@ VkDescriptorSetLayout TridentEngine::textureDescriptorLayout() const {
     return m_descriptorManager ? m_descriptorManager->textureLayout() : VK_NULL_HANDLE;
 }
 
+VkDescriptorSetLayout TridentEngine::fogDescriptorLayout() const {
+    return m_descriptorManager ? m_descriptorManager->fogLayout() : VK_NULL_HANDLE;
+}
+
 VkDescriptorSet TridentEngine::cameraDescriptorSet() const {
     if (!m_uniformManager || !m_frameManager) return VK_NULL_HANDLE;
     return m_uniformManager->cameraDescriptorSet(m_frameManager->currentFrameIndex());
@@ -886,6 +933,17 @@ const EntityTextureAtlas& TridentEngine::entityTextureAtlas() const {
     return m_entityTextureAtlas;
 }
 
+fog::FogManager& TridentEngine::fogManager() {
+    if (!m_fogManager) {
+        m_fogManager = std::make_unique<fog::FogManager>();
+    }
+    return *m_fogManager;
+}
+
+const fog::FogManager& TridentEngine::fogManager() const {
+    return *m_fogManager;
+}
+
 // ============================================================================
 // 子渲染器初始化
 // ============================================================================
@@ -952,7 +1010,8 @@ Result<void> TridentEngine::initializeChunkRenderer() {
 
     pipelineConfig.descriptorSetLayouts = {
         m_descriptorManager->cameraLayout(),
-        m_descriptorManager->textureLayout()
+        m_descriptorManager->textureLayout(),
+        m_descriptorManager->fogLayout()
     };
 
     VkPushConstantRange pushConstantRange{};
@@ -1196,6 +1255,35 @@ Result<void> TridentEngine::initializeEntityTextureAtlas(ResourceManager* resour
 
     m_entityTextureAtlasInitialized = true;
     spdlog::info("Entity texture atlas initialized");
+    return {};
+}
+
+Result<void> TridentEngine::initializeFogManager() {
+    if (m_fogManagerInitialized) {
+        return {};
+    }
+
+    spdlog::info("Initializing fog manager...");
+
+    if (!m_fogManager) {
+        m_fogManager = std::make_unique<fog::FogManager>();
+    }
+
+    auto result = m_fogManager->initialize(
+        device(),
+        physicalDevice(),
+        descriptorPool(),
+        m_descriptorManager->fogLayout(),
+        maxFramesInFlight()
+    );
+
+    if (result.failed()) {
+        m_fogManager.reset();
+        return result.error();
+    }
+
+    m_fogManagerInitialized = true;
+    spdlog::info("Fog manager initialized");
     return {};
 }
 

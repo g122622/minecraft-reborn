@@ -55,9 +55,16 @@ public:
      */
     [[nodiscard]] Result<VkDescriptorSet> allocateTextureSet();
 
+    /**
+     * @brief 分配雾效果描述符集
+     * @return 描述符集或错误
+     */
+    [[nodiscard]] Result<VkDescriptorSet> allocateFogSet();
+
     // 访问器
     [[nodiscard]] VkDescriptorSetLayout cameraLayout() const { return m_cameraLayout; }
     [[nodiscard]] VkDescriptorSetLayout textureLayout() const { return m_textureLayout; }
+    [[nodiscard]] VkDescriptorSetLayout fogLayout() const { return m_fogLayout; }
     [[nodiscard]] VkDescriptorPool pool() const { return m_pool; }
     [[nodiscard]] VkPipelineLayout pipelineLayout() const { return m_pipelineLayout; }
     [[nodiscard]] bool isValid() const { return m_pool != VK_NULL_HANDLE; }
@@ -79,6 +86,7 @@ private:
     // 描述符集布局
     VkDescriptorSetLayout m_cameraLayout = VK_NULL_HANDLE;
     VkDescriptorSetLayout m_textureLayout = VK_NULL_HANDLE;
+    VkDescriptorSetLayout m_fogLayout = VK_NULL_HANDLE;
 
     // 管线布局
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;

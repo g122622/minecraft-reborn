@@ -48,6 +48,10 @@ namespace sky {
 class SkyRenderer;
 }
 
+namespace fog {
+class FogManager;
+}
+
 namespace item {
 class ItemRenderer;
 }
@@ -197,6 +201,11 @@ public:
      * @brief 获取纹理描述符布局
      */
     [[nodiscard]] VkDescriptorSetLayout textureDescriptorLayout() const;
+
+    /**
+     * @brief 获取雾效果描述符布局
+     */
+    [[nodiscard]] VkDescriptorSetLayout fogDescriptorLayout() const;
 
     /**
      * @brief 获取当前帧的相机描述符集
@@ -361,6 +370,13 @@ public:
     [[nodiscard]] EntityTextureAtlas& entityTextureAtlas();
     [[nodiscard]] const EntityTextureAtlas& entityTextureAtlas() const;
 
+    /**
+     * @brief 获取雾效果管理器
+     */
+    [[nodiscard]] fog::FogManager& fogManager();
+    [[nodiscard]] const fog::FogManager& fogManager() const;
+    [[nodiscard]] bool isFogManagerInitialized() const { return m_fogManagerInitialized; }
+
     // ========================================================================
     // 子渲染器初始化
     // ========================================================================
@@ -394,6 +410,11 @@ public:
      * @brief 初始化实体纹理图集
      */
     [[nodiscard]] Result<void> initializeEntityTextureAtlas(ResourceManager* resourceManager);
+
+    /**
+     * @brief 初始化雾效果管理器
+     */
+    [[nodiscard]] Result<void> initializeFogManager();
 
     /**
      * @brief 更新纹理图集
@@ -452,6 +473,7 @@ private:
     std::unique_ptr<gui::GuiRenderer> m_guiRendererPtr;
     std::unique_ptr<item::ItemRenderer> m_itemRendererPtr;
     std::unique_ptr<renderer::EntityRendererManager> m_entityRendererManager;
+    std::unique_ptr<fog::FogManager> m_fogManager;
 
     // 实体渲染管线（独立于区块管线）
     std::unique_ptr<EntityPipeline> m_entityPipeline;
@@ -472,6 +494,7 @@ private:
     bool m_itemTextureAtlasInitialized = false;
     bool m_entityRendererInitialized = false;
     bool m_entityTextureAtlasInitialized = false;
+    bool m_fogManagerInitialized = false;
 
     // 内部方法
     [[nodiscard]] Result<void> recreateSwapchain();
