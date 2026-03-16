@@ -320,3 +320,88 @@ set_target_properties(mc_tests PROPERTIES
 set_target_properties(mc_resource_tests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
+
+# ============================================================================
+# Trident 渲染引擎测试
+# ============================================================================
+
+if(MC_BUILD_CLIENT)
+    # Trident 渲染引擎测试可执行文件
+    # 注意：只测试核心组件，不测试 TridentEngine（它依赖太多其他组件）
+    add_executable(mc_trident_tests
+        client/renderer/test_trident_engine.cpp
+    )
+
+    # 添加 Trident 渲染引擎核心组件源文件
+    target_sources(mc_trident_tests
+        PRIVATE
+            # Trident 核心（不含 TridentEngine）
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/TridentContext.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/TridentSwapchain.cpp
+            # Trident 缓冲区
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/buffer/TridentBuffer.cpp
+            # Trident 纹理
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/texture/TridentTexture.cpp
+            # Trident 管线
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/pipeline/TridentPipeline.cpp
+            # Trident 渲染管理器
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/render/FrameManager.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/render/UniformManager.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/render/DescriptorManager.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/render/RenderPassManager.cpp
+            # Trident API 层
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/api/Types.cpp
+            # 资源加载
+            ${CMAKE_SOURCE_DIR}/src/client/resource/TextureAtlasBuilder.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/resource/BlockModelCache.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/resource/ResourceManager.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/resource/BlockModelLoader.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/resource/BlockStateLoader.cpp
+            # 网格相关
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/MeshTypes.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/chunk/ChunkMesher.cpp
+            # 常用资源
+            ${CMAKE_SOURCE_DIR}/src/common/resource/ResourceLocation.cpp
+            ${CMAKE_SOURCE_DIR}/src/common/resource/ResourcePackList.cpp
+            ${CMAKE_SOURCE_DIR}/src/common/resource/FolderResourcePack.cpp
+            ${CMAKE_SOURCE_DIR}/src/common/resource/ZipResourcePack.cpp
+            ${CMAKE_SOURCE_DIR}/src/common/resource/IResourcePack.cpp
+            ${CMAKE_SOURCE_DIR}/src/common/resource/PackMetadata.cpp
+            # 方块系统
+            ${CMAKE_SOURCE_DIR}/src/common/world/block/Material.cpp
+            ${CMAKE_SOURCE_DIR}/src/common/world/block/Block.cpp
+            ${CMAKE_SOURCE_DIR}/src/common/world/block/BlockRegistry.cpp
+            ${CMAKE_SOURCE_DIR}/src/common/world/block/VanillaBlocks.cpp
+            ${CMAKE_SOURCE_DIR}/src/common/world/block/blocks/AirBlock.cpp
+            ${CMAKE_SOURCE_DIR}/src/common/world/block/blocks/SimpleBlock.cpp
+            ${CMAKE_SOURCE_DIR}/src/common/world/block/blocks/RotatedPillarBlock.cpp
+            # 设置
+            ${CMAKE_SOURCE_DIR}/src/client/settings/ClientSettings.cpp
+    )
+
+    target_link_libraries(mc_trident_tests
+        PRIVATE
+            mc_common
+            GTest::gtest
+            GTest::gtest_main
+            glfw
+            Vulkan::Vulkan
+            nlohmann_json::nlohmann_json
+            glm::glm
+            spdlog::spdlog
+    )
+
+    target_include_directories(mc_trident_tests
+        PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+            ${CMAKE_SOURCE_DIR}/include
+    )
+
+    mc_set_compiler_warnings(mc_trident_tests)
+
+    gtest_discover_tests(mc_trident_tests)
+
+    set_target_properties(mc_trident_tests PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
+endif()

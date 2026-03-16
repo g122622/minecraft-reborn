@@ -252,11 +252,11 @@ public:
     void destroy() override;
     [[nodiscard]] u64 size() const override { return m_size; }
     [[nodiscard]] api::BufferUsage usage() const override { return api::BufferUsage::Uniform; }
-    [[nodiscard]] bool isValid() const override { return m_buffers[0] != VK_NULL_HANDLE; }
+    [[nodiscard]] bool isValid() const override { return !m_buffers.empty() && m_buffers[0] != VK_NULL_HANDLE; }
     [[nodiscard]] void* map() override;
     void unmap() override;
     [[nodiscard]] Result<void> upload(const void* data, u64 size, u64 offset = 0) override;
-    [[nodiscard]] void* nativeHandle() const override { return m_buffers[m_currentFrame]; }
+    [[nodiscard]] void* nativeHandle() const override { return m_buffers.empty() ? VK_NULL_HANDLE : m_buffers[m_currentFrame]; }
 
     // IUniformBuffer 接口实现
     [[nodiscard]] u32 currentFrameIndex() const override { return m_currentFrame; }
