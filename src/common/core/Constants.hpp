@@ -42,15 +42,6 @@ namespace game {
 // 重力加速度 (blocks/tick²)
 constexpr f32 GRAVITY = 0.08f;
 
-// 跳跃初速度 (blocks/tick)
-constexpr f32 JUMP_VELOCITY = 0.42f;
-
-// 玩家移动速度
-constexpr f32 PLAYER_WALK_SPEED = 0.1f;
-constexpr f32 PLAYER_SPRINT_SPEED = 0.13f;
-constexpr f32 PLAYER_SNEAK_SPEED = 0.03f;
-constexpr f32 PLAYER_FLY_SPEED = 0.05f;
-
 // 玩家尺寸
 constexpr f32 PLAYER_HEIGHT = 1.8f;
 constexpr f32 PLAYER_EYE_HEIGHT = 1.62f;
@@ -60,19 +51,6 @@ constexpr f32 PLAYER_SNEAK_HEIGHT = 1.5f;
 // 玩家生命值
 constexpr f32 PLAYER_MAX_HEALTH = 20.0f;
 constexpr f32 PLAYER_MAX_AIR = 300.0f;
-
-// 方块物理
-constexpr f32 BLOCK_SIZE = 1.0f;
-
-// 视野
-constexpr f32 DEFAULT_FOV = 70.0f;
-constexpr f32 MIN_FOV = 30.0f;
-constexpr f32 MAX_FOV = 110.0f;
-
-// 渲染距离
-constexpr i32 MIN_RENDER_DISTANCE = 2;
-constexpr i32 MAX_RENDER_DISTANCE = 32;
-constexpr i32 DEFAULT_RENDER_DISTANCE = 12;
 
 // 光照
 constexpr i32 MAX_LIGHT_LEVEL = 15;
