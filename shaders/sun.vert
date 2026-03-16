@@ -51,9 +51,9 @@ vec3 calculateSunDirection(float angle) {
 
 void main() {
     // 太阳尺寸常量。
-    // 说明：当前渲染路径使用透视投影 + 裁剪缩放，30.0 会明显偏大，
-    // 这里调小到更接近 Java 版观感。
-    const float SUN_SIZE = 10.0;
+    // MC 1.16.5 中太阳尺寸为 30.0 像素，位于 Y=100 处
+    // 由于我们使用 SKY_CLIP_SCALE 缩放矩阵，这里需要调整
+    const float SUN_SIZE = 6.0;
 
     // 计算太阳方向
     vec3 sunDir = calculateSunDirection(sky.celestialAngle);
@@ -75,9 +75,10 @@ void main() {
 
     vec3 forward = normalize(cross(sunDir, right));
 
-    // 计算世界位置
-    // 太阳位于天空球上，适当拉远以减小角直径。
-    const float SUN_DISTANCE = 160.0;
+    // 计算太阳四边形的世界空间位置
+    // MC 1.16.5 使用固定距离 100.0
+    // 由于视图投影矩阵已移除平移分量，太阳始终在固定方向
+    const float SUN_DISTANCE = 100.0;
     vec3 sunCenter = sunDir * SUN_DISTANCE;
 
     // 根据输入顶点位置计算四边形角点
@@ -87,6 +88,7 @@ void main() {
         forward * inPosition.y * SUN_SIZE;
 
     // 变换到裁剪空间
+    // 矩阵已移除平移分量，太阳方向相对于相机固定
     gl_Position = pc.viewProjection * vec4(worldPos, 1.0);
 
     // 计算纹理坐标

@@ -85,12 +85,14 @@ public:
     /**
      * @brief 渲染天空
      * @param cmd 命令缓冲区
-     * @param viewProjection 相机视图投影矩阵
+     * @param projection 相机投影矩阵
+     * @param view 相机视图矩阵
      * @param cameraPos 相机位置 (用于雾效果)
-    * @param cameraForward 相机前向（用于下半天空晨昏填充）
+     * @param cameraForward 相机前向（用于下半天空晨昏填充）
      */
     void render(VkCommandBuffer cmd,
-             const glm::mat4& viewProjection,
+             const glm::mat4& projection,
+             const glm::mat4& view,
              const glm::vec3& cameraPos,
              const glm::vec3& cameraForward,
              u32 frameIndex);
@@ -263,8 +265,6 @@ private:
     void* m_uniformBuffersMapped[MAX_FRAMES_IN_FLIGHT] = {nullptr, nullptr};
     VkDescriptorSet m_descriptorSets[MAX_FRAMES_IN_FLIGHT] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
     u32 m_currentFrame = 0;
-    glm::mat4 m_lastViewProjection = glm::mat4(1.0f);
-    u32 m_sunDebugLogCounter = 0;
 
     // 天空状态
     i64 m_dayTime = 0;

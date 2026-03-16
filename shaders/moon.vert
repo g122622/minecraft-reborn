@@ -52,8 +52,8 @@ vec3 calculateMoonDirection(float angle) {
 }
 
 void main() {
-    // 月亮尺寸常量（与太阳保持相近观感比例）
-    const float MOON_SIZE = 10.0;
+    // 月亮尺寸常量（MC 1.16.5 中为 20.0）
+    const float MOON_SIZE = 20.0;
 
     // 计算月亮方向
     vec3 moonDir = calculateMoonDirection(sky.celestialAngle);
@@ -72,9 +72,11 @@ void main() {
 
     vec3 forward = normalize(cross(moonDir, right));
 
-    // 计算世界位置
-    // 月亮位于天空球上，距离与太阳一致
-    const float MOON_DISTANCE = 150.0;
+    // 计算月亮四边形的世界空间位置
+    // MC 1.16.5 中月亮与太阳使用相同距离 100.0
+    // 由于视图投影矩阵已移除平移分量，月亮始终在固定方向
+    // 月亮方向已通过 calculateMoonDirection 计算为太阳对面
+    const float MOON_DISTANCE = 100.0;
     vec3 moonCenter = moonDir * MOON_DISTANCE;
 
     // 根据输入顶点位置计算四边形角点

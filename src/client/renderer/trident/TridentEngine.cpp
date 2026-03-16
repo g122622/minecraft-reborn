@@ -388,7 +388,8 @@ Result<void> TridentEngine::render() {
 
         m_skyRenderer->render(
             cmd,
-            m_frameContext.viewProjectionMatrix,
+            m_frameContext.projectionMatrix,
+            m_frameContext.viewMatrix,
             cameraPos,
             cameraForward,
             m_frameContext.frameIndex

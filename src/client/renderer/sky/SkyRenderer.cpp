@@ -312,7 +312,8 @@ void SkyRenderer::update(i64 dayTime, i64 gameTime, f32 partialTick,
 // ============================================================================
 
 void SkyRenderer::render(VkCommandBuffer cmd,
-                         const glm::mat4& viewProjection,
+                         const glm::mat4& projection,
+                         const glm::mat4& view,
                          const glm::vec3& cameraPos,
                          const glm::vec3& cameraForward,
                          u32 frameIndex) {
@@ -325,7 +326,6 @@ void SkyRenderer::render(VkCommandBuffer cmd,
     m_cameraForward = cameraForward;
 
     m_currentFrame = frameIndex % MAX_FRAMES_IN_FLIGHT;
-    m_lastViewProjection = viewProjection;
 
     {
         MC_TRACE_SKY("UpdateUBO");
@@ -343,12 +343,21 @@ void SkyRenderer::render(VkCommandBuffer cmd,
                                m_pipelineLayout, 0, 1, &m_descriptorSets[m_currentFrame], 0, nullptr);
     }
 
-    // 现有 sky/sun/moon/star 着色器在顶点阶段使用"线性裁剪映射"而非标准透视除法，
-    // 需要对传入矩阵做统一缩放，避免天体落在远超 [-1, 1] 的 NDC 外。
+    // MC 1.16.5 的天空渲染关键：移除视图矩阵的平移分量，只保留旋转。
+    // 这使得天体（太阳/月亮/星星）始终位于"无限远"处，不会随相机移动而改变位置。
+    // 参考 WorldRenderer.renderSky()：matrixStack 在渲染天体前只做了旋转操作。
     {
         MC_TRACE_PUSH_CONSTANTS("SkyViewProjection");
         SkyPushConstants pushConstants{};
-        pushConstants.viewProjection = viewProjection * SKY_CLIP_SCALE;
+
+        // 从视图矩阵中移除平移分量，只保留旋转
+        // 这相当于将相机"移动到原点"，但保持其朝向不变
+        glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(view));
+
+        // 组合投影矩阵和无平移视图矩阵
+        // 由于视图矩阵没有平移，天体位置相对于相机旋转固定，不会随相机移动
+        pushConstants.viewProjection = projection * viewNoTranslation * SKY_CLIP_SCALE;
+
         vkCmdPushConstants(cmd, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
                            0, sizeof(SkyPushConstants), &pushConstants);
     }
@@ -394,35 +403,8 @@ void SkyRenderer::renderSkyDome(VkCommandBuffer cmd) {
 
 void SkyRenderer::renderSun(VkCommandBuffer cmd) {
     // 太阳强度太低时不渲染
-    const bool shouldLog = (++m_sunDebugLogCounter % 240) == 0;
     if (m_sunIntensity < 0.03f || m_sunPipeline == VK_NULL_HANDLE || m_sunMoonVBO == VK_NULL_HANDLE) {
-        if (shouldLog) {
-            spdlog::info("[Sky] Sun skipped: intensity={:.4f}, pipelineValid={}, vboValid={}",
-                        m_sunIntensity,
-                        m_sunPipeline != VK_NULL_HANDLE,
-                        m_sunMoonVBO != VK_NULL_HANDLE);
-        }
         return;
-    }
-
-    if (shouldLog) {
-        const f32 angle = m_celestialAngle * mc::math::TAU_F;
-        const f32 height = std::cos(angle);
-        const f32 xz = std::sin(angle);
-        const glm::vec3 sunDir = glm::normalize(glm::vec3(xz, height, 0.0f));
-
-        const glm::vec3 sunCenter = sunDir * 100.0f;
-        const glm::mat4 scaledViewProjection = m_lastViewProjection * SKY_CLIP_SCALE;
-        const glm::mat4 viewWithoutTranslation = glm::mat4(glm::mat3(scaledViewProjection));
-        const glm::vec4 pos = viewWithoutTranslation * glm::vec4(sunCenter, 1.0f);
-        const f32 w = std::abs(pos.w) > 1e-6f ? pos.w : 1.0f;
-        const glm::vec2 ndc = glm::vec2(pos.x / w, pos.y / w);
-        const f32 crossLen = glm::length(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), sunDir));
-
-        // spdlog::info("[Sky] Sun draw: dayTime={}, gameTime={}, intensity={:.4f}, angle={:.6f}, sunDir=({:.3f},{:.3f},{:.3f}), crossLen={:.6f}, ndc=({:.3f},{:.3f})",
-        //         m_dayTime, m_gameTime, m_sunIntensity, m_celestialAngle,
-        //             sunDir.x, sunDir.y, sunDir.z,
-        //             crossLen, ndc.x, ndc.y);
     }
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_sunPipeline);

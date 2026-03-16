@@ -53,11 +53,12 @@ void main() {
     // MC 中星星的位置是固定的，整个星空随时间旋转
     vec3 rotatedPos = rotateStars(inPosition, sky.celestialAngle);
 
-    // 星星距离 100（与太阳/月亮相同）
+    // 星星距离 100（与 MC 1.16.5 一致）
     const float STAR_DISTANCE = 100.0;
     vec3 worldPos = rotatedPos * STAR_DISTANCE;
 
     // 变换到裁剪空间
+    // 矩阵已移除平移分量，星星方向相对于相机固定
     gl_Position = pc.viewProjection * vec4(worldPos, 1.0);
 
     // 星星亮度传递给片段着色器
