@@ -78,6 +78,31 @@ public:
      */
     virtual void fillBiomeContainer(BiomeContainer& container, ChunkCoord chunkX, ChunkCoord chunkZ) = 0;
 
+    /**
+     * @brief 批量获取生物群系
+     *
+     * 默认实现通过循环调用 getBiome()，子类可以覆盖以优化性能。
+     *
+     * @param startX 起始 X 坐标
+     * @param startY 起始 Y 坐标
+     * @param startZ 起始 Z 坐标
+     * @param width 宽度（X 方向）
+     * @param height 高度（Z 方向）
+     * @param output 输出数组（大小必须 >= width * height）
+     */
+    virtual void getBiomesBatch(i32 startX, i32 startY, i32 startZ, i32 width, i32 height,
+                                 BiomeId* output) const {
+        if (output == nullptr || width <= 0 || height <= 0) {
+            return;
+        }
+        size_t idx = 0;
+        for (i32 z = 0; z < height; ++z) {
+            for (i32 x = 0; x < width; ++x) {
+                output[idx++] = getBiome(startX + x, startY, startZ + z);
+            }
+        }
+    }
+
     [[nodiscard]] u64 seed() const { return m_seed; }
 
 protected:

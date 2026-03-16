@@ -211,6 +211,9 @@ private:
 
     // 将纹理路径转换为资源位置
     [[nodiscard]] static ResourceLocation texturePathToLocation(StringView path);
+
+    // 使用 compat 层查找纹理区域（支持 MC 1.12/1.13+ 路径变体）
+    [[nodiscard]] const TextureRegion* findTextureRegion(const ResourceLocation& texLoc) const;
 };
 
 } // namespace mc

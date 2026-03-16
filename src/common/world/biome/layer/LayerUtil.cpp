@@ -1,5 +1,7 @@
 #include "LayerUtil.hpp"
+#include "LayerCacheConfig.hpp"
 #include "../BiomeRegistry.hpp"
+#include "common/perfetto/TraceEvents.hpp"
 #include <algorithm>
 
 namespace mc {
@@ -14,6 +16,7 @@ LayerStack::LayerStack(std::unique_ptr<IArea> area)
 }
 
 BiomeId LayerStack::sample(i32 x, i32 z) const {
+    MC_TRACE_EVENT("world.biome", "LayerStack_Sample", "x", x, "z", z);
     if (!m_area) {
         return Biomes::Plains;
     }
@@ -44,6 +47,7 @@ BiomeId LayerStack::sample(i32 x, i32 z) const {
 }
 
 std::vector<BiomeId> LayerStack::sampleArea(i32 startX, i32 startZ, i32 width, i32 height) const {
+    MC_TRACE_EVENT("world.biome", "LayerStack_SampleArea", "startX", startX, "startZ", startZ, "width", width, "height", height);
     std::vector<BiomeId> result;
     result.reserve(static_cast<size_t>(width) * height);
 
@@ -54,6 +58,39 @@ std::vector<BiomeId> LayerStack::sampleArea(i32 startX, i32 startZ, i32 width, i
     }
 
     return result;
+}
+
+void LayerStack::sampleBatch(i32 startX, i32 startZ, i32 width, i32 height, BiomeId* output) const {
+    MC_TRACE_EVENT("world.biome", "LayerStack_SampleBatch", "startX", startX, "startZ", startZ, "width", width, "height", height);
+
+    if (!m_area || output == nullptr || width <= 0 || height <= 0) {
+        return;
+    }
+
+    // 使用批量采样接口
+    const size_t totalSize = static_cast<size_t>(width) * height;
+    std::vector<i32> values(totalSize);
+    m_area->getValuesBatch(startX, startZ, width, height, values.data());
+
+    // 转换为 BiomeId
+    for (size_t i = 0; i < totalSize; ++i) {
+        i32 value = values[i];
+
+        // 确保值是有效的生物群系 ID
+        if (value >= 0 && value < static_cast<i32>(Biomes::Count)) {
+            output[i] = static_cast<BiomeId>(value);
+        } else if (value >= 129 && value <= 169) {
+            // 可能是稀有变体或其他有效 ID
+            output[i] = static_cast<BiomeId>(value);
+        } else if (value == layer::BiomeValues::River) {
+            output[i] = Biomes::River;
+        } else if (value == layer::BiomeValues::FrozenRiver) {
+            output[i] = Biomes::FrozenRiver;
+        } else {
+            // 默认返回 Plains
+            output[i] = Biomes::Plains;
+        }
+    }
 }
 
 // ============================================================================
@@ -76,6 +113,8 @@ std::unique_ptr<IAreaFactory> buildClimateLayers(
     u64 seed,
     const std::function<std::shared_ptr<LayerContext>(u64)>& createContext)
 {
+    MC_TRACE_EVENT("world.biome", "BuildClimateLayers");
+
     static layer::IslandLayer islandLayer;
     static layer::ZoomLayer fuzzyZoom(layer::ZoomLayer::Mode::Fuzzy);
     static layer::ZoomLayer normalZoom(layer::ZoomLayer::Mode::Normal);
@@ -154,6 +193,7 @@ std::unique_ptr<IAreaFactory> repeatZoom(
     i32 count,
     std::function<std::shared_ptr<LayerContext>(u64)> contextFactory)
 {
+    MC_TRACE_EVENT("world.biome", "RepeatZoom", "count", count);
     std::unique_ptr<IAreaFactory> result = std::move(input);
 
     for (i32 i = 0; i < count; ++i) {
@@ -171,9 +211,11 @@ std::unique_ptr<IAreaFactory> buildOverworldLayers(
     i32 biomeSize,
     i32 riverSize)
 {
+    MC_TRACE_EVENT("world.biome", "BuildOverworldLayers", "biomeSize", biomeSize, "riverSize", riverSize);
+
     // 创建上下文工厂 - 使用 shared_ptr 保持生命周期
     auto createContext = [seed](u64 modifier) -> std::shared_ptr<LayerContext> {
-        return std::make_shared<LayerContext>(1024, seed, modifier);
+        return std::make_shared<LayerContext>(LayerCacheConfig::DEFAULT_CACHE_SIZE, seed, modifier);
     };
 
     // 静态层实例（避免重复构造）
@@ -293,6 +335,7 @@ std::unique_ptr<IAreaFactory> buildOverworldLayers(
 }
 
 std::unique_ptr<LayerStack> createOverworldLayers(u64 seed, bool isLargeBiomes) {
+    MC_TRACE_EVENT("world.biome", "CreateOverworldLayers", "seed", static_cast<i64>(seed), "isLargeBiomes", isLargeBiomes);
     // 初始化生物群系注册表
     BiomeRegistry::instance().initialize();
 
@@ -308,7 +351,7 @@ std::unique_ptr<LayerStack> createOverworldLayers(u64 seed, bool isLargeBiomes) 
 std::unique_ptr<LayerStack> createNetherLayers(u64 seed) {
     // 下界使用简化的层堆叠
     BiomeRegistry::instance().initialize();
-    auto context = std::make_shared<LayerContext>(1024, seed, 1);
+    auto context = std::make_shared<LayerContext>(LayerCacheConfig::DEFAULT_CACHE_SIZE, seed, 1);
     static layer::IslandLayer islandLayer;
     auto factory = islandLayer.apply(*context);
     auto area = factory->create();
@@ -318,7 +361,7 @@ std::unique_ptr<LayerStack> createNetherLayers(u64 seed) {
 std::unique_ptr<LayerStack> createEndLayers(u64 seed) {
     // 末地使用简化的层堆叠
     BiomeRegistry::instance().initialize();
-    auto context = std::make_shared<LayerContext>(1024, seed, 1);
+    auto context = std::make_shared<LayerContext>(LayerCacheConfig::DEFAULT_CACHE_SIZE, seed, 1);
     static layer::IslandLayer islandLayer;
     auto factory = islandLayer.apply(*context);
     auto area = factory->create();
@@ -338,23 +381,27 @@ LayerBiomeProvider::LayerBiomeProvider(u64 seed, bool isLargeBiomes)
 }
 
 BiomeId LayerBiomeProvider::getBiome(i32 x, i32 y, i32 z) const {
+    MC_TRACE_EVENT("world.biome", "LayerBiomeProvider_GetBiome", "x", x, "z", z);
     (void)y;  // Layer 系统不使用 Y 坐标
     return m_layerStack->sample(x, z);
 }
 
 BiomeId LayerBiomeProvider::getNoiseBiome(i32 noiseX, i32 noiseY, i32 noiseZ) const {
+    MC_TRACE_EVENT("world.biome", "LayerBiomeProvider_GetNoiseBiome", "noiseX", noiseX, "noiseZ", noiseZ);
     (void)noiseY;  // Layer 系统不使用 Y 坐标
     // 噪声坐标是 4x4 方块一个大块
     return m_layerStack->sample(noiseX << 2, noiseZ << 2);
 }
 
 f32 LayerBiomeProvider::getDepth(i32 x, i32 z) const {
+    MC_TRACE_EVENT("world.biome", "LayerBiomeProvider_GetDepth", "x", x, "z", z);
     const BiomeId biomeId = m_layerStack->sample(x, z);
     const Biome& biome = BiomeRegistry::instance().get(biomeId);
     return biome.depth();
 }
 
 f32 LayerBiomeProvider::getScale(i32 x, i32 z) const {
+    MC_TRACE_EVENT("world.biome", "LayerBiomeProvider_GetScale", "x", x, "z", z);
     const BiomeId biomeId = m_layerStack->sample(x, z);
     const Biome& biome = BiomeRegistry::instance().get(biomeId);
     return biome.scale();
@@ -365,21 +412,33 @@ const Biome& LayerBiomeProvider::getBiomeDefinition(BiomeId id) const {
 }
 
 void LayerBiomeProvider::fillBiomeContainer(BiomeContainer& container, ChunkCoord chunkX, ChunkCoord chunkZ) {
+    MC_TRACE_EVENT("world.biome", "LayerBiomeProvider_FillBiomeContainer", "chunkX", chunkX, "chunkZ", chunkZ);
     const i32 startX = chunkX << 4;
     const i32 startZ = chunkZ << 4;
 
-    // 遍历生物群系采样点 (4x4x4 方块为一个采样点)
+    // 使用批量采样优化
+    // BiomeContainer 是 4x4x4 网格，每个采样点间隔 4 方块
+    // 水平方向是 4x4 = 16 个采样点
+    std::array<BiomeId, 16> horizontalBiomes;
+    m_layerStack->sampleBatch(startX, startZ, 4, 4, horizontalBiomes.data());
+
+    // 填充到容器（高度方向复用水平分布）
     for (i32 by = 0; by < BiomeContainer::BIOME_HEIGHT; ++by) {
         for (i32 bz = 0; bz < BiomeContainer::BIOME_DEPTH; ++bz) {
             for (i32 bx = 0; bx < BiomeContainer::BIOME_WIDTH; ++bx) {
-                const i32 worldX = startX + (bx << 2);
-                const i32 worldZ = startZ + (bz << 2);
-
-                const BiomeId biome = m_layerStack->sample(worldX, worldZ);
-                container.setBiome(bx, by, bz, biome);
+                const i32 idx = bz * BiomeContainer::BIOME_WIDTH + bx;
+                container.setBiome(bx, by, bz, horizontalBiomes[idx]);
             }
         }
     }
+}
+
+void LayerBiomeProvider::getBiomesBatch(i32 startX, i32 startY, i32 startZ, i32 width, i32 height,
+                                          BiomeId* output) const {
+    MC_TRACE_EVENT("world.biome", "LayerBiomeProvider_GetBiomesBatch", "startX", startX, "startZ", startZ, "width", width, "height", height);
+    (void)startY;  // Layer 系统不使用 Y 坐标
+
+    m_layerStack->sampleBatch(startX, startZ, width, height, output);
 }
 
 } // namespace mc

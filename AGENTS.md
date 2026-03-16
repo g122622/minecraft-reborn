@@ -167,6 +167,8 @@ void createWindow(int width, int height, int x, int y,
                   const std::string& title, bool fullscreen,
                   int monitor, bool vsync, int samples);
 
+// ✅ 推荐：使用BlockPos、ChunkPos等已有工具类表示方块/区块坐标，降低参数复杂度
+
 // ✅ 推荐：使用配置结构体
 struct WindowConfig {
     int width = 1920;

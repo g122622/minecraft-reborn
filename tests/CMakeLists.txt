@@ -80,6 +80,13 @@ add_executable(mc_tests
     physics/CollisionCacheTests.cpp
     # ServerWorld 碰撞检测测试
     server/ServerWorldCollisionTests.cpp
+    # 资源包兼容层测试
+    common/resource/compat/CompatLayerTest.cpp
+    # 缓存性能对比测试
+    common/util/cache/CacheBenchmark.cpp
+    # 生物群系层测试
+    common/world/biome/layer/BiomeLayerTest.cpp
+    common/world/biome/layer/MergeLayersTest.cpp
 )
 
 # 添加服务端源文件
@@ -231,6 +238,13 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/client/resource/BlockModelLoader.cpp
         ${CMAKE_SOURCE_DIR}/src/client/resource/BlockStateLoader.cpp
         ${CMAKE_SOURCE_DIR}/src/client/resource/TextureAtlasBuilder.cpp
+        # 资源包兼容层
+        ${CMAKE_SOURCE_DIR}/src/common/resource/compat/PackFormat.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/resource/compat/ResourceMapper.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/resource/compat/TextureMapper.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/resource/compat/v1_12/ResourceMapperV112.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/resource/compat/v1_13/ResourceMapperV113.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/resource/loader/ResourceLoader.cpp
 )
 
 target_link_libraries(mc_tests

@@ -4,6 +4,7 @@
 #include "common/network/LocalServerConnection.hpp"
 #include "common/network/LocalConnection.hpp"
 #include <algorithm>
+#include <thread>
 
 using namespace mc::server;
 using namespace mc::network;
@@ -257,4 +258,69 @@ TEST_F(ServerCoreTest, GameTime) {
 
     m_core->timeManager().setGameTime(10000);
     EXPECT_EQ(m_core->gameTime().gameTime(), 10000);
+}
+
+// ============================================================================
+// 游戏模式管理测试
+// ============================================================================
+
+TEST_F(ServerCoreTest, SetPlayerGameMode) {
+    auto conn = createConnection();
+    m_core->addPlayer(1, "Steve", conn);
+
+    // 默认游戏模式应为 Survival
+    auto* player = m_core->getPlayer(1);
+    ASSERT_NE(player, nullptr);
+    EXPECT_EQ(player->gameMode, mc::GameMode::Survival);
+
+    // 设置为创造模式
+    EXPECT_TRUE(m_core->setPlayerGameMode(1, mc::GameMode::Creative));
+    EXPECT_EQ(player->gameMode, mc::GameMode::Creative);
+
+    // 设置为旁观模式
+    EXPECT_TRUE(m_core->setPlayerGameMode(1, mc::GameMode::Spectator));
+    EXPECT_EQ(player->gameMode, mc::GameMode::Spectator);
+
+    // 设置不存在的玩家应返回 false
+    EXPECT_FALSE(m_core->setPlayerGameMode(999, mc::GameMode::Creative));
+}
+
+TEST_F(ServerCoreTest, GetPlayerGameMode) {
+    auto conn = createConnection();
+    m_core->addPlayer(1, "Steve", conn);
+
+    // 默认游戏模式
+    EXPECT_EQ(m_core->getPlayerGameMode(1), mc::GameMode::Survival);
+
+    // 修改后获取
+    m_core->setPlayerGameMode(1, mc::GameMode::Adventure);
+    EXPECT_EQ(m_core->getPlayerGameMode(1), mc::GameMode::Adventure);
+
+    // 不存在的玩家返回 NotSet
+    EXPECT_EQ(m_core->getPlayerGameMode(999), mc::GameMode::NotSet);
+}
+
+TEST_F(ServerCoreTest, SetPlayerGameModeThreadSafe) {
+    auto conn = createConnection();
+    m_core->addPlayer(1, "Steve", conn);
+
+    // 并发设置游戏模式（虽然简单测试，但验证线程安全）
+    std::vector<std::thread> threads;
+    for (int i = 0; i < 10; ++i) {
+        threads.emplace_back([this, i]() {
+            mc::GameMode mode = static_cast<mc::GameMode>(i % 4);
+            m_core->setPlayerGameMode(1, mode);
+        });
+    }
+
+    for (auto& t : threads) {
+        t.join();
+    }
+
+    // 验证玩家存在且游戏模式有效
+    auto mode = m_core->getPlayerGameMode(1);
+    EXPECT_TRUE(mode == mc::GameMode::Survival ||
+                mode == mc::GameMode::Creative ||
+                mode == mc::GameMode::Adventure ||
+                mode == mc::GameMode::Spectator);
 }

@@ -61,13 +61,18 @@ public:
     }
 
     [[nodiscard]] std::vector<::mc::ServerPlayer*> getPlayers() override {
-        // TODO: 从 PlayerManager 获取玩家列表
+        // TODO: IntegratedServer 目前没有 ServerPlayer 实体，只有 ServerPlayerData
+        // 暂时返回空列表，后续可以创建 ServerPlayer 包装器
         return {};
     }
 
     [[nodiscard]] ::mc::ServerPlayer* getPlayer(const String& /*name*/) override {
         // TODO: 从 PlayerManager 查找玩家
         return nullptr;
+    }
+
+    [[nodiscard]] size_t playerCount() const override {
+        return m_core ? m_core->playerCount() : 0;
     }
 
     void broadcast(const String& message) override {
@@ -87,12 +92,25 @@ public:
     }
 
     bool teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch) override {
-        if (!m_world) return false;
-        m_world->teleportPlayer(playerId, x, y, z, yaw, pitch);
-        return true;
+        // 优先使用 ServerCore（适用于 IntegratedServer）
+        if (m_core) {
+            m_core->teleportPlayer(playerId, x, y, z, yaw, pitch);
+            return true;
+        }
+        // 回退到 ServerWorld（适用于独立服务器）
+        if (m_world) {
+            m_world->teleportPlayer(playerId, x, y, z, yaw, pitch);
+            return true;
+        }
+        return false;
     }
 
     bool setPlayerGameMode(PlayerId playerId, GameMode mode) override {
+        // 优先使用 ServerCore（适用于 IntegratedServer）
+        if (m_core && m_core->setPlayerGameMode(playerId, mode)) {
+            return true;
+        }
+        // 回退到 ServerWorld（适用于独立服务器）
         return m_world ? m_world->setPlayerGameMode(playerId, mode) : false;
     }
 

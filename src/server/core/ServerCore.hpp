@@ -292,6 +292,23 @@ public:
      */
     void recordKeepAliveSent(PlayerId playerId, u64 timestamp);
 
+    // --- 游戏模式管理 ---
+
+    /**
+     * @brief 设置玩家游戏模式
+     * @param playerId 玩家ID
+     * @param mode 游戏模式
+     * @return true 如果设置成功
+     */
+    bool setPlayerGameMode(PlayerId playerId, GameMode mode);
+
+    /**
+     * @brief 获取玩家游戏模式
+     * @param playerId 玩家ID
+     * @return 游戏模式，如果玩家不存在返回 NotSet
+     */
+    [[nodiscard]] GameMode getPlayerGameMode(PlayerId playerId) const;
+
     // ========== 主循环 ==========
 
     /**
