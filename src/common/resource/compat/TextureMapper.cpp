@@ -19,7 +19,7 @@ const TextureMapper& TextureMapper::instance() {
 
 TextureMapper::TextureMapper() {
     initializeMappings();
-    spdlog::info("[TextureMapper] 已初始化 {} 个纹理名称映射",
+    spdlog::info("[TextureMapper] Initialized with {} texture name mappings",
                  m_modernToLegacy.size());
 }
 
