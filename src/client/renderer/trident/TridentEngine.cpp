@@ -6,10 +6,13 @@
 #include "render/FrameManager.hpp"
 #include "render/DescriptorManager.hpp"
 #include "render/UniformManager.hpp"
+#include "pipeline/TridentPipeline.hpp"
 #include "buffer/TridentBuffer.hpp"
 #include "texture/TridentTexture.hpp"
 #include "../api/IRenderEngine.hpp"
 #include "../ChunkRenderer.hpp"
+#include "../MeshTypes.hpp"
+#include "../util/ShaderPath.hpp"
 #include "../sky/SkyRenderer.hpp"
 #include "../../ui/GuiRenderer.hpp"
 #include "../../ui/Font.hpp"
@@ -22,8 +25,22 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <cstring>
 #include <array>
+#include <cstddef>
 
 namespace mc::client::renderer::trident {
+
+namespace {
+
+/**
+ * @brief 区块推送常量
+ */
+struct ChunkPushConstants {
+    glm::mat4 model;
+    glm::vec3 chunkOffset;
+    f32 padding;
+};
+
+} // anonymous namespace
 
 // ============================================================================
 // 构造/析构
@@ -205,6 +222,8 @@ void TridentEngine::destroy() {
     m_frameManager.reset();
     m_renderPassManager.reset();
     m_swapchain.reset();
+    m_chunkPipeline.reset();
+    m_chunkTextureDescriptorSet = VK_NULL_HANDLE;
 
     if (m_context) {
         m_context->destroy();
@@ -283,19 +302,6 @@ Result<void> TridentEngine::beginFrame() {
     scissor.extent = m_swapchain->extent();
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-    // 绑定管线布局
-    VkDescriptorSet cameraSet = m_uniformManager->cameraDescriptorSet(m_frameContext.frameIndex);
-    vkCmdBindDescriptorSets(
-        cmd,
-        VK_PIPELINE_BIND_POINT_GRAPHICS,
-        m_descriptorManager->pipelineLayout(),
-        0,  // first set
-        1,  // set count
-        &cameraSet,
-        0,
-        nullptr
-    );
-
     m_frameStarted = true;
     return {};
 }
@@ -332,6 +338,19 @@ Result<void> TridentEngine::present() {
 }
 
 Result<void> TridentEngine::render() {
+    if (!m_initialized) {
+        return Error(ErrorCode::NotInitialized, "TridentEngine not initialized");
+    }
+
+    // GUI 纹理更新必须在渲染通道外执行
+    if (m_guiRendererInitialized && m_guiRendererPtr) {
+        VkCommandBuffer prepareCmd = m_context->beginSingleTimeCommands();
+        if (prepareCmd != VK_NULL_HANDLE) {
+            m_guiRendererPtr->prepareFrame(prepareCmd);
+            m_context->endSingleTimeCommands(prepareCmd);
+        }
+    }
+
     // 1. 开始帧
     auto beginResult = beginFrame();
     if (beginResult.failed()) {
@@ -343,23 +362,111 @@ Result<void> TridentEngine::render() {
         return Error(ErrorCode::InvalidState, "Command buffer is null");
     }
 
-    // 2. 调用实体渲染回调（在区块渲染之前）
+    // 2. 每帧更新相机矩阵与 Uniform
+    if (m_frameContext.camera && m_uniformManager) {
+        m_frameContext.viewMatrix = m_frameContext.camera->viewMatrix();
+        m_frameContext.projectionMatrix = m_frameContext.camera->projectionMatrix();
+        m_frameContext.viewProjectionMatrix = m_frameContext.projectionMatrix * m_frameContext.viewMatrix;
+        m_uniformManager->updateCamera(
+            m_frameContext.viewMatrix,
+            m_frameContext.projectionMatrix,
+            m_frameContext.frameIndex
+        );
+    }
+
+    // 3. 渲染天空
+    if (m_skyRendererInitialized && m_skyRenderer) {
+        m_skyRenderer->update(m_dayTime, m_gameTime, m_partialTick);
+
+        glm::vec3 cameraPos(0.0f);
+        glm::vec3 cameraForward(0.0f, 0.0f, -1.0f);
+        if (m_frameContext.camera) {
+            cameraPos = m_frameContext.camera->position();
+            cameraForward = m_frameContext.camera->forward();
+        }
+
+        m_skyRenderer->render(
+            cmd,
+            m_frameContext.viewProjectionMatrix,
+            cameraPos,
+            cameraForward,
+            m_frameContext.frameIndex
+        );
+    }
+
+    // 4. 渲染区块
+    if (m_chunkRendererInitialized && m_chunkRenderer && m_chunkPipeline &&
+        m_chunkPipeline->isValid() && m_chunkTextureDescriptorSet != VK_NULL_HANDLE) {
+
+        m_chunkPipeline->bind(cmd);
+
+        VkDescriptorSet cameraSet = m_uniformManager->cameraDescriptorSet(m_frameContext.frameIndex);
+        vkCmdBindDescriptorSets(
+            cmd,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            m_chunkPipeline->layout(),
+            0,
+            1,
+            &cameraSet,
+            0,
+            nullptr
+        );
+
+        vkCmdBindDescriptorSets(
+            cmd,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            m_chunkPipeline->layout(),
+            1,
+            1,
+            &m_chunkTextureDescriptorSet,
+            0,
+            nullptr
+        );
+
+        m_chunkRenderer->render(cmd, m_chunkPipeline->layout(),
+            [this, cmd](const ChunkId& chunkId) {
+                ChunkPushConstants pushConstants{};
+                pushConstants.model = glm::mat4(1.0f);
+                pushConstants.chunkOffset = glm::vec3(
+                    static_cast<f32>(chunkId.x * constants::CHUNK_WIDTH),
+                    0.0f,
+                    static_cast<f32>(chunkId.z * constants::CHUNK_WIDTH)
+                );
+                pushConstants.padding = 0.0f;
+
+                vkCmdPushConstants(
+                    cmd,
+                    m_chunkPipeline->layout(),
+                    VK_SHADER_STAGE_VERTEX_BIT,
+                    0,
+                    sizeof(ChunkPushConstants),
+                    &pushConstants
+                );
+            }
+        );
+    }
+
+    // 5. 调用实体渲染回调
     if (m_entityRenderCallback) {
-        m_entityRenderCallback(cmd, m_frameContext.deltaTime);
+        m_entityRenderCallback(cmd, m_partialTick);
     }
 
-    // 3. 调用 GUI 渲染回调
-    if (m_guiRenderCallback) {
-        m_guiRenderCallback();
+    // 6. 渲染 GUI
+    if (m_guiRendererInitialized && m_guiRendererPtr) {
+        m_guiRendererPtr->beginFrame(static_cast<f32>(m_windowWidth), static_cast<f32>(m_windowHeight));
+        if (m_guiRenderCallback) {
+            m_guiRenderCallback();
+        }
+        m_guiRendererPtr->render(cmd);
     }
 
-    // 4. 结束帧
+    // 7. 结束帧
     auto endResult = endFrame();
     if (endResult.failed()) {
         return endResult.error();
     }
 
-    // 5. 呈现
+    // 8. 呈现
     return present();
 }
 
@@ -571,6 +678,10 @@ VkDescriptorSet TridentEngine::cameraDescriptorSet() const {
 }
 
 void TridentEngine::updateTime(i64 dayTime, i64 gameTime, f32 partialTick) {
+    m_dayTime = dayTime;
+    m_gameTime = gameTime;
+    m_partialTick = partialTick;
+
     if (m_uniformManager) {
         m_uniformManager->updateLighting(dayTime, gameTime, partialTick);
     }
@@ -786,6 +897,71 @@ Result<void> TridentEngine::initializeChunkRenderer() {
         return result.error();
     }
 
+    // 创建区块图形管线
+    if (!m_chunkPipeline) {
+        m_chunkPipeline = std::make_unique<TridentPipeline>();
+    }
+
+    TridentPipelineConfig pipelineConfig{};
+    const auto vertPath = resolveShaderPath("chunk.vert.spv");
+    const auto fragPath = resolveShaderPath("chunk.frag.spv");
+    if (vertPath.empty() || fragPath.empty()) {
+        return Error(ErrorCode::FileNotFound, "Failed to resolve chunk shader binaries");
+    }
+
+    pipelineConfig.vertexShaderPath = vertPath.string();
+    pipelineConfig.fragmentShaderPath = fragPath.string();
+    pipelineConfig.renderPass = renderPass();
+    pipelineConfig.cullMode = VK_CULL_MODE_NONE;
+    pipelineConfig.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    pipelineConfig.depthTestEnable = VK_TRUE;
+    pipelineConfig.depthWriteEnable = VK_TRUE;
+    pipelineConfig.depthCompareOp = VK_COMPARE_OP_LESS;
+    pipelineConfig.blendEnable = VK_FALSE;
+
+    VkVertexInputBindingDescription bindingDesc{};
+    bindingDesc.binding = 0;
+    bindingDesc.stride = sizeof(Vertex);
+    bindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    pipelineConfig.vertexBindings.push_back(bindingDesc);
+
+    std::array<VkVertexInputAttributeDescription, 5> attrs{};
+    attrs[0] = {0, 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<u32>(offsetof(Vertex, x))};
+    attrs[1] = {1, 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<u32>(offsetof(Vertex, nx))};
+    attrs[2] = {2, 0, VK_FORMAT_R32G32_SFLOAT,    static_cast<u32>(offsetof(Vertex, u))};
+    attrs[3] = {3, 0, VK_FORMAT_R8G8B8A8_UNORM,   static_cast<u32>(offsetof(Vertex, color))};
+    attrs[4] = {4, 0, VK_FORMAT_R8_UNORM,         static_cast<u32>(offsetof(Vertex, light))};
+    pipelineConfig.vertexAttributes.assign(attrs.begin(), attrs.end());
+
+    pipelineConfig.descriptorSetLayouts = {
+        m_descriptorManager->cameraLayout(),
+        m_descriptorManager->textureLayout()
+    };
+
+    VkPushConstantRange pushConstantRange{};
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    pushConstantRange.offset = 0;
+    pushConstantRange.size = sizeof(ChunkPushConstants);
+    pipelineConfig.pushConstantRanges.push_back(pushConstantRange);
+
+    auto pipelineResult = m_chunkPipeline->create(m_context.get(), pipelineConfig);
+    if (pipelineResult.failed()) {
+        m_chunkRenderer->destroy();
+        m_chunkRenderer.reset();
+        m_chunkPipeline.reset();
+        return pipelineResult.error();
+    }
+
+    // 预分配纹理描述符集（纹理上传后再写入）
+    auto textureSetResult = m_descriptorManager->allocateTextureSet();
+    if (textureSetResult.failed()) {
+        m_chunkRenderer->destroy();
+        m_chunkRenderer.reset();
+        m_chunkPipeline.reset();
+        return textureSetResult.error();
+    }
+    m_chunkTextureDescriptorSet = textureSetResult.value();
+
     m_chunkRendererInitialized = true;
     spdlog::info("Chunk renderer initialized");
     return {};
@@ -844,6 +1020,15 @@ Result<void> TridentEngine::initializeGuiRenderer() {
         return result.error();
     }
 
+    if (!m_font) {
+        m_font = std::make_unique<Font>();
+    }
+    m_guiRendererPtr->setFont(m_font.get());
+
+    if (m_itemTextureAtlas.isValid()) {
+        m_guiRendererPtr->setItemTextureAtlas(m_itemTextureAtlas.imageView(), m_itemTextureAtlas.sampler());
+    }
+
     m_guiRendererInitialized = true;
     spdlog::info("GUI renderer initialized");
     return {};
@@ -866,6 +1051,10 @@ Result<void> TridentEngine::initializeItemRenderer(ResourceManager* resourceMana
     if (result.failed()) {
         m_itemRenderer.reset();
         return result.error();
+    }
+
+    if (m_guiRendererInitialized && m_guiRendererPtr && m_itemTextureAtlas.isValid()) {
+        m_guiRendererPtr->setItemTextureAtlas(m_itemTextureAtlas.imageView(), m_itemTextureAtlas.sampler());
     }
 
     m_itemRendererInitialized = true;
@@ -954,6 +1143,25 @@ Result<void> TridentEngine::updateTextureAtlas(const AtlasBuildResult& atlasResu
     if (loadResult.failed()) {
         spdlog::error("Failed to load texture atlas to chunk renderer: {}", loadResult.error().toString());
         return loadResult.error();
+    }
+
+    // 更新区块纹理描述符（set = 1, binding = 0）
+    if (m_chunkTextureDescriptorSet != VK_NULL_HANDLE) {
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = m_chunkRenderer->textureAtlas().imageView;
+        imageInfo.sampler = m_chunkRenderer->textureAtlas().sampler;
+
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = m_chunkTextureDescriptorSet;
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pImageInfo = &imageInfo;
+
+        vkUpdateDescriptorSets(device(), 1, &descriptorWrite, 0, nullptr);
     }
 
     // 更新实体管线的纹理（如果已初始化）

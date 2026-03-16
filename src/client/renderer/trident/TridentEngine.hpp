@@ -39,6 +39,7 @@ class RenderPassManager;
 class FrameManager;
 class DescriptorManager;
 class UniformManager;
+class TridentPipeline;
 
 /**
  * @brief GUI 渲染回调类型
@@ -401,6 +402,10 @@ private:
     std::unique_ptr<FrameManager> m_frameManager;
     std::unique_ptr<DescriptorManager> m_descriptorManager;
     std::unique_ptr<UniformManager> m_uniformManager;
+    std::unique_ptr<TridentPipeline> m_chunkPipeline;
+
+    // 区块纹理描述符集（set = 1）
+    VkDescriptorSet m_chunkTextureDescriptorSet = VK_NULL_HANDLE;
 
     // 配置
     api::RenderEngineConfig m_config;
@@ -411,6 +416,11 @@ private:
 
     // 当前渲染类型
     api::RenderType m_currentRenderType;
+
+    // 时间状态（用于天空/光照）
+    i64 m_dayTime = 0;
+    i64 m_gameTime = 0;
+    f32 m_partialTick = 0.0f;
 
     // 窗口尺寸
     u32 m_windowWidth = 0;

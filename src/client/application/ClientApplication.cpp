@@ -313,6 +313,31 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         spdlog::warn("ResourceManager is null, skipping texture atlas update");
     }
 
+    // 初始化 Trident 子渲染器
+    {
+        auto skyInitResult = m_renderer->initializeSkyRenderer();
+        if (skyInitResult.failed()) {
+            spdlog::warn("Failed to initialize sky renderer: {}", skyInitResult.error().toString());
+        }
+
+        auto guiInitResult = m_renderer->initializeGuiRenderer();
+        if (guiInitResult.failed()) {
+            spdlog::warn("Failed to initialize GUI renderer: {}", guiInitResult.error().toString());
+        }
+
+        auto entityInitResult = m_renderer->initializeEntityRenderer();
+        if (entityInitResult.failed()) {
+            spdlog::warn("Failed to initialize entity renderer: {}", entityInitResult.error().toString());
+        }
+
+        if (m_resourceManager) {
+            auto itemInitResult = m_renderer->initializeItemRenderer(m_resourceManager.get());
+            if (itemInitResult.failed()) {
+                spdlog::warn("Failed to initialize item renderer: {}", itemInitResult.error().toString());
+            }
+        }
+    }
+
     // 启动内置服务端
     if (!params.skipIntegratedServer) {
         spdlog::info("Starting integrated server...");
