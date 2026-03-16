@@ -7,7 +7,7 @@
 
 #include "common/core/Types.hpp"
 #include "common/world/time/GameTime.hpp"
-#include "client/renderer/sky/CelestialCalculations.hpp"
+#include "client/renderer/trident/sky/CelestialCalculations.hpp"
 
 using namespace mc;
 using namespace mc::time;
@@ -228,6 +228,16 @@ TEST(CelestialCalculationsTest, SkyColorNoonBlue) {
     EXPECT_FLOAT_EQ(color.a, 1.0f);
 }
 
+TEST(CelestialCalculationsTest, SkyColorNoonMatchesOverworldDefault78A7FF) {
+    const f32 angle = CelestialCalculations::calculateCelestialAngle(6000);
+    const glm::vec4 color = CelestialCalculations::calculateSkyColor(angle, 0.0f, 0.0f);
+    const glm::vec3 base = CelestialCalculations::getOverworldBaseSkyColor();
+
+    EXPECT_NEAR(color.r, base.r, 0.01f);
+    EXPECT_NEAR(color.g, base.g, 0.01f);
+    EXPECT_NEAR(color.b, base.b, 0.01f);
+}
+
 TEST(CelestialCalculationsTest, SkyColorMidnightDark) {
     f32 angle = CelestialCalculations::calculateCelestialAngle(18000);
     glm::vec4 color = CelestialCalculations::calculateSkyColor(angle);
@@ -237,6 +247,54 @@ TEST(CelestialCalculationsTest, SkyColorMidnightDark) {
     EXPECT_LT(color.r, 0.15f);
     EXPECT_LT(color.g, 0.15f);
     EXPECT_LT(color.b, 0.2f);
+}
+
+TEST(CelestialCalculationsTest, SunriseSunsetColorAppearsNearHorizonAndPeaksThenFades) {
+    f32 maxAlpha = 0.0f;
+    i64 maxAlphaTime = -1;
+
+    // 扫描整天，确认效果只在晨昏附近出现。
+    for (i64 t = 0; t < 24000; t += 100) {
+        const f32 angle = CelestialCalculations::calculateCelestialAngle(t);
+        const glm::vec4 sunrise = CelestialCalculations::calculateSunriseSunsetColor(angle, 0.0f, 0.0f);
+        if (sunrise.a > maxAlpha) {
+            maxAlpha = sunrise.a;
+            maxAlphaTime = t;
+        }
+    }
+
+    EXPECT_GT(maxAlpha, 0.3f);
+    EXPECT_GE(maxAlphaTime, 0);
+
+    // 正午应无晨昏色。
+    const f32 noonAngle = CelestialCalculations::calculateCelestialAngle(6000);
+    const glm::vec4 noonSunrise = CelestialCalculations::calculateSunriseSunsetColor(noonAngle, 0.0f, 0.0f);
+    EXPECT_LT(noonSunrise.a, 0.001f);
+}
+
+TEST(CelestialCalculationsTest, SunriseSunsetColorIsAttenuatedByWeather) {
+    // 取一段接近晨昏的时间（靠近日落）。
+    const f32 angle = CelestialCalculations::calculateCelestialAngle(12000);
+    const glm::vec4 clear = CelestialCalculations::calculateSunriseSunsetColor(angle, 0.0f, 0.0f);
+    const glm::vec4 rain = CelestialCalculations::calculateSunriseSunsetColor(angle, 1.0f, 0.0f);
+    const glm::vec4 thunder = CelestialCalculations::calculateSunriseSunsetColor(angle, 0.0f, 1.0f);
+
+    EXPECT_GE(clear.a, rain.a);
+    EXPECT_GE(clear.a, thunder.a);
+}
+
+TEST(CelestialCalculationsTest, SunriseFacingFactorUsesHorizontalDirectionOnly) {
+    const glm::vec3 sunriseDir(1.0f, 0.0f, 0.0f);
+
+    const f32 facing = CelestialCalculations::calculateSunriseFacingFactor(
+        glm::normalize(glm::vec3(1.0f, 0.8f, 0.0f)),
+        sunriseDir);
+    const f32 opposite = CelestialCalculations::calculateSunriseFacingFactor(
+        glm::normalize(glm::vec3(-1.0f, -0.2f, 0.0f)),
+        sunriseDir);
+
+    EXPECT_GT(facing, 0.95f);
+    EXPECT_LT(opposite, 0.05f);
 }
 
 TEST(CelestialCalculationsTest, StarBrightnessNoonZero) {

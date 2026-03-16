@@ -168,7 +168,7 @@ void EntityMetadataSerializer::serializeEntry(u16 id, const entity::DataValue& v
 // 反序列化
 // ============================================================================
 
-bool EntityMetadataSerializer::deserialize(const std::vector<u8>& data, entity::EntityDataManager& manager) {
+bool EntityMetadataSerializer::deserialize(const std::vector<u8>& data, entity::EntityDataManager& /* manager */) {
     size_t offset = 0;
 
     while (offset < data.size()) {
@@ -188,7 +188,7 @@ bool EntityMetadataSerializer::deserialize(const std::vector<u8>& data, entity::
         switch (static_cast<MetadataTypeId>(typeId)) {
             case MetadataTypeId::Byte: {
                 if (offset >= data.size()) return false;
-                i8 val = static_cast<i8>(data[offset++]);
+                (void)data[offset++];  // 读取字节值（当前实现跳过）
                 // 需要知道具体的 DataParameter 来设置值
                 // 这里先跳过，实际使用时需要更复杂的映射
                 break;

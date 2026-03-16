@@ -611,7 +611,7 @@ Result<ModelElement> BlockModelLoader::parseElement(const nlohmann::json& json)
     return elem;
 }
 
-Result<ModelFace> BlockModelLoader::parseFace(const nlohmann::json& json, Direction dir)
+Result<ModelFace> BlockModelLoader::parseFace(const nlohmann::json& json, Direction /* dir */)
 {
     ModelFace face;
 

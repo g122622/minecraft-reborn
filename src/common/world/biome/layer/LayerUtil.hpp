@@ -1,30 +1,98 @@
 #pragma once
 
-#include "Layer.hpp"
-#include "LazyArea.hpp"
-#include "transformers/BasicTransformers.hpp"
-#include "transformers/BiomeTransformers.hpp"
+#include "LayerContext.hpp"
+#include "transformers/SourceLayers.hpp"
+#include "transformers/ClimateLayers.hpp"
+#include "transformers/EdgeLayers.hpp"
+#include "transformers/ZoomLayers.hpp"
+#include "transformers/BiomeLayers.hpp"
+#include "transformers/MergeLayers.hpp"
 #include "../BiomeProvider.hpp"
 #include <memory>
-#include <vector>
+#include <functional>
 
 namespace mc {
 
+// Forward declaration
+class LayerStack;
+
+namespace LayerUtil {
+
 /**
- * @brief 层堆叠构建器
+ * @brief 重复应用缩放层
  *
- * 构建层叠生物群系生成管道。
- * 参考 MC LayerStack / LayerUtil
+ * @param seed 世界种子
+ * @param zoom 缩放层变换器
+ * @param input 输入工厂
+ * @param count 重复次数
+ * @param contextFactory 上下文工厂函数
+ * @return 缩放后的区域工厂
+ */
+std::unique_ptr<IAreaFactory> repeatZoom(
+    u64 seed,
+    layer::ZoomLayer& zoom,
+    std::unique_ptr<IAreaFactory> input,
+    i32 count,
+    std::function<std::shared_ptr<LayerContext>(u64)> contextFactory);
+
+/**
+ * @brief 构建主世界层链
+ *
+ * 参考 MC 1.16.5 LayerUtil.func_237216_a_
+ *
+ * @param seed 世界种子
+ * @param legacyBiomeInit 是否使用旧版生物群系初始化
+ * @param largeBiomes 是否使用大型生物群系
+ * @param biomeSize 生物群系大小参数 (默认 4)
+ * @param riverSize 河流大小参数 (默认 4)
+ * @return 最终区域工厂
+ */
+std::unique_ptr<IAreaFactory> buildOverworldLayers(
+    u64 seed,
+    bool legacyBiomeInit = false,
+    bool largeBiomes = false,
+    i32 biomeSize = 4,
+    i32 riverSize = 4);
+
+/**
+ * @brief 创建主世界层堆叠
+ *
+ * @param seed 世界种子
+ * @param isLargeBiomes 是否使用大型生物群系
+ * @return 层堆叠
+ */
+std::unique_ptr<LayerStack> createOverworldLayers(u64 seed, bool isLargeBiomes = false);
+
+/**
+ * @brief 创建下界层堆叠
+ *
+ * @param seed 世界种子
+ * @return 层堆叠
+ */
+std::unique_ptr<LayerStack> createNetherLayers(u64 seed);
+
+/**
+ * @brief 创建末地层堆叠
+ *
+ * @param seed 世界种子
+ * @return 层堆叠
+ */
+std::unique_ptr<LayerStack> createEndLayers(u64 seed);
+
+} // namespace LayerUtil
+
+/**
+ * @brief 层堆叠
+ *
+ * 管理完整的层链，提供生物群系采样接口。
  */
 class LayerStack {
 public:
     /**
-     * @brief 构建层堆叠
-     * @param seed 世界种子
-     * @param isLargeBiomes 是否使用大型生物群系
+     * @brief 构造层堆叠
+     * @param area 最终区域
      */
-    explicit LayerStack(u64 seed, bool isLargeBiomes = false);
-    ~LayerStack() = default;
+    explicit LayerStack(std::unique_ptr<IArea> area);
 
     /**
      * @brief 采样指定位置的生物群系
@@ -36,30 +104,24 @@ public:
 
     /**
      * @brief 采样指定区域的生物群系
-     * @param startX 起始 X
-     * @param startZ 起始 Z
+     */
+    [[nodiscard]] std::vector<BiomeId> sampleArea(i32 startX, i32 startZ, i32 width, i32 height) const;
+
+    /**
+     * @brief 批量采样指定区域的生物群系
+     *
+     * 单次加锁批量获取多个坐标的生物群系，减少锁竞争开销。
+     *
+     * @param startX 起始 X 坐标
+     * @param startZ 起始 Z 坐标
      * @param width 宽度
      * @param height 高度
-     * @return 生物群系数组
+     * @param output 输出数组（大小必须 >= width * height）
      */
-    [[nodiscard]] std::vector<BiomeId> sampleArea(i32 startX, i32 startZ,
-                                                   i32 width, i32 height) const;
-
-    /**
-     * @brief 获取区域上下文
-     */
-    [[nodiscard]] std::shared_ptr<IAreaContext> getContext() const { return m_context; }
+    void sampleBatch(i32 startX, i32 startZ, i32 width, i32 height, BiomeId* output) const;
 
 private:
-    u64 m_seed;
-    bool m_isLargeBiomes;
-    std::shared_ptr<IAreaContext> m_context;
-    std::vector<std::unique_ptr<IArea>> m_layers;
-
-    /**
-     * @brief 初始化层堆叠
-     */
-    void initLayers();
+    std::unique_ptr<IArea> m_area;
 };
 
 /**
@@ -70,11 +132,6 @@ private:
  */
 class LayerBiomeProvider : public BiomeProvider {
 public:
-    /**
-     * @brief 构造基于层的生物群系提供者
-     * @param seed 世界种子
-     * @param isLargeBiomes 是否使用大型生物群系
-     */
     LayerBiomeProvider(u64 seed, bool isLargeBiomes = false);
     ~LayerBiomeProvider() override = default;
 
@@ -85,41 +142,16 @@ public:
     [[nodiscard]] const Biome& getBiomeDefinition(BiomeId id) const override;
     void fillBiomeContainer(BiomeContainer& container, ChunkCoord chunkX, ChunkCoord chunkZ) override;
 
+    /**
+     * @brief 批量获取生物群系
+     *
+     * 使用 LayerStack::sampleBatch 优化性能。
+     */
+    void getBiomesBatch(i32 startX, i32 startY, i32 startZ, i32 width, i32 height,
+                         BiomeId* output) const override;
+
 private:
     std::unique_ptr<LayerStack> m_layerStack;
-
-    // 缓存的生物群系定义
-    mutable std::vector<const Biome*> m_biomeCache;
 };
-
-// ============================================================================
-// 层工具函数
-// ============================================================================
-
-namespace LayerUtil {
-
-/**
- * @brief 创建主世界层堆叠
- * @param seed 世界种子
- * @param isLargeBiomes 是否使用大型生物群系
- * @return 层堆叠
- */
-std::unique_ptr<LayerStack> createOverworldLayers(u64 seed, bool isLargeBiomes = false);
-
-/**
- * @brief 创建下界层堆叠
- * @param seed 世界种子
- * @return 层堆叠
- */
-std::unique_ptr<LayerStack> createNetherLayers(u64 seed);
-
-/**
- * @brief 创建末地层堆叠
- * @param seed 世界种子
- * @return 层堆叠
- */
-std::unique_ptr<LayerStack> createEndLayers(u64 seed);
-
-} // namespace LayerUtil
 
 } // namespace mc

@@ -12,6 +12,7 @@ class Entity;
 class BlockState;
 class ChunkData;
 class BlockPos;
+class PhysicsEngine;
 
 namespace fluid {
 class Fluid;
@@ -145,6 +146,32 @@ public:
      * @return 是否在世界边界内
      */
     [[nodiscard]] virtual bool isWithinWorldBounds(i32 x, i32 y, i32 z) const = 0;
+
+    /**
+     * @brief 检查碰撞箱是否与实体碰撞
+     * @param box 碰撞箱
+     * @param except 排除的实体（通常是自身）
+     * @return 是否碰撞
+     */
+    [[nodiscard]] virtual bool hasEntityCollision(const AxisAlignedBB& box, const Entity* except = nullptr) const = 0;
+
+    /**
+     * @brief 获取碰撞箱内的所有实体碰撞箱
+     * @param box 碰撞箱
+     * @param except 排除的实体（通常是自身）
+     * @return 实体碰撞箱列表
+     */
+    [[nodiscard]] virtual std::vector<AxisAlignedBB> getEntityCollisions(
+        const AxisAlignedBB& box, const Entity* except = nullptr) const = 0;
+
+    // ========== 物理引擎 ==========
+
+    /**
+     * @brief 获取物理引擎
+     * @return 物理引擎指针（可能为 nullptr）
+     */
+    [[nodiscard]] virtual PhysicsEngine* physicsEngine() = 0;
+    [[nodiscard]] virtual const PhysicsEngine* physicsEngine() const = 0;
 
     // ========== 实体查询 ==========
 

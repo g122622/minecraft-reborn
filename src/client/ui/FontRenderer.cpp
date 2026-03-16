@@ -203,35 +203,35 @@ void FontRenderer::addGlyphVertices(const Glyph& glyph, f32 x, f32 y, u32 color,
     f32 italicOffset = italic ? (scaledHeight * 0.25f) : 0.0f;
 
     // 添加4个顶点
-    // 注意：纹理坐标V轴需要翻转，因为屏幕Y轴向下，纹理V轴向下（v=0是顶部）
-    // 所以屏幕上方（小Y）对应纹理底部（大V），屏幕下方（大Y）对应纹理顶部（小V）
+    // 注意：现在不翻转纹理坐标V轴，屏幕Y轴向下与纹理V轴向下一致
+    // 所以屏幕上方（小Y）对应纹理顶部（小V），屏幕下方（大Y）对应纹理底部（大V）
     u32 baseIndex = static_cast<u32>(m_vertices.size());
 
-    // 左上（屏幕Y小，对应纹理V大，即v1）
+    // 左上（屏幕Y小，对应纹理V小，即v0）
     m_vertices.emplace_back(
         glyphLeft + italicOffset, glyphTop,
-        glyph.u0, glyph.v1,
+        glyph.u0, glyph.v0,  // 使用v0（顶部）
         color
     );
 
     // 右上
     m_vertices.emplace_back(
         glyphRight + italicOffset, glyphTop,
-        glyph.u1, glyph.v1,
+        glyph.u1, glyph.v0,  // 使用v0（顶部）
         color
     );
 
-    // 右下（屏幕Y大，对应纹理V小，即v0）
+    // 右下（屏幕Y大，对应纹理V大，即v1）
     m_vertices.emplace_back(
         glyphRight, glyphBottom,
-        glyph.u1, glyph.v0,
+        glyph.u1, glyph.v1,  // 使用v1（底部）
         color
     );
 
     // 左下
     m_vertices.emplace_back(
         glyphLeft, glyphBottom,
-        glyph.u0, glyph.v0,
+        glyph.u0, glyph.v1,  // 使用v1（底部）
         color
     );
 

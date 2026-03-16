@@ -8,7 +8,13 @@
 
 // Layer 系统
 #include "layer/Layer.hpp"
-#include "layer/LazyArea.hpp"
+#include "layer/LayerContext.hpp"
 #include "layer/LayerUtil.hpp"
-#include "layer/transformers/BasicTransformers.hpp"
-#include "layer/transformers/BiomeTransformers.hpp"
+#include "layer/BiomeValues.hpp"
+#include "layer/transformers/TransformerTraits.hpp"
+#include "layer/transformers/SourceLayers.hpp"
+#include "layer/transformers/ClimateLayers.hpp"
+#include "layer/transformers/EdgeLayers.hpp"
+#include "layer/transformers/ZoomLayers.hpp"
+#include "layer/transformers/BiomeLayers.hpp"
+#include "layer/transformers/MergeLayers.hpp"

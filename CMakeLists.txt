@@ -57,6 +57,11 @@ else()
     add_compile_options(-fcolor-diagnostics)
 endif()
 
+if(WIN32)
+    # 统一 Windows 目标版本，避免 Asio 反复发出 _WIN32_WINNT 警告。
+    add_compile_definitions(_WIN32_WINNT=0x0A00 WINVER=0x0A00)
+endif()
+
 # 输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)

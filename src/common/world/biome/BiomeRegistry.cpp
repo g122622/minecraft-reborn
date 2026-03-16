@@ -59,12 +59,16 @@ void BiomeRegistry::registerDefaultBiomes()
     registerBiome(BiomeFactory::createTaiga());
     registerBiome(BiomeFactory::createSwamp());
     registerBiome(BiomeFactory::createRiver());
+    registerBiome(BiomeFactory::createFrozenOcean());
+    registerBiome(BiomeFactory::createFrozenRiver());
     registerBiome(BiomeFactory::createSnowyPlains());
+    registerBiome(BiomeFactory::createSnowyMountains());
     registerBiome(BiomeFactory::createBeach());
     registerBiome(BiomeFactory::createJungle());
     registerBiome(BiomeFactory::createSavanna());
     registerBiome(BiomeFactory::createBadlands());
     registerBiome(BiomeFactory::createDeepOcean());
+    registerBiome(BiomeFactory::createDeepFrozenOcean());
     registerBiome(BiomeFactory::createWoodedHills());
     registerBiome(BiomeFactory::createMountainEdge());
     registerBiome(BiomeFactory::createStoneShore());
@@ -79,6 +83,7 @@ void BiomeRegistry::registerDefaultBiomes()
     registerBiome(BiomeFactory::createWoodedBadlandsPlateau());
     registerBiome(BiomeFactory::createErodedBadlands());
     registerBiome(BiomeFactory::createShatteredSavanna());
+    registerBiome(BiomeFactory::createIceSpikes());
 }
 
 // ============================================================================
@@ -203,12 +208,13 @@ Biome createTaiga()
 Biome createSnowyTaiga()
 {
     // MC: depth=0.2F, scale=0.2F
+    // 雪地针叶林表面应为雪
     Biome biome(Biomes::SnowyTaiga, "snowy_taiga");
     biome.setDepth(0.2f);
     biome.setScale(0.2f);
     biome.setTemperature(-0.5f);
     biome.setHumidity(0.4f);
-    biome.setSurfaceBlock(BlockId::Grass);
+    biome.setSurfaceBlock(BlockId::Snow);
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
     biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
@@ -458,12 +464,13 @@ Biome createDarkForest()
 Biome createSnowyPlains()
 {
     // MC: depth=0.125F, scale=0.05F (Snowy Tundra)
+    // 雪地平原表面应为雪
     Biome biome(Biomes::SnowyPlains, "snowy_plains");
     biome.setDepth(0.125f);
     biome.setScale(0.05f);
     biome.setTemperature(-0.5f);
     biome.setHumidity(0.5f);
-    biome.setSurfaceBlock(BlockId::Grass);
+    biome.setSurfaceBlock(BlockId::Snow);
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
@@ -512,6 +519,81 @@ Biome createMountainEdge()
     biome.setSubSurfaceBlock(BlockId::Dirt);
     biome.setUnderWaterBlock(BlockId::Gravel);
     biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
+    return biome;
+}
+
+Biome createFrozenOcean()
+{
+    // MC: depth=-1.0F, scale=0.1F
+    Biome biome(Biomes::FrozenOcean, "frozen_ocean");
+    biome.setDepth(-1.0f);
+    biome.setScale(0.1f);
+    biome.setTemperature(0.0f);
+    biome.setHumidity(0.5f);
+    biome.setSurfaceBlock(BlockId::Ice);
+    biome.setSubSurfaceBlock(BlockId::Gravel);
+    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    return biome;
+}
+
+Biome createFrozenRiver()
+{
+    // MC: depth=-0.5F, scale=0.0F
+    Biome biome(Biomes::FrozenRiver, "frozen_river");
+    biome.setDepth(-0.5f);
+    biome.setScale(0.0f);
+    biome.setTemperature(0.0f);
+    biome.setHumidity(0.5f);
+    biome.setSurfaceBlock(BlockId::Ice);
+    biome.setSubSurfaceBlock(BlockId::Gravel);
+    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    return biome;
+}
+
+Biome createSnowyMountains()
+{
+    // MC: depth=0.45F, scale=0.3F (Snowy Mountains)
+    Biome biome(Biomes::SnowyMountains, "snowy_mountains");
+    biome.setDepth(0.45f);
+    biome.setScale(0.3f);
+    biome.setTemperature(0.0f);
+    biome.setHumidity(0.5f);
+    biome.setSurfaceBlock(BlockId::Snow);
+    biome.setSubSurfaceBlock(BlockId::Dirt);
+    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
+    return biome;
+}
+
+Biome createIceSpikes()
+{
+    // MC: depth=0.4375F, scale=0.05F
+    Biome biome(Biomes::IceSpikes, "ice_spikes");
+    biome.setDepth(0.4375f);
+    biome.setScale(0.05f);
+    biome.setTemperature(0.0f);
+    biome.setHumidity(0.5f);
+    biome.setSurfaceBlock(BlockId::Snow);
+    biome.setSubSurfaceBlock(BlockId::Dirt);
+    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    return biome;
+}
+
+Biome createDeepFrozenOcean()
+{
+    // MC: depth=-1.8F, scale=0.1F
+    Biome biome(Biomes::DeepFrozenOcean, "deep_frozen_ocean");
+    biome.setDepth(-1.8f);
+    biome.setScale(0.1f);
+    biome.setTemperature(0.0f);
+    biome.setHumidity(0.5f);
+    biome.setSurfaceBlock(BlockId::Ice);
+    biome.setSubSurfaceBlock(BlockId::Gravel);
+    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
     return biome;
 }
 

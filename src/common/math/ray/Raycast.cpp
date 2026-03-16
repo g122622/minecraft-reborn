@@ -42,35 +42,48 @@ BlockRaycastResult raycastBlocks(
     // 计算终点
     const Vector3 end = context.endPosition();
 
+    if (start.distanceSquared(end) < 0.0001f) {
+        // 起点和终点重合，返回miss
+        return BlockRaycastResult::miss();
+    }
+
     // 使用MC风格的端点偏移，避免在边界处产生精度问题
-    // MathHelper.lerp(-1.0E-7D, end, start)
+    // 参考MC IBlockReader.doRayTrace
+    // lerp(-1e-7, a, b) = a + (b - a) * (-1e-7) = a - (b - a) * 1e-7
     const f32 eps = 1.0e-7f;
+
+    // 偏移后的终点：从终点向起点方向微移
     const Vector3 adjustedEnd(
         end.x + (start.x - end.x) * eps,
         end.y + (start.y - end.y) * eps,
         end.z + (start.z - end.z) * eps
     );
 
-    // 计算步进方向和参数
-    const f32 dx = adjustedEnd.x - start.x;
-    const f32 dy = adjustedEnd.y - start.y;
-    const f32 dz = adjustedEnd.z - start.z;
+    // 偏移后的起点：从起点向终点方向微移
+    const Vector3 adjustedStart(
+        start.x + (end.x - start.x) * eps,
+        start.y + (end.y - start.y) * eps,
+        start.z + (end.z - start.z) * eps
+    );
 
-    // 当前方块坐标
-    i32 currentX = static_cast<i32>(std::floor(adjustedEnd.x));
-    i32 currentY = static_cast<i32>(std::floor(adjustedEnd.y));
-    i32 currentZ = static_cast<i32>(std::floor(adjustedEnd.z));
+    // DDA方向向量：从偏移后终点到偏移后起点（负方向）
+    // 这与MC的实现一致：d6 = d0 - d3 = adjustedEnd - adjustedStart
+    const f32 dx = adjustedEnd.x - adjustedStart.x;
+    const f32 dy = adjustedEnd.y - adjustedStart.y;
+    const f32 dz = adjustedEnd.z - adjustedStart.z;
 
-    // 检查起始位置的方块
+    // 当前方块坐标：从偏移后的起点开始
+    i32 currentX = static_cast<i32>(std::floor(adjustedStart.x));
+    i32 currentY = static_cast<i32>(std::floor(adjustedStart.y));
+    i32 currentZ = static_cast<i32>(std::floor(adjustedStart.z));
+
+    // 先检查起点位置的方块（MC的重要步骤！）
     if (world.isWithinWorldBounds(currentX, currentY, currentZ)) {
         const BlockState* state = world.getBlockState(currentX, currentY, currentZ);
         if (state != nullptr && !state->isAir() && state->blocksMovement()) {
-            // 起始位置有方块，计算击中点
-            // 由于起点在方块内部，我们返回起点位置
-            Vector3 hitPos = start;
-            // 计算击中的面（从方向推断）
+            // 起点位置有方块，返回起点
             Direction face = Directions::fromVector(-dir.x, -dir.y, -dir.z);
-            return BlockRaycastResult::hit(hitPos, BlockPos(currentX, currentY, currentZ), face, 0.0f);
+            return BlockRaycastResult::hit(start, BlockPos(currentX, currentY, currentZ), face, 0.0f);
         }
     }
 
@@ -86,14 +99,13 @@ BlockRaycastResult raycastBlocks(
     const f32 tDeltaZ = (stepZ == 0) ? std::numeric_limits<f32>::max() : static_cast<f32>(stepZ) / dz;
 
     // 计算到下一个边界的初始t值
-    // tMax = distance to next boundary / total distance
-    // 使用 adjustedEnd 作为起始点计算
+    // 使用偏移后的起点计算
     f32 tMaxX = (stepX == 0) ? std::numeric_limits<f32>::max()
-        : tDeltaX * (stepX > 0 ? (1.0f - fract(adjustedEnd.x)) : fract(adjustedEnd.x));
+        : tDeltaX * (stepX > 0 ? (1.0f - fract(adjustedStart.x)) : fract(adjustedStart.x));
     f32 tMaxY = (stepY == 0) ? std::numeric_limits<f32>::max()
-        : tDeltaY * (stepY > 0 ? (1.0f - fract(adjustedEnd.y)) : fract(adjustedEnd.y));
+        : tDeltaY * (stepY > 0 ? (1.0f - fract(adjustedStart.y)) : fract(adjustedStart.y));
     f32 tMaxZ = (stepZ == 0) ? std::numeric_limits<f32>::max()
-        : tDeltaZ * (stepZ > 0 ? (1.0f - fract(adjustedEnd.z)) : fract(adjustedEnd.z));
+        : tDeltaZ * (stepZ > 0 ? (1.0f - fract(adjustedStart.z)) : fract(adjustedStart.z));
 
     // 记录上次步进的面
     Direction lastFace = Direction::None;
@@ -149,10 +161,11 @@ BlockRaycastResult raycastBlocks(
 
         // 击中方块！
         // 计算击中点的世界坐标
-        // t值表示从起点到击中点的比例
+        // t值表示从adjustedStart到击中点的比例
+        // 需要转换回从原始起点出发的距离
         f32 hitT;
         if (lastFace == Direction::West || lastFace == Direction::East) {
-            hitT = tMaxX - tDeltaX;  // 上一个t值
+            hitT = tMaxX - tDeltaX;
         } else if (lastFace == Direction::Down || lastFace == Direction::Up) {
             hitT = tMaxY - tDeltaY;
         } else {
@@ -160,10 +173,16 @@ BlockRaycastResult raycastBlocks(
         }
 
         // 限制在有效范围内
-        hitT = std::max(0.0f, hitT);
+        hitT = std::clamp(hitT, 0.0f, 1.0f);
 
-        // 计算击中点（从起点出发）
-        Vector3 hitPos = context.ray.at(hitT);
+        // 从偏移后起点计算击中点
+        Vector3 hitPos(
+            adjustedStart.x + dx * hitT,
+            adjustedStart.y + dy * hitT,
+            adjustedStart.z + dz * hitT
+        );
+
+        // 计算从原始起点的距离
         f32 distance = hitPos.distance(start);
 
         return BlockRaycastResult::hit(

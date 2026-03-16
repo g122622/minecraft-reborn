@@ -18,6 +18,9 @@
 #include "common/world/chunk/ChunkLoadTicket.hpp"
 #include "common/util/Direction.hpp"
 #include "common/util/TimeUtils.hpp"
+#include "common/perfetto/PerfettoManager.hpp"
+#include "common/perfetto/TraceEvents.hpp"
+#include "common/entity/EntityRegistry.hpp"
 #include "server/menu/CraftingMenu.hpp"
 #include "server/application/MinecraftServer.hpp"
 #include "server/command/CommandRegistry.hpp"
@@ -116,6 +119,10 @@ public:
     [[nodiscard]] u8 getSkyLight(i32, i32, i32) const override { return 15; }
     [[nodiscard]] bool hasBlockCollision(const AxisAlignedBB&) const override { return false; }
     [[nodiscard]] std::vector<AxisAlignedBB> getBlockCollisions(const AxisAlignedBB&) const override { return {}; }
+    [[nodiscard]] bool hasEntityCollision(const AxisAlignedBB&, const Entity*) const override { return false; }
+    [[nodiscard]] std::vector<AxisAlignedBB> getEntityCollisions(const AxisAlignedBB&, const Entity*) const override { return {}; }
+    [[nodiscard]] PhysicsEngine* physicsEngine() override { return nullptr; }
+    [[nodiscard]] const PhysicsEngine* physicsEngine() const override { return nullptr; }
     [[nodiscard]] std::vector<Entity*> getEntitiesInAABB(const AxisAlignedBB&, const Entity*) const override { return {}; }
     [[nodiscard]] std::vector<Entity*> getEntitiesInRange(const Vector3&, f32, const Entity*) const override { return {}; }
     [[nodiscard]] DimensionId dimension() const override { return DimensionId(0); }
@@ -193,6 +200,12 @@ Result<void> IntegratedServer::initialize(const IntegratedServerConfig& config) 
     (void)m_chunkManager->initialize();
     m_chunkManager->startWorkers();
     m_chunkManager->setViewDistance(m_config.viewDistance);
+
+    // 设置实体生成回调
+    m_chunkManager->setEntitySpawnCallback(
+        [this](const std::vector<SpawnedEntityData>& entities) {
+            handleSpawnedEntities(entities);
+        });
 
     // 初始化票据管理器
     m_ticketManager = std::make_unique<world::ChunkLoadTicketManager>();
@@ -277,15 +290,23 @@ void IntegratedServer::mainLoop() {
     using clock = std::chrono::steady_clock;
     const auto tickDuration = std::chrono::milliseconds(1000 / m_config.tickRate);
 
+    // 设置线程名称
+    mc::perfetto::PerfettoManager::instance().setThreadName("IntegratedServerThread");
+
     spdlog::info("Integrated server started ({} TPS)", m_config.tickRate);
 
     while (m_running.load(std::memory_order_acquire)) {
+        MC_TRACE_EVENT("server.tick", "MainLoopIteration");
+
         auto startTime = clock::now();
 
         tick();
 
         auto elapsed = clock::now() - startTime;
         auto sleepTime = tickDuration - elapsed;
+
+        MC_TRACE_COUNTER("server.tick", "ServerTickTime", static_cast<i64>(elapsed.count()));
+
         if (sleepTime > std::chrono::milliseconds(0)) {
             std::this_thread::sleep_for(sleepTime);
         }
@@ -293,18 +314,26 @@ void IntegratedServer::mainLoop() {
 }
 
 void IntegratedServer::tick() {
+    MC_TRACE_EVENT("server.tick", "IntegratedServerTick");
+
     // 如果已停止，跳过处理
     if (!m_running.load()) {
         return;
     }
 
     // 使用 ServerCore 的 tick
-    m_serverCore->tick();
+    {
+        MC_TRACE_EVENT("server.tick", "CoreTick");
+        m_serverCore->tick();
+    }
 
     // 处理网络数据包
-    std::vector<u8> packetData;
-    while (m_running.load() && m_serverEndpoint && m_serverEndpoint->receive(packetData)) {
-        onPacketReceived(packetData.data(), packetData.size());
+    {
+        MC_TRACE_EVENT("server.network", "ProcessPackets");
+        std::vector<u8> packetData;
+        while (m_running.load() && m_serverEndpoint && m_serverEndpoint->receive(packetData)) {
+            onPacketReceived(packetData.data(), packetData.size());
+        }
     }
 
     // 如果已停止，跳过更新
@@ -313,34 +342,56 @@ void IntegratedServer::tick() {
     }
 
     // 处理待发送区块（从 Worker 线程推送）
-    processPendingChunkSends();
+    {
+        MC_TRACE_EVENT("server.chunk", "ProcessPendingChunks");
+        processPendingChunkSends();
+    }
 
     // 更新票据管理器（清理过期票据等）
     if (m_ticketManager) {
+        MC_TRACE_EVENT("server.chunk", "TicketManagerTick");
         m_ticketManager->tick();
+    }
+
+    // 处理延迟卸载（边缘区块防抖）
+    {
+        MC_TRACE_EVENT("server.chunk", "PendingChunkUnloadTick");
+        processPendingChunkUnloads();
     }
 
     // 更新区块管理器
     if (m_chunkManager) {
+        MC_TRACE_EVENT("server.chunk", "ChunkManagerTick");
         m_chunkManager->tick();
     }
 
     // 心跳（每 15 秒）
     u64 tick = m_serverCore->currentTick();
     if (tick % (static_cast<u64>(m_config.tickRate) * 15) == 0) {
+        MC_TRACE_EVENT("server.network", "SendKeepAlive");
         u64 timestamp = util::TimeUtils::getCurrentTimeMs();
         sendKeepAlive(timestamp);
     }
 
-    // 日光周期
-    if (m_daylightCycleEnabled) {
-        m_serverCore->timeManager().addDayTime(1);
+    // 日光周期由 ServerCore::tick() 内的 TimeManager::tick() 负责，无需再此重复增加
+
+    // 追踪统计
+    MC_TRACE_COUNTER("server.tick", "PlayerCount", static_cast<i64>(m_serverCore->playerCount()));
+
+    // 每 20 tick 同步一次时间到客户端（类似 Java 版，每秒一次）
+    if (tick % 20 == 0) {
+        sendTimeUpdate();
     }
 }
 
 void IntegratedServer::shutdown() {
+    // 释放客户端连接（必须在 ServerCore 重置前清空）
+    m_clientConnection.reset();
+
     // 清理区块管理器
     m_chunkManager.reset();
+
+    m_pendingChunkUnloads.clear();
 
     // 清理 ServerCore
     m_serverCore.reset();
@@ -370,6 +421,11 @@ void IntegratedServer::requestChunkAsync(ChunkCoord x, ChunkCoord z) {
         [this, x, z, id](bool success, ChunkData* chunk) {
             // Worker 线程回调
             if (!m_running.load() || !success || !chunk) return;
+
+            // 玩家可能已移动到其他区域，避免发送过期区块。
+            if (!m_ticketManager || !m_ticketManager->shouldChunkLoad(x, z)) {
+                return;
+            }
 
             // 检查是否已发送
             auto* p = getPlayerData();
@@ -402,6 +458,10 @@ void IntegratedServer::processPendingChunkSends() {
     // 发送所有待发送区块
     for (const auto& send : sends) {
         if (!m_running.load()) return;
+
+        if (!m_ticketManager || !m_ticketManager->shouldChunkLoad(send.x, send.z)) {
+            continue;
+        }
 
         // 检查客户端是否仍然登录
         auto* player = getPlayerData();
@@ -518,12 +578,13 @@ void IntegratedServer::handleLoginRequest(const u8* data, size_t size) {
 
     spdlog::info("Player '{}' attempting to join", username);
 
-    // 创建本地连接
-    auto connection = std::make_shared<network::LocalServerConnection>(&m_connectionPair->serverEndpoint());
+    // 创建本地连接，并将 shared_ptr 保存到成员变量，
+    // 防止 ServerPlayerData 中的 weak_ptr 失效导致玩家被误删
+    m_clientConnection = std::make_shared<network::LocalServerConnection>(&m_connectionPair->serverEndpoint());
 
     // 使用 ServerCore 添加玩家
     m_clientPlayerId = m_serverCore->nextPlayerId();
-    auto* player = m_serverCore->addPlayer(m_clientPlayerId, username, connection);
+    auto* player = m_serverCore->addPlayer(m_clientPlayerId, username, m_clientConnection);
 
     if (!player) {
         sendLoginResponse(false, 0, username, "Failed to add player");
@@ -635,15 +696,15 @@ void IntegratedServer::handleBlockInteraction(const u8* data, size_t size) {
     }
 
     const auto& packet = result.value();
-    spdlog::info("[Mining] Server received action={} pos=({}, {}, {}) face={} playerPos=({}, {}, {})",
-                 static_cast<i32>(packet.action()),
-                 packet.x(),
-                 packet.y(),
-                 packet.z(),
-                 static_cast<i32>(packet.face()),
-                 player->x,
-                 player->y,
-                 player->z);
+    // spdlog::info("[Mining] Server received action={} pos=({}, {}, {}) face={} playerPos=({}, {}, {})",
+    //              static_cast<i32>(packet.action()),
+    //              packet.x(),
+    //              packet.y(),
+    //              packet.z(),
+    //              static_cast<i32>(packet.face()),
+    //              player->x,
+    //              player->y,
+    //              player->z);
 
     if (packet.action() != network::BlockInteractionAction::StopDestroyBlock) {
         return;
@@ -698,9 +759,9 @@ void IntegratedServer::handleBlockInteraction(const u8* data, size_t size) {
     chunk->setDirty(true);
     sendBlockUpdate(packet.x(), packet.y(), packet.z(), airBlock->defaultState().stateId());
 
-    spdlog::info("[Mining] Destroyed block {} at ({}, {}, {})",
-                 state->blockLocation().toString(),
-                 packet.x(), packet.y(), packet.z());
+    // spdlog::info("[Mining] Destroyed block {} at ({}, {}, {})",
+    //              state->blockLocation().toString(),
+    //              packet.x(), packet.y(), packet.z());
 }
 
 void IntegratedServer::handleBlockPlacement(const u8* data, size_t size)
@@ -959,14 +1020,55 @@ void IntegratedServer::onChunkLevelChanged(ChunkCoord x, ChunkCoord z, i32 oldLe
     if (!wasLoaded && isLoaded) {
         // 区块从卸载变为加载 - 异步请求
         spdlog::debug("Chunk ({}, {}) loading: level {} -> {}", x, z, oldLevel, newLevel);
+        m_pendingChunkUnloads.erase(chunkKey(x, z));
         requestChunkAsync(x, z);
     } else if (wasLoaded && !isLoaded) {
-        // 区块从加载变为卸载
-        spdlog::debug("Chunk ({}, {}) unloading: level {} -> {}", x, z, oldLevel, newLevel);
+        // 区块从加载变为卸载：延迟一小段时间，避免边缘抖动导致闪烁
+        spdlog::debug("Chunk ({}, {}) scheduled for unload: level {} -> {}", x, z, oldLevel, newLevel);
+        const u64 nowTick = m_serverCore ? m_serverCore->currentTick() : 0;
+        m_pendingChunkUnloads[chunkKey(x, z)] = nowTick + CHUNK_UNLOAD_GRACE_TICKS;
+    }
+}
+
+void IntegratedServer::processPendingChunkUnloads() {
+    if (!m_ticketManager) {
+        m_pendingChunkUnloads.clear();
+        return;
+    }
+
+    auto* player = getPlayerData();
+    if (!player) {
+        m_pendingChunkUnloads.clear();
+        return;
+    }
+
+    const u64 nowTick = m_serverCore ? m_serverCore->currentTick() : 0;
+
+    for (auto it = m_pendingChunkUnloads.begin(); it != m_pendingChunkUnloads.end();) {
+        const u64 dueTick = it->second;
+        if (nowTick < dueTick) {
+            ++it;
+            continue;
+        }
+
+        ChunkCoord x = 0;
+        ChunkCoord z = 0;
+        chunkKeyToCoord(it->first, x, z);
+
+        // 经过防抖窗口后再次确认是否仍应卸载
+        if (m_ticketManager->shouldChunkLoad(x, z)) {
+            it = m_pendingChunkUnloads.erase(it);
+            continue;
+        }
+
+        const ChunkId id(x, z);
         if (player->loadedChunks.count(id) > 0) {
             sendUnloadChunk(x, z);
             player->loadedChunks.erase(id);
+            spdlog::debug("Chunk ({}, {}) unloaded after grace window", x, z);
         }
+
+        it = m_pendingChunkUnloads.erase(it);
     }
 }
 
@@ -1155,6 +1257,26 @@ void IntegratedServer::sendToClient(const u8* data, size_t size) {
     }
 }
 
+void IntegratedServer::sendTimeUpdate() {
+    if (!m_serverCore) return;
+    auto* player = getPlayerData();
+    if (!player || !player->loggedIn) return;
+
+    const auto& time = m_serverCore->gameTime();
+    network::TimeUpdatePacket packet(
+        time.gameTime(),
+        time.dayTime(),
+        time.daylightCycleEnabled()
+    );
+
+    network::PacketSerializer ser;
+    packet.serialize(ser);
+
+    auto fullPacket = core::ConnectionManager::encapsulatePacket(
+        network::PacketType::TimeUpdate, ser.buffer());
+    sendToClient(fullPacket.data(), fullPacket.size());
+}
+
 void IntegratedServer::openCraftingTableMenu() {
     auto* player = getPlayerData();
     if (!player) return;
@@ -1194,6 +1316,102 @@ void IntegratedServer::openCraftingTableMenu() {
         std::lock_guard<std::mutex> lock(m_clientDataMutex);
         m_clientData.openContainerType = ContainerType::CraftingTable;
         m_clientData.openMenu = std::move(menu);
+    }
+}
+
+void IntegratedServer::handleSpawnedEntities(const std::vector<SpawnedEntityData>& entities) {
+    if (entities.empty()) {
+        return;
+    }
+
+    // 存储实体ID和类型用于发送网络包
+    std::vector<std::pair<EntityId, const SpawnedEntityData*>> spawnedEntities;
+
+    // 获取实体注册表
+    auto& registry = entity::EntityRegistry::instance();
+
+    for (const auto& entityData : entities) {
+        // 获取实体类型
+        const entity::EntityType* entityType = registry.getType(entityData.entityTypeId);
+        if (!entityType) {
+            spdlog::warn("IntegratedServer: Unknown entity type '{}' during chunk generation spawn",
+                         entityData.entityTypeId);
+            continue;
+        }
+
+        // 检查实体类型是否可以生成
+        if (!entityType->canSummon()) {
+            continue;
+        }
+
+        // 创建实体（使用 nullptr 作为世界，因为 IntegratedServer 不使用 ServerWorld）
+        std::unique_ptr<Entity> entity = entityType->create(nullptr);
+        if (!entity) {
+            continue;
+        }
+
+        // 设置实体位置
+        entity->setPosition(Vector3(entityData.x, entityData.y, entityData.z));
+
+        // 添加到实体管理器，获取分配的ID
+        EntityId entityId = m_entityManager.addEntity(std::move(entity));
+
+        spawnedEntities.emplace_back(entityId, &entityData);
+
+        // spdlog::info("IntegratedServer: Spawned {} at ({:.1f}, {:.1f}, {:.1f}) with ID {}",
+        //              entityData.entityTypeId, entityData.x, entityData.y, entityData.z, entityId);
+    }
+
+    // 发送实体生成包到客户端
+    sendEntitySpawnPackets(spawnedEntities);
+}
+
+void IntegratedServer::sendEntitySpawnPackets(const std::vector<std::pair<EntityId, const SpawnedEntityData*>>& entities) {
+    for (const auto& [entityId, entityData] : entities) {
+        // 发送 SpawnMobPacket 或 SpawnEntityPacket
+        // 对于动物（LivingEntity），使用 SpawnMobPacket
+        // 对于其他实体，使用 SpawnEntityPacket
+
+        // 判断是否是生物
+        // 这里简化处理：所有动物都是生物
+        bool isMob = (entityData->entityTypeId == "minecraft:pig" ||
+                      entityData->entityTypeId == "minecraft:cow" ||
+                      entityData->entityTypeId == "minecraft:sheep" ||
+                      entityData->entityTypeId == "minecraft:chicken");
+
+        if (isMob) {
+            network::SpawnMobPacket packet;
+            packet.setEntityId(static_cast<u32>(entityId));
+            packet.setEntityTypeId(entityData->entityTypeId);
+            packet.setPosition(entityData->x, entityData->y, entityData->z);
+            packet.setRotation(0.0f, 0.0f, 0.0f);  // yaw, pitch, headYaw
+            packet.setVelocity(0, 0, 0);
+
+            auto result = packet.serialize();
+            if (result.success()) {
+                auto fullPacket = core::ConnectionManager::encapsulatePacket(
+                    network::PacketType::SpawnMob, result.value());
+                sendToClient(fullPacket.data(), fullPacket.size());
+                // spdlog::info("IntegratedServer: Sent SpawnMob packet for {} (ID: {}) at ({:.1f}, {:.1f}, {:.1f})",
+                //              entityData->entityTypeId, entityId, entityData->x, entityData->y, entityData->z);
+            }
+        } else {
+            network::SpawnEntityPacket packet;
+            packet.setEntityId(static_cast<u32>(entityId));
+            packet.setEntityTypeId(entityData->entityTypeId);
+            packet.setPosition(entityData->x, entityData->y, entityData->z);
+            packet.setRotation(0.0f, 0.0f);
+            packet.setVelocity(0, 0, 0);
+
+            auto result = packet.serialize();
+            if (result.success()) {
+                auto fullPacket = core::ConnectionManager::encapsulatePacket(
+                    network::PacketType::SpawnEntity, result.value());
+                sendToClient(fullPacket.data(), fullPacket.size());
+                spdlog::info("IntegratedServer: Sent SpawnEntity packet for {} (ID: {}) at ({:.1f}, {:.1f}, {:.1f})",
+                             entityData->entityTypeId, entityId, entityData->x, entityData->y, entityData->z);
+            }
+        }
     }
 }
 

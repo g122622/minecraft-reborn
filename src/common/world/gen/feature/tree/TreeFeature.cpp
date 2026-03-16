@@ -7,11 +7,14 @@
 #include "../../../block/VanillaBlocks.hpp"
 #include "../../../../core/Types.hpp"
 #include "../../placement/Placement.hpp"
+#include <mutex>
 #include <spdlog/spdlog.h>
 
 namespace mc {
 
 namespace {
+
+std::mutex g_treeFeaturesMutex;
 
 std::unique_ptr<ConfiguredPlacement> appendBiomePlacement(
     std::unique_ptr<ConfiguredPlacement> root,
@@ -349,6 +352,7 @@ bool ConfiguredTreeFeature::place(
 std::vector<std::unique_ptr<ConfiguredTreeFeature>> TreeFeatures::s_features;
 
 void TreeFeatures::initialize() {
+    std::lock_guard<std::mutex> lock(g_treeFeaturesMutex);
     s_features.clear();
 
     // 注册主世界树木
@@ -362,6 +366,7 @@ void TreeFeatures::initialize() {
 }
 
 std::vector<std::unique_ptr<ConfiguredTreeFeature>> TreeFeatures::getAllFeaturesAndClear() {
+    std::lock_guard<std::mutex> lock(g_treeFeaturesMutex);
     std::vector<std::unique_ptr<ConfiguredTreeFeature>> result = std::move(s_features);
     s_features.clear();
     return result;

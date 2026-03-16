@@ -106,6 +106,11 @@ void MobEntity::tick() {
     if (m_jumpController) {
         m_jumpController->tick();
     }
+
+    // 执行AI移动物理更新
+    // 这会根据 m_moveForward 和 m_moveStrafing 执行实际移动
+    // 参考 MC MobEntity.livingTick() 中的 aiStep() 调用
+    aiStep();
 }
 
 } // namespace mc

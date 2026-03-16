@@ -9,10 +9,18 @@ namespace mc {
 // Forward declarations
 class ItemStack;
 
-namespace client {
-
-// Forward declarations
+namespace client::renderer::trident::gui {
 class GuiRenderer;
+}
+
+namespace client::renderer::trident::item {
+class ItemRenderer;
+}
+
+namespace client {
+// 引入GuiRenderer和ItemRenderer到mc::client命名空间（向后兼容）
+using GuiRenderer = renderer::trident::gui::GuiRenderer;
+using ItemRenderer = renderer::trident::item::ItemRenderer;
 
 /**
  * @brief 槽位渲染器
@@ -32,9 +40,10 @@ public:
 
     /**
      * @brief 初始化槽位渲染器
+     * @param itemRenderer 物品渲染器
      * @return 成功或错误
      */
-    [[nodiscard]] bool initialize();
+    [[nodiscard]] bool initialize(ItemRenderer* itemRenderer);
 
     /**
      * @brief 渲染槽位
@@ -78,6 +87,7 @@ public:
     static constexpr f32 ITEM_SIZE = 16.0f;
 
 private:
+    ItemRenderer* m_itemRenderer = nullptr;
     bool m_initialized = false;
 };
 

@@ -3,6 +3,7 @@
 #include "../../block/BlockRegistry.hpp"
 #include "../../biome/BiomeRegistry.hpp"
 #include "../../biome/BiomeGenerationSettings.hpp"
+#include "../../biome/layer/LayerUtil.hpp"
 #include "../feature/ConfiguredFeature.hpp"
 #include "../feature/ore/OreFeature.hpp"
 #include "../../../math/MathUtils.hpp"
@@ -10,6 +11,7 @@
 #include "common/perfetto/TraceEvents.hpp"
 #include <algorithm>
 #include <cmath>
+#include <mutex>
 #include <spdlog/spdlog.h>
 
 namespace mc {
@@ -40,7 +42,7 @@ NoiseChunkGenerator::NoiseChunkGenerator(u64 seed, DimensionSettings settings)
 
     // 使用完整的生物群系列表
     BiomeRegistry::instance().initialize();
-    m_biomeProvider = std::make_unique<SimpleBiomeProvider>(seed);
+    m_biomeProvider = std::make_unique<LayerBiomeProvider>(seed);
 
     // 初始化洞穴雕刻器
     // 洞穴概率参考 MC: 1/7 ≈ 0.14285715
@@ -65,6 +67,9 @@ NoiseChunkGenerator::NoiseChunkGenerator(u64 seed, DimensionSettings settings,
 {
     initNoiseGenerators();
     initBiomeWeights();
+
+    // 确保生物群系注册表已初始化（默认构造路径会初始化，注入路径也需要）
+    BiomeRegistry::instance().initialize();
 }
 
 NoiseChunkGenerator::~NoiseChunkGenerator() = default;
@@ -686,12 +691,11 @@ void NoiseChunkGenerator::applyCarvers(WorldGenRegion& /*region*/, ChunkPrimer& 
 void NoiseChunkGenerator::placeFeatures(WorldGenRegion& region, ChunkPrimer& chunk)
 {
     MC_TRACE_EVENT("world.chunk_gen", "PlaceFeatures", "x", chunk.x(), "z", chunk.z());
-    // 初始化特征注册表（首次调用时）
-    static bool s_featuresInitialized = false;
-    if (!s_featuresInitialized) {
+    // 初始化特征注册表（线程安全，仅初始化一次）
+    static std::once_flag s_featureRegistryInitFlag;
+    std::call_once(s_featureRegistryInitFlag, []() {
         FeatureRegistry::instance().initialize();
-        s_featuresInitialized = true;
-    }
+    });
 
     // 获取区块中心位置的主要生物群系
     const BiomeId biomeId = chunk.getBiomeAtBlock(8, 64, 8);

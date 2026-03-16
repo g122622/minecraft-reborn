@@ -160,7 +160,7 @@ void BaseChunkGenerator::generateBiomes(WorldGenRegion& /*region*/, ChunkPrimer&
     for (i32 y = 0; y < BiomeContainer::BIOME_HEIGHT; ++y) {
         for (i32 z = 0; z < BiomeContainer::BIOME_DEPTH; ++z) {
             for (i32 x = 0; x < BiomeContainer::BIOME_WIDTH; ++x) {
-                biomes.setBiome(x << 2, y << 2, z << 2, m_defaultBiome);
+                biomes.setBiome(x, y, z, m_defaultBiome);
             }
         }
     }

@@ -261,6 +261,24 @@ public:
      */
     void setJumping(bool jumping) { m_isJumping = jumping; }
 
+    /**
+     * @brief 执行跳跃
+     *
+     * 设置垂直速度为跳跃初速度。
+     * 参考 MC LivingEntity.jump()
+     */
+    void jump();
+
+    /**
+     * @brief 获取跳跃冷却
+     */
+    [[nodiscard]] i32 jumpTicks() const { return m_jumpTicks; }
+
+    /**
+     * @brief 获取跳跃初速度
+     */
+    [[nodiscard]] f32 jumpUpwardsMotion() const { return m_jumpUpwardsMotion; }
+
     // ========== 移动 ==========
 
     /**
@@ -278,6 +296,40 @@ public:
      */
     void setMoveStrafing(f32 strafing) { m_moveStrafing = strafing; }
     void setMoveForward(f32 forward) { m_moveForward = forward; }
+
+    /**
+     * @brief 获取AI移动速度
+     *
+     * 参考 MC 1.16.5 LivingEntity.getAIMoveSpeed()
+     */
+    [[nodiscard]] f32 aiMoveSpeed() const { return m_landMovementFactor; }
+
+    /**
+     * @brief 设置AI移动速度
+     */
+    void setAIMoveSpeed(f32 speed) { m_landMovementFactor = speed; }
+
+    /**
+     * @brief 执行移动（AI物理更新核心方法）
+     *
+     * 根据 moveStrafing 和 moveForward 计算移动向量并执行物理移动。
+     * 这是 MC LivingEntity.travel() 的核心逻辑。
+     *
+     * 参考 MC 1.16.5 LivingEntity.travel()
+     *
+     * @param strafing 横向移动量（左右）
+     * @param vertical 垂直移动量（上下，用于飞行/游泳）
+     * @param forward 前进移动量（前后）
+     */
+    virtual void travel(f32 strafing, f32 vertical, f32 forward);
+
+    /**
+     * @brief AI步进更新
+     *
+     * 处理AI移动逻辑，应用阻力，调用travel方法。
+     * 参考 MC 1.16.5 LivingEntity.aiStep() / livingTick()
+     */
+    virtual void aiStep();
 
     // ========== 战斗追踪 ==========
 
@@ -369,11 +421,14 @@ protected:
 
     // 跳跃
     bool m_isJumping = false;
+    i32 m_jumpTicks = 0;                 // 跳跃冷却
+    f32 m_jumpUpwardsMotion = 0.42f;     // 跳跃初速度（MC默认值）
 
     // 移动
     f32 m_moveStrafing = 0.0f;           // 横向移动（左右）
     f32 m_moveForward = 0.0f;            // 前进移动（前后）
     f32 m_jumpMovementFactor = 0.02f;    // 跳跃时的移动因子
+    f32 m_landMovementFactor = 0.1f;     // 陆地移动因子（AI移动速度）
 
     // 移动距离（用于动画）
     f32 m_movedDistance = 0.0f;          // 移动距离

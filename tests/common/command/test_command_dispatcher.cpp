@@ -471,6 +471,7 @@ public:
     [[nodiscard]] i64 getGameTime() const override { return m_gameTime; }
     [[nodiscard]] std::vector<ServerPlayer*> getPlayers() override { return {}; }
     [[nodiscard]] ServerPlayer* getPlayer(const String&) override { return nullptr; }
+    [[nodiscard]] size_t playerCount() const override { return 0; }
     void broadcast(const String&) override {}
     bool setDayTime(i64 time) override {
         m_dayTime = time;
@@ -555,4 +556,40 @@ TEST_F(CommandSourceTest, LogicalPlayerSourceExecutesTeleportCommand) {
     EXPECT_DOUBLE_EQ(server.lastTeleportZ, 0.0);
     EXPECT_FLOAT_EQ(server.lastTeleportYaw, 180.0f);
     EXPECT_FLOAT_EQ(server.lastTeleportPitch, 15.0f);
+}
+
+TEST_F(CommandSourceTest, LogicalPlayerSourceExecutesGameModeCommand) {
+    TestMinecraftServer server;
+    command::ServerCommandSource source(
+        &server,
+        nullptr,
+        nullptr,
+        Vector3d(0.0, 64.0, 0.0),
+        Vector2f(0.0f, 0.0f),
+        4,
+        42,
+        "Tester");
+
+    // 测试 /gamemode creative
+    auto result = server.getCommandRegistry().execute("/gamemode creative", source);
+
+    ASSERT_TRUE(result.success());
+    EXPECT_EQ(result.value(), 1);
+    EXPECT_EQ(server.lastGameModePlayerId, 42u);
+    EXPECT_EQ(server.lastGameMode, mc::GameMode::Creative);
+
+    // 测试 /gamemode 0 (survival)
+    result = server.getCommandRegistry().execute("/gamemode 0", source);
+    ASSERT_TRUE(result.success());
+    EXPECT_EQ(server.lastGameMode, mc::GameMode::Survival);
+
+    // 测试 /gamemode spectator
+    result = server.getCommandRegistry().execute("/gamemode spectator", source);
+    ASSERT_TRUE(result.success());
+    EXPECT_EQ(server.lastGameMode, mc::GameMode::Spectator);
+
+    // 测试 /gamemode 2 (adventure)
+    result = server.getCommandRegistry().execute("/gamemode 2", source);
+    ASSERT_TRUE(result.success());
+    EXPECT_EQ(server.lastGameMode, mc::GameMode::Adventure);
 }

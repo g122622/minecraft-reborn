@@ -208,11 +208,32 @@
 #define MC_TRACE_RENDERING_COUNTER(name, value) MC_TRACE_COUNTER("rendering.frame", name, value)
 #define MC_TRACE_VULKAN_EVENT(name, ...) MC_TRACE_EVENT("rendering.vulkan", name, ##__VA_ARGS__)
 #define MC_TRACE_CHUNK_MESH_EVENT(name, ...) MC_TRACE_EVENT("rendering.chunk_mesh", name, ##__VA_ARGS__)
+// 细粒度渲染追踪
+#define MC_TRACE_BEGIN_FRAME(name, ...) MC_TRACE_EVENT("rendering.begin_frame", name, ##__VA_ARGS__)
+#define MC_TRACE_UNIFORM_UPDATE(name, ...) MC_TRACE_EVENT("rendering.uniform_update", name, ##__VA_ARGS__)
+#define MC_TRACE_SKY(name, ...) MC_TRACE_EVENT("rendering.sky", name, ##__VA_ARGS__)
+#define MC_TRACE_CHUNK_DRAW(name, ...) MC_TRACE_EVENT("rendering.chunk_draw", name, ##__VA_ARGS__)
+#define MC_TRACE_GUI(name, ...) MC_TRACE_EVENT("rendering.gui", name, ##__VA_ARGS__)
+#define MC_TRACE_END_FRAME(name, ...) MC_TRACE_EVENT("rendering.end_frame", name, ##__VA_ARGS__)
+#define MC_TRACE_VIEWPORT(name, ...) MC_TRACE_EVENT("rendering.viewport", name, ##__VA_ARGS__)
+#define MC_TRACE_DESCRIPTOR_BIND(name, ...) MC_TRACE_EVENT("rendering.descriptor_bind", name, ##__VA_ARGS__)
+#define MC_TRACE_PUSH_CONSTANTS(name, ...) MC_TRACE_EVENT("rendering.push_constants", name, ##__VA_ARGS__)
+#define MC_TRACE_CMD_BUFFER(name, ...) MC_TRACE_EVENT("rendering.command_buffer", name, ##__VA_ARGS__)
 #else
 #define MC_TRACE_RENDERING_EVENT(name, ...) ((void)0)
 #define MC_TRACE_RENDERING_COUNTER(name, value) ((void)0)
 #define MC_TRACE_VULKAN_EVENT(name, ...) ((void)0)
 #define MC_TRACE_CHUNK_MESH_EVENT(name, ...) ((void)0)
+#define MC_TRACE_BEGIN_FRAME(name, ...) ((void)0)
+#define MC_TRACE_UNIFORM_UPDATE(name, ...) ((void)0)
+#define MC_TRACE_SKY(name, ...) ((void)0)
+#define MC_TRACE_CHUNK_DRAW(name, ...) ((void)0)
+#define MC_TRACE_GUI(name, ...) ((void)0)
+#define MC_TRACE_END_FRAME(name, ...) ((void)0)
+#define MC_TRACE_VIEWPORT(name, ...) ((void)0)
+#define MC_TRACE_DESCRIPTOR_BIND(name, ...) ((void)0)
+#define MC_TRACE_PUSH_CONSTANTS(name, ...) ((void)0)
+#define MC_TRACE_CMD_BUFFER(name, ...) ((void)0)
 #endif
 
 #if MC_TRACE_GAME_TICK
@@ -243,4 +264,104 @@
 #define MC_TRACE_NETWORK_EVENT(name, ...) MC_TRACE_EVENT("network.packet", name, ##__VA_ARGS__)
 #else
 #define MC_TRACE_NETWORK_EVENT(name, ...) ((void)0)
+#endif
+
+// ============================================================================
+// 线程和进程命名宏
+// ============================================================================
+
+#if MC_ENABLE_TRACING
+
+/**
+ * @brief 设置当前线程名称
+ *
+ * 在 Perfetto UI 中显示有意义的线程名称，便于分析。
+ * 应在线程启动后尽早调用。
+ *
+ * @param name 线程名称（字符串字面量）
+ *
+ * 示例：
+ * @code
+ * void workerThread() {
+ *     MC_TRACE_SET_THREAD_NAME("ChunkWorker");
+ *     // ... 线程工作 ...
+ * }
+ * @endcode
+ */
+#define MC_TRACE_SET_THREAD_NAME(name) \
+    do { \
+        auto _desc = ::perfetto::ThreadTrack::Current().Serialize(); \
+        _desc.mutable_thread()->set_thread_name(name); \
+        ::perfetto::TrackEvent::SetTrackDescriptor( \
+            ::perfetto::ThreadTrack::Current(), _desc); \
+    } while (0)
+
+/**
+ * @brief 设置当前进程名称
+ *
+ * 在 Perfetto UI 中显示有意义的进程名称，便于分析。
+ * 应在进程启动后尽早调用。
+ *
+ * @param name 进程名称（字符串字面量）
+ *
+ * 示例：
+ * @code
+ * int main() {
+ *     MC_TRACE_SET_PROCESS_NAME("MinecraftServer");
+ *     // ... 主程序 ...
+ * }
+ * @endcode
+ */
+#define MC_TRACE_SET_PROCESS_NAME(name) \
+    do { \
+        auto _desc = ::perfetto::ProcessTrack::Current().Serialize(); \
+        _desc.mutable_process()->set_process_name(name); \
+        ::perfetto::TrackEvent::SetTrackDescriptor( \
+            ::perfetto::ProcessTrack::Current(), _desc); \
+    } while (0)
+
+/**
+ * @brief 为指定线程设置名称
+ *
+ * 用于在创建线程后从外部设置线程名称。
+ *
+ * @param tid 线程ID（base::PlatformThreadId 类型）
+ * @param name 线程名称（字符串字面量）
+ */
+#define MC_TRACE_SET_THREAD_NAME_FOR(tid, name) \
+    do { \
+        auto _track = ::perfetto::ThreadTrack::ForThread(tid); \
+        auto _desc = _track.Serialize(); \
+        _desc.mutable_thread()->set_thread_name(name); \
+        ::perfetto::TrackEvent::SetTrackDescriptor(_track, _desc); \
+    } while (0)
+
+#else // MC_ENABLE_TRACING == 0
+
+#define MC_TRACE_SET_THREAD_NAME(name)            ((void)0)
+#define MC_TRACE_SET_PROCESS_NAME(name)           ((void)0)
+#define MC_TRACE_SET_THREAD_NAME_FOR(tid, name)   ((void)0)
+
+#endif // MC_ENABLE_TRACING
+
+// ============================================================================
+// 服务端细粒度追踪宏
+// ============================================================================
+
+#if MC_ENABLE_TRACING
+#define MC_TRACE_SERVER_TICK_EVENT(name, ...)     MC_TRACE_EVENT("server.tick", name, ##__VA_ARGS__)
+#define MC_TRACE_SERVER_NETWORK_EVENT(name, ...)  MC_TRACE_EVENT("server.network", name, ##__VA_ARGS__)
+#define MC_TRACE_SERVER_PLAYER_EVENT(name, ...)   MC_TRACE_EVENT("server.player", name, ##__VA_ARGS__)
+#define MC_TRACE_SERVER_WORLD_EVENT(name, ...)    MC_TRACE_EVENT("server.world", name, ##__VA_ARGS__)
+#define MC_TRACE_SERVER_CHUNK_EVENT(name, ...)    MC_TRACE_EVENT("server.chunk", name, ##__VA_ARGS__)
+#define MC_TRACE_SERVER_ENTITY_EVENT(name, ...)   MC_TRACE_EVENT("server.entity", name, ##__VA_ARGS__)
+#define MC_TRACE_SERVER_TICK_COUNTER(name, value) MC_TRACE_COUNTER("server.tick", name, value)
+#else
+#define MC_TRACE_SERVER_TICK_EVENT(name, ...)     ((void)0)
+#define MC_TRACE_SERVER_NETWORK_EVENT(name, ...)  ((void)0)
+#define MC_TRACE_SERVER_PLAYER_EVENT(name, ...)   ((void)0)
+#define MC_TRACE_SERVER_WORLD_EVENT(name, ...)    ((void)0)
+#define MC_TRACE_SERVER_CHUNK_EVENT(name, ...)    ((void)0)
+#define MC_TRACE_SERVER_ENTITY_EVENT(name, ...)   ((void)0)
+#define MC_TRACE_SERVER_TICK_COUNTER(name, value) ((void)0)
 #endif

@@ -39,28 +39,28 @@ void MovementController::tick() {
         m_mob->setMoveStrafing(m_moveStrafe);
         m_action = MoveAction::Wait;
     }
-    else if (m_action == MoveAction::MoveTo) {
-        m_action = MoveAction::Wait;
-
+    else if (m_action == MoveAction::MoveTo || m_action == MoveAction::Jumping) {
+        // MoveTo 和 Jumping 状态持续执行直到到达目标或完成跳跃
         f64 dx = m_posX - m_mob->x();
         f64 dy = m_posY - m_mob->y();
         f64 dz = m_posZ - m_mob->z();
 
-        f64 distSq = dx * dx + dy * dy + dz * dz;
+        f64 distSq = dx * dx + dz * dz;  // 只检查水平距离
 
-        // 如果距离太小，停止移动
-        if (distSq < 2.5000003e-7) {
+        // 如果水平距离足够近，停止移动
+        if (distSq < 0.5) {  // 到达目标（约0.7格距离内）
             m_mob->setMoveForward(0.0f);
             m_mob->setMoveStrafing(0.0f);
+            m_action = MoveAction::Wait;
             return;
         }
 
         // 计算目标偏航角
         f32 targetYaw = static_cast<f32>(std::atan2(dz, dx) * math::RAD_TO_DEG - 90.0);
 
-        // 限制旋转速度
+        // 限制旋转速度（每帧最多旋转90度）
         f32 currentYaw = m_mob->yaw();
-        f32 newYaw = math::clampAngle(currentYaw, targetYaw, 90.0f);
+        f32 newYaw = math::clampAngle(currentYaw, targetYaw, 30.0f);
 
         m_mob->setRotation(newYaw, m_mob->pitch());
 
@@ -69,21 +69,16 @@ void MovementController::tick() {
         m_mob->setMoveForward(speed);
 
         // 检查是否需要跳跃（目标位置比当前位置高，且水平距离较近）
-        if (dy > m_mob->stepHeight() && dx * dx + dz * dz < 1.0) {
+        if (m_action == MoveAction::MoveTo && dy > m_mob->stepHeight() && distSq < 1.0) {
             if (auto* jumpCtrl = m_mob->jumpController()) {
                 jumpCtrl->setJumping();
             }
             m_action = MoveAction::Jumping;
         }
-    }
-    else if (m_action == MoveAction::Jumping) {
-        // 跳跃中继续移动
-        f32 speed = static_cast<f32>(m_speed * m_mob->getAttributeValue(entity::attribute::Attributes::MOVEMENT_SPEED, 0.2));
-        m_mob->setMoveForward(speed);
 
-        // 检查是否着陆
-        if (m_mob->onGround()) {
-            m_action = MoveAction::Wait;
+        // 检查跳跃状态
+        if (m_action == MoveAction::Jumping && m_mob->onGround()) {
+            m_action = MoveAction::MoveTo;  // 着陆后继续移动
         }
     }
     else {

@@ -1,4 +1,6 @@
 #include "ChunkWorkerPool.hpp"
+#include "common/perfetto/PerfettoManager.hpp"
+#include "common/perfetto/TraceEvents.hpp"
 #include <chrono>
 #include <algorithm>
 
@@ -155,6 +157,10 @@ size_t ChunkWorkerPool::pendingTaskCount() const
 
 void ChunkWorkerPool::workerThread(i32 workerId)
 {
+    // 设置线程名称
+    std::string threadName = "ChunkGenWorker-" + std::to_string(workerId);
+    mc::perfetto::PerfettoManager::instance().setThreadName(threadName);
+
     while (true) {
         InternalTask taskCopy;
         bool hasTask = false;
@@ -187,6 +193,8 @@ void ChunkWorkerPool::workerThread(i32 workerId)
 
 void ChunkWorkerPool::executeTask(InternalTask& task)
 {
+    MC_TRACE_CHUNK_GEN_EVENT("GenerateChunk");
+
     // 创建区块生成器
     auto primer = std::make_unique<ChunkPrimer>(task.task.x, task.task.z);
 
@@ -197,7 +205,7 @@ void ChunkWorkerPool::executeTask(InternalTask& task)
         if (task.generator && task.task.targetStatus) {
             task.generator(*primer, *task.task.targetStatus);
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         success = false;
     } catch (...) {
         success = false;

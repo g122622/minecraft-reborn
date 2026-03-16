@@ -7,10 +7,13 @@
 #include "../../../block/BlockRegistry.hpp"
 #include <cmath>
 #include <algorithm>
+#include <mutex>
 
 namespace mc {
 
 namespace {
+
+std::mutex g_oreFeaturesMutex;
 
 std::unique_ptr<ConfiguredPlacement> appendBiomePlacement(
     std::unique_ptr<ConfiguredPlacement> root,
@@ -310,6 +313,7 @@ void ConfiguredOreFeature::generate(WorldGenRegion& region, ChunkPrimer& chunk, 
 std::vector<std::unique_ptr<ConfiguredOreFeature>> OreFeatures::s_features;
 
 void OreFeatures::initialize() {
+    std::lock_guard<std::mutex> lock(g_oreFeaturesMutex);
     s_features.clear();
 
     // 主世界矿石
@@ -328,6 +332,7 @@ const std::vector<std::unique_ptr<ConfiguredOreFeature>>& OreFeatures::getAllFea
 }
 
 std::vector<std::unique_ptr<ConfiguredOreFeature>> OreFeatures::getAllFeaturesAndClear() {
+    std::lock_guard<std::mutex> lock(g_oreFeaturesMutex);
     std::vector<std::unique_ptr<ConfiguredOreFeature>> result;
     result.swap(s_features);
     return result;

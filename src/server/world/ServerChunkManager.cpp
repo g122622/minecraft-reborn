@@ -736,8 +736,12 @@ ChunkData* ServerChunkManager::finalizeChunkGeneration(ChunkCoord x, ChunkCoord 
     ChunkData* stored = storeGeneratedChunk(x, z, std::move(data));
 
     // 将生成的实体添加到世界
-    if (stored && m_world && !spawnedEntities.empty()) {
-        m_world->spawnEntitiesFromChunkGeneration(spawnedEntities);
+    if (stored && !spawnedEntities.empty()) {
+        if (m_world) {
+            m_world->spawnEntitiesFromChunkGeneration(spawnedEntities);
+        } else if (m_entitySpawnCallback) {
+            m_entitySpawnCallback(spawnedEntities);
+        }
     }
 
     return stored;

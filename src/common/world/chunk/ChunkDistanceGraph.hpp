@@ -149,6 +149,8 @@ protected:
     }
 
 private:
+    void enqueueUpdate(ChunkCoord x, ChunkCoord z);
+
     /// 计算传播后的级别
     [[nodiscard]] static i32 computePropagatedLevel(i32 sourceLevel) {
         return sourceLevel + 1;
@@ -160,8 +162,14 @@ private:
     /// 区块级别映射
     std::unordered_map<u64, i32> m_levels;
 
-    /// 待处理的更新队列: (x, z, level, isDecreasing)
-    std::queue<std::tuple<ChunkCoord, ChunkCoord, i32, bool>> m_updateQueue;
+    /// 源级别映射（由 updateSourceLevel 写入）
+    std::unordered_map<u64, i32> m_sourceLevels;
+
+    /// 待处理更新队列（区块 key）
+    std::queue<u64> m_updateQueue;
+
+    /// 去重集合，避免同一 key 重复入队导致批处理配额被无效消耗
+    std::unordered_set<u64> m_pendingKeys;
 
     /// 级别改变回调
     ChunkCallback m_levelChangeCallback;

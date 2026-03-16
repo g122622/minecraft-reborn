@@ -1,5 +1,5 @@
 #include "CrosshairRenderer.hpp"
-#include "../GuiRenderer.hpp"
+#include "../../renderer/trident/gui/GuiRenderer.hpp"
 
 namespace mc::client {
 

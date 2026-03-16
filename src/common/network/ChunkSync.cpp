@@ -261,6 +261,9 @@ void ChunkView::calculateChunkDiff(
     std::vector<ChunkPos>& chunksToLoad,
     std::vector<ChunkPos>& chunksToUnload
 ) const {
+    chunksToLoad.clear();
+    chunksToUnload.clear();
+
     // 获取当前视距内的区块
     auto viewChunks = getChunksInView();
     std::unordered_set<ChunkId> viewChunkIds;
@@ -379,6 +382,9 @@ void ChunkSyncManager::calculateUpdates(
     std::vector<ChunkPos>& chunksToLoad,
     std::vector<ChunkPos>& chunksToUnload
 ) {
+    chunksToLoad.clear();
+    chunksToUnload.clear();
+
     auto tracker = getTracker(playerId);
     if (!tracker) return;
 

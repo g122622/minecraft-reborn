@@ -153,6 +153,19 @@ public:
      */
     [[nodiscard]] bool isAtlasBuilt() const { return m_atlasBuilt; }
 
+    /**
+     * @brief 获取第一个资源包（用于纹理加载）
+     * @return 资源包指针，如果没有则返回 nullptr
+     */
+    [[nodiscard]] IResourcePack* getFirstResourcePack();
+
+    /**
+     * @brief 按索引获取资源包
+     * @param index 资源包索引
+     * @return 资源包指针，如果索引无效则返回 nullptr
+     */
+    [[nodiscard]] IResourcePack* getResourcePack(size_t index);
+
     // ========================================================================
     // 配置
     // ========================================================================
@@ -198,6 +211,9 @@ private:
 
     // 将纹理路径转换为资源位置
     [[nodiscard]] static ResourceLocation texturePathToLocation(StringView path);
+
+    // 使用 compat 层查找纹理区域（支持 MC 1.12/1.13+ 路径变体）
+    [[nodiscard]] const TextureRegion* findTextureRegion(const ResourceLocation& texLoc) const;
 };
 
 } // namespace mc

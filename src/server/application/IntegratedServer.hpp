@@ -8,8 +8,10 @@
 #include "common/network/LocalServerConnection.hpp"
 #include "common/network/ProtocolPackets.hpp"
 #include "common/network/ChunkSync.hpp"
+#include "common/network/EntityPackets.hpp"
 #include "common/world/chunk/ChunkStatus.hpp"
 #include "common/world/chunk/ChunkLoadTicketManager.hpp"
+#include "common/world/entity/EntityManager.hpp"
 #include "common/entity/Player.hpp"
 #include "server/world/ServerChunkManager.hpp"
 #include "server/core/ServerCore.hpp"
@@ -18,6 +20,7 @@
 #include <atomic>
 #include <functional>
 #include <unordered_set>
+#include <unordered_map>
 #include <mutex>
 #include <vector>
 
@@ -116,6 +119,15 @@ public:
     [[nodiscard]] const ServerCore& serverCore() const { return *m_serverCore; }
 
 private:
+    [[nodiscard]] static u64 chunkKey(ChunkCoord x, ChunkCoord z) {
+        return (static_cast<u64>(static_cast<u32>(x)) << 32) | static_cast<u32>(z);
+    }
+
+    static void chunkKeyToCoord(u64 key, ChunkCoord& x, ChunkCoord& z) {
+        x = static_cast<ChunkCoord>(key >> 32);
+        z = static_cast<ChunkCoord>(key & 0xFFFFFFFF);
+    }
+
     void mainLoop();
     void tick();
     void shutdown();
@@ -128,6 +140,7 @@ private:
     // 票据系统
     void handlePlayerChunkMove(ChunkCoord newChunkX, ChunkCoord newChunkZ);
     void onChunkLevelChanged(ChunkCoord x, ChunkCoord z, i32 oldLevel, i32 newLevel);
+    void processPendingChunkUnloads();
 
     // 网络事件处理
     void onPacketReceived(const u8* data, size_t size);
@@ -156,6 +169,7 @@ private:
     void sendOpenContainer(ContainerId containerId, ContainerType type, const String& title, i32 slotCount);
     void sendCloseContainer(ContainerId containerId);
     void sendToClient(const u8* data, size_t size);
+    void sendTimeUpdate();
     void openCraftingTableMenu();
 
     /**
@@ -187,6 +201,9 @@ private:
     std::unique_ptr<network::LocalConnectionPair> m_connectionPair;
     network::LocalEndpoint* m_serverEndpoint = nullptr;
 
+    /// 客户端连接（持有 shared_ptr 以防止 ServerPlayerData 中的 weak_ptr 失效）
+    network::ConnectionPtr m_clientConnection;
+
     // 客户端特有数据（容器、物品栏等）
     struct ClientGameData {
         mc::PlayerInventory inventory;  ///< 玩家物品栏
@@ -200,12 +217,29 @@ private:
     // 区块加载票据管理器
     std::unique_ptr<world::ChunkLoadTicketManager> m_ticketManager;
 
+    // 延迟卸载队列（防抖，避免边缘区块瞬时闪动）
+    std::unordered_map<u64, u64> m_pendingChunkUnloads;
+    static constexpr u64 CHUNK_UNLOAD_GRACE_TICKS = 8;
+
     // 玩家当前区块位置（用于检测跨区块移动）
     ChunkCoord m_lastPlayerChunkX = std::numeric_limits<ChunkCoord>::max();
     ChunkCoord m_lastPlayerChunkZ = std::numeric_limits<ChunkCoord>::max();
 
     // 日光周期
     bool m_daylightCycleEnabled = true;
+
+    // 服务端实体管理器
+    EntityManager m_entityManager;
+
+    /**
+     * @brief 处理从区块生成的实体
+     */
+    void handleSpawnedEntities(const std::vector<SpawnedEntityData>& entities);
+
+    /**
+     * @brief 发送实体生成包到客户端
+     */
+    void sendEntitySpawnPackets(const std::vector<std::pair<EntityId, const SpawnedEntityData*>>& entities);
 };
 
 } // namespace mc::server

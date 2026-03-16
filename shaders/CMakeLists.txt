@@ -42,6 +42,14 @@ set(SHADER_SOURCES
     gui.frag
     entity.vert
     entity.frag
+    sky.vert
+    sky.frag
+    sun.vert
+    sun.frag
+    moon.vert
+    moon.frag
+    star.vert
+    star.frag
 )
 
 # 输出目录

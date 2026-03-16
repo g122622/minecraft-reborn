@@ -27,12 +27,27 @@ layout(set = 0, binding = 0) uniform CameraUBO {
     mat4 viewProjection;
 } camera;
 
-// 描述符集 1 - 光照UBO
+// 描述符集 1 - 光照UBO（需与 UniformBuffer.hpp::LightingUBO 保持一致）
 layout(set = 0, binding = 1) uniform LightingUBO {
-    float ambientStrength;
-    float sunAngle;
-    float moonAngle;
-    int dayTime;
+    vec3 sunDirection;
+    float sunIntensity;
+
+    vec3 ambientColor;
+    float ambientIntensity;
+
+    vec3 cameraPosition;
+    float padding1;
+
+    vec3 fogColor;
+    float fogStart;
+    float fogEnd;
+    float fogDensity;
+    uint fogMode;
+
+    float celestialAngle;
+    float skyBrightness;
+    int moonPhase;
+    float starBrightness;
 } lighting;
 
 out gl_PerVertex {
@@ -40,9 +55,9 @@ out gl_PerVertex {
 };
 
 void main() {
-    // 计算世界位置
-    // 模型顶点已经是相对于实体原点的，需要加上实体位置
-    vec3 worldPos = vec3(pc.model * vec4(inPosition * pc.scale + pc.entityPos, 1.0));
+    // 计算世界位置：先应用模型旋转/局部变换，再加实体世界坐标
+    vec3 localPos = vec3(pc.model * vec4(inPosition * pc.scale, 1.0));
+    vec3 worldPos = localPos + pc.entityPos;
 
     gl_Position = camera.viewProjection * vec4(worldPos, 1.0);
 
@@ -53,8 +68,10 @@ void main() {
     fragTexCoord = inTexCoord;
     fragColor = vec4(1.0);  // 白色，可以通过uniform覆盖
 
-    // 计算光照 - 简单的方向光
-    // 法线朝上 (0,1,0) 时最亮
-    float light = max(dot(fragNormal, vec3(0.0, 1.0, 0.0)), 0.0);
-    fragLight = lighting.ambientStrength + light * (1.0 - lighting.ambientStrength);
+    // 计算光照：环境光 + 太阳方向漫反射
+    // 使用最低亮度保护，避免因UBO异常或极端角度导致实体全黑
+    vec3 sunDir = normalize(lighting.sunDirection);
+    float diffuse = max(dot(fragNormal, sunDir), 0.0) * max(lighting.sunIntensity, 0.0);
+    float ambient = clamp(lighting.ambientIntensity, 0.15, 1.0);
+    fragLight = clamp(max(ambient + diffuse, 0.22), 0.0, 1.0);
 }

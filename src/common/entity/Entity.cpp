@@ -144,7 +144,7 @@ void Entity::updateFallDistance() {
     }
 }
 
-void Entity::handleFallDamage(f32 distance, f32 damageMultiplier) {
+void Entity::handleFallDamage(f32 /* distance */, f32 /* damageMultiplier */) {
     // 基础实体不处理摔落伤害
     // LivingEntity 会重写此方法
 }
@@ -194,9 +194,14 @@ Vector3 Entity::moveWithCollision(f32 dx, f32 dy, f32 dz) {
     m_collidedHorizontally = false;
     m_collidedVertically = false;
 
-    if (!m_physicsEngine) {
+    // 优先使用 World 的物理引擎
+    PhysicsEngine* physics = physicsEngine();
+
+    if (!physics) {
         // 无物理引擎，直接移动
         move(dx, dy, dz);
+        // 尝试通过 World 检测地面
+        checkOnGround();
         return desiredMovement;
     }
 
@@ -205,7 +210,7 @@ Vector3 Entity::moveWithCollision(f32 dx, f32 dy, f32 dz) {
 
     // 使用物理引擎执行碰撞检测移动
     // 参考MC: Entity.move() -> getAllowedMovement()
-    Vector3 actualMovement = m_physicsEngine->moveEntity(entityBox, desiredMovement, stepHeight());
+    Vector3 actualMovement = physics->moveEntity(entityBox, desiredMovement, stepHeight());
 
     // 从碰撞箱更新位置
     // 实体位置 = 碰撞箱底部中心
@@ -216,19 +221,53 @@ Vector3 Entity::moveWithCollision(f32 dx, f32 dy, f32 dz) {
     );
 
     // 更新碰撞状态（从物理引擎获取）
-    m_collidedHorizontally = m_physicsEngine->collidedHorizontally();
-    m_collidedVertically = m_physicsEngine->collidedVertically();
+    m_collidedHorizontally = physics->collidedHorizontally();
+    m_collidedVertically = physics->collidedVertically();
 
     // 更新地面状态
     // 优先使用”向下移动时发生垂直碰撞”的判定，避免纯接触检测抖动。
     bool groundedByCollision = m_collidedVertically && desiredMovement.y < 0.0f;
-    bool groundedByContact = m_physicsEngine->isOnGround(entityBox);
+    bool groundedByContact = physics->isOnGround(entityBox);
     m_onGround = groundedByCollision || groundedByContact;
 
     // 更新摔落距离并处理摔落伤害
     updateFallDistance();
 
     return actualMovement;
+}
+
+PhysicsEngine* Entity::physicsEngine() {
+    // 优先使用 World 的物理引擎
+    if (m_world) {
+        PhysicsEngine* engine = m_world->physicsEngine();
+        if (engine) return engine;
+    }
+    // 备用：显式设置的物理引擎（客户端兼容）
+    return m_physicsEngine;
+}
+
+const PhysicsEngine* Entity::physicsEngine() const {
+    // 优先使用 World 的物理引擎
+    if (m_world) {
+        const PhysicsEngine* engine = m_world->physicsEngine();
+        if (engine) return engine;
+    }
+    // 备用：显式设置的物理引擎（客户端兼容）
+    return m_physicsEngine;
+}
+
+void Entity::checkOnGround() {
+    if (!m_world) {
+        m_onGround = false;
+        return;
+    }
+
+    // 检测实体下方是否有方块
+    AxisAlignedBB box = boundingBox();
+    box.minY -= 0.1f;  // 向下延伸一点
+    box.maxY = box.minY + 0.1f;  // 扁平的检测区域
+
+    m_onGround = m_world->hasBlockCollision(box);
 }
 
 void Entity::applyPhysics(f32 deltaTime) {

@@ -6,6 +6,7 @@
 #include "world/block/BlockRegistry.hpp"
 #include "world/block/VanillaBlocks.hpp"
 #include "world/biome/BiomeProvider.hpp"
+#include "world/biome/layer/LayerUtil.hpp"
 #include "math/random/Random.hpp"
 
 using namespace mc;
@@ -112,7 +113,7 @@ protected:
         carver = std::make_unique<CaveCarver>(256);
         chunk = std::make_unique<ChunkPrimer>(0, 0);
         mask = std::make_unique<CarvingMask>(0, 0);
-        biomeProvider = std::make_unique<SimpleBiomeProvider>(12345);
+        biomeProvider = std::make_unique<LayerBiomeProvider>(12345);
     }
 
     std::unique_ptr<CaveCarver> carver;
@@ -213,7 +214,7 @@ protected:
         carver = std::make_unique<CanyonCarver>(256);
         chunk = std::make_unique<ChunkPrimer>(0, 0);
         mask = std::make_unique<CarvingMask>(0, 0);
-        biomeProvider = std::make_unique<SimpleBiomeProvider>(12345);
+        biomeProvider = std::make_unique<LayerBiomeProvider>(12345);
     }
 
     std::unique_ptr<CanyonCarver> carver;

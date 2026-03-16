@@ -110,7 +110,7 @@ LootContextBuilder& LootContextBuilder::withLootingModifier(i32 level) {
     return *this;
 }
 
-std::unique_ptr<LootContext> LootContextBuilder::build(const LootParameterSet& paramSet) {
+std::unique_ptr<LootContext> LootContextBuilder::build(const LootParameterSet& /* paramSet */) {
     // 创建随机数生成器
     static thread_local math::Random defaultRandom(0);
 

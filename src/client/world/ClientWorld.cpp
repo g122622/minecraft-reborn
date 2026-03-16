@@ -1,5 +1,5 @@
 #include "ClientWorld.hpp"
-#include "../renderer/ChunkMesher.hpp"
+#include "../renderer/trident/chunk/ChunkMesher.hpp"
 #include "../../common/world/WorldConstants.hpp"
 #include "../../common/network/ChunkSync.hpp"
 #include "../../common/core/Constants.hpp"
@@ -41,8 +41,9 @@ void ClientWorld::destroy() {
 void ClientWorld::update(const glm::vec3& cameraPosition, i32 renderDistance) {
     m_renderDistance = renderDistance;
     m_cameraPosition = cameraPosition;
-    // 区块加载由服务端控制，客户端只处理卸载
-    unloadChunksOutOfRange(cameraPosition, renderDistance + 2); // 多保留2个区块的缓冲
+    // 区块生命周期由服务端统一控制。
+    // 客户端若自行按距离卸载，会与服务端的已发送集合产生状态漂移，
+    // 导致回头后部分旧区块无法重新下发。
 }
 
 ClientChunk* ClientWorld::getChunk(const ChunkId& id) {
@@ -189,13 +190,13 @@ void ClientWorld::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {
     i32 localX = toLocalCoord(x);
     i32 localZ = toLocalCoord(z);
 
-    spdlog::info("[Mining] ClientWorld setBlock pos=({}, {}, {}) state={} loadedChunk=({}, {})",
-                 x,
-                 y,
-                 z,
-                 state ? state->blockLocation().toString() : String("<null>"),
-                 chunkX,
-                 chunkZ);
+    // spdlog::info("[Mining] ClientWorld setBlock pos=({}, {}, {}) state={} loadedChunk=({}, {})",
+    //              x,
+    //              y,
+    //              z,
+    //              state ? state->blockLocation().toString() : String("<null>"),
+    //              chunkX,
+    //              chunkZ);
 
     chunk->data->setBlock(localX, y, localZ, state);
     chunk->data->setDirty(true);
@@ -414,11 +415,11 @@ void ClientWorld::scheduleChunkMeshRebuild(const ChunkId& id) {
     chunk->needsMeshUpdate = true;
     chunk->meshBuilding = false;
 
-    spdlog::info("[Mining] Rebuilt chunk mesh synchronously for chunk ({}, {}), vertices={}, indices={}",
-                 id.x,
-                 id.z,
-                 chunk->solidMesh.vertexCount(),
-                 chunk->solidMesh.indexCount());
+    // spdlog::info("[Mining] Rebuilt chunk mesh synchronously for chunk ({}, {}), vertices={}, indices={}",
+    //              id.x,
+    //              id.z,
+    //              chunk->solidMesh.vertexCount(),
+    //              chunk->solidMesh.indexCount());
 }
 
 std::array<std::shared_ptr<const ChunkData>, 6> ClientWorld::getNeighborChunkData(const ChunkId& id) {

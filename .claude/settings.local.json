@@ -10,5 +10,6 @@
       "Bash(./build/bin/Debug/mc_tests.exe:*)",
       "Bash(D:/MiscProjects/minecraft-reborn/build/bin/Debug/mc_tests.exe:*)"
     ]
-  }
+  },
+  "prefersReducedMotion": true
 }

@@ -1,5 +1,6 @@
 #include "HudRenderer.hpp"
-#include "../GuiRenderer.hpp"
+#include "../../renderer/trident/gui/GuiRenderer.hpp"
+#include "../../renderer/trident/item/ItemRenderer.hpp"
 #include "../../../common/entity/Player.hpp"
 #include "../../../common/entity/inventory/PlayerInventory.hpp"
 #include "../../../common/item/ItemStack.hpp"
@@ -48,6 +49,9 @@ namespace {
 // ============================================================================
 
 HudRenderer::HudRenderer()
+    : m_itemRenderer(nullptr)
+    , m_visible(true)
+    , m_initialized(false)
 {
 }
 
@@ -55,11 +59,12 @@ HudRenderer::HudRenderer()
 // 初始化
 // ============================================================================
 
-bool HudRenderer::initialize() {
+bool HudRenderer::initialize(ItemRenderer* itemRenderer) {
     if (m_initialized) {
         return true;
     }
 
+    m_itemRenderer = itemRenderer;
     m_initialized = true;
     return true;
 }
@@ -120,6 +125,11 @@ void HudRenderer::renderHotbar(GuiRenderer& gui, const PlayerInventory& inventor
         // 绘制物品（如果有）
         const ItemStack& stack = inventory.getItem(i);
         if (!stack.isEmpty()) {
+            // 绘制物品图标
+            if (m_itemRenderer != nullptr) {
+                m_itemRenderer->renderItem(gui, stack, slotX + 1, slotY + 1, 16.0f);
+            }
+
             // 绘制物品数量
             if (stack.getCount() > 1) {
                 std::string countText = std::to_string(stack.getCount());

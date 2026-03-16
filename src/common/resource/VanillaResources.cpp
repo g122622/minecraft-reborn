@@ -1,5 +1,6 @@
 #include "VanillaResources.hpp"
 #include <spdlog/spdlog.h>
+#include <cstring>
 
 namespace mc {
 
@@ -691,14 +692,112 @@ void VanillaResources::registerBaseModels(InMemoryResourcePack& pack) {
             "west": "block/podzol_side"
         }
     })");
+
+    // Wood log variants (using cube_column template)
+    const char* logTemplate = R"({
+        "parent": "block/cube_column",
+        "textures": {
+            "end": "block/%s_log_top",
+            "side": "block/%s_log"
+        }
+    })";
+
+    const char* logTypes[] = {"spruce", "birch", "jungle", "acacia", "dark_oak"};
+    for (const auto& type : logTypes) {
+        String model = String(logTemplate);
+        size_t pos = model.find("%s");
+        while (pos != String::npos) {
+            model.replace(pos, 2, type);
+            pos = model.find("%s", pos + strlen(type));
+        }
+        pack.addResource("assets/minecraft/models/block/" + String(type) + "_log.json", model);
+    }
+
+    // Leaves variants
+    const char* leavesTemplate = R"({
+        "parent": "block/leaves",
+        "textures": {
+            "all": "block/%s_leaves"
+        }
+    })";
+
+    const char* leavesTypes[] = {"spruce", "birch", "jungle", "acacia", "dark_oak"};
+    for (const auto& type : leavesTypes) {
+        String model = String(leavesTemplate);
+        size_t pos = model.find("%s");
+        if (pos != String::npos) {
+            model.replace(pos, 2, type);
+        }
+        pack.addResource("assets/minecraft/models/block/" + String(type) + "_leaves.json", model);
+    }
+
+    // Saplings
+    const char* saplingTemplate = R"({
+        "parent": "block/cross",
+        "textures": {
+            "cross": "block/%s_sapling"
+        }
+    })";
+
+    const char* saplingTypes[] = {"oak", "spruce", "birch", "jungle", "acacia", "dark_oak"};
+    for (const auto& type : saplingTypes) {
+        String model = String(saplingTemplate);
+        size_t pos = model.find("%s");
+        if (pos != String::npos) {
+            model.replace(pos, 2, type);
+        }
+        pack.addResource("assets/minecraft/models/block/" + String(type) + "_sapling.json", model);
+    }
+
+    // Flowers
+    const char* flowerTemplate = R"({
+        "parent": "block/cross",
+        "textures": {
+            "cross": "block/%s"
+        }
+    })";
+
+    const char* flowers[] = {"dandelion", "poppy", "blue_orchid", "allium", "azure_bluet",
+                             "red_tulip", "orange_tulip", "white_tulip", "pink_tulip", "oxeye_daisy",
+                             "brown_mushroom", "red_mushroom", "short_grass", "fern"};
+    for (const auto& flower : flowers) {
+        String model = String(flowerTemplate);
+        size_t pos = model.find("%s");
+        if (pos != String::npos) {
+            model.replace(pos, 2, flower);
+        }
+        pack.addResource("assets/minecraft/models/block/" + String(flower) + ".json", model);
+    }
+
+    // Tall grass
+    pack.addResource("assets/minecraft/models/block/tall_grass.json", R"({
+        "parent": "block/cross",
+        "textures": {
+            "cross": "block/tall_grass_top"
+        }
+    })");
+
+    // Crafting table
+    pack.addResource("assets/minecraft/models/block/crafting_table.json", R"({
+        "parent": "block/cube",
+        "textures": {
+            "particle": "block/crafting_table_front",
+            "down": "block/crafting_table_bottom",
+            "up": "block/crafting_table_top",
+            "north": "block/crafting_table_front",
+            "east": "block/crafting_table_side",
+            "south": "block/crafting_table_side",
+            "west": "block/crafting_table_front"
+        }
+    })");
 }
 
 // ============================================================================
-// 注册 Blockstates
+// Register Blockstates
 // ============================================================================
 
 void VanillaResources::registerBlockStates(InMemoryResourcePack& pack) {
-    // 大多数简单方块使用 normal 变体
+    // Most simple blocks use "normal" variant
     const char* simpleBlockstate = R"({
         "variants": {
             "normal": { "model": "%s" }
@@ -733,7 +832,7 @@ void VanillaResources::registerBlockStates(InMemoryResourcePack& pack) {
         pack.addResource("assets/minecraft/blockstates/" + String(block) + ".json", json);
     }
 
-    // 橡木原木（有轴属性）
+    // Oak log (has axis property)
     pack.addResource("assets/minecraft/blockstates/oak_log.json", R"({
         "variants": {
             "axis=y": { "model": "oak_log" },
@@ -742,17 +841,97 @@ void VanillaResources::registerBlockStates(InMemoryResourcePack& pack) {
         }
     })");
 
-    // 空气
+    // Air
     pack.addResource("assets/minecraft/blockstates/air.json", R"({
         "variants": {
             "normal": { "model": "air" }
         }
     })");
 
-    // 橡木树叶
+    // Oak leaves
     pack.addResource("assets/minecraft/blockstates/oak_leaves.json", R"({
         "variants": {
             "normal": { "model": "oak_leaves" }
+        }
+    })");
+
+    // Wood log blockstates (with axis property)
+    const char* logBlockstateTemplate = R"({
+        "variants": {
+            "axis=y": { "model": "%s_log" },
+            "axis=z": { "model": "%s_log", "x": 90 },
+            "axis=x": { "model": "%s_log", "x": 90, "y": 90 }
+        }
+    })";
+
+    const char* logBlockstateTypes[] = {"spruce", "birch", "jungle", "acacia", "dark_oak"};
+    for (const auto& type : logBlockstateTypes) {
+        String json = String(logBlockstateTemplate);
+        size_t pos = json.find("%s");
+        while (pos != String::npos) {
+            json.replace(pos, 2, type);
+            pos = json.find("%s", pos + strlen(type));
+        }
+        pack.addResource("assets/minecraft/blockstates/" + String(type) + "_log.json", json);
+    }
+
+    // Leaves blockstates
+    const char* leavesBlockstateTemplate = R"({
+        "variants": {
+            "normal": { "model": "%s_leaves" }
+        }
+    })";
+
+    const char* leavesBlockstateTypes[] = {"spruce", "birch", "jungle", "acacia", "dark_oak"};
+    for (const auto& type : leavesBlockstateTypes) {
+        String json = String(leavesBlockstateTemplate);
+        size_t pos = json.find("%s");
+        if (pos != String::npos) {
+            json.replace(pos, 2, type);
+        }
+        pack.addResource("assets/minecraft/blockstates/" + String(type) + "_leaves.json", json);
+    }
+
+    // Sapling blockstates
+    const char* saplingBlockstateTemplate = R"({
+        "variants": {
+            "normal": { "model": "%s_sapling" }
+        }
+    })";
+
+    const char* saplingBlockstateTypes[] = {"oak", "spruce", "birch", "jungle", "acacia", "dark_oak"};
+    for (const auto& type : saplingBlockstateTypes) {
+        String json = String(saplingBlockstateTemplate);
+        size_t pos = json.find("%s");
+        if (pos != String::npos) {
+            json.replace(pos, 2, type);
+        }
+        pack.addResource("assets/minecraft/blockstates/" + String(type) + "_sapling.json", json);
+    }
+
+    // Flower and vegetation blockstates
+    const char* flowerBlockstateTemplate = R"({
+        "variants": {
+            "normal": { "model": "%s" }
+        }
+    })";
+
+    const char* flowerBlockstates[] = {"dandelion", "poppy", "blue_orchid", "allium", "azure_bluet",
+                                        "red_tulip", "orange_tulip", "white_tulip", "pink_tulip", "oxeye_daisy",
+                                        "brown_mushroom", "red_mushroom", "short_grass", "fern", "tall_grass"};
+    for (const auto& flower : flowerBlockstates) {
+        String json = String(flowerBlockstateTemplate);
+        size_t pos = json.find("%s");
+        if (pos != String::npos) {
+            json.replace(pos, 2, flower);
+        }
+        pack.addResource("assets/minecraft/blockstates/" + String(flower) + ".json", json);
+    }
+
+    // Crafting table
+    pack.addResource("assets/minecraft/blockstates/crafting_table.json", R"({
+        "variants": {
+            "normal": { "model": "crafting_table" }
         }
     })");
 }

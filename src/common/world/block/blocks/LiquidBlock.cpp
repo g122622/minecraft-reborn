@@ -1,4 +1,5 @@
 #include "LiquidBlock.hpp"
+#include "../Block.hpp"
 #include "../../../util/property/Properties.hpp"
 #include "../../../util/property/FluidProperties.hpp"
 
@@ -37,12 +38,13 @@ LiquidBlock::LiquidBlock(fluid::FlowingFluid& fluid, BlockProperties properties)
 
 const mc::fluid::FluidState* LiquidBlock::getFluidState(const BlockState& state) const {
     i32 blockLevel = state.get(LEVEL_0_15());
-    return m_fluidStateCache[blockLevel];
+    return &m_fluidStateCache[blockLevel];
 }
 
 const CollisionShape& LiquidBlock::getCollisionShape(const BlockState& state) const {
     // 液体方块没有碰撞形状
-    return CollisionShape::empty();
+    (void)state;
+    return VoxelShapes::empty();
 }
 
 i32 LiquidBlock::blockLevelToFluidLevel(i32 blockLevel) {
@@ -72,7 +74,8 @@ i32 LiquidBlock::fluidLevelToBlockLevel(i32 fluidLevel, bool falling) {
 }
 
 void LiquidBlock::buildFluidStateCache() {
-    m_fluidStateCache.resize(16);
+    m_fluidStateCache.clear();
+    m_fluidStateCache.reserve(16);
 
     auto& levelProp = fluid::FluidProperties::LEVEL_1_8();
     auto& fallingProp = fluid::FluidProperties::FALLING();
@@ -81,15 +84,13 @@ void LiquidBlock::buildFluidStateCache() {
         i32 fluidLevel = blockLevelToFluidLevel(blockLevel);
         bool falling = isFallingLevel(blockLevel);
 
-        const fluid::FluidState& baseState = m_fluid.getFlowing().defaultState();
-
         if (fluidLevel == 8 && !falling) {
             // 源头状态
-            m_fluidStateCache[blockLevel] = &m_fluid.getStill().defaultState();
+            m_fluidStateCache.push_back(m_fluid.getStill().defaultState());
         } else {
             // 流动状态
-            const fluid::FluidState* state = &baseState.with(levelProp, fluidLevel).with(fallingProp, falling);
-            m_fluidStateCache[blockLevel] = state;
+            m_fluidStateCache.push_back(m_fluid.getFlowing().defaultState()
+                .with(levelProp, fluidLevel).with(fallingProp, falling));
         }
     }
 }

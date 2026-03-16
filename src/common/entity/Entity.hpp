@@ -315,15 +315,19 @@ public:
     // ========== 物理 ==========
 
     /**
-     * @brief 设置物理引擎
+     * @brief 设置物理引擎（已废弃，优先使用 World 的物理引擎）
      * @param engine 物理引擎指针（不拥有所有权）
+     * @deprecated 使用 World::physicsEngine() 替代
      */
     void setPhysicsEngine(PhysicsEngine* engine) { m_physicsEngine = engine; }
 
     /**
      * @brief 获取物理引擎
+     *
+     * 优先返回 World 的物理引擎，如果没有则返回显式设置的物理引擎。
      */
-    [[nodiscard]] PhysicsEngine* physicsEngine() const { return m_physicsEngine; }
+    [[nodiscard]] PhysicsEngine* physicsEngine();
+    [[nodiscard]] const PhysicsEngine* physicsEngine() const;
 
     /**
      * @brief 带碰撞检测的移动
@@ -345,6 +349,15 @@ public:
      * @param deltaTime 时间增量（秒）
      */
     void applyPhysics(f32 deltaTime);
+
+    /**
+     * @brief 检测是否在地面上
+     *
+     * 通过检测实体下方是否有方块碰撞来判断。
+     * 如果 World 存在，使用 World 的碰撞检测；
+     * 否则使用物理引擎（如果有）。
+     */
+    void checkOnGround();
 
     // ========== 碰撞状态 ==========
 

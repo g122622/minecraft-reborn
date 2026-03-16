@@ -35,10 +35,12 @@ u64 Xoroshiro128ppRandom::nextU64() {
     return result;
 }
 
-void Xoroshiro128ppRandom::skip(u64 count) {
+void Xoroshiro128ppRandom::skip(u64 /* count */) {
     // xoroshiro128++ 的快速跳转
     // 使用预计算的跳转多项式
     // 参考 http://xoroshiro.di.unimi.it/xoroshiro128plusplus.c
+    // 注意：参数 count 被忽略，因为快速跳转每次跳过 2^64 个状态
+    // 这是 xoroshiro/xoshiro 系列算法的标准实现方式
 
     static const u64 JUMP[] = {
         0x2bd7a6a6e99c2ddcULL,
@@ -54,7 +56,7 @@ void Xoroshiro128ppRandom::skip(u64 count) {
                 s0 ^= m_state[0];
                 s1 ^= m_state[1];
             }
-            nextU64();
+            (void)nextU64();  // 故意丢弃返回值，用于状态更新
         }
     }
 

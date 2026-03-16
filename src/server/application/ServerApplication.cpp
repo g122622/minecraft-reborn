@@ -93,6 +93,10 @@ Result<void> ServerApplication::initialize(const ServerLaunchParams& params)
     traceConfig.bufferSizeKb = 65536; // 64MB
     mc::perfetto::PerfettoManager::instance().initialize(traceConfig);
     mc::perfetto::PerfettoManager::instance().startTracing();
+
+    // 设置进程和主线程名称
+    mc::perfetto::PerfettoManager::instance().setProcessName("MinecraftServer");
+    mc::perfetto::PerfettoManager::instance().setThreadName("ServerMainThread");
     spdlog::info("Perfetto tracing initialized");
 
     // 注册实体类型
@@ -205,7 +209,7 @@ void ServerApplication::mainLoop()
     spdlog::info("Connect with port: {}", m_settings.serverPort.get());
 
     while (m_running) {
-        MC_TRACE_EVENT("game.tick", "ServerLoop");
+        MC_TRACE_EVENT("server.tick", "MainLoopIteration");
 
         const auto currentTime = clock::now();
         const auto deltaTime = currentTime - lastTickTime;
@@ -218,7 +222,8 @@ void ServerApplication::mainLoop()
 
             // 追踪 TPS
             const f64 tps = 1.0 / (std::chrono::duration<f64>(deltaTime).count());
-            MC_TRACE_COUNTER("game.tick", "TPS", static_cast<i64>(tps));
+            MC_TRACE_COUNTER("server.tick", "TPS", static_cast<i64>(tps));
+            MC_TRACE_COUNTER("server.tick", "PlayerCount", static_cast<i64>(m_serverCore->playerCount()));
 
             // 每秒输出一次统计信息
             u64 tickCount = m_serverCore->currentTick();
@@ -237,22 +242,25 @@ void ServerApplication::mainLoop()
 
 void ServerApplication::tick()
 {
-    MC_TRACE_EVENT("game.tick", "ServerTick");
+    MC_TRACE_EVENT("server.tick", "ServerTick");
 
     // 处理网络事件
     {
-        MC_TRACE_EVENT("network.packet", "PollNetwork");
+        MC_TRACE_EVENT("server.network", "PollNetwork");
         if (m_server) {
             m_server->poll();
         }
     }
 
     // 使用 ServerCore 的 tick
-    m_serverCore->tick();
+    {
+        MC_TRACE_EVENT("server.tick", "CoreTick");
+        m_serverCore->tick();
+    }
 
     // 更新世界
     {
-        MC_TRACE_EVENT("game.tick", "WorldUpdate");
+        MC_TRACE_EVENT("server.world", "WorldTick");
         if (m_world) {
             m_world->tick();
         }
@@ -262,6 +270,8 @@ void ServerApplication::tick()
     const u64 tickCount = m_serverCore->currentTick();
     if (tickCount - m_lastKeepAliveTime >= 300) { // 300 ticks = 15 seconds
         m_lastKeepAliveTime = tickCount;
+
+        MC_TRACE_EVENT("server.network", "SendKeepAlive");
 
         u64 timestamp = util::TimeUtils::getCurrentTimeMs();
 

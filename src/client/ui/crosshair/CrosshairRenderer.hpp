@@ -1,11 +1,15 @@
 #pragma once
 
 #include "common/core/Result.hpp"
+#include "common/core/Types.hpp"
+
+namespace mc::client::renderer::trident::gui {
+class GuiRenderer;
+}
 
 namespace mc::client {
-
-// 前向声明
-class GuiRenderer;
+// 引入GuiRenderer到mc::client命名空间（向后兼容）
+using GuiRenderer = renderer::trident::gui::GuiRenderer;
 
 /**
  * @brief 准星渲染器

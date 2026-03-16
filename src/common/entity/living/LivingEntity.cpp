@@ -1,12 +1,13 @@
 #include "LivingEntity.hpp"
 #include "../../core/Constants.hpp"
 #include "../../math/MathUtils.hpp"
+#include "../../physics/PhysicsEngine.hpp"
 #include <cmath>
 
 namespace mc {
 
 // ============================================================================
-// 静态数据参数定义
+// 常量
 // ============================================================================
 
 namespace {
@@ -15,6 +16,12 @@ namespace {
     entity::DataParameter<f32> HEALTH_PARAM{11};
     entity::DataParameter<i32> POTION_EFFECTS_PARAM{12};
     entity::DataParameter<i32> ARROW_COUNT_PARAM{13};
+
+    // 移动相关常量
+    constexpr f32 GRAVITY = 0.08f;           // MC重力
+    constexpr f32 DRAG_AIR = 0.98f;          // 空气阻力
+    constexpr f32 DRAG_GROUND = 0.91f;       // 地面摩擦
+    constexpr f32 MOTION_THRESHOLD = 0.003f; // 速度阈值
 }
 
 // ============================================================================
@@ -225,7 +232,7 @@ void LivingEntity::tickHealth() {
     // 更新属性缓存
     for (auto& [name, instance] : m_attributes.allInstances()) {
         if (instance->isDirty()) {
-            instance->getValue();  // 重新计算并缓存
+            (void)instance->getValue();  // 重新计算并缓存，故意丢弃返回值
         }
     }
 }
@@ -257,6 +264,135 @@ void LivingEntity::handleFallDamage(f32 distance, f32 damageMultiplier) {
             EnvironmentalDamage source = DamageSources::fall();
             hurt(source, damage);
         }
+    }
+}
+
+// ============================================================================
+// AI移动（travel方法）
+// ============================================================================
+
+void LivingEntity::jump() {
+    // 执行跳跃
+    // 参考 MC LivingEntity.jump()
+    f32 jumpPower = m_jumpUpwardsMotion;
+
+    // TODO: 检查跳跃增强药水效果
+
+    // 设置垂直速度
+    m_velocity.y = jumpPower;
+
+    // 如果正在冲刺，添加额外的向前动量
+    // TODO: 实现冲刺跳跃
+
+    m_onGround = false;
+}
+
+void LivingEntity::aiStep() {
+    // 处理跳跃
+    // 参考 MC LivingEntity.livingTick() 中的跳跃处理
+    if (m_isJumping) {
+        // 简化实现：在地面时执行跳跃
+        if (m_onGround && m_jumpTicks == 0) {
+            jump();
+            m_jumpTicks = 10;  // 跳跃冷却
+        }
+    } else {
+        m_jumpTicks = 0;
+    }
+
+    // 更新跳跃冷却
+    if (m_jumpTicks > 0) {
+        m_jumpTicks--;
+    }
+
+    // 应用移动阻力
+    // 参考 MC LivingEntity.livingTick() / aiStep()
+    m_moveStrafing *= DRAG_AIR;
+    m_moveForward *= DRAG_AIR;
+
+    // 执行travel（物理移动）
+    travel(m_moveStrafing, 0.0f, m_moveForward);
+}
+
+void LivingEntity::travel(f32 strafing, f32 vertical, f32 forward) {
+    // 参考 MC 1.16.5 LivingEntity.travel()
+    // 核心物理移动逻辑
+
+    // 获取移动速度属性
+    f32 moveSpeed = static_cast<f32>(getAttributeValue(entity::attribute::Attributes::MOVEMENT_SPEED, 0.2));
+
+    // 根据是否在地面选择不同的移动因子
+    f32 moveFactor;
+    if (m_onGround) {
+        // 地面移动：使用滑度计算
+        // MC 公式: speed * (0.21600002F / (slipperiness^3))
+        // 默认滑度 0.6 -> 0.21600002 / 0.216 = 1.0
+        // 简化：直接使用 moveSpeed
+        moveFactor = moveSpeed * 0.21600002f / (0.6f * 0.6f * 0.6f);
+    } else {
+        // 空中移动：使用跳跃移动因子
+        moveFactor = m_jumpMovementFactor;
+    }
+
+    // 计算移动向量（根据实体朝向）
+    // 参考 MC Entity.moveRelative()
+    if (strafing != 0.0f || forward != 0.0f) {
+        // 计算归一化后的移动向量
+        f32 length = std::sqrt(strafing * strafing + forward * forward);
+        if (length < 1.0E-7f) {
+            return;
+        }
+
+        // 归一化并应用速度
+        f32 normalizedStrafe = strafing / length * moveFactor;
+        f32 normalizedForward = forward / length * moveFactor;
+
+        // 根据偏航角计算实际移动方向
+        // MC坐标系: yaw=0 看向 +Z, yaw=90 看向 -X (左手坐标系)
+        f32 yawRad = m_yaw * math::DEG_TO_RAD;
+        f32 sinYaw = std::sin(yawRad);
+        f32 cosYaw = std::cos(yawRad);
+
+        // MC的moveRelative公式:
+        // moveX = strafe * cosYaw - forward * sinYaw
+        // moveZ = forward * cosYaw + strafe * sinYaw
+        f32 moveX = normalizedStrafe * cosYaw - normalizedForward * sinYaw;
+        f32 moveZ = normalizedForward * cosYaw + normalizedStrafe * sinYaw;
+
+        // 添加到速度
+        m_velocity.x += moveX;
+        m_velocity.z += moveZ;
+    }
+
+    // 应用重力
+    if (!m_onGround && !hasNoGravity()) {
+        m_velocity.y -= GRAVITY;
+    }
+
+    // 应用空气阻力
+    m_velocity.x *= DRAG_AIR;
+    m_velocity.y *= DRAG_AIR;
+    m_velocity.z *= DRAG_AIR;
+
+    // 如果在地面，停止Y方向速度
+    if (m_onGround && m_velocity.y < 0.0f) {
+        m_velocity.y = 0.0f;
+    }
+
+    // 重置过小的速度
+    if (std::abs(m_velocity.x) < MOTION_THRESHOLD) m_velocity.x = 0.0f;
+    if (std::abs(m_velocity.y) < MOTION_THRESHOLD) m_velocity.y = 0.0f;
+    if (std::abs(m_velocity.z) < MOTION_THRESHOLD) m_velocity.z = 0.0f;
+
+    // 执行碰撞移动
+    if (m_velocity.x != 0.0f || m_velocity.y != 0.0f || m_velocity.z != 0.0f) {
+        moveWithCollision(m_velocity.x, m_velocity.y, m_velocity.z);
+    }
+
+    // 更新地面摩擦
+    if (m_onGround) {
+        m_velocity.x *= DRAG_GROUND;
+        m_velocity.z *= DRAG_GROUND;
     }
 }
 

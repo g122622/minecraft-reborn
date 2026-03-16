@@ -6,9 +6,19 @@
 #include <memory>
 
 namespace mc::client {
-
-class GuiRenderer;
 class Font;
+}
+
+namespace mc::client::renderer::trident::gui {
+class GuiRenderer;
+}
+
+namespace mc::client {
+// 引入GuiRenderer到mc::client命名空间（向后兼容）
+using GuiRenderer = renderer::trident::gui::GuiRenderer;
+}
+
+namespace mc::client {
 
 /**
  * @brief 聊天屏幕状态

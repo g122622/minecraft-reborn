@@ -105,11 +105,15 @@ public:
     /// Mipmap 等级，范围 0-4
     RangeOption mipmapLevels;
 
-    /// 视距（雾距离），范围 0.5-1.0
+    /// FOV（视野）效果强度
     FloatOption fovEffectScale;
 
     /// 屏幕抖动强度
     FloatOption screenShakeScale;
+
+    /// 雾效果密度倍率 (0.0-2.0, 默认 1.0)
+    /// 1.0 = 标准雾效果, 0.0 = 禁用雾, >1.0 = 更浓的雾
+    FloatOption fogDensity;
 
     // ========================================================================
     // 音频设置

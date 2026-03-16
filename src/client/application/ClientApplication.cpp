@@ -10,7 +10,11 @@
 #include "common/entity/inventory/Slot.hpp"
 #include "common/perfetto/PerfettoManager.hpp"
 #include "common/perfetto/TraceEvents.hpp"
-#include "client/renderer/ChunkMesher.hpp"
+#include "client/renderer/trident/chunk/ChunkMesher.hpp"
+#include "client/renderer/trident/chunk/ChunkRenderer.hpp"
+#include "client/renderer/trident/entity/EntityRendererManager.hpp"
+#include "client/resource/ResourceManager.hpp"
+#include "client/resource/TextureAtlasBuilder.hpp"
 #include "client/ui/hud/HudRenderer.hpp"
 #include "client/ui/screen/ScreenManager.hpp"
 #include "client/ui/screen/CraftingScreen.hpp"
@@ -18,6 +22,7 @@
 
 #include <spdlog/spdlog.h>
 #include <GLFW/glfw3.h>
+#include <vulkan/vulkan.h>
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
@@ -118,6 +123,10 @@ public:
     [[nodiscard]] u8 getSkyLight(i32 x, i32 y, i32 z) const override;
     [[nodiscard]] bool hasBlockCollision(const AxisAlignedBB& box) const override;
     [[nodiscard]] std::vector<AxisAlignedBB> getBlockCollisions(const AxisAlignedBB& box) const override;
+    [[nodiscard]] bool hasEntityCollision(const AxisAlignedBB& box, const Entity* except) const override;
+    [[nodiscard]] std::vector<AxisAlignedBB> getEntityCollisions(const AxisAlignedBB& box, const Entity* except) const override;
+    [[nodiscard]] PhysicsEngine* physicsEngine() override;
+    [[nodiscard]] const PhysicsEngine* physicsEngine() const override;
     [[nodiscard]] std::vector<Entity*> getEntitiesInAABB(const AxisAlignedBB& box, const Entity* except) const override;
     [[nodiscard]] std::vector<Entity*> getEntitiesInRange(const Vector3& pos, f32 range, const Entity* except) const override;
     [[nodiscard]] DimensionId dimension() const override;
@@ -145,6 +154,10 @@ u8 ClientWorldBlockReader::getBlockLight(i32, i32, i32) const { return 15; }
 u8 ClientWorldBlockReader::getSkyLight(i32, i32, i32) const { return 15; }
 bool ClientWorldBlockReader::hasBlockCollision(const AxisAlignedBB&) const { return false; }
 std::vector<AxisAlignedBB> ClientWorldBlockReader::getBlockCollisions(const AxisAlignedBB&) const { return {}; }
+bool ClientWorldBlockReader::hasEntityCollision(const AxisAlignedBB&, const Entity*) const { return false; }
+std::vector<AxisAlignedBB> ClientWorldBlockReader::getEntityCollisions(const AxisAlignedBB&, const Entity*) const { return {}; }
+PhysicsEngine* ClientWorldBlockReader::physicsEngine() { return nullptr; }
+const PhysicsEngine* ClientWorldBlockReader::physicsEngine() const { return nullptr; }
 std::vector<Entity*> ClientWorldBlockReader::getEntitiesInAABB(const AxisAlignedBB&, const Entity*) const { return {}; }
 std::vector<Entity*> ClientWorldBlockReader::getEntitiesInRange(const Vector3&, f32, const Entity*) const { return {}; }
 DimensionId ClientWorldBlockReader::dimension() const { return DimensionId(0); }
@@ -223,6 +236,10 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
     traceConfig.bufferSizeKb = 65536; // 64MB
     mc::perfetto::PerfettoManager::instance().initialize(traceConfig);
     mc::perfetto::PerfettoManager::instance().startTracing();
+
+    // 设置进程和主线程名称
+    mc::perfetto::PerfettoManager::instance().setProcessName("MinecraftClient");
+    mc::perfetto::PerfettoManager::instance().setThreadName("ClientMainThread");
     spdlog::info("Perfetto tracing initialized");
 
     // 初始化方块注册表
@@ -291,16 +308,16 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         }
     }, this);
 
-    // 初始化Vulkan渲染器
-    spdlog::info("Initializing Vulkan renderer...");
-    m_renderer = std::make_unique<VulkanRenderer>();
+    // 初始化Trident渲染引擎
+    spdlog::info("Initializing Trident renderer...");
+    m_renderer = std::make_unique<renderer::trident::TridentEngine>();
 
-    RendererConfig rendererConfig;
-    rendererConfig.vulkanConfig.appName = "Minecraft Reborn";
-    rendererConfig.vulkanConfig.enableValidation = true; // Debug模式启用验证层
+    renderer::api::RenderEngineConfig rendererConfig;
+    rendererConfig.appName = "Minecraft Reborn";
+    rendererConfig.enableValidation = true; // Debug模式启用验证层
     rendererConfig.enableVSync = m_settings.vsync.get();
-    rendererConfig.swapChainConfig.width = static_cast<u32>(windowConfig.width);
-    rendererConfig.swapChainConfig.height = static_cast<u32>(windowConfig.height);
+    rendererConfig.initialWindowWidth = static_cast<u32>(windowConfig.width);
+    rendererConfig.initialWindowHeight = static_cast<u32>(windowConfig.height);
 
     auto rendererResult = m_renderer->initialize(m_window.handle(), rendererConfig);
     if (rendererResult.failed()) {
@@ -338,6 +355,47 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         }
     } else {
         spdlog::warn("ResourceManager is null, skipping texture atlas update");
+    }
+
+    // 初始化 Trident 子渲染器
+    {
+        auto skyInitResult = m_renderer->initializeSkyRenderer();
+        if (skyInitResult.failed()) {
+            spdlog::warn("Failed to initialize sky renderer: {}", skyInitResult.error().toString());
+        }
+
+        auto guiInitResult = m_renderer->initializeGuiRenderer();
+        if (guiInitResult.failed()) {
+            spdlog::warn("Failed to initialize GUI renderer: {}", guiInitResult.error().toString());
+        }
+
+        // 实体渲染器必须先初始化（创建 EntityPipeline）
+        auto entityInitResult = m_renderer->initializeEntityRenderer();
+        if (entityInitResult.failed()) {
+            spdlog::warn("Failed to initialize entity renderer: {}", entityInitResult.error().toString());
+        }
+
+        // 实体纹理图集在 EntityPipeline 创建后初始化
+        if (m_resourceManager) {
+            spdlog::info("Initializing entity texture atlas...");
+            auto entityAtlasResult = m_renderer->initializeEntityTextureAtlas(m_resourceManager.get());
+            if (entityAtlasResult.failed()) {
+                spdlog::warn("Failed to initialize entity texture atlas: {}", entityAtlasResult.error().toString());
+            }
+        }
+
+        if (m_resourceManager) {
+            auto itemInitResult = m_renderer->initializeItemRenderer(m_resourceManager.get());
+            if (itemInitResult.failed()) {
+                spdlog::warn("Failed to initialize item renderer: {}", itemInitResult.error().toString());
+            }
+        }
+
+        // 初始化雾效果管理器
+        auto fogInitResult = m_renderer->initializeFogManager();
+        if (fogInitResult.failed()) {
+            spdlog::warn("Failed to initialize fog manager: {}", fogInitResult.error().toString());
+        }
     }
 
     // 启动内置服务端
@@ -403,6 +461,13 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         }
     });
 
+    // 设置实体渲染回调
+    m_renderer->setEntityRenderCallback([this](VkCommandBuffer cmd, f32 partialTick) {
+        m_world.entityManager().forEachEntity([&](client::ClientEntity& entity) {
+            m_renderer->entityRendererManager().renderWithPipeline(cmd, entity, partialTick);
+        });
+    });
+
     // 初始化方块碰撞注册表
     spdlog::info("Initializing block collision registry...");
 
@@ -432,6 +497,53 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         } else {
             m_debugScreen.setCamera(&m_camera);
             m_debugScreen.setWorld(&m_world);
+            m_debugScreen.setEntityManager(&m_world.entityManager());
+            m_debugScreen.setNetworkClient(m_networkClient.get());
+            m_debugScreen.setRenderDistance(m_settings.renderDistance.get());
+
+            // 设置GPU信息
+            auto* context = m_renderer->context();
+            if (context != nullptr) {
+                DebugGpuInfo gpuInfo;
+                gpuInfo.name = context->deviceProperties().deviceName;
+                gpuInfo.apiMajorVersion = VK_API_VERSION_MAJOR(context->deviceProperties().apiVersion);
+                gpuInfo.apiMinorVersion = VK_API_VERSION_MINOR(context->deviceProperties().apiVersion);
+                gpuInfo.driverVersion = std::to_string(VK_API_VERSION_MAJOR(context->deviceProperties().driverVersion)) + "." +
+                                        std::to_string(VK_API_VERSION_MINOR(context->deviceProperties().driverVersion)) + "." +
+                                        std::to_string(VK_API_VERSION_PATCH(context->deviceProperties().driverVersion));
+
+                // 计算显存
+                u64 dedicatedVideoMemory = 0;
+                u64 sharedSystemMemory = 0;
+                for (u32 i = 0; i < context->memoryProperties().memoryHeapCount; ++i) {
+                    const auto& heap = context->memoryProperties().memoryHeaps[i];
+                    if (heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) {
+                        dedicatedVideoMemory += heap.size;
+                    } else {
+                        sharedSystemMemory += heap.size;
+                    }
+                }
+                gpuInfo.dedicatedVideoMB = dedicatedVideoMemory / (1024 * 1024);
+                gpuInfo.sharedSystemMB = sharedSystemMemory / (1024 * 1024);
+
+                // 厂商名称
+                switch (context->deviceProperties().vendorID) {
+                    case 0x10DE: gpuInfo.vendor = "NVIDIA"; break;
+                    case 0x1002:
+                    case 0x1022: gpuInfo.vendor = "AMD"; break;
+                    case 0x8086:
+                    case 0x8087: gpuInfo.vendor = "Intel"; break;
+                    case 0x13B5: gpuInfo.vendor = "ARM"; break;
+                    case 0x1010: gpuInfo.vendor = "Apple"; break;
+                    case 0x5143: gpuInfo.vendor = "Qualcomm"; break;
+                    default: gpuInfo.vendor = "Unknown"; break;
+                }
+
+                m_debugScreen.setGpuInfo(gpuInfo);
+                m_debugScreen.setVersion("Minecraft Reborn 0.1.0");
+                m_debugScreen.setRendererInfo(gpuInfo.name);
+            }
+
             spdlog::info("Debug screen initialized");
         }
 
@@ -443,8 +555,8 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
             spdlog::info("Crosshair initialized");
         }
 
-        // 初始化HUD渲染器
-        if (m_hudRenderer.initialize()) {
+        // 初始化HUD渲染器（ItemRenderer已在TridentEngine中初始化）
+        if (m_hudRenderer.initialize(&m_renderer->itemRenderer())) {
             spdlog::info("HUD renderer initialized");
         } else {
             spdlog::warn("Failed to initialize HUD renderer");
@@ -798,29 +910,53 @@ void ClientApplication::update(f32 deltaTime)
     // 更新世界（根据相机位置加载/卸载区块）
     m_world.update(m_camera.position(), m_settings.renderDistance.get());
 
+    // 更新客户端实体（每tick调用）
+    m_world.entityManager().tick();
+
+    // 更新实体动画状态（用于渲染插值）
+    constexpr f32 partialTick = 0.0f;  // TODO: 从主循环获取实际的部分tick
+    m_world.entityManager().updateAnimations(partialTick);
+
     // 处理异步网格构建结果
     m_world.processMeshBuildResults(4);  // 每帧最多处理 4 个网格
 
     // 同步时间到渲染器（驱动天空、太阳、月亮、星空变化）
+    // 客户端每帧平滑推进时间，同时在收到服务端同步时纠正
     if (m_renderer) {
         constexpr i64 DAY_LENGTH_TICKS = 24000;
 
+        // 每帧推进时间（无论是否有服务端同步）
+        // 这确保天空、太阳、月亮在每帧平滑变化
+        m_renderTickAccumulator += deltaTime * 20.0f;
+        while (m_renderTickAccumulator >= 1.0f) {
+            m_renderTickAccumulator -= 1.0f;
+            ++m_renderGameTime;
+            m_renderDayTime = (m_renderDayTime + 1) % DAY_LENGTH_TICKS;
+        }
+
+        // 当有服务端同步时，逐渐纠正到服务端时间（避免跳变）
         if (m_hasServerTimeSync) {
-            // 有服务端时间同步时，以服务端时间为准
-            m_renderGameTime = m_world.gameTime();
-            m_renderDayTime = m_world.dayTime();
-            m_renderTickAccumulator += deltaTime * 20.0f;
-            while (m_renderTickAccumulator >= 1.0f) {
-                m_renderTickAccumulator -= 1.0f;
+            const i64 serverDayTime = m_world.dayTime();
+            const i64 serverGameTime = m_world.gameTime();
+
+            // 计算时间差（处理 dayTime 循环）
+            i64 dayTimeDiff = serverDayTime - m_renderDayTime;
+            if (dayTimeDiff > DAY_LENGTH_TICKS / 2) {
+                dayTimeDiff -= DAY_LENGTH_TICKS;
+            } else if (dayTimeDiff < -DAY_LENGTH_TICKS / 2) {
+                dayTimeDiff += DAY_LENGTH_TICKS;
             }
-        } else {
-            // 本地回退：没有时间包时仍推进昼夜循环
-            m_renderTickAccumulator += deltaTime * 20.0f;
-            while (m_renderTickAccumulator >= 1.0f) {
-                m_renderTickAccumulator -= 1.0f;
-                ++m_renderGameTime;
-                m_renderDayTime = (m_renderDayTime + 1) % DAY_LENGTH_TICKS;
+
+            // 平滑纠正：每帧纠正差值的 1%，避免跳变（TODO:根据用户设定的帧率调整纠正率。CORRECTION_RATE = 1 / 用户设定FPS）
+            constexpr f32 CORRECTION_RATE = 0.01f;
+            const i64 correction = static_cast<i64>(dayTimeDiff * CORRECTION_RATE);
+            if (correction != 0) {
+                m_renderDayTime = (m_renderDayTime + correction + DAY_LENGTH_TICKS) % DAY_LENGTH_TICKS;
             }
+
+            // gameTime 同步纠正
+            i64 gameTimeDiff = serverGameTime - m_renderGameTime;
+            m_renderGameTime += static_cast<i64>(gameTimeDiff * CORRECTION_RATE);
         }
 
         m_renderer->updateTime(m_renderDayTime, m_renderGameTime, m_renderTickAccumulator);
@@ -935,6 +1071,7 @@ void ClientApplication::setupSettingCallbacks()
     // 渲染距离变更
     m_settings.renderDistance.onChange([this](i32 value) {
         spdlog::info("Render distance changed to: {}", value);
+        m_debugScreen.setRenderDistance(value);
         // 世界更新时会使用新值
     });
 
@@ -1140,6 +1277,88 @@ void ClientApplication::setupNetworkCallbacks()
         }
     };
 
+    // ========== 实体事件回调 ==========
+    callbacks.onSpawnMob = [this](u32 entityId, const String& typeId,
+                                   f32 x, f32 y, f32 z,
+                                   f32 yaw, f32 pitch, f32 headYaw) {
+        auto* entity = m_world.entityManager().spawnEntity(
+            static_cast<EntityId>(entityId), typeId);
+        if (entity) {
+            entity->setPosition(x, y, z);
+            entity->setRotation(yaw, pitch);
+            entity->setHeadRotation(headYaw);
+            // spdlog::info("Client received SpawnMob: {} (ID: {}) at ({:.1f}, {:.1f}, {:.1f})",
+            //               typeId, entityId, x, y, z);
+        }
+    };
+
+    callbacks.onSpawnEntity = [this](u32 entityId, const String& typeId,
+                                      f32 x, f32 y, f32 z,
+                                      f32 yaw, f32 pitch) {
+        auto* entity = m_world.entityManager().spawnEntity(
+            static_cast<EntityId>(entityId), typeId);
+        if (entity) {
+            entity->setPosition(x, y, z);
+            entity->setRotation(yaw, pitch);
+            // spdlog::info("Client received SpawnEntity: {} (ID: {}) at ({:.1f}, {:.1f}, {:.1f})",
+            //               typeId, entityId, x, y, z);
+        }
+    };
+
+    callbacks.onEntityDestroy = [this](const std::vector<u32>& entityIds) {
+        for (u32 id : entityIds) {
+            m_world.entityManager().removeEntity(static_cast<EntityId>(id));
+            spdlog::debug("Destroyed entity {}", id);
+        }
+    };
+
+    callbacks.onEntityMove = [this](u32 entityId, f32 dx, f32 dy, f32 dz) {
+        auto* entity = m_world.entityManager().getEntity(static_cast<EntityId>(entityId));
+        if (entity) {
+            entity->setTargetPosition(
+                entity->x() + dx,
+                entity->y() + dy,
+                entity->z() + dz);
+        }
+    };
+
+    callbacks.onEntityTeleport = [this](u32 entityId, f32 x, f32 y, f32 z,
+                                         f32 yaw, f32 pitch) {
+        auto* entity = m_world.entityManager().getEntity(static_cast<EntityId>(entityId));
+        if (entity) {
+            entity->setPosition(x, y, z);
+            entity->setRotation(yaw, pitch);
+        }
+    };
+
+    callbacks.onEntityVelocity = [this](u32 entityId, i16 vx, i16 vy, i16 vz) {
+        auto* entity = m_world.entityManager().getEntity(static_cast<EntityId>(entityId));
+        if (entity) {
+            // 速度单位转换: 1/8000 block/tick -> block/tick
+            entity->setVelocity(
+                static_cast<f32>(vx) / 8000.0f,
+                static_cast<f32>(vy) / 8000.0f,
+                static_cast<f32>(vz) / 8000.0f);
+        }
+    };
+
+    callbacks.onEntityHeadLook = [this](u32 entityId, f32 headYaw) {
+        auto* entity = m_world.entityManager().getEntity(static_cast<EntityId>(entityId));
+        if (entity) {
+            entity->setHeadRotation(headYaw);
+        }
+    };
+
+    callbacks.onEntityAnimation = [this](u32 entityId, u8 /*animation*/) {
+        // TODO: 处理实体动画（挥手等）
+        (void)entityId;
+    };
+
+    callbacks.onEntityStatus = [this](u32 entityId, u8 /*status*/) {
+        // TODO: 处理实体状态（受伤、死亡等）
+        (void)entityId;
+    };
+
     m_networkClient->setCallbacks(callbacks);
 }
 
@@ -1299,16 +1518,16 @@ void ClientApplication::sendBlockInteraction(network::BlockInteractionAction act
                                              Direction face)
 {
     if (!m_networkClient || !m_networkClient->isLoggedIn()) {
-        spdlog::info("[Mining] Skip sending block interaction because client is not logged in");
+        spdlog::debug("[Mining] Skip sending block interaction because client is not logged in");
         return;
     }
 
-    spdlog::info("[Mining] Send action={} pos=({}, {}, {}) face={}",
-                 static_cast<i32>(action),
-                 pos.x,
-                 pos.y,
-                 pos.z,
-                 static_cast<i32>(face));
+    // spdlog::info("[Mining] Send action={} pos=({}, {}, {}) face={}",
+    //              static_cast<i32>(action),
+    //              pos.x,
+    //              pos.y,
+    //              pos.z,
+    //              static_cast<i32>(face));
 
     m_networkClient->sendBlockInteraction(action, pos.x, pos.y, pos.z, face);
 }

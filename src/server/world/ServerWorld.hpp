@@ -10,6 +10,8 @@
 #include "common/network/ProtocolPackets.hpp"
 #include "common/world/time/GameTime.hpp"
 #include "common/world/gen/spawn/WorldGenSpawner.hpp"
+#include "common/physics/PhysicsEngine.hpp"
+#include "common/physics/CollisionCache.hpp"
 #include "server/core/ServerPlayerData.hpp"
 #include "server/world/entity/EntityTracker.hpp"
 #include <unordered_map>
@@ -52,7 +54,7 @@ struct ServerWorldConfig {
 // 服务端世界
 // ============================================================================
 
-class ServerWorld : public IWorld {
+class ServerWorld : public IWorld, public ICollisionWorld {
 public:
     ServerWorld();
     explicit ServerWorld(const ServerWorldConfig& config);
@@ -155,14 +157,47 @@ public:
     [[nodiscard]] u8 getSkyLight(i32 x, i32 y, i32 z) const override;
     [[nodiscard]] bool hasBlockCollision(const AxisAlignedBB& box) const override;
     [[nodiscard]] std::vector<AxisAlignedBB> getBlockCollisions(const AxisAlignedBB& box) const override;
-    [[nodiscard]] std::vector<Entity*> getEntitiesInAABB(const AxisAlignedBB& box, const Entity* except = nullptr) const override;
-    [[nodiscard]] std::vector<Entity*> getEntitiesInRange(const Vector3& pos, f32 range, const Entity* except = nullptr) const override;
+    [[nodiscard]] bool hasEntityCollision(const AxisAlignedBB& box, const Entity* except = nullptr) const override;
+    [[nodiscard]] std::vector<AxisAlignedBB> getEntityCollisions(
+        const AxisAlignedBB& box, const Entity* except = nullptr) const override;
+    [[nodiscard]] std::vector<Entity*> getEntitiesInAABB(
+        const AxisAlignedBB& box, const Entity* except = nullptr) const override;
+    [[nodiscard]] std::vector<Entity*> getEntitiesInRange(
+        const Vector3& pos, f32 range, const Entity* except = nullptr) const override;
     [[nodiscard]] DimensionId dimension() const override { return m_config.dimension; }
     [[nodiscard]] u64 seed() const override { return m_config.seed; }
     [[nodiscard]] u64 currentTick() const override { return m_currentTick; }
     [[nodiscard]] i64 dayTime() const override { return m_gameTime.dayTime(); }
     [[nodiscard]] bool isHardcore() const override { return false; }
     [[nodiscard]] i32 difficulty() const override { return 1; } // Normal
+
+    // ========== 物理引擎 ==========
+
+    [[nodiscard]] PhysicsEngine* physicsEngine() override { return m_physicsEngine.get(); }
+    [[nodiscard]] const PhysicsEngine* physicsEngine() const override { return m_physicsEngine.get(); }
+
+    // ========== 碰撞缓存 ==========
+
+    /**
+     * @brief 使指定区块的碰撞缓存失效
+     * @param chunkX 区块X坐标
+     * @param chunkZ 区块Z坐标
+     */
+    void invalidateCollisionCache(ChunkCoord chunkX, ChunkCoord chunkZ);
+
+    /**
+     * @brief 清除所有碰撞缓存
+     */
+    void clearCollisionCache();
+
+    // ========== ICollisionWorld 接口实现 ==========
+
+    [[nodiscard]] const ChunkData* getChunkAt(ChunkCoord x, ChunkCoord z) const override {
+        return getChunk(x, z);
+    }
+
+    [[nodiscard]] i32 getMinBuildHeight() const override { return 0; }
+    [[nodiscard]] i32 getMaxBuildHeight() const override { return 256; }
 
     // ========== 实体管理 ==========
 
@@ -239,6 +274,8 @@ private:
     std::unique_ptr<ServerChunkManager> m_chunkManager;
     EntityManager m_entityManager;  // 实体管理器
     EntityTracker m_entityTracker;   // 实体追踪器
+    std::unique_ptr<PhysicsEngine> m_physicsEngine;  // 物理引擎
+    std::unique_ptr<physics::CollisionCache> m_collisionCache;  // 碰撞缓存
     bool m_initialized = false;
 
     // 玩家存储

@@ -8,9 +8,6 @@
 
 namespace mc::client {
 
-// 前向声明
-class VulkanTexture;
-
 /**
  * @brief 字形纹理图集
  *

@@ -14,6 +14,8 @@ layout(location = 0) out vec3 fragNormal;
 layout(location = 1) out vec2 fragTexCoord;
 layout(location = 2) out vec4 fragColor;
 layout(location = 3) out float fragLight;
+layout(location = 4) out vec3 fragWorldPos;
+layout(location = 5) out float fragViewDistance;
 
 // 推送常量 - 模型矩阵
 layout(push_constant) uniform PushConstants {
@@ -42,4 +44,8 @@ void main() {
     fragTexCoord = inTexCoord;
     fragColor = inColor;
     fragLight = inLight;
+
+    // 输出世界坐标和视图距离（用于雾效果）
+    fragWorldPos = worldPos;
+    fragViewDistance = length(gl_Position.xyz);
 }

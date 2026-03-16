@@ -1,5 +1,6 @@
 #include "SlotRenderer.hpp"
-#include "../GuiRenderer.hpp"
+#include "../../renderer/trident/gui/GuiRenderer.hpp"
+#include "../../renderer/trident/item/ItemRenderer.hpp"
 #include "../../../common/item/ItemStack.hpp"
 #include "../../../common/item/Item.hpp"
 
@@ -23,6 +24,8 @@ namespace SlotColors {
 // ============================================================================
 
 SlotRenderer::SlotRenderer()
+    : m_itemRenderer(nullptr)
+    , m_initialized(false)
 {
 }
 
@@ -30,11 +33,12 @@ SlotRenderer::SlotRenderer()
 // 初始化
 // ============================================================================
 
-bool SlotRenderer::initialize() {
+bool SlotRenderer::initialize(ItemRenderer* itemRenderer) {
     if (m_initialized) {
         return true;
     }
 
+    m_itemRenderer = itemRenderer;
     m_initialized = true;
     return true;
 }
@@ -76,36 +80,40 @@ void SlotRenderer::renderItem(GuiRenderer& gui, f32 x, f32 y, const ItemStack& s
         return;
     }
 
-    // TODO: 实现真正的物品图标渲染
-    // 目前绘制占位符（根据物品类型选择颜色）
     const Item* item = stack.getItem();
     if (item == nullptr) {
         return;
     }
 
-    // 根据物品ID生成不同颜色（简化处理）
-    ItemId itemId = item->itemId();
-    u32 hue = (itemId * 37) % 360;
+    // 使用ItemRenderer渲染物品图标
+    if (m_itemRenderer != nullptr) {
+        m_itemRenderer->renderItem(gui, stack, x, y, ITEM_SIZE);
+    } else {
+        // 后备方案：绘制占位符
+        // 根据物品ID生成不同颜色
+        ItemId itemId = item->itemId();
+        u32 hue = (itemId * 37) % 360;
 
-    // HSV转RGB
-    f32 h = static_cast<f32>(hue) / 60.0f;
-    f32 c = 1.0f;
-    f32 x1 = c * (1.0f - std::abs(std::fmod(h, 2.0f) - 1.0f));
-    f32 r = 0, g = 0, b = 0;
+        // HSV转RGB
+        f32 h = static_cast<f32>(hue) / 60.0f;
+        f32 c = 1.0f;
+        f32 x1 = c * (1.0f - std::abs(std::fmod(h, 2.0f) - 1.0f));
+        f32 r = 0, g = 0, b = 0;
 
-    if (h < 1) { r = c; g = x1; }
-    else if (h < 2) { r = x1; g = c; }
-    else if (h < 3) { g = c; b = x1; }
-    else if (h < 4) { g = x1; b = c; }
-    else if (h < 5) { r = x1; b = c; }
-    else { r = c; b = x1; }
+        if (h < 1) { r = c; g = x1; }
+        else if (h < 2) { r = x1; g = c; }
+        else if (h < 3) { g = c; b = x1; }
+        else if (h < 4) { g = x1; b = c; }
+        else if (h < 5) { r = x1; b = c; }
+        else { r = c; b = x1; }
 
-    u32 color = (0xFF << 24) |
-                (static_cast<u32>(r * 255) << 16) |
-                (static_cast<u32>(g * 255) << 8) |
-                (static_cast<u32>(b * 255));
+        u32 color = (0xFF << 24) |
+                    (static_cast<u32>(r * 255) << 16) |
+                    (static_cast<u32>(g * 255) << 8) |
+                    (static_cast<u32>(b * 255));
 
-    gui.fillRect(x, y, ITEM_SIZE, ITEM_SIZE, color);
+        gui.fillRect(x, y, ITEM_SIZE, ITEM_SIZE, color);
+    }
 }
 
 void SlotRenderer::renderCount(GuiRenderer& gui, f32 x, f32 y, i32 count) {

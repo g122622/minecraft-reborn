@@ -192,8 +192,8 @@ void NetworkClient::sendBlockInteraction(network::BlockInteractionAction action,
                                          i32 x, i32 y, i32 z, Direction face) {
     network::BlockInteractionPacket packet(action, x, y, z, face);
 
-    spdlog::info("[Mining] Queue block interaction action={} pos=({}, {}, {}) face={}",
-                 static_cast<i32>(action), x, y, z, static_cast<i32>(face));
+    // spdlog::debug("[Mining] Queue block interaction action={} pos=({}, {}, {}) face={}",
+    //              static_cast<i32>(action), x, y, z, static_cast<i32>(face));
 
     network::PacketSerializer ser;
     packet.serialize(ser);
@@ -779,8 +779,8 @@ void NetworkClient::handleBlockUpdate(network::PacketDeserializer& deser) {
 
     auto& packet = result.value();
 
-    spdlog::info("[Mining] Received block update pos=({}, {}, {}) stateId={}",
-                 packet.x(), packet.y(), packet.z(), packet.blockStateId());
+    // spdlog::debug("[Mining] Received block update pos=({}, {}, {}) stateId={}",
+    //              packet.x(), packet.y(), packet.z(), packet.blockStateId());
 
     if (m_callbacks.onBlockUpdate) {
         m_callbacks.onBlockUpdate(

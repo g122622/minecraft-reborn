@@ -161,10 +161,16 @@ add_library(mc_common STATIC
     world/biome/BiomeGenerationSettings.cpp
 
     # World - Biome - Layer
-    world/biome/layer/LazyArea.cpp
+    world/biome/layer/LayerContext.cpp
+    world/biome/layer/BiomeValues.cpp
     world/biome/layer/LayerUtil.cpp
-    world/biome/layer/transformers/BasicTransformers.cpp
-    world/biome/layer/transformers/BiomeTransformers.cpp
+    world/biome/layer/transformers/TransformerTraits.cpp
+    world/biome/layer/transformers/SourceLayers.cpp
+    world/biome/layer/transformers/ClimateLayers.cpp
+    world/biome/layer/transformers/EdgeLayers.cpp
+    world/biome/layer/transformers/ZoomLayers.cpp
+    world/biome/layer/transformers/BiomeLayers.cpp
+    world/biome/layer/transformers/MergeLayers.cpp
 
     # World - Generation - Surface
     world/gen/surface/SurfaceBuilders.cpp
@@ -201,9 +207,10 @@ add_library(mc_common STATIC
 
     # Physics
     physics/PhysicsEngine.cpp
+    physics/CollisionCache.cpp
     # physics/collision/BlockCollision.cpp  # 已移除 - 使用新的方块系统
 
-    # Resource
+    # Resource - Core
     resource/ResourceLocation.cpp
     resource/PackMetadata.cpp
     resource/IResourcePack.cpp
@@ -213,8 +220,25 @@ add_library(mc_common STATIC
     resource/InMemoryResourcePack.cpp
     resource/VanillaResources.cpp
 
+    # Resource - Compatibility Layer
+    resource/compat/PackFormat.cpp
+    resource/compat/ResourceMapper.cpp
+    resource/compat/TextureMapper.cpp
+    resource/compat/v1_12/ResourceMapperV112.cpp
+    resource/compat/v1_13/ResourceMapperV113.cpp
+
+    # Resource - Loader
+    resource/loader/ResourceLoader.cpp
+
     # NBT (Named Binary Tag) Library
     util/nbt/Nbt.cpp
+
+    # Cache utilities
+    util/cache/Long2IntLRUCache.cpp
+    util/cache/OpenAddressingLRUCache.cpp
+
+    # Platform utilities
+    util/PlatformInfo.cpp
 )
 
 target_include_directories(mc_common

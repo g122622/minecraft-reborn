@@ -10,10 +10,19 @@ class Player;
 class PlayerInventory;
 class ItemStack;
 
+namespace client::renderer::trident::gui {
+class GuiRenderer;
+}
+
+namespace client::renderer::trident::item {
+class ItemRenderer;
+}
+
 namespace client {
 
-// Forward declarations
-class GuiRenderer;
+// 引入GuiRenderer和ItemRenderer到mc::client命名空间（向后兼容）
+using GuiRenderer = renderer::trident::gui::GuiRenderer;
+using ItemRenderer = renderer::trident::item::ItemRenderer;
 
 /**
  * @brief HUD元素颜色常量
@@ -43,7 +52,7 @@ namespace HudColors {
     constexpr u32 TOOLTIP_BACKGROUND = 0xF0100010;  // 背景带透明
     constexpr u32 TOOLTIP_BORDER = 0xFF5000FF;      // 边框
     constexpr u32 TOOLTIP_TEXT = 0xFFFFFFFF;        // 文字
-}
+} // namespace HudColors
 
 /**
  * @brief HUD渲染器
@@ -69,9 +78,10 @@ public:
 
     /**
      * @brief 初始化HUD渲染器
+     * @param itemRenderer 物品渲染器
      * @return 成功或错误
      */
-    [[nodiscard]] bool initialize();
+    [[nodiscard]] bool initialize(ItemRenderer* itemRenderer);
 
     /**
      * @brief 渲染HUD
@@ -144,6 +154,7 @@ private:
      */
     void drawArmor(GuiRenderer& gui, f32 x, f32 y, bool full);
 
+    ItemRenderer* m_itemRenderer = nullptr;
     bool m_visible = true;
     bool m_initialized = false;
 };

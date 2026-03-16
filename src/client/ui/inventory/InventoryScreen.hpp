@@ -13,10 +13,19 @@ class PlayerInventory;
 class Container;
 class ItemStack;
 
+namespace client::renderer::trident::gui {
+class GuiRenderer;
+}
+
+namespace client::renderer::trident::item {
+class ItemRenderer;
+}
+
 namespace client {
 
-// Forward declarations
-class GuiRenderer;
+// 引入GuiRenderer和ItemRenderer到mc::client命名空间（向后兼容）
+using GuiRenderer = renderer::trident::gui::GuiRenderer;
+using ItemRenderer = renderer::trident::item::ItemRenderer;
 
 /**
  * @brief 背包界面
@@ -102,6 +111,11 @@ public:
      */
     void toggle() { m_open = !m_open; }
 
+    /**
+     * @brief 设置物品渲染器
+     */
+    void setItemRenderer(ItemRenderer* itemRenderer) { m_itemRenderer = itemRenderer; }
+
 private:
     /**
      * @brief 渲染玩家模型
@@ -149,6 +163,7 @@ private:
     static constexpr f32 OFFHAND_Y = 84.0f;
 
     ItemStack m_cursorItem;     // 鼠标持有的物品
+    ItemRenderer* m_itemRenderer = nullptr;
     bool m_open = false;        // 是否打开
     bool m_initialized = false; // 是否已初始化
 };

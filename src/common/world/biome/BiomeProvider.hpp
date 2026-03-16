@@ -78,56 +78,35 @@ public:
      */
     virtual void fillBiomeContainer(BiomeContainer& container, ChunkCoord chunkX, ChunkCoord chunkZ) = 0;
 
+    /**
+     * @brief 批量获取生物群系
+     *
+     * 默认实现通过循环调用 getBiome()，子类可以覆盖以优化性能。
+     *
+     * @param startX 起始 X 坐标
+     * @param startY 起始 Y 坐标
+     * @param startZ 起始 Z 坐标
+     * @param width 宽度（X 方向）
+     * @param height 高度（Z 方向）
+     * @param output 输出数组（大小必须 >= width * height）
+     */
+    virtual void getBiomesBatch(i32 startX, i32 startY, i32 startZ, i32 width, i32 height,
+                                 BiomeId* output) const {
+        if (output == nullptr || width <= 0 || height <= 0) {
+            return;
+        }
+        size_t idx = 0;
+        for (i32 z = 0; z < height; ++z) {
+            for (i32 x = 0; x < width; ++x) {
+                output[idx++] = getBiome(startX + x, startY, startZ + z);
+            }
+        }
+    }
+
     [[nodiscard]] u64 seed() const { return m_seed; }
 
 protected:
     u64 m_seed;
-};
-
-/**
- * @brief 简单的生物群系提供者
- *
- * 使用噪声生成生物群系分布。
- * 这是一个简化版本，完整的版本需要使用 Layer 系统。
- *
- * @note 参考 MC 1.16.5 OverworldBiomeProvider
- */
-class SimpleBiomeProvider : public BiomeProvider {
-public:
-    /**
-     * @brief 构造简单生物群系提供者
-     * @param seed 世界种子
-     */
-    explicit SimpleBiomeProvider(u64 seed);
-
-    ~SimpleBiomeProvider() override = default;
-
-    [[nodiscard]] BiomeId getBiome(i32 x, i32 y, i32 z) const override;
-    [[nodiscard]] BiomeId getNoiseBiome(i32 noiseX, i32 noiseY, i32 noiseZ) const override;
-    [[nodiscard]] f32 getDepth(i32 x, i32 z) const override;
-    [[nodiscard]] f32 getScale(i32 x, i32 z) const override;
-    [[nodiscard]] const Biome& getBiomeDefinition(BiomeId id) const override;
-
-    void fillBiomeContainer(BiomeContainer& container, ChunkCoord chunkX, ChunkCoord chunkZ) override;
-
-private:
-    std::unique_ptr<PerlinNoiseGenerator> m_temperatureNoise;
-    std::unique_ptr<PerlinNoiseGenerator> m_humidityNoise;
-    std::unique_ptr<PerlinNoiseGenerator> m_continentalnessNoise;
-    std::unique_ptr<PerlinNoiseGenerator> m_erosionNoise;
-    std::unique_ptr<PerlinNoiseGenerator> m_depthNoise;
-    std::unique_ptr<PerlinNoiseGenerator> m_scaleNoise;
-
-    /**
-     * @brief 根据噪声参数选择生物群系
-     */
-    [[nodiscard]] BiomeId selectBiome(
-        f32 temperature,
-        f32 humidity,
-        f32 continentalness,
-        f32 erosion,
-        f32 weirdness,
-        f32 valley) const;
 };
 
 } // namespace mc

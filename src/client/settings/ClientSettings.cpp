@@ -26,6 +26,7 @@ ClientSettings::ClientSettings()
     , mipmapLevels("mipmapLevels", 0, 4, 4)
     , fovEffectScale("fovEffectScale", 0.0f, 1.0f, 1.0f)
     , screenShakeScale("screenShakeScale", 0.0f, 1.0f, 1.0f)
+    , fogDensity("fogDensity", 0.0f, 2.0f, 1.0f)
 
     // 音频设置
     , masterVolume("masterVolume", 0.0f, 1.0f, 1.0f)
@@ -70,6 +71,7 @@ ClientSettings::ClientSettings()
     registerOption("video", &mipmapLevels);
     registerOption("video", &fovEffectScale);
     registerOption("video", &screenShakeScale);
+    registerOption("video", &fogDensity);
 
     // 注册音频设置
     registerOption("audio", &masterVolume);

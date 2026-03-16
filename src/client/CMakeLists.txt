@@ -10,57 +10,68 @@ add_executable(minecraft-client
     window/Window.cpp
     input/InputManager.cpp
     settings/ClientSettings.cpp
-    renderer/VulkanContext.cpp
-    renderer/VulkanSwapchain.cpp
-    renderer/VulkanPipeline.cpp
-    renderer/VulkanRenderer.cpp
-    renderer/VulkanBuffer.cpp
-    renderer/VulkanTexture.cpp
-    renderer/ChunkRenderer.cpp
-    renderer/MeshWorkerPool.cpp
+    # Trident 渲染引擎 API 层
+    renderer/api/Types.cpp
+    # Trident 渲染引擎核心 (Vulkan 实现)
+    renderer/trident/core/TridentContext.cpp
+    renderer/trident/core/TridentSwapchain.cpp
+    renderer/trident/core/TridentEngine.cpp
+    renderer/trident/core/buffer/TridentBuffer.cpp
+    renderer/trident/core/texture/TridentTexture.cpp
+    renderer/trident/core/pipeline/TridentPipeline.cpp
+    renderer/trident/core/render/RenderPassManager.cpp
+    renderer/trident/core/render/FrameManager.cpp
+    renderer/trident/core/render/DescriptorManager.cpp
+    renderer/trident/core/render/UniformManager.cpp
+    # 雾效果模块
+    renderer/trident/fog/FogManager.cpp
+    # 子渲染器
+    renderer/trident/chunk/ChunkRenderer.cpp
+    renderer/trident/chunk/ChunkMesher.cpp
+    renderer/trident/sky/SkyRenderer.cpp
+    renderer/trident/sky/CelestialCalculations.cpp
+    renderer/trident/gui/GuiRenderer.cpp
+    renderer/trident/gui/GuiTextureAtlas.cpp
+    renderer/trident/item/ItemRenderer.cpp
+    renderer/trident/entity/EntityRenderer.cpp
+    renderer/trident/entity/EntityRendererManager.cpp
+    renderer/trident/entity/model/ModelRenderer.cpp
+    renderer/trident/entity/model/EntityModel.cpp
+    renderer/trident/entity/model/AnimalModels.cpp
+    renderer/trident/entity/EntityPipeline.cpp
+    renderer/trident/entity/EntityTextureAtlas.cpp
+    # 共享渲染组件
+    renderer/mesh/MeshWorkerPool.cpp
     renderer/MeshTypes.cpp
-    renderer/ChunkMesher.cpp
     renderer/Camera.cpp
-    renderer/UniformBuffer.cpp
-    renderer/Descriptor.cpp
-    renderer/DefaultTextureAtlas.cpp
-    renderer/sky/CelestialCalculations.cpp
-    renderer/sky/SkyRenderer.cpp
+    # 资源加载
     resource/BlockModelLoader.cpp
     resource/BlockStateLoader.cpp
     resource/TextureAtlasBuilder.cpp
     resource/ResourceManager.cpp
     resource/BlockModelCache.cpp
+    resource/ItemTextureAtlas.cpp
+    resource/EntityTextureLoader.cpp
+    # 世界
     world/ClientWorld.cpp
     network/NetworkClient.cpp
+    # UI (平台无关)
     ui/FontTextureAtlas.cpp
     ui/Font.cpp
     ui/FontRenderer.cpp
-    ui/GuiRenderer.cpp
     ui/DefaultAsciiFont.cpp
-    ui/DebugScreen.cpp
+    ui/debug/DebugScreen.cpp
     ui/crosshair/CrosshairRenderer.cpp
     ui/hud/HudRenderer.cpp
     ui/inventory/InventoryScreen.cpp
     ui/inventory/SlotRenderer.cpp
     ui/screen/ScreenManager.cpp
     ui/screen/CraftingScreen.cpp
-    ui/texture/GuiTextureAtlas.cpp
     ui/chat/ChatHistory.cpp
     ui/chat/ChatScreen.cpp
-    # 实体渲染
-    renderer/entity/EntityRenderer.cpp
-    renderer/entity/EntityRendererManager.cpp
-    renderer/entity/model/ModelRenderer.cpp
-    renderer/entity/model/EntityModel.cpp
-    renderer/entity/model/AnimalModels.cpp
-    renderer/entity/EntityPipeline.cpp
-    renderer/entity/EntityTextureAtlas.cpp
     # 客户端实体管理
     world/entity/ClientEntity.cpp
     world/entity/ClientEntityManager.cpp
-    # 实体纹理加载
-    resource/EntityTextureLoader.cpp
     # 内置服务端支持
     ${CMAKE_SOURCE_DIR}/src/server/application/IntegratedServer.cpp
     ${CMAKE_SOURCE_DIR}/src/server/core/ServerCore.cpp

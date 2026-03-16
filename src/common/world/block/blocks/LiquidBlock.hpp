@@ -104,7 +104,8 @@ private:
     fluid::FlowingFluid& m_fluid;
 
     // 缓存的流体状态（方块level -> 流体状态）
-    mutable std::vector<const fluid::FluidState*> m_fluidStateCache;
+    // 存储FluidState对象而非指针，避免悬垂引用
+    mutable std::vector<fluid::FluidState> m_fluidStateCache;
 
     /**
      * @brief 构建流体状态缓存

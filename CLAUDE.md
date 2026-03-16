@@ -16,17 +16,17 @@ $env:VCPKG_ROOT = "D:\tools\vcpkg"
 cmake -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=D:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake
 
 # Build
-cmake --build build --config Debug
+# 注：即使在开发过程中，也要尽量使用Release构建，因为Debug运行非常慢，除非必要否则不要用。
 cmake --build build --config Release
 
 # Run tests
-./build/bin/Debug/mc_tests.exe
+./build/bin/Release/mc_tests.exe
 
 # Run server
-./build/bin/Debug/minecraft-server.exe --help
+./build/bin/Release/minecraft-server.exe --help
 
 # Run client
-./build/bin/Debug/minecraft-client.exe
+./build/bin/Release/minecraft-client.exe
 ```
 
 ## Build Options
@@ -108,14 +108,48 @@ src/
 │   ├── application/ # ClientApplication, GameLoop
 │   ├── window/      # Window (GLFW wrapper)
 │   ├── input/       # InputManager
-│   ├── renderer/    # Vulkan rendering
-│   │   ├── VulkanContext.hpp    # Vulkan instance, device, queues
-│   │   ├── VulkanSwapchain.hpp  # Swapchain management
-│   │   ├── VulkanPipeline.hpp   # Pipeline and render pass
-│   │   ├── VulkanRenderer.hpp   # Main renderer
+│   ├── renderer/    # Rendering system
+│   │   ├── api/     # Platform-agnostic rendering interface
+│   │   │   ├── IRenderEngine.hpp     # Main render engine interface
+│   │   │   ├── Types.hpp             # Vertex, Face, BlockGeometry
+│   │   │   ├── BlendMode.hpp         # Blend states
+│   │   │   ├── CompareOp.hpp         # Depth comparison
+│   │   │   ├── CullMode.hpp          # Face culling
+│   │   │   ├── buffer/IBuffer.hpp    # Buffer interfaces
+│   │   │   ├── texture/ITexture.hpp  # Texture interface
+│   │   │   ├── pipeline/RenderState.hpp  # Render state (blend, depth, rasterizer)
+│   │   │   ├── pipeline/RenderType.hpp   # Named render types (MC style)
+│   │   │   ├── camera/ICamera.hpp    # Camera interface
+│   │   │   └── mesh/MeshData.hpp     # Mesh data structures
+│   │   ├── trident/  # Trident Vulkan rendering engine
+│   │   │   ├── TridentEngine.hpp     # Main engine (implements IRenderEngine)
+│   │   │   ├── TridentContext.hpp    # Vulkan instance, device, queues
+│   │   │   ├── TridentSwapchain.hpp  # Swapchain management
+│   │   │   └── render/
+│   │   │       ├── RenderPassManager.hpp  # Render pass & framebuffers
+│   │   │       ├── FrameManager.hpp       # Command buffers & sync objects
+│   │   │       ├── DescriptorManager.hpp  # Descriptor sets
+│   │   │       └── UniformManager.hpp     # Uniform buffers
+│   │   ├── chunk/    # Chunk mesh generation
+│   │   │   └── ChunkMesher.hpp
+│   │   ├── mesh/     # Mesh worker pool
+│   │   │   └── MeshWorkerPool.hpp
+│   │   ├── util/     # Utility functions
+│   │   │   └── ShaderPath.hpp
+│   │   ├── entity/   # Entity rendering
+│   │   ├── item/     # Item rendering
+│   │   ├── sky/      # Sky rendering
+│   │   ├── fog/      # Fog effects
+│   │   │   └── FogManager.hpp     # Fog calculation and rendering
+│   │   ├── VulkanRenderer.hpp   # High-level renderer (uses Trident backend)
 │   │   ├── VulkanBuffer.hpp     # GPU buffer management
 │   │   ├── VulkanTexture.hpp    # Texture and texture atlas
-│   │   └── ChunkRenderer.hpp    # Chunk mesh GPU buffers
+│   │   ├── VulkanPipeline.hpp   # Pipeline management
+│   │   ├── VulkanContext.hpp    # Legacy Vulkan context
+│   │   ├── VulkanSwapchain.hpp  # Legacy swapchain
+│   │   ├── ChunkRenderer.hpp    # Chunk mesh GPU buffers
+│   │   ├── Camera.hpp           # Camera controller
+│   │   └── MeshTypes.hpp        # Mesh types (Vertex, Face, etc.)
 │   └── resource/    # Client resource loading
 │       ├── BlockModelLoader.hpp    # Model JSON parsing
 │       ├── BlockStateLoader.hpp    # Block state JSON parsing
@@ -150,6 +184,10 @@ All types are in namespace `mc` (client types in `mc::client`, server types in `
   - `NoiseSettings`, `DimensionSettings`: Noise configuration
   - `IChunkGenerator`, `NoiseChunkGenerator`: Terrain generation
 - **Renderer types**: `Vertex`, `Face`, `MeshData`, `TextureRegion`, `BlockModel`, `TextureAtlas`
+- **Fog types** (NEW):
+  - `FogMode`: Fog mode enum (None, Linear, Exp2)
+  - `FogUBO`: Fog uniform buffer data (fogStart, fogEnd, fogDensity, fogColor)
+  - `FogManager`: Fog effect manager (calculation, GPU update)
 - **Resource types**: `ResourceLocation`, `PackMetadata`, `IResourcePack`, `FolderResourcePack`
 - **Model types**: `Direction`, `ModelElement`, `ModelFace`, `UnbakedBlockModel`, `BakedBlockModel`
 - **Block state types**: `BlockStateVariant`, `VariantList`, `BlockStateDefinition`
@@ -238,15 +276,94 @@ The client uses Vulkan for rendering:
 
 ## Resource Pack System
 
-The resource pack system parses standard Minecraft resource pack format:
+The resource pack system parses standard Minecraft resource pack format with a "compiler-style" frontend compatibility layer.
+
+### Resource Pack Compatibility Layer Architecture
+
+```
+src/common/resource/
+├── compat/                        # COMPATIBILITY LAYER
+│   ├── PackFormat.hpp/cpp         # Pack format version detection (1.12, 1.13+, etc.)
+│   ├── ResourceMapper.hpp/cpp     # Abstract resource mapping interface
+│   ├── TextureMapper.hpp/cpp      # 250+ texture name mappings (bidirectional)
+│   ├── v1_12/                     # MC 1.12.2 specific handling
+│   │   ├── ResourceMapperV112.hpp
+│   │   └── ResourceMapperV112.cpp
+│   ├── v1_13/                     # MC 1.13+ specific handling
+│   │   ├── ResourceMapperV113.hpp
+│   │   └── ResourceMapperV113.cpp
+│   └── unified/                   # Unified IR definitions
+│       ├── UnifiedResource.hpp    # Base unified resource types
+│       ├── UnifiedTexture.hpp     # Unified texture representation
+│       ├── UnifiedModel.hpp       # Unified model representation
+│       └── UnifiedBlockState.hpp  # Unified block state representation
+│
+├── loader/                        # RESOURCE LOADERS
+│   └── ResourceLoader.hpp/cpp     # Loading pipeline with format detection
+│
+└── ... (existing files)
+```
 
 ### MC Version Compatibility
-The system supports both MC 1.12 and MC 1.13+ resource packs with automatic texture path and name conversion:
-- **Path compatibility**: `textures/block/` ↔ `textures/blocks/` automatic conversion
-- **Name variants**: Handles naming differences like `white_wool` ↔ `wool_colored_white`, `oak_planks` ↔ `planks_oak`
-- **Stone variants**: `granite` ↔ `stone_granite`, `andesite` ↔ `stone_andesite`, etc.
-- **Grass block**: `grass_block_top` ↔ `grass_top`, `grass_block_side` ↔ `grass_side`
-- **Sandstone**: `cut_sandstone` ↔ `sandstone_carved`, `chiseled_sandstone` ↔ `sandstone_smooth`
+
+The system supports MC 1.12 through MC 1.19+ resource packs with automatic conversion:
+
+**Path Compatibility:**
+- MC 1.12: `textures/blocks/`, `textures/items/`
+- MC 1.13+: `textures/block/`, `textures/item/`
+
+**Name Mappings (250+ bidirectional mappings):**
+- Logs: `log_jungle` ↔ `jungle_log`, `log_oak` ↔ `oak_log`
+- Leaves: `leaves_jungle` ↔ `jungle_leaves`
+- Planks: `planks_oak` ↔ `oak_planks`
+- Wool: `wool_colored_white` ↔ `white_wool`
+- Stone: `stone_granite` ↔ `granite`, `stone_andesite` ↔ `andesite`
+- Grass: `grass_top` ↔ `grass_block_top`, `grass_side` ↔ `grass_block_side`
+- Flowers: `flower_rose` ↔ `poppy`, `flower_houstonia` ↔ `azure_bluet`
+- Terracotta: `hardened_clay_stained_white` ↔ `white_terracotta`
+
+### Using the Compat Layer
+
+```cpp
+#include "resource/compat/TextureMapper.hpp"
+#include "resource/compat/ResourceMapper.hpp"
+
+// Get texture name variants
+const auto& mapper = mc::resource::compat::TextureMapper::instance();
+auto variants = mapper.getNameVariants("jungle_log");
+// Returns: {"jungle_log", "log_jungle"}
+
+// Get all path variants for texture loading
+auto paths = mapper.getPathVariants("textures/block/jungle_log.png");
+// Returns: {"textures/block/jungle_log.png", "textures/blocks/log_jungle.png", ...}
+
+// Create format-specific mapper
+auto v112Mapper = mc::resource::compat::ResourceMapper::create(
+    mc::resource::compat::PackFormat::V1_11_to_1_12);
+String unified = v112Mapper->toUnifiedTexturePath("textures/blocks/log_jungle.png");
+// Returns: "textures/block/jungle_log.png"
+```
+
+### Pack Format Detection
+
+```cpp
+// PackFormat enum values
+enum class PackFormat : i32 {
+    V1_6_to_1_8 = 1,
+    V1_9_to_1_10 = 2,
+    V1_11_to_1_12 = 3,   // Old texture paths
+    V1_13_to_1_14 = 4,   // New texture paths (flattening)
+    V1_15_to_1_16_1 = 5,
+    V1_16_2_to_1_16_5 = 6,
+    V1_17 = 7,
+    V1_18 = 8,
+    V1_19 = 9,
+};
+
+// Detect format from pack.mcmeta
+PackFormat format = detectPackFormat(packFormatNumber);
+bool needsMapping = requiresTextureNameMapping(format);
+```
 
 ### Resource Location
 ```cpp
@@ -481,6 +598,29 @@ enum class Operation : u8 {
 - 函数参数超过5个时，考虑使用配置结构体
 - 使用枚举或类型安全的标识符替代原始字符串比较
 
+### Shader 路径解析
+
+使用 `resolveShaderPath()` 工具函数来解析 shader 文件路径，它会自动搜索多个可能的位置：
+
+```cpp
+#include "renderer/ShaderPath.hpp"
+
+// 使用方式
+const auto vertPath = resolveShaderPath("entity.vert.spv");
+const auto fragPath = resolveShaderPath("entity.frag.spv");
+if (vertPath.empty() || fragPath.empty()) {
+    return Error(ErrorCode::FileNotFound, "Failed to resolve shader binaries");
+}
+config.vertexShaderPath = vertPath.string();
+config.fragmentShaderPath = fragPath.string();
+```
+
+搜索顺序包括：
+1. `当前目录/build/shaders/`
+2. `当前目录/shaders/`
+3. `当前目录/bin/shaders/`
+4. 向上级目录递归搜索
+
 ### Vulkan单次命令模式
 
 当需要在多个地方执行单次Vulkan命令时，使用以下模式：
@@ -514,19 +654,56 @@ void endSingleTimeCommands(VkCommandBuffer cmd);
   - ImprovedNoiseGenerator: MC-style Perlin noise
   - OctavesNoiseGenerator: Multi-octave noise (16 octaves)
   - NoiseChunkGenerator: Reference MC 1.16.5 terrain generation
-  - SimpleBiomeProvider: Biome distribution
+  - LayerBiomeProvider: Layer-based biome distribution (MC 1.16.5)
   - ChunkWorkerPool: Async generation thread pool
   - ServerChunkManager: Central chunk coordination
-- **Renderer**: In progress (Vulkan context, basic mesh generation, texture atlas with MC 1.12/1.13+ compatibility)
+- **Renderer**: Complete (Trident rendering engine refactored)
+  - Platform-agnostic API layer (`client/renderer/api/`):
+    - IRenderEngine: Main render engine interface
+    - IBuffer/IVertexBuffer/IIndexBuffer: Buffer interfaces
+    - ITexture/ITextureAtlas: Texture interfaces
+    - RenderState/RenderType: MC 1.16.5 style render state system
+    - ICamera: Camera interface
+    - MeshData: Mesh data structures
+  - Trident Vulkan implementation (`client/renderer/trident/`):
+    - TridentEngine: Main engine (implements IRenderEngine)
+    - TridentContext: Vulkan instance, device, queues
+    - TridentSwapchain: Swapchain management
+    - RenderPassManager: Render pass & framebuffers
+    - FrameManager: Command buffers & sync objects
+    - DescriptorManager: Descriptor sets
+    - UniformManager: Uniform buffers (CameraUBO, LightingUBO, FogUBO)
+  - Organized directory structure:
+    - `renderer/chunk/`: Chunk mesh generation (ChunkMesher)
+    - `renderer/mesh/`: Mesh worker pool (MeshWorkerPool)
+    - `renderer/util/`: Utility functions (ShaderPath)
+    - `renderer/entity/`: Entity rendering
+    - `renderer/item/`: Item rendering
+    - `renderer/sky/`: Sky rendering
+    - `renderer/fog/`: Fog effects (FogManager)
+  - Fog system (NEW):
+    - FogManager: Fog effect calculation and GPU updates
+    - FogUBO: Uniform buffer data for fog parameters
+    - Linear fog: Used for land (fogStart/fogEnd based on render distance)
+    - Exponential fog: Used for underwater/lava (density-based)
+    - Integrated with SkyRenderer for fog color
 - **Resource Pack System**: Complete (model/blockstate parsing, texture atlas, MC version compatibility)
+  - Compat layer architecture (NEW):
+    - PackFormat: Version detection from pack.mcmeta
+    - TextureMapper: 250+ bidirectional texture name mappings
+    - ResourceMapper: Abstract interface for version-specific transformations
+    - v1_12/v1_13 mappers: Version-specific implementations
+    - Unified IR: UnifiedTexture, UnifiedModel, UnifiedBlockState
+    - ResourceLoader: Loading pipeline with format detection
+    - ResourceManager: Integrated with compat layer
 - **Block Properties**: Complete (property encoding, variant mapping)
-- **Performance Tracing**: Complete (NEW - Perfetto integration)
+- **Performance Tracing**: Complete (Perfetto integration)
   - PerfettoConfig.hpp: Compile-time configuration switches
   - TraceCategories.hpp/cpp: Category definitions for organized filtering
   - PerfettoManager: Singleton manager for tracing lifecycle
   - TraceEvents.hpp: Convenient macros (MC_TRACE_EVENT, MC_TRACE_COUNTER, etc.)
   - Tests: 2 tests (disabled mode) / 29 tests (enabled mode)
-- **Tests**: 1251+ tests passing
+- **Tests**: 1595 tests passing
 
 ## Self-Maintenance Rule
 
