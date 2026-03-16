@@ -115,6 +115,15 @@ Result<u32> FrameManager::acquireNextImage(TridentSwapchain* swapchain) {
         return Error(ErrorCode::NotInitialized, "FrameManager not initialized");
     }
 
+    if (!swapchain) {
+        return Error(ErrorCode::NullPointer, "Swapchain is null");
+    }
+
+    auto ensureResult = ensureSwapchainResources(swapchain);
+    if (ensureResult.failed()) {
+        return ensureResult.error();
+    }
+
     // 等待当前帧完成
     vkWaitForFences(
         m_context->device(),
@@ -151,6 +160,15 @@ Result<u32> FrameManager::acquireNextImage(TridentSwapchain* swapchain) {
 Result<void> FrameManager::submitAndPresent(TridentSwapchain* swapchain) {
     if (!m_frameStarted) {
         return Error(ErrorCode::InvalidState, "Frame not started");
+    }
+
+    if (!swapchain) {
+        return Error(ErrorCode::NullPointer, "Swapchain is null");
+    }
+
+    if (m_imageIndex >= m_commandBuffers.size() ||
+        m_imageIndex >= m_renderFinishedSemaphores.size()) {
+        return Error(ErrorCode::InvalidState, "Frame resources not initialized for current image index");
     }
 
     // 提交命令缓冲区
@@ -214,6 +232,10 @@ Result<void> FrameManager::submitAndPresent(TridentSwapchain* swapchain) {
 void FrameManager::beginFrame() {
     if (m_frameStarted) return;
 
+    if (m_imageIndex >= m_commandBuffers.size()) {
+        return;
+    }
+
     // 重置命令缓冲区
     vkResetCommandBuffer(m_commandBuffers[m_imageIndex], 0);
 
@@ -228,6 +250,11 @@ void FrameManager::beginFrame() {
 
 void FrameManager::endFrame() {
     if (!m_frameStarted) return;
+
+    if (m_imageIndex >= m_commandBuffers.size()) {
+        m_frameStarted = false;
+        return;
+    }
 
     vkEndCommandBuffer(m_commandBuffers[m_imageIndex]);
     // 注意：不在这里设置 m_frameStarted = false，因为 submitAndPresent 会处理
@@ -319,6 +346,84 @@ Result<void> FrameManager::createSyncObjects() {
     }
 
     // renderFinishedSemaphores 和 imageFences 在交换链创建后初始化
+    return {};
+}
+
+Result<void> FrameManager::ensureSwapchainResources(TridentSwapchain* swapchain) {
+    if (!swapchain) {
+        return Error(ErrorCode::NullPointer, "Swapchain is null");
+    }
+
+    const u32 imageCount = swapchain->imageCount();
+    if (imageCount == 0) {
+        return Error(ErrorCode::InvalidState, "Swapchain has no images");
+    }
+
+    VkDevice device = m_context->device();
+
+    // 命令缓冲区（每个交换链图像一个）
+    if (m_commandBuffers.size() != imageCount) {
+        if (!m_commandBuffers.empty()) {
+            vkFreeCommandBuffers(
+                device,
+                m_commandPool,
+                static_cast<u32>(m_commandBuffers.size()),
+                m_commandBuffers.data());
+            m_commandBuffers.clear();
+        }
+
+        m_commandBuffers.resize(imageCount, VK_NULL_HANDLE);
+
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.commandPool = m_commandPool;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandBufferCount = imageCount;
+
+        VkResult allocResult = vkAllocateCommandBuffers(device, &allocInfo, m_commandBuffers.data());
+        if (allocResult != VK_SUCCESS) {
+            m_commandBuffers.clear();
+            return Error(ErrorCode::OperationFailed, "Failed to allocate command buffers: " + std::to_string(allocResult));
+        }
+    }
+
+    // 每个交换链图像一个 render-finished 信号量
+    if (m_renderFinishedSemaphores.size() != imageCount) {
+        for (auto& semaphore : m_renderFinishedSemaphores) {
+            if (semaphore != VK_NULL_HANDLE) {
+                vkDestroySemaphore(device, semaphore, nullptr);
+            }
+        }
+        m_renderFinishedSemaphores.clear();
+        m_renderFinishedSemaphores.resize(imageCount, VK_NULL_HANDLE);
+
+        VkSemaphoreCreateInfo semaphoreInfo{};
+        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+        for (u32 i = 0; i < imageCount; ++i) {
+            VkResult semResult = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &m_renderFinishedSemaphores[i]);
+            if (semResult != VK_SUCCESS) {
+                for (u32 j = 0; j <= i; ++j) {
+                    if (m_renderFinishedSemaphores[j] != VK_NULL_HANDLE) {
+                        vkDestroySemaphore(device, m_renderFinishedSemaphores[j], nullptr);
+                        m_renderFinishedSemaphores[j] = VK_NULL_HANDLE;
+                    }
+                }
+                m_renderFinishedSemaphores.clear();
+                return Error(ErrorCode::OperationFailed, "Failed to create render-finished semaphore: " + std::to_string(semResult));
+            }
+        }
+    }
+
+    // 每个交换链图像一个 in-flight fence 句柄记录
+    if (m_imageFences.size() != imageCount) {
+        m_imageFences.assign(imageCount, VK_NULL_HANDLE);
+    }
+
+    if (m_imageIndex >= imageCount) {
+        m_imageIndex = 0;
+    }
+
     return {};
 }
 

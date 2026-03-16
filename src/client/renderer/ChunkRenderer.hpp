@@ -104,7 +104,8 @@ public:
     // 纹理图集
     [[nodiscard]] Result<void> loadTextureAtlas(
         const u8* pixelData,
-        u32 textureSize,
+        u32 width,
+        u32 height,
         u32 tileSize);
 
     ChunkTextureAtlas& textureAtlas() { return m_textureAtlas; }

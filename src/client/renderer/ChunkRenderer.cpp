@@ -362,22 +362,35 @@ Result<void> ChunkRenderer::createChunkBuffer(
 
 Result<void> ChunkRenderer::loadTextureAtlas(
     const u8* pixelData,
-    u32 textureSize,
+    u32 width,
+    u32 height,
     u32 tileSize)
 {
+    if (pixelData == nullptr) {
+        return Error(ErrorCode::NullPointer, "Texture atlas pixel data is null");
+    }
+
+    if (width == 0 || height == 0 || tileSize == 0) {
+        return Error(ErrorCode::InvalidArgument, "Invalid texture atlas dimensions or tile size");
+    }
+
+    if (width < tileSize || height < tileSize) {
+        return Error(ErrorCode::InvalidArgument, "Texture atlas is smaller than tile size");
+    }
+
     // 创建纹理图集
-    auto result = createTextureAtlas(textureSize, textureSize);
+    auto result = createTextureAtlas(width, height);
     if (result.failed()) {
         return result;
     }
 
     m_textureAtlas.tileSize = tileSize;
-    m_textureAtlas.tilesPerRow = textureSize / tileSize;
-    m_textureAtlas.tileU = static_cast<f32>(tileSize) / static_cast<f32>(textureSize);
-    m_textureAtlas.tileV = static_cast<f32>(tileSize) / static_cast<f32>(textureSize);
+    m_textureAtlas.tilesPerRow = width / tileSize;
+    m_textureAtlas.tileU = static_cast<f32>(tileSize) / static_cast<f32>(width);
+    m_textureAtlas.tileV = static_cast<f32>(tileSize) / static_cast<f32>(height);
 
     // 上传纹理数据
-    return uploadTextureData(pixelData, textureSize, textureSize);
+    return uploadTextureData(pixelData, width, height);
 }
 
 Result<void> ChunkRenderer::createTextureAtlas(u32 width, u32 height) {
@@ -431,7 +444,16 @@ Result<void> ChunkRenderer::createTextureAtlas(u32 width, u32 height) {
 }
 
 Result<void> ChunkRenderer::uploadTextureData(const u8* pixelData, u32 width, u32 height) {
-    VkDeviceSize imageSize = static_cast<VkDeviceSize>(width * height * 4);
+    if (pixelData == nullptr) {
+        return Error(ErrorCode::NullPointer, "Texture atlas pixel data is null");
+    }
+
+    const u64 imageSize64 = static_cast<u64>(width) * static_cast<u64>(height) * 4ULL;
+    if (imageSize64 == 0) {
+        return Error(ErrorCode::InvalidArgument, "Texture atlas image size is zero");
+    }
+
+    VkDeviceSize imageSize = static_cast<VkDeviceSize>(imageSize64);
 
     // 创建暂存缓冲区
     VkBuffer stagingBuffer;
@@ -449,13 +471,24 @@ Result<void> ChunkRenderer::uploadTextureData(const u8* pixelData, u32 width, u3
     }
 
     // 映射并复制数据
-    void* mapped;
-    vkMapMemory(m_device, stagingMemory, 0, imageSize, 0, &mapped);
+    void* mapped = nullptr;
+    VkResult mapResult = vkMapMemory(m_device, stagingMemory, 0, imageSize, 0, &mapped);
+    if (mapResult != VK_SUCCESS || mapped == nullptr) {
+        vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+        vkFreeMemory(m_device, stagingMemory, nullptr);
+        return Error(ErrorCode::OperationFailed, "Failed to map staging buffer memory");
+    }
     std::memcpy(mapped, pixelData, static_cast<size_t>(imageSize));
     vkUnmapMemory(m_device, stagingMemory);
 
     // 转换图像布局并复制
-    VkCommandBuffer cmd = beginSingleTimeCommands().value();
+    auto cmdResult = beginSingleTimeCommands();
+    if (cmdResult.failed()) {
+        vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+        vkFreeMemory(m_device, stagingMemory, nullptr);
+        return cmdResult.error();
+    }
+    VkCommandBuffer cmd = cmdResult.value();
 
     // 转换到传输目标布局
     renderer::VulkanUtils::transitionImageLayout(

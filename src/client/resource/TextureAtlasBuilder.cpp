@@ -131,11 +131,14 @@ Result<AtlasBuildResult> TextureAtlasBuilder::build() {
         atlasHeight = std::max(atlasHeight, tex.height + m_padding * 2);
     }
 
-    // 从小尺寸开始尝试
+    // 从最小可行尺寸开始尝试（2 的幂）
     u32 tryWidth = 64;
     u32 tryHeight = 64;
-    while (tryWidth < m_maxWidth) tryWidth *= 2;
-    while (tryHeight < m_maxHeight) tryHeight *= 2;
+    while (tryWidth < atlasWidth && tryWidth < m_maxWidth) tryWidth *= 2;
+    while (tryHeight < atlasHeight && tryHeight < m_maxHeight) tryHeight *= 2;
+
+    tryWidth = std::min(tryWidth, m_maxWidth);
+    tryHeight = std::min(tryHeight, m_maxHeight);
 
     // 实际使用的尺寸
     u32 actualWidth = tryWidth;
@@ -164,7 +167,7 @@ Result<AtlasBuildResult> TextureAtlasBuilder::build() {
 
             u32 x, y;
             size_t nodeIndex;
-            if (canPlace(skyline, texW, texH, x, y, nodeIndex)) {
+            if (canPlace(skyline, texW, texH, actualWidth, actualHeight, x, y, nodeIndex)) {
                 placed.push_back({idx, x + m_padding, y + m_padding});
                 placeTexture(skyline, x, y, texW, texH, nodeIndex);
 
@@ -208,6 +211,12 @@ Result<AtlasBuildResult> TextureAtlasBuilder::build() {
     for (const auto& p : placed) {
         const auto& tex = m_textures[p.index];
 
+        if (p.x + tex.width > actualWidth || p.y + tex.height > finalHeight) {
+            return Error(
+                ErrorCode::InvalidState,
+                "Texture placement exceeds atlas bounds");
+        }
+
         // 复制像素
         for (u32 y = 0; y < tex.height; ++y) {
             const u8* src = tex.pixels.data() + y * tex.width * 4;
@@ -246,6 +255,8 @@ bool TextureAtlasBuilder::canPlace(
     const std::vector<SkylineNode>& skyline,
     u32 width,
     u32 height,
+    u32 maxWidth,
+    u32 maxHeight,
     u32& outX,
     u32& outY,
     size_t& outIndex) const
@@ -288,7 +299,7 @@ bool TextureAtlasBuilder::canPlace(
         }
 
         // 检查是否超出边界
-        if (x + width > m_maxWidth || y + height > m_maxHeight) {
+        if (x + width > maxWidth || y + height > maxHeight) {
             continue;
         }
 

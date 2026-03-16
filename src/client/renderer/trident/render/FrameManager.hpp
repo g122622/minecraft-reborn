@@ -92,6 +92,7 @@ private:
     [[nodiscard]] Result<void> createCommandPool();
     [[nodiscard]] Result<void> createCommandBuffers();
     [[nodiscard]] Result<void> createSyncObjects();
+    [[nodiscard]] Result<void> ensureSwapchainResources(TridentSwapchain* swapchain);
 
     // 销毁方法
     void destroyCommandPool();

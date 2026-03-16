@@ -87,6 +87,8 @@ private:
         const std::vector<SkylineNode>& skyline,
         u32 width,
         u32 height,
+        u32 maxWidth,
+        u32 maxHeight,
         u32& outX,
         u32& outY,
         size_t& outIndex) const;

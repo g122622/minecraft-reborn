@@ -164,6 +164,41 @@ void TridentEngine::destroy() {
         m_context->waitIdle();
     }
 
+    // 先销毁依赖 Vulkan 设备的子渲染器与纹理资源
+    if (m_chunkRenderer) {
+        m_chunkRenderer->destroy();
+        m_chunkRenderer.reset();
+    }
+
+    if (m_skyRenderer) {
+        m_skyRenderer->destroy();
+        m_skyRenderer.reset();
+    }
+
+    if (m_guiRendererPtr) {
+        m_guiRendererPtr->destroy();
+        m_guiRendererPtr.reset();
+    }
+
+    m_itemRenderer.reset();
+    m_entityRendererManager.reset();
+    m_font.reset();
+
+    m_itemTextureAtlas.destroy();
+    m_entityTextureAtlas.destroy();
+    m_textureRegions.clear();
+
+    m_chunkRendererInitialized = false;
+    m_skyRendererInitialized = false;
+    m_guiRendererInitialized = false;
+    m_itemRendererInitialized = false;
+    m_itemTextureAtlasInitialized = false;
+    m_entityRendererInitialized = false;
+    m_entityTextureAtlasInitialized = false;
+
+    m_guiRenderCallback = nullptr;
+    m_entityRenderCallback = nullptr;
+
     // 按相反顺序销毁
     m_uniformManager.reset();
     m_descriptorManager.reset();
@@ -913,6 +948,7 @@ Result<void> TridentEngine::updateTextureAtlas(const AtlasBuildResult& atlasResu
     auto loadResult = m_chunkRenderer->loadTextureAtlas(
         atlasResult.pixels.data(),
         atlasResult.width,
+        atlasResult.height,
         16  // tileSize
     );
     if (loadResult.failed()) {
