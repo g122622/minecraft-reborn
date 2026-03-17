@@ -127,7 +127,7 @@ Result<void> ParticleManager::initialize(
     m_particles.reserve(MAX_PARTICLES);
     m_vertexData.reserve(MAX_PARTICLES * VERTICES_PER_PARTICLE);
 
-    // 创建资源
+    // 创建资源（注意：纹理需要在描述符集之前创建）
     auto result = createVertexBuffer();
     if (!result.success()) {
         return result.error();
@@ -148,12 +148,14 @@ Result<void> ParticleManager::initialize(
         return result.error();
     }
 
-    result = createDescriptorSets();
+    // 先创建纹理，因为描述符集需要纹理视图和采样器
+    result = createTexture();
     if (!result.success()) {
         return result.error();
     }
 
-    result = createTexture();
+    // 然后创建描述符集（需要纹理视图和采样器）
+    result = createDescriptorSets();
     if (!result.success()) {
         return result.error();
     }
