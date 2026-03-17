@@ -347,7 +347,7 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         }
 
         // 初始化云渲染器
-        auto cloudInitResult = m_renderer->initializeCloudRenderer();
+        auto cloudInitResult = m_renderer->initializeCloudRenderer(m_resourceManager.get());
         if (cloudInitResult.failed()) {
             spdlog::warn("Failed to initialize cloud renderer: {}", cloudInitResult.error().toString());
         }
@@ -1673,6 +1673,12 @@ void ClientApplication::reloadResources()
             if (atlasUpdateResult.failed()) {
                 spdlog::error("Failed to update renderer texture atlas after reload: {}",
                               atlasUpdateResult.error().toString());
+            }
+
+            auto reloadCloudResult = m_renderer->reloadCloudTexture(m_resourceManager.get());
+            if (reloadCloudResult.failed()) {
+                spdlog::warn("Failed to reload cloud texture after resource reload: {}",
+                             reloadCloudResult.error().toString());
             }
         }
 

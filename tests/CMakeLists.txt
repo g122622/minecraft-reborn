@@ -67,6 +67,7 @@ add_executable(mc_tests
     client/renderer/entity/test_entity_renderer_manager.cpp
     client/renderer/test_gui_item_color.cpp
     client/resource/test_entity_texture_loader.cpp
+    client/resource/test_resource_manager_cloud_texture.cpp
     network/EntityPacketsTest.cpp
     network/LocalServerConnectionTest.cpp
     common/entity/loot/LootTest.cpp

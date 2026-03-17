@@ -1332,7 +1332,7 @@ Result<void> TridentEngine::initializeFogManager() {
     return {};
 }
 
-Result<void> TridentEngine::initializeCloudRenderer() {
+Result<void> TridentEngine::initializeCloudRenderer(ResourceManager* resourceManager) {
     if (m_cloudRendererInitialized) {
         return {};
     }
@@ -1349,7 +1349,8 @@ Result<void> TridentEngine::initializeCloudRenderer() {
         commandPool(),
         graphicsQueue(),
         renderPass(),
-        swapchainExtent()
+        swapchainExtent(),
+        resourceManager
     );
 
     if (result.failed()) {
@@ -1360,6 +1361,14 @@ Result<void> TridentEngine::initializeCloudRenderer() {
     m_cloudRendererInitialized = true;
     spdlog::info("Cloud renderer initialized");
     return {};
+}
+
+Result<void> TridentEngine::reloadCloudTexture(ResourceManager* resourceManager) {
+    if (!m_cloudRendererInitialized || !m_cloudRenderer) {
+        return {};
+    }
+
+    return m_cloudRenderer->reloadTexture(resourceManager);
 }
 
 cloud::CloudRenderer& TridentEngine::cloudRenderer() {

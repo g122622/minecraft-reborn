@@ -209,6 +209,65 @@ const TextureRegion* ResourceManager::getTextureRegion(
     return nullptr;
 }
 
+Result<DecodedTexture> ResourceManager::loadTextureRGBA(
+    const ResourceLocation& textureLocation) const
+{
+    if (m_resourcePacks.empty()) {
+        return Error(ErrorCode::NotFound,
+                     "No resource packs available for texture: " + textureLocation.toString());
+    }
+
+    const auto& texMapper = resource::compat::TextureMapper::instance();
+    const auto pathVariants = texMapper.getPathVariants(textureLocation.path());
+
+    for (auto packIt = m_resourcePacks.rbegin(); packIt != m_resourcePacks.rend(); ++packIt) {
+        const auto& pack = *packIt;
+        for (const auto& variantPath : pathVariants) {
+            const ResourceLocation variantLocation(textureLocation.namespace_(), variantPath);
+            const String filePath = variantLocation.toFilePath("png");
+            if (!pack->hasResource(filePath)) {
+                continue;
+            }
+
+            const auto readResult = pack->readResource(filePath);
+            if (readResult.failed()) {
+                continue;
+            }
+
+            int width = 0;
+            int height = 0;
+            int channels = 0;
+            stbi_uc* pixels = stbi_load_from_memory(
+                readResult.value().data(),
+                static_cast<int>(readResult.value().size()),
+                &width,
+                &height,
+                &channels,
+                4);
+
+            if (pixels == nullptr || width <= 0 || height <= 0) {
+                if (pixels != nullptr) {
+                    stbi_image_free(pixels);
+                }
+                continue;
+            }
+
+            DecodedTexture decoded{};
+            decoded.width = static_cast<u32>(width);
+            decoded.height = static_cast<u32>(height);
+            decoded.pixels.assign(
+                pixels,
+                pixels + (static_cast<size_t>(decoded.width) * static_cast<size_t>(decoded.height) * 4));
+            stbi_image_free(pixels);
+
+            return decoded;
+        }
+    }
+
+    return Error(ErrorCode::NotFound,
+                 "Texture not found in any resource pack: " + textureLocation.toString());
+}
+
 const BakedBlockModel* ResourceManager::getBakedModel(
     const ResourceLocation& modelLocation)
 {

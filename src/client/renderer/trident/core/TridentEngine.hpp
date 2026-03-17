@@ -430,7 +430,15 @@ public:
     /**
      * @brief 初始化云渲染器
      */
-    [[nodiscard]] Result<void> initializeCloudRenderer();
+    [[nodiscard]] Result<void> initializeCloudRenderer(ResourceManager* resourceManager = nullptr);
+
+    /**
+     * @brief 重新加载云纹理
+     *
+     * @param resourceManager 资源管理器（允许为空；为空时回退程序化纹理）
+     * @return 成功或错误
+     */
+    [[nodiscard]] Result<void> reloadCloudTexture(ResourceManager* resourceManager = nullptr);
 
     /**
      * @brief 更新纹理图集

@@ -30,6 +30,17 @@ struct BlockAppearance {
 };
 
 /**
+ * @brief 解码后的 RGBA8 纹理数据
+ *
+ * 用于在资源包系统中读取并解码 PNG 后，向渲染模块传递像素。
+ */
+struct DecodedTexture {
+    std::vector<u8> pixels; ///< RGBA8 像素数据（长度 = width * height * 4）
+    u32 width = 0;          ///< 纹理宽度
+    u32 height = 0;         ///< 纹理高度
+};
+
+/**
  * @brief 资源管理器
  *
  * 统一管理资源包、模型、方块状态和纹理
@@ -109,6 +120,20 @@ public:
      * @return 纹理区域指针，找不到返回 nullptr
      */
     [[nodiscard]] const TextureRegion* getTextureRegion(
+        const ResourceLocation& textureLocation) const;
+
+    /**
+     * @brief 按资源包优先级读取并解码 PNG 纹理
+     *
+     * 查找顺序与图集构建一致：后添加的资源包优先。
+     * 仅解码 PNG，并强制输出 RGBA8。
+     *
+     * @param textureLocation 纹理资源位置（例如 minecraft:textures/environment/clouds）
+     * @return 成功时返回像素、宽高；失败时返回错误
+     *
+     * @note 本方法不会写入纹理图集缓存，只做一次性加载。
+     */
+    [[nodiscard]] Result<DecodedTexture> loadTextureRGBA(
         const ResourceLocation& textureLocation) const;
 
     /**

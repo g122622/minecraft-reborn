@@ -6,6 +6,10 @@
 #include <glm/glm.hpp>
 #include <memory>
 
+namespace mc {
+class ResourceManager;
+}
+
 namespace mc::client::renderer::trident::cloud {
 
 /**
@@ -84,7 +88,20 @@ public:
         VkCommandPool commandPool,
         VkQueue graphicsQueue,
         VkRenderPass renderPass,
-        VkExtent2D extent);
+        VkExtent2D extent,
+        const ResourceManager* resourceManager = nullptr);
+
+    /**
+     * @brief 热更新云纹理资源
+     *
+     * 从资源包重新读取 clouds.png 并替换 GPU 纹理。
+     *
+     * @param resourceManager 资源管理器（允许为空；为空时使用程序化纹理回退）
+     * @return 成功或错误
+     *
+     * @warning 需要在渲染器已初始化后调用。
+     */
+    [[nodiscard]] Result<void> reloadTexture(const ResourceManager* resourceManager = nullptr);
 
     /**
      * @brief 销毁所有资源
@@ -176,7 +193,14 @@ private:
      * 使用程序化生成或加载纹理文件。
      * 云纹理为 256x256 灰度透明度图。
      */
-    [[nodiscard]] Result<void> createTexture();
+    [[nodiscard]] Result<void> createTexture(const ResourceManager* resourceManager);
+
+    /**
+     * @brief 更新已分配描述符集中的云纹理绑定
+     *
+     * 在纹理重建后必须调用，否则描述符仍会指向旧图像。
+     */
+    void updateTextureDescriptors();
 
     /**
      * @brief 创建 Uniform 缓冲区

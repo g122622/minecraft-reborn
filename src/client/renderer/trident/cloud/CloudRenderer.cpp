@@ -1,6 +1,7 @@
 #include "CloudRenderer.hpp"
 #include "../util/VulkanUtils.hpp"
 #include "../../util/ShaderPath.hpp"
+#include "../../../resource/ResourceManager.hpp"
 #include "../../../../common/math/MathUtils.hpp"
 #include "../../../../common/math/random/Random.hpp"
 #include "../../../../common/perfetto/TraceEvents.hpp"
@@ -205,7 +206,8 @@ Result<void> CloudRenderer::initialize(
     VkCommandPool commandPool,
     VkQueue graphicsQueue,
     VkRenderPass renderPass,
-    VkExtent2D extent) {
+    VkExtent2D extent,
+    const ResourceManager* resourceManager) {
     if (m_initialized) {
         return Result<void>::ok();
     }
@@ -226,7 +228,7 @@ Result<void> CloudRenderer::initialize(
     }
 
     // 创建纹理
-    auto result2 = createTexture();
+    auto result2 = createTexture(resourceManager);
     if (result2.failed()) {
         return result2;
     }
@@ -354,6 +356,22 @@ void CloudRenderer::destroy() {
 
 Result<void> CloudRenderer::onResize(VkExtent2D extent) {
     m_extent = extent;
+    return Result<void>::ok();
+}
+
+Result<void> CloudRenderer::reloadTexture(const ResourceManager* resourceManager) {
+    if (!m_initialized) {
+        return Error(ErrorCode::NotInitialized, "CloudRenderer is not initialized");
+    }
+
+    vkDeviceWaitIdle(m_device);
+
+    auto textureResult = createTexture(resourceManager);
+    if (textureResult.failed()) {
+        return textureResult;
+    }
+
+    updateTextureDescriptors();
     return Result<void>::ok();
 }
 
@@ -941,9 +959,49 @@ std::vector<u8> CloudRenderer::generateCloudTexture(u32 width, u32 height) {
     return data;
 }
 
-Result<void> CloudRenderer::createTexture() {
-    // 生成云纹理数据
-    auto textureData = generateCloudTexture(CLOUD_TEXTURE_SIZE, CLOUD_TEXTURE_SIZE);
+Result<void> CloudRenderer::createTexture(const ResourceManager* resourceManager) {
+    // 若已有纹理资源，先释放，避免重建时泄漏。
+    if (m_textureSampler != VK_NULL_HANDLE) {
+        vkDestroySampler(m_device, m_textureSampler, nullptr);
+        m_textureSampler = VK_NULL_HANDLE;
+    }
+    if (m_textureImageView != VK_NULL_HANDLE) {
+        vkDestroyImageView(m_device, m_textureImageView, nullptr);
+        m_textureImageView = VK_NULL_HANDLE;
+    }
+    if (m_textureImage != VK_NULL_HANDLE) {
+        vkDestroyImage(m_device, m_textureImage, nullptr);
+        m_textureImage = VK_NULL_HANDLE;
+    }
+    if (m_textureImageMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(m_device, m_textureImageMemory, nullptr);
+        m_textureImageMemory = VK_NULL_HANDLE;
+    }
+
+    std::vector<u8> textureData;
+    u32 textureWidth = CLOUD_TEXTURE_SIZE;
+    u32 textureHeight = CLOUD_TEXTURE_SIZE;
+
+    if (resourceManager != nullptr) {
+        const ResourceLocation cloudTextureLocation("minecraft:textures/environment/clouds");
+        auto loadResult = resourceManager->loadTextureRGBA(cloudTextureLocation);
+        if (loadResult.success()) {
+            textureData = std::move(loadResult.value().pixels);
+            textureWidth = loadResult.value().width;
+            textureHeight = loadResult.value().height;
+            spdlog::info("Cloud texture loaded from resource pack: {} ({}x{})",
+                         cloudTextureLocation.toString(), textureWidth, textureHeight);
+        } else {
+            spdlog::warn("Failed to load cloud texture from resource packs: {}. Falling back to procedural texture.",
+                         loadResult.error().toString());
+        }
+    }
+
+    if (textureData.empty()) {
+        textureData = generateCloudTexture(CLOUD_TEXTURE_SIZE, CLOUD_TEXTURE_SIZE);
+        textureWidth = CLOUD_TEXTURE_SIZE;
+        textureHeight = CLOUD_TEXTURE_SIZE;
+    }
 
     // 创建暂存缓冲区
     VkDeviceSize imageSize = textureData.size();
@@ -970,8 +1028,8 @@ Result<void> CloudRenderer::createTexture() {
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.extent.width = CLOUD_TEXTURE_SIZE;
-    imageInfo.extent.height = CLOUD_TEXTURE_SIZE;
+    imageInfo.extent.width = textureWidth;
+    imageInfo.extent.height = textureHeight;
     imageInfo.extent.depth = 1;
     imageInfo.mipLevels = 1;
     imageInfo.arrayLayers = 1;
@@ -1047,7 +1105,7 @@ Result<void> CloudRenderer::createTexture() {
     region.imageSubresource.baseArrayLayer = 0;
     region.imageSubresource.layerCount = 1;
     region.imageOffset = {0, 0, 0};
-    region.imageExtent = {CLOUD_TEXTURE_SIZE, CLOUD_TEXTURE_SIZE, 1};
+    region.imageExtent = {textureWidth, textureHeight, 1};
 
     vkCmdCopyBufferToImage(cmd, stagingBuffer, m_textureImage,
                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
@@ -1108,8 +1166,32 @@ Result<void> CloudRenderer::createTexture() {
         return Error(ErrorCode::InitializationFailed, "Failed to create cloud texture sampler");
     }
 
-    spdlog::debug("Cloud texture created: {}x{}", CLOUD_TEXTURE_SIZE, CLOUD_TEXTURE_SIZE);
+    spdlog::debug("Cloud texture created: {}x{}", textureWidth, textureHeight);
     return Result<void>::ok();
+}
+
+void CloudRenderer::updateTextureDescriptors() {
+    if (m_descriptorPool == VK_NULL_HANDLE) {
+        return;
+    }
+
+    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = m_textureImageView;
+        imageInfo.sampler = m_textureSampler;
+
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = m_descriptorSets[i];
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pImageInfo = &imageInfo;
+
+        vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
+    }
 }
 
 Result<void> CloudRenderer::createUniformBuffers() {
