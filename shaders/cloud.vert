@@ -21,6 +21,8 @@ layout(set = 0, binding = 1) uniform CloudUBO {
     float time;
     float textureScale;
     float cameraY;
+    float textureOffsetX;
+    float textureOffsetZ;
 } ubo;
 
 void main() {
@@ -28,8 +30,9 @@ void main() {
     vec4 worldPos = vec4(inPosition, 1.0);
     gl_Position = pc.viewProjection * worldPos;
 
-    // Pass texture coordinates
-    fragTexCoord = inTexCoord;
+    // 应用纹理偏移（基于相机位置滚动）
+    // 参考 MC 1.16.5: tex = (pos * 0.00390625) + floor(cloudsX/Z) * 0.00390625
+    fragTexCoord = inTexCoord + vec2(ubo.textureOffsetX, ubo.textureOffsetZ);
 
     // 按 MC 风格固定面亮度：顶面最亮，底面最暗，X/Z 侧面次之
     if (inNormal.y > 0.5) {

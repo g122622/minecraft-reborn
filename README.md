@@ -20,6 +20,7 @@ cmake -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=D:/tools
 chcp 65001 # 务必记得先执行这一行，避免中文乱码
 
 # 注：即使在开发过程中，也要尽量使用Release构建，因为Debug运行非常慢，除非必要否则不要用。
+# 这行命令除了编译cpp代码之外，还会编译着色器
 cmake --build build --config Release
 # 构建过程可能出现“cl : 命令行  error D8040: 创建子进程或与子进程通讯时出错”这种错误，此时只需要重新跑一遍构建命令就行，不用清理构建目录、不用重新生成构建脚本。
 
@@ -32,6 +33,8 @@ cmake --build build --config Release
 # 运行客户端
 ./build/bin/Release/minecraft-client.exe
 ```
+
+增加新的着色器之后要在shaders\CMakeLists.txt中新增文件
 
 ## 着色器编译
 

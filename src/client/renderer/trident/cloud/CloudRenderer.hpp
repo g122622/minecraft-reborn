@@ -38,6 +38,8 @@ struct CloudUBO {
     alignas(4)  f32 time;                   ///< 时间（用于动画）
     alignas(4)  f32 textureScale;           ///< 纹理缩放因子
     alignas(4)  f32 cameraY;                ///< 相机 Y 坐标（用于高度雾）
+    alignas(4)  f32 textureOffsetX;         ///< 纹理 X 偏移（基于相机位置）
+    alignas(4)  f32 textureOffsetZ;         ///< 纹理 Z 偏移（基于相机位置）
 };
 
 /**
@@ -372,10 +374,16 @@ private:
     glm::vec4 m_cloudColor = glm::vec4(1.0f);
     glm::vec3 m_cameraPos = glm::vec3(0.0f);
     f32 m_cloudOffsetX = 0.0f;     // 云 X 偏移（用于动画）
-    f32 m_cloudOffsetZ = 0.0f;     // 云 Z 偏移（用于动画）
 
-    // 云网格是否需要更新
-    bool m_cloudMeshDirty = true;
+    // 云网格更新检测
+    // 参考 MC 1.16.5: 当整数网格坐标变化时重建 VBO
+    i32 m_cloudsCheckX = 0;        // 上一次检查时的 X 网格坐标
+    i32 m_cloudsCheckY = 0;        // 上一次检查时的 Y 网格坐标
+    i32 m_cloudsCheckZ = 0;        // 上一次检查时的 Z 网格坐标
+    i32 m_cloudGridX = 0;          // 当前 VBO 使用的 X 网格偏移
+    i32 m_cloudGridY = 0;          // 当前 VBO 使用的 Y 网格偏移
+    i32 m_cloudGridZ = 0;          // 当前 VBO 使用的 Z 网格偏移
+    bool m_cloudMeshDirty = true;  // 云网格是否需要更新
 
     // 云纹理二值掩码（按纹理 alpha 提取）
     std::vector<u8> m_cloudMask;
