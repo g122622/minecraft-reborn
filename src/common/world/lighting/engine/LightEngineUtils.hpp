@@ -4,11 +4,13 @@
 #include "../../../util/Direction.hpp"
 #include "../../block/Block.hpp"
 #include "../../block/BlockPos.hpp"
+#include <climits>
 
 namespace mc {
 
 // 前向声明
 class IWorld;
+class IChunk;
 class BlockState;
 class CollisionShape;
 
@@ -19,6 +21,28 @@ class CollisionShape;
  */
 class LightEngineUtils {
 public:
+    // ========================================================================
+    // 常量
+    // ========================================================================
+
+    /** 根节点位置标记（用于光源） */
+    static constexpr i64 ROOT_POS = LONG_MAX;
+
+    /** 所有6个方向（用于遍历相邻方块） */
+    static constexpr Direction ALL_DIRECTIONS[6] = {
+        Direction::Down, Direction::Up, Direction::North,
+        Direction::South, Direction::West, Direction::East
+    };
+
+    /** 水平4个方向 */
+    static constexpr Direction HORIZONTAL_DIRECTIONS[4] = {
+        Direction::North, Direction::South, Direction::West, Direction::East
+    };
+
+    // ========================================================================
+    // 位置编码
+    // ========================================================================
+
     /**
      * @brief 世界位置编码
      *
@@ -77,6 +101,50 @@ public:
      * @brief 世界位置转区块段位置
      */
     [[nodiscard]] static i64 worldToSectionPos(i64 worldPos);
+
+    /**
+     * @brief 从编码位置提取NibbleArray索引
+     *
+     * @param packed 编码位置
+     * @param x 输出：局部X坐标 (0-15)
+     * @param localY 输出：局部Y坐标 (0-15)
+     * @param z 输出：局部Z坐标 (0-15)
+     */
+    [[nodiscard]] static constexpr void extractNibbleIndices(i64 packed, i32& x, i32& localY, i32& z) {
+        x = static_cast<i32>((packed >> 38) & 0xF);
+        i32 y = static_cast<i32>(packed & 0xFFF);
+        localY = y & 0xF;
+        z = static_cast<i32>((packed >> 26) & 0xF);
+    }
+
+    // ========================================================================
+    // 方块查询
+    // ========================================================================
+
+    /**
+     * @brief 从区块获取方块及其透明度
+     *
+     * @param chunk 区块指针
+     * @param worldPos 编码的世界位置
+     * @param opacityOut 透明度输出（可选）
+     * @return 方块状态指针，如果是空气返回nullptr
+     */
+    [[nodiscard]] static const BlockState* getBlockAndOpacity(
+        const IChunk* chunk,
+        i64 worldPos,
+        i32* opacityOut);
+
+    /**
+     * @brief 获取方块的遮挡形状
+     *
+     * @param state 方块状态
+     * @return 遮挡形状，如果是非固体方块返回空形状
+     */
+    [[nodiscard]] static const CollisionShape& getVoxelShape(const BlockState& state);
+
+    // ========================================================================
+    // 遮挡检测
+    // ========================================================================
 
     /**
      * @brief 检查两个方块之间是否有完整的遮挡面

@@ -1,4 +1,5 @@
 #include "SkyLightEngine.hpp"
+#include "LightEngineUtils.hpp"
 #include "../../IWorld.hpp"
 #include "../../block/Block.hpp"
 #include "../../chunk/IChunk.hpp"
@@ -49,12 +50,9 @@ void SkyLightEngine::checkLight(const BlockPos& pos) {
     }
 
     // 通知相邻方块
-    scheduleUpdate(LightEngineUtils::offsetPos(packedPos, Direction::Down));
-    scheduleUpdate(LightEngineUtils::offsetPos(packedPos, Direction::Up));
-    scheduleUpdate(LightEngineUtils::offsetPos(packedPos, Direction::North));
-    scheduleUpdate(LightEngineUtils::offsetPos(packedPos, Direction::South));
-    scheduleUpdate(LightEngineUtils::offsetPos(packedPos, Direction::West));
-    scheduleUpdate(LightEngineUtils::offsetPos(packedPos, Direction::East));
+    for (Direction dir : LightEngineUtils::ALL_DIRECTIONS) {
+        scheduleUpdate(LightEngineUtils::offsetPos(packedPos, dir));
+    }
 }
 
 u8 SkyLightEngine::getLightFor(const BlockPos& pos) const {
@@ -118,8 +116,8 @@ i32 SkyLightEngine::computeLevel(i64 pos, i64 excludedSource, i32 level) {
     i32 minLevel = level;
 
     // 如果不是从根节点排除，检查天空光照贡献
-    if (excludedSource != LONG_MAX) {
-        i32 sourceContribution = getEdgeLevel(LONG_MAX, pos, 0);
+    if (excludedSource != LightEngineUtils::ROOT_POS) {
+        i32 sourceContribution = getEdgeLevel(LightEngineUtils::ROOT_POS, pos, 0);
         if (level > sourceContribution) {
             minLevel = sourceContribution;
         }
@@ -133,12 +131,7 @@ i32 SkyLightEngine::computeLevel(i64 pos, i64 excludedSource, i32 level) {
     const NibbleArray* array = m_storage.getArray(sectionPos, true);
 
     // 检查所有相邻方向
-    static const Direction directions[] = {
-        Direction::Down, Direction::Up, Direction::North,
-        Direction::South, Direction::West, Direction::East
-    };
-
-    for (Direction dir : directions) {
+    for (Direction dir : LightEngineUtils::ALL_DIRECTIONS) {
         i64 neighborPos = LightEngineUtils::offsetPos(pos, dir);
         if (neighborPos == excludedSource) {
             continue;
@@ -233,11 +226,7 @@ void SkyLightEngine::notifyNeighbors(i64 pos, i32 level, bool isDecreasing) {
     }
 
     // 水平方向传播
-    static const Direction horizontalDirs[] = {
-        Direction::North, Direction::South, Direction::West, Direction::East
-    };
-
-    for (Direction dir : horizontalDirs) {
+    for (Direction dir : LightEngineUtils::HORIZONTAL_DIRECTIONS) {
         i32 dx = (dir == Direction::East) ? 1 : ((dir == Direction::West) ? -1 : 0);
         i32 dz = (dir == Direction::South) ? 1 : ((dir == Direction::North) ? -1 : 0);
 
@@ -273,11 +262,11 @@ void SkyLightEngine::setLevel(i64 pos, i32 level) {
 }
 
 i32 SkyLightEngine::getEdgeLevel(i64 fromPos, i64 toPos, i32 startLevel) {
-    if (toPos == LONG_MAX) {
+    if (toPos == LightEngineUtils::ROOT_POS) {
         return 15;
     }
 
-    if (fromPos == LONG_MAX) {
+    if (fromPos == LightEngineUtils::ROOT_POS) {
         // 从天空发出
         if (!m_storage.isAtSurfaceTop(toPos)) {
             return 15;
@@ -290,28 +279,29 @@ i32 SkyLightEngine::getEdgeLevel(i64 fromPos, i64 toPos, i32 startLevel) {
     }
 
     i32 opacity = 0;
-    const BlockState* toState = getBlockAndOpacity(toPos, &opacity);
+    i32 toX, toY, toZ;
+    LightEngineUtils::unpackPos(toPos, toX, toY, toZ);
+    const IChunk* toChunk = m_chunkProvider->getChunkForLight(toX >> 4, toZ >> 4);
+    const BlockState* toState = LightEngineUtils::getBlockAndOpacity(toChunk, toPos, &opacity);
 
     if (opacity >= 15) {
         return 15;
     }
 
-    const BlockState* fromState = getBlockAndOpacity(fromPos, nullptr);
+    i32 fromX, fromY, fromZ;
+    LightEngineUtils::unpackPos(fromPos, fromX, fromY, fromZ);
+    const IChunk* fromChunk = m_chunkProvider->getChunkForLight(fromX >> 4, fromZ >> 4);
+    const BlockState* fromState = LightEngineUtils::getBlockAndOpacity(fromChunk, fromPos, nullptr);
     IWorld* world = m_chunkProvider->getWorld();
 
     // 计算方向
-    i32 fromX, fromY, fromZ;
-    i32 toX, toY, toZ;
-    LightEngineUtils::unpackPos(fromPos, fromX, fromY, fromZ);
-    LightEngineUtils::unpackPos(toPos, toX, toY, toZ);
-
     bool sameXZ = (fromX == toX) && (fromZ == toZ);
     i32 dx = (toX > fromX) ? 1 : ((toX < fromX) ? -1 : 0);
     i32 dy = (toY > fromY) ? 1 : ((toY < fromY) ? -1 : 0);
     i32 dz = (toZ > fromZ) ? 1 : ((toZ < fromZ) ? -1 : 0);
 
     Direction direction;
-    if (fromPos == LONG_MAX) {
+    if (fromPos == LightEngineUtils::ROOT_POS) {
         direction = Direction::Down;
     } else {
         direction = Directions::fromDelta(dx, dy, dz);
@@ -319,16 +309,19 @@ i32 SkyLightEngine::getEdgeLevel(i64 fromPos, i64 toPos, i32 startLevel) {
 
     if (direction != Direction::None) {
         // 检查面遮挡
-        if (LightEngineUtils::facesHaveOcclusion(world, *fromState, BlockPos(fromX, fromY, fromZ),
+        if (fromState != nullptr && toState != nullptr &&
+            LightEngineUtils::facesHaveOcclusion(world, *fromState, BlockPos(fromX, fromY, fromZ),
                               *toState, BlockPos(toX, toY, toZ),
                               direction, opacity)) {
             return 15;
         }
     } else {
         // 非相邻方块，检查Y方向遮挡
-        const CollisionShape& fromShape = getVoxelShape(*fromState, fromPos, Direction::Down);
-        if (!fromShape.isEmpty()) {
-            return 15;
+        if (fromState != nullptr) {
+            const CollisionShape& fromShape = LightEngineUtils::getVoxelShape(*fromState);
+            if (!fromShape.isEmpty()) {
+                return 15;
+            }
         }
 
         i32 adjustedDy = sameXZ ? -1 : 0;
@@ -337,14 +330,16 @@ i32 SkyLightEngine::getEdgeLevel(i64 fromPos, i64 toPos, i32 startLevel) {
             return 15;
         }
 
-        const CollisionShape& toShape = getVoxelShape(*toState, toPos, Directions::opposite(adjustedDir));
-        if (!toShape.isEmpty()) {
-            return 15;
+        if (toState != nullptr) {
+            const CollisionShape& toShape = LightEngineUtils::getVoxelShape(*toState);
+            if (!toShape.isEmpty()) {
+                return 15;
+            }
         }
     }
 
     // 天空光照特殊处理：从天空向下传播且无遮挡时，衰减为0
-    bool isFromSky = (fromPos == LONG_MAX) || (sameXZ && fromY > toY);
+    bool isFromSky = (fromPos == LightEngineUtils::ROOT_POS) || (sameXZ && fromY > toY);
     if (isFromSky && startLevel == 0 && opacity == 0) {
         return 0;
     }
@@ -362,59 +357,13 @@ i32 SkyLightEngine::getLightValue(i64 worldPos) const {
     return 0;
 }
 
-const BlockState* SkyLightEngine::getBlockAndOpacity(i64 worldPos, i32* opacityOut) const {
-    if (worldPos == LONG_MAX) {
-        if (opacityOut != nullptr) {
-            *opacityOut = 0;
-        }
-        return nullptr;  // 空气
-    }
-
-    i32 x, y, z;
-    LightEngineUtils::unpackPos(worldPos, x, y, z);
-
-    const IChunk* chunk = m_chunkProvider->getChunkForLight(x >> 4, z >> 4);
-    if (chunk == nullptr) {
-        if (opacityOut != nullptr) {
-            *opacityOut = 15;  // 视为不透明
-        }
-        return nullptr;  // 基岩
-    }
-
-    const BlockState* state = chunk->getBlock(x & 0xF, y, z & 0xF);
-    if (state == nullptr) {
-        if (opacityOut != nullptr) {
-            *opacityOut = 0;
-        }
-        return nullptr;
-    }
-
-    if (opacityOut != nullptr) {
-        *opacityOut = state->getOpacity();
-    }
-
-    return state;
-}
-
-const CollisionShape& SkyLightEngine::getVoxelShape(const BlockState& state, i64 pos, Direction dir) const {
-    (void)pos;
-    (void)dir;
-    // 对于光照，我们只关心方块是否是固体
-    if (state.isSolid()) {
-        return state.getOcclusionShape();
-    }
-    return VoxelShapes::empty();
-}
-
 i32 SkyLightEngine::getLevelFromArray(const NibbleArray* array, i64 worldPos) const {
     if (array == nullptr) {
         return 15;
     }
 
-    i32 x = static_cast<i32>((worldPos >> 38) & 0xF);
-    i32 y = static_cast<i32>(worldPos & 0xFFF);
-    i32 z = static_cast<i32>((worldPos >> 26) & 0xF);
-    i32 localY = y & 0xF;
+    i32 x, localY, z;
+    LightEngineUtils::extractNibbleIndices(worldPos, x, localY, z);
 
     return 15 - array->get(x, localY, z);
 }

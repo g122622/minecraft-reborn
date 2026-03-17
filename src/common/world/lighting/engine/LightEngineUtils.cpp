@@ -1,11 +1,16 @@
 #include "LightEngineUtils.hpp"
 #include "../../IWorld.hpp"
+#include "../../chunk/IChunk.hpp"
 #include "../../../physics/collision/CollisionShape.hpp"
 #include "../../block/Block.hpp"
 #include "../../chunk/ChunkPos.hpp"
 #include <climits>
 
 namespace mc {
+
+// 静态常量定义
+constexpr Direction LightEngineUtils::ALL_DIRECTIONS[6];
+constexpr Direction LightEngineUtils::HORIZONTAL_DIRECTIONS[4];
 
 i64 LightEngineUtils::worldToSectionPos(i64 worldPos) {
     i32 x = static_cast<i32>((worldPos >> 38) & 0xFFFFFFF);
@@ -17,6 +22,51 @@ i64 LightEngineUtils::worldToSectionPos(i64 worldPos) {
     z = (z << 4) >> 4;
 
     return SectionPos(x >> 4, y >> 4, z >> 4).toLong();
+}
+
+const BlockState* LightEngineUtils::getBlockAndOpacity(
+    const IChunk* chunk,
+    i64 worldPos,
+    i32* opacityOut) {
+
+    if (worldPos == ROOT_POS) {
+        if (opacityOut != nullptr) {
+            *opacityOut = 0;
+        }
+        return nullptr;  // 空气
+    }
+
+    if (chunk == nullptr) {
+        if (opacityOut != nullptr) {
+            *opacityOut = 15;  // 视为不透明
+        }
+        return nullptr;  // 基岩
+    }
+
+    i32 x, y, z;
+    unpackPos(worldPos, x, y, z);
+    const BlockState* state = chunk->getBlock(x & 0xF, y, z & 0xF);
+
+    if (state == nullptr) {
+        if (opacityOut != nullptr) {
+            *opacityOut = 0;
+        }
+        return nullptr;
+    }
+
+    if (opacityOut != nullptr) {
+        *opacityOut = state->getOpacity();
+    }
+
+    return state;
+}
+
+const CollisionShape& LightEngineUtils::getVoxelShape(const BlockState& state) {
+    // 对于光照，我们只关心方块是否是固体
+    if (state.isSolid()) {
+        return state.getOcclusionShape();
+    }
+    return VoxelShapes::empty();
 }
 
 bool LightEngineUtils::facesHaveOcclusion(

@@ -119,20 +119,6 @@ private:
      * @brief 获取指定位置的发光等级
      */
     [[nodiscard]] i32 getLightValue(i64 worldPos) const;
-
-    /**
-     * @brief 获取方块及其透明度
-     *
-     * @param pos 世界位置编码
-     * @param opacityOut 透明度输出（可选）
-     * @return 方块状态指针
-     */
-    [[nodiscard]] const BlockState* getBlockAndOpacity(i64 pos, i32* opacityOut) const;
-
-    /**
-     * @brief 获取方块的遮挡形状
-     */
-    [[nodiscard]] const CollisionShape& getVoxelShape(const BlockState& state, i64 pos, Direction dir) const;
 };
 
 } // namespace mc
