@@ -3,6 +3,7 @@
 #include "../core/Types.hpp"
 #include "../math/Vector3.hpp"
 #include "../util/AxisAlignedBB.hpp"
+#include "tick/base/TickPriority.hpp"
 #include <vector>
 
 namespace mc {
@@ -11,7 +12,15 @@ namespace mc {
 class Entity;
 class BlockState;
 class ChunkData;
+class BlockPos;
 class PhysicsEngine;
+class Block;
+class IRandom;
+
+namespace fluid {
+class Fluid;
+class FluidState;
+}
 
 /**
  * @brief 世界访问接口
@@ -41,6 +50,30 @@ public:
      * @return 是否成功
      */
     virtual bool setBlock(i32 x, i32 y, i32 z, const BlockState* state) = 0;
+
+    // ========== 流体访问 ==========
+
+    /**
+     * @brief 获取流体状态
+     * @param x, y, z 方块坐标
+     * @return 流体状态指针，如果无流体返回空流体状态
+     */
+    [[nodiscard]] virtual const fluid::FluidState* getFluidState(i32 x, i32 y, i32 z) const = 0;
+
+    /**
+     * @brief 检查位置是否有流体
+     */
+    [[nodiscard]] bool hasFluid(i32 x, i32 y, i32 z) const;
+
+    /**
+     * @brief 检查位置是否为水
+     */
+    [[nodiscard]] bool isWaterAt(i32 x, i32 y, i32 z) const;
+
+    /**
+     * @brief 检查位置是否为岩浆
+     */
+    [[nodiscard]] bool isLavaAt(i32 x, i32 y, i32 z) const;
 
     // ========== 区块访问 ==========
 
@@ -96,6 +129,15 @@ public:
      * @return 碰撞箱列表
      */
     [[nodiscard]] virtual std::vector<AxisAlignedBB> getBlockCollisions(const AxisAlignedBB& box) const = 0;
+
+    /**
+     * @brief 检查位置是否在世界边界内
+     * @param x X坐标
+     * @param y Y坐标
+     * @param z Z坐标
+     * @return 是否在世界边界内
+     */
+    [[nodiscard]] virtual bool isWithinWorldBounds(i32 x, i32 y, i32 z) const = 0;
 
     /**
      * @brief 检查碰撞箱是否与实体碰撞
@@ -183,8 +225,53 @@ public:
      */
     [[nodiscard]] virtual i32 difficulty() const = 0;
 
+    // ========== Tick调度 ==========
+
+    /**
+     * @brief 调度方块tick
+     *
+     * 方便方法，委托给TickManager。
+     * 默认实现为空操作，ServerWorld会重写以实际调度。
+     *
+     * @param pos 方块位置
+     * @param block 方块引用
+     * @param delay 延迟tick数
+     * @param priority 优先级（默认Normal）
+     */
+    virtual void scheduleBlockTick(const BlockPos& pos, Block& block, i32 delay,
+                                   world::tick::TickPriority priority = world::tick::TickPriority::Normal) {
+        // 默认空操作，客户端不需要调度tick
+        (void)pos;
+        (void)block;
+        (void)delay;
+        (void)priority;
+    }
+
+    /**
+     * @brief 调度流体tick
+     *
+     * 方便方法，委托给TickManager。
+     * 默认实现为空操作，ServerWorld会重写以实际调度。
+     *
+     * @param pos 流体位置
+     * @param fluid 流体引用
+     * @param delay 延迟tick数
+     * @param priority 优先级（默认Normal）
+     */
+    virtual void scheduleFluidTick(const BlockPos& pos, fluid::Fluid& fluid, i32 delay,
+                                   world::tick::TickPriority priority = world::tick::TickPriority::Normal) {
+        // 默认空操作，客户端不需要调度tick
+        (void)pos;
+        (void)fluid;
+        (void)delay;
+        (void)priority;
+    }
+
 protected:
     IWorld() = default;
 };
+
+// 前向声明区块读取器接口
+class IBlockReader : public IWorld {};
 
 } // namespace mc

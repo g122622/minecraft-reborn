@@ -1,0 +1,111 @@
+#pragma once
+
+#include "../FlowingFluid.hpp"
+#include "../../../math/Vector3.hpp"
+
+namespace mc {
+namespace fluid {
+
+/**
+ * @brief 水流体基类
+ *
+ * 参考MC 1.16.5 WaterFluid
+ *
+ * 特性：
+ * - tick延迟: 5 tick
+ * - 每格衰减: 1级
+ * - 最大距离: 8格
+ * - 可以形成无限源（2+相邻源头）
+ */
+class WaterFluid : public FlowingFluid {
+public:
+    // ========== FlowingFluid接口实现 ==========
+
+    [[nodiscard]] i32 getTickDelay() const override { return 5; }
+
+    [[nodiscard]] i32 getLevelDecrease(IWorld& world) const override {
+        (void)world;
+        return 1;
+    }
+
+    [[nodiscard]] i32 getSpreadDistance(IWorld& world) const override {
+        (void)world;
+        return 8;
+    }
+
+    [[nodiscard]] bool canSourcesMultiply() const override { return true; }
+
+    [[nodiscard]] const BlockState* getBlockState(const FluidState& state) const override;
+
+    [[nodiscard]] f32 getExplosionResistance() const override { return 100.0f; }
+
+protected:
+    void beforeReplacingBlock(IWorld& world, const BlockPos& pos,
+                              const BlockState* state) override;
+};
+
+/**
+ * @brief 水源头
+ *
+ * 源头水方块，level=8，没有LEVEL属性。
+ */
+class WaterSourceFluid : public FlowingFluid {
+public:
+    WaterSourceFluid();
+
+    [[nodiscard]] bool isSource(const FluidState& state) const override {
+        (void)state;
+        return true;
+    }
+
+    [[nodiscard]] i32 getLevel(const FluidState& state) const override {
+        (void)state;
+        return 8;
+    }
+
+    [[nodiscard]] i32 getTickDelay() const override { return 5; }
+    [[nodiscard]] i32 getLevelDecrease(IWorld& world) const override;
+    [[nodiscard]] i32 getSpreadDistance(IWorld& world) const override;
+    [[nodiscard]] bool canSourcesMultiply() const override { return true; }
+    [[nodiscard]] const BlockState* getBlockState(const FluidState& state) const override;
+    [[nodiscard]] f32 getExplosionResistance() const override { return 100.0f; }
+    [[nodiscard]] FlowingFluid& getFlowing() override;
+    [[nodiscard]] FlowingFluid& getStill() override { return *this; }
+
+protected:
+    void beforeReplacingBlock(IWorld& world, const BlockPos& pos,
+                              const BlockState* state) override;
+};
+
+/**
+ * @brief 流动水
+ *
+ * 流动水方块，有LEVEL属性(1-8)和FALLING属性。
+ */
+class WaterFlowingFluid : public FlowingFluid {
+public:
+    WaterFlowingFluid();
+
+    [[nodiscard]] bool isSource(const FluidState& state) const override {
+        (void)state;
+        return false;
+    }
+
+    [[nodiscard]] i32 getLevel(const FluidState& state) const override;
+
+    [[nodiscard]] i32 getTickDelay() const override { return 5; }
+    [[nodiscard]] i32 getLevelDecrease(IWorld& world) const override;
+    [[nodiscard]] i32 getSpreadDistance(IWorld& world) const override;
+    [[nodiscard]] bool canSourcesMultiply() const override { return true; }
+    [[nodiscard]] const BlockState* getBlockState(const FluidState& state) const override;
+    [[nodiscard]] f32 getExplosionResistance() const override { return 100.0f; }
+    [[nodiscard]] FlowingFluid& getFlowing() override { return *this; }
+    [[nodiscard]] FlowingFluid& getStill() override;
+
+protected:
+    void beforeReplacingBlock(IWorld& world, const BlockPos& pos,
+                              const BlockState* state) override;
+};
+
+} // namespace fluid
+} // namespace mc

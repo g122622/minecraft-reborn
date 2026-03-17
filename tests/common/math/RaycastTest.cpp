@@ -5,11 +5,10 @@
 #include "world/block/Block.hpp"
 #include "world/block/BlockRegistry.hpp"
 #include "world/block/blocks/SimpleBlock.hpp"
+#include "world/fluid/Fluid.hpp"
 #include "util/Direction.hpp"
 
 using namespace mc;
-
-namespace {
 
 /**
  * @brief 测试用方块读取器
@@ -21,27 +20,52 @@ public:
     // 存储方块：key = (x, y, z) 打包为 i64
     std::unordered_map<i64, const BlockState*> m_blocks;
 
-    void setBlock(i32 x, i32 y, i32 z, const BlockState* state) {
-        i64 key = static_cast<i64>(x) |
-                  (static_cast<i64>(y) << 16) |
-                  (static_cast<i64>(z) << 32);
-        m_blocks[key] = state;
-    }
-
     void clear() {
         m_blocks.clear();
     }
 
     [[nodiscard]] const BlockState* getBlockState(i32 x, i32 y, i32 z) const override {
-        i64 key = static_cast<i64>(x) |
-                  (static_cast<i64>(y) << 16) |
-                  (static_cast<i64>(z) << 32);
-        auto it = m_blocks.find(key);
+        i64 k = key(x, y, z);
+        auto it = m_blocks.find(k);
         return it != m_blocks.end() ? it->second : nullptr;
     }
 
-    [[nodiscard]] bool isWithinWorldBounds(i32 x, i32 y, i32 z) const override {
+    [[nodiscard]] bool isWithinWorldBounds(i32, i32 y, i32) const override {
         return y >= 0 && y < 256;
+    }
+
+    // IWorld 接口存根实现
+    bool setBlock(i32 x, i32 y, i32 z, const BlockState* state) override {
+        m_blocks[key(x, y, z)] = state;
+        return true;
+    }
+
+    [[nodiscard]] const fluid::FluidState* getFluidState(i32, i32, i32) const override { return nullptr; }
+    [[nodiscard]] const ChunkData* getChunk(ChunkCoord, ChunkCoord) const override { return nullptr; }
+    [[nodiscard]] bool hasChunk(ChunkCoord, ChunkCoord) const override { return false; }
+    [[nodiscard]] i32 getHeight(i32, i32) const override { return 64; }
+    [[nodiscard]] u8 getBlockLight(i32, i32, i32) const override { return 15; }
+    [[nodiscard]] u8 getSkyLight(i32, i32, i32) const override { return 15; }
+    [[nodiscard]] bool hasBlockCollision(const AxisAlignedBB&) const override { return false; }
+    [[nodiscard]] std::vector<AxisAlignedBB> getBlockCollisions(const AxisAlignedBB&) const override { return {}; }
+    [[nodiscard]] bool hasEntityCollision(const AxisAlignedBB&, const Entity*) const override { return false; }
+    [[nodiscard]] std::vector<AxisAlignedBB> getEntityCollisions(const AxisAlignedBB&, const Entity*) const override { return {}; }
+    [[nodiscard]] PhysicsEngine* physicsEngine() override { return nullptr; }
+    [[nodiscard]] const PhysicsEngine* physicsEngine() const override { return nullptr; }
+    [[nodiscard]] std::vector<Entity*> getEntitiesInAABB(const AxisAlignedBB&, const Entity*) const override { return {}; }
+    [[nodiscard]] std::vector<Entity*> getEntitiesInRange(const Vector3&, f32, const Entity*) const override { return {}; }
+    [[nodiscard]] DimensionId dimension() const override { return DimensionId(0); }
+    [[nodiscard]] u64 seed() const override { return 0; }
+    [[nodiscard]] u64 currentTick() const override { return 0; }
+    [[nodiscard]] i64 dayTime() const override { return 0; }
+    [[nodiscard]] bool isHardcore() const override { return false; }
+    [[nodiscard]] i32 difficulty() const override { return 0; }
+
+private:
+    static i64 key(i32 x, i32 y, i32 z) {
+        return static_cast<i64>(x) |
+               (static_cast<i64>(y) << 16) |
+               (static_cast<i64>(z) << 32);
     }
 };
 
@@ -68,8 +92,6 @@ void ensureTestBlocksRegistered() {
         initialized = true;
     }
 }
-
-} // anonymous namespace
 
 /**
  * @brief 射线检测测试夹具

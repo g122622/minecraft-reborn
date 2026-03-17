@@ -1,6 +1,7 @@
 #include "ServerWorld.hpp"
 #include "ServerChunkManager.hpp"
 #include "common/world/gen/chunk/NoiseChunkGenerator.hpp"
+#include "common/world/fluid/Fluid.hpp"
 #include "common/entity/Entity.hpp"
 #include "common/entity/EntityRegistry.hpp"
 #include "common/network/IServerConnection.hpp"
@@ -75,9 +76,12 @@ Result<void> ServerWorld::initialize() {
     // 创建物理引擎（ServerWorld 实现了 ICollisionWorld）
     m_physicsEngine = std::make_unique<PhysicsEngine>(*this);
 
+    // 创建Tick管理器
+    m_tickManager = std::make_unique<world::tick::TickManager>(*this);
+
     m_initialized = true;
 
-    spdlog::info("Server world initialized with physics engine");
+    spdlog::info("Server world initialized with physics engine and tick manager");
     return Result<void>::ok();
 }
 
@@ -85,6 +89,9 @@ void ServerWorld::shutdown() {
     spdlog::info("Shutting down server world...");
 
     m_initialized = false;
+
+    // 清除Tick管理器
+    m_tickManager.reset();
 
     // 清除物理引擎和碰撞缓存
     m_physicsEngine.reset();
@@ -519,6 +526,11 @@ void ServerWorld::tick() {
     // 更新游戏时间
     m_gameTime.tick();
 
+    // 执行计划刻（方块tick和流体tick）
+    if (m_tickManager) {
+        m_tickManager->tick(m_currentTick);
+    }
+
     // 更新所有实体
     size_t entityCount = m_entityManager.entityCount();
     if (m_currentTick % 600 == 0 && entityCount > 0) {
@@ -633,6 +645,22 @@ const BlockState* ServerWorld::getBlockState(i32 x, i32 y, i32 z) const {
     i32 localZ = z - chunkZ * 16;
 
     return chunk->getBlock(localX, y, localZ);
+}
+
+const fluid::FluidState* ServerWorld::getFluidState(i32 x, i32 y, i32 z) const {
+    // 获取方块状态，然后从中获取流体状态
+    const BlockState* blockState = getBlockState(x, y, z);
+    if (blockState == nullptr) {
+        // 返回空流体
+        return fluid::Fluid::getFluidState(0);
+    }
+    return blockState->getFluidState();
+}
+
+bool ServerWorld::isWithinWorldBounds(i32 /*x*/, i32 y, i32 /*z*/) const {
+    // MC 世界高度限制：-64 到 320 (1.18+), 或 0 到 256 (旧版本)
+    // 暂时使用 0-256 范围
+    return y >= 0 && y < 256;
 }
 
 bool ServerWorld::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {
@@ -930,6 +958,24 @@ i32 ServerWorld::spawnEntitiesFromChunkGeneration(const std::vector<SpawnedEntit
     }
 
     return spawnedCount;
+}
+
+// ============================================================================
+// Tick调度便捷方法
+// ============================================================================
+
+void ServerWorld::scheduleBlockTick(const BlockPos& pos, Block& block, i32 delay,
+                                     world::tick::TickPriority priority) {
+    if (m_tickManager) {
+        m_tickManager->scheduleBlockTick(pos, block, delay, priority);
+    }
+}
+
+void ServerWorld::scheduleFluidTick(const BlockPos& pos, fluid::Fluid& fluid, i32 delay,
+                                     world::tick::TickPriority priority) {
+    if (m_tickManager) {
+        m_tickManager->scheduleFluidTick(pos, fluid, delay, priority);
+    }
 }
 
 } // namespace mc::server

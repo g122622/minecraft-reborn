@@ -1,6 +1,11 @@
 #include "Block.hpp"
 #include "BlockRegistry.hpp"
 #include "Material.hpp"
+#include "../IWorld.hpp"
+#include "../fluid/Fluid.hpp"
+#include "../fluid/FluidRegistry.hpp"
+#include "../fluid/fluids/EmptyFluid.hpp"
+#include "../../math/random/IRandom.hpp"
 #include <sstream>
 
 namespace mc {
@@ -69,6 +74,10 @@ const CollisionShape& BlockState::getOcclusionShape() const {
 
 const ResourceLocation& BlockState::blockLocation() const {
     return m_owner->blockLocation();
+}
+
+const fluid::FluidState* BlockState::getFluidState() const {
+    return m_owner->getFluidState(*this);
 }
 
 String BlockState::toModelKey() const {
@@ -225,6 +234,37 @@ bool Block::isSolid(const BlockState& state) const {
 bool Block::isOpaque(const BlockState& state) const {
     (void)state;
     return m_material.isOpaque();
+}
+
+const fluid::FluidState* Block::getFluidState(const BlockState& state) const {
+    (void)state;
+    // 默认返回空流体
+    // LiquidBlock会重写此方法返回对应的流体状态
+    static const fluid::FluidState* emptyState = nullptr;
+    if (emptyState == nullptr) {
+        // 获取EmptyFluid的默认状态
+        if (auto* emptyFluid = fluid::FluidRegistry::instance().getFluid(0)) {
+            emptyState = &emptyFluid->defaultState();
+        }
+    }
+    return emptyState;
+}
+
+void Block::tick(IWorld& world, const BlockPos& pos, BlockState& state) {
+    // 默认实现：空操作
+    // 需要tick行为的方块应重写此方法
+    (void)world;
+    (void)pos;
+    (void)state;
+}
+
+void Block::randomTick(IWorld& world, const BlockPos& pos, BlockState& state, IRandom& random) {
+    // 默认实现：空操作
+    // 需要随机tick行为的方块应重写此方法
+    (void)world;
+    (void)pos;
+    (void)state;
+    (void)random;
 }
 
 } // namespace mc

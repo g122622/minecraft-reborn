@@ -18,6 +18,13 @@ namespace mc {
 class Block;
 class BlockState;
 class BlockRegistry;
+class IWorld;
+class BlockPos;
+class IRandom;
+
+namespace fluid {
+class FluidState;
+} // namespace fluid
 
 /**
  * @brief VoxelShape工具类
@@ -135,6 +142,13 @@ public:
      * @brief 获取方块资源位置
      */
     [[nodiscard]] const ResourceLocation& blockLocation() const;
+
+    /**
+     * @brief 获取流体状态
+     *
+     * 委托到方块的 getFluidState 方法
+     */
+    [[nodiscard]] const fluid::FluidState* getFluidState() const;
 
     /**
      * @brief 转换为模型键（用于查找模型变体）
@@ -404,6 +418,55 @@ public:
      * @param state 方块状态
      */
     [[nodiscard]] virtual bool isOpaque(const BlockState& state) const;
+
+    /**
+     * @brief 获取流体状态
+     *
+     * 默认返回空流体。液体方块（LiquidBlock）会重写此方法返回对应的流体。
+     *
+     * @param state 方块状态
+     * @return 流体状态指针
+     */
+    [[nodiscard]] virtual const fluid::FluidState* getFluidState(const BlockState& state) const;
+
+    // ========================================================================
+    // Tick方法
+    // ========================================================================
+
+    /**
+     * @brief 执行方块计划刻
+     *
+     * 当方块的计划刻到期时调用。默认实现为空。
+     * 需要tick行为的方块（如活塞、红石元件、农作物等）应重写此方法。
+     *
+     * @param world 世界引用
+     * @param pos 方块位置
+     * @param state 方块状态
+     */
+    virtual void tick(IWorld& world, const BlockPos& pos, BlockState& state);
+
+    /**
+     * @brief 执行随机刻
+     *
+     * 在随机刻中被调用。默认实现为空。
+     * 需要随机tick行为的方块（如农作物生长、铜氧化等）应重写此方法。
+     *
+     * @param world 世界引用
+     * @param pos 方块位置
+     * @param state 方块状态
+     * @param random 随机数生成器
+     */
+    virtual void randomTick(IWorld& world, const BlockPos& pos, BlockState& state, IRandom& random);
+
+    /**
+     * @brief 是否响应随机刻
+     *
+     * 返回true时，该方块会被随机刻系统选中执行randomTick。
+     * 默认返回false。
+     *
+     * @return 是否响应随机刻
+     */
+    [[nodiscard]] virtual bool ticksRandomly() const { return false; }
 
     /**
      * @brief 转换为字符串

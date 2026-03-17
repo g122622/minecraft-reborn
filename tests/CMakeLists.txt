@@ -75,6 +75,10 @@ add_executable(mc_tests
     common/world/gen/ChunkSpawnIntegrationTest.cpp
     # Perfetto 测试（集成到主测试套件）
     common/perfetto/PerfettoTest.cpp
+    # Tick 系统测试
+    common/world/tick/ServerTickListTest.cpp
+    # 流体系统测试
+    common/world/fluid/FluidTest.cpp
     # 射线检测测试
     common/math/RaycastTest.cpp
     # 实体生成回调测试

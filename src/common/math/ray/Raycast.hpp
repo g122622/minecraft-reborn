@@ -2,7 +2,7 @@
 
 #include "Ray.hpp"
 #include "../../core/BlockRaycastResult.hpp"
-#include "../../world/block/Block.hpp"
+#include "../../world/IWorld.hpp"
 
 namespace mc {
 
@@ -36,33 +36,6 @@ struct RaycastContext {
     {
         return ray.at(maxDistance);
     }
-};
-
-/**
- * @brief 方块读取器接口
- *
- * 为射线检测提供方块状态查询。
- * ClientWorld已实现此接口（通过ICollisionWorld）。
- */
-class IBlockReader {
-public:
-    virtual ~IBlockReader() = default;
-
-    /**
-     * @brief 获取指定位置的方块状态
-     * @param x X坐标
-     * @param y Y坐标
-     * @param z Z坐标
-     * @return 方块状态指针，若区块未加载或超出边界返回nullptr
-     */
-    [[nodiscard]] virtual const BlockState* getBlockState(
-        i32 x, i32 y, i32 z) const = 0;
-
-    /**
-     * @brief 检查位置是否在世界Y范围内
-     */
-    [[nodiscard]] virtual bool isWithinWorldBounds(
-        i32 x, i32 y, i32 z) const = 0;
 };
 
 /**
