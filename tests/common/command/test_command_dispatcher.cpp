@@ -481,6 +481,27 @@ public:
         m_dayTime += ticks;
         return true;
     }
+    bool setWeatherClear(i32 duration) override {
+        m_weatherType = 0;
+        m_rainStrength = 0.0f;
+        m_thunderStrength = 0.0f;
+        return true;
+    }
+    bool setWeatherRain(i32 duration) override {
+        m_weatherType = 1;
+        m_rainStrength = 1.0f;
+        m_thunderStrength = 0.0f;
+        return true;
+    }
+    bool setWeatherThunder(i32 duration) override {
+        m_weatherType = 2;
+        m_rainStrength = 1.0f;
+        m_thunderStrength = 1.0f;
+        return true;
+    }
+    [[nodiscard]] i32 getWeatherType() const override { return m_weatherType; }
+    [[nodiscard]] f32 getRainStrength() const override { return m_rainStrength; }
+    [[nodiscard]] f32 getThunderStrength() const override { return m_thunderStrength; }
     bool teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch) override {
         lastTeleportPlayerId = playerId;
         lastTeleportX = x;
@@ -500,6 +521,9 @@ public:
 
     i64 m_dayTime = 0;
     i64 m_gameTime = 42;
+    i32 m_weatherType = 0;
+    f32 m_rainStrength = 0.0f;
+    f32 m_thunderStrength = 0.0f;
     PlayerId lastTeleportPlayerId = 0;
     f64 lastTeleportX = 0.0;
     f64 lastTeleportY = 0.0;
@@ -592,4 +616,46 @@ TEST_F(CommandSourceTest, LogicalPlayerSourceExecutesGameModeCommand) {
     result = server.getCommandRegistry().execute("/gamemode 2", source);
     ASSERT_TRUE(result.success());
     EXPECT_EQ(server.lastGameMode, mc::GameMode::Adventure);
+}
+
+TEST_F(CommandSourceTest, LogicalPlayerSourceExecutesWeatherCommand) {
+    TestMinecraftServer server;
+    command::ServerCommandSource source(
+        &server,
+        nullptr,
+        nullptr,
+        Vector3d(0.0, 64.0, 0.0),
+        Vector2f(0.0f, 0.0f),
+        4,
+        42,
+        "Tester");
+
+    // 测试 /weather clear
+    server.m_weatherType = 1;  // 先设置为雨天
+    server.m_rainStrength = 1.0f;
+    auto result = server.getCommandRegistry().execute("/weather clear", source);
+    ASSERT_TRUE(result.success());
+    EXPECT_EQ(result.value(), 1);
+    EXPECT_EQ(server.m_weatherType, 0);
+    EXPECT_FLOAT_EQ(server.m_rainStrength, 0.0f);
+
+    // 测试 /weather rain
+    result = server.getCommandRegistry().execute("/weather rain 6000", source);
+    ASSERT_TRUE(result.success());
+    EXPECT_EQ(result.value(), 1);
+    EXPECT_EQ(server.m_weatherType, 1);
+    EXPECT_FLOAT_EQ(server.m_rainStrength, 1.0f);
+
+    // 测试 /weather thunder
+    result = server.getCommandRegistry().execute("/weather thunder 3000", source);
+    ASSERT_TRUE(result.success());
+    EXPECT_EQ(result.value(), 1);
+    EXPECT_EQ(server.m_weatherType, 2);
+    EXPECT_FLOAT_EQ(server.m_rainStrength, 1.0f);
+    EXPECT_FLOAT_EQ(server.m_thunderStrength, 1.0f);
+
+    // 测试 /weather query
+    result = server.getCommandRegistry().execute("/weather query", source);
+    ASSERT_TRUE(result.success());
+    EXPECT_EQ(result.value(), 1);
 }

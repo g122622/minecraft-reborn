@@ -171,6 +171,8 @@ private:
     void sendCloseContainer(ContainerId containerId);
     void sendToClient(const u8* data, size_t size);
     void sendTimeUpdate();
+    void sendWeatherUpdate();
+    void sendInitialWeatherState();
     void openCraftingTableMenu();
 
     /**
@@ -228,6 +230,10 @@ private:
 
     // 日光周期
     bool m_daylightCycleEnabled = true;
+
+    // 上次发送的天气强度（用于检测变化）
+    f32 m_lastSentRainStrength = 0.0f;
+    f32 m_lastSentThunderStrength = 0.0f;
 
     // 服务端实体管理器
     EntityManager m_entityManager;

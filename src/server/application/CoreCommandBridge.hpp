@@ -91,6 +91,39 @@ public:
         return true;
     }
 
+    bool setWeatherClear(i32 duration) override {
+        if (!m_core) return false;
+        m_core->weatherManager().setClear(duration);
+        return true;
+    }
+
+    bool setWeatherRain(i32 duration) override {
+        if (!m_core) return false;
+        m_core->weatherManager().setRain(duration);
+        return true;
+    }
+
+    bool setWeatherThunder(i32 duration) override {
+        if (!m_core) return false;
+        m_core->weatherManager().setThunder(duration);
+        return true;
+    }
+
+    [[nodiscard]] i32 getWeatherType() const override {
+        if (!m_core) return 0;  // Clear
+        return static_cast<i32>(m_core->weatherManager().weatherType());
+    }
+
+    [[nodiscard]] f32 getRainStrength() const override {
+        if (!m_core) return 0.0f;
+        return m_core->weatherManager().rainStrength();
+    }
+
+    [[nodiscard]] f32 getThunderStrength() const override {
+        if (!m_core) return 0.0f;
+        return m_core->weatherManager().thunderStrength();
+    }
+
     bool teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch) override {
         // 优先使用 ServerCore（适用于 IntegratedServer）
         if (m_core) {

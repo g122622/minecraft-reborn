@@ -86,15 +86,11 @@ i32 WeatherCommand::setClear(CommandContext<ServerCommandSource>& context) {
         return 0;
     }
 
-    auto* world = server->getWorld();
-    if (!world) {
+    i32 duration = context.getArgument<i32>("duration");
+    if (!server->setWeatherClear(duration)) {
         source.sendMessage("World not available");
         return 0;
     }
-
-    i32 duration = context.getArgument<i32>("duration");
-    auto& weatherManager = world->weatherManager();
-    weatherManager.setClear(duration);
 
     // 转换为秒显示（1秒 = 20 ticks）
     i32 seconds = duration > 0 ? duration / 20 : 300; // 默认 5 分钟
@@ -113,15 +109,11 @@ i32 WeatherCommand::setRain(CommandContext<ServerCommandSource>& context) {
         return 0;
     }
 
-    auto* world = server->getWorld();
-    if (!world) {
+    i32 duration = context.getArgument<i32>("duration");
+    if (!server->setWeatherRain(duration)) {
         source.sendMessage("World not available");
         return 0;
     }
-
-    i32 duration = context.getArgument<i32>("duration");
-    auto& weatherManager = world->weatherManager();
-    weatherManager.setRain(duration);
 
     i32 seconds = duration > 0 ? duration / 20 : 300;
     std::ostringstream ss;
@@ -139,15 +131,11 @@ i32 WeatherCommand::setThunder(CommandContext<ServerCommandSource>& context) {
         return 0;
     }
 
-    auto* world = server->getWorld();
-    if (!world) {
+    i32 duration = context.getArgument<i32>("duration");
+    if (!server->setWeatherThunder(duration)) {
         source.sendMessage("World not available");
         return 0;
     }
-
-    i32 duration = context.getArgument<i32>("duration");
-    auto& weatherManager = world->weatherManager();
-    weatherManager.setThunder(duration);
 
     i32 seconds = duration > 0 ? duration / 20 : 300;
     std::ostringstream ss;
@@ -165,35 +153,27 @@ i32 WeatherCommand::query(CommandContext<ServerCommandSource>& context) {
         return 0;
     }
 
-    auto* world = server->getWorld();
-    if (!world) {
-        source.sendMessage("World not available");
-        return 0;
-    }
-
-    auto& weatherManager = world->weatherManager();
-    auto type = weatherManager.weatherType();
+    auto type = server->getWeatherType();
+    f32 rainStrength = server->getRainStrength();
+    f32 thunderStrength = server->getThunderStrength();
 
     String typeStr;
     switch (type) {
-        case mc::weather::WeatherType::Clear:
-            typeStr = "clear";
-            break;
-        case mc::weather::WeatherType::Rain:
+        case 1:  // Rain
             typeStr = "rain";
             break;
-        case mc::weather::WeatherType::Thunder:
+        case 2:  // Thunder
             typeStr = "thunder";
             break;
-        default:
-            typeStr = "unknown";
+        default:  // Clear
+            typeStr = "clear";
             break;
     }
 
     std::ostringstream ss;
     ss << "The weather is " << typeStr;
-    ss << " (rain: " << (weatherManager.isRaining() ? "yes" : "no");
-    ss << ", thunder: " << (weatherManager.isThundering() ? "yes" : "no") << ")";
+    ss << " (rain strength: " << rainStrength;
+    ss << ", thunder strength: " << thunderStrength << ")";
     source.sendMessage(ss.str());
 
     return 1;

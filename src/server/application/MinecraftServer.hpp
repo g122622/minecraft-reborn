@@ -93,6 +93,42 @@ public:
     virtual bool addDayTime(i64 ticks) = 0;
 
     /**
+     * @brief 设置天气为晴天
+     * @param duration 持续时间（ticks），0 表示使用默认值
+     * @return 是否成功
+     */
+    virtual bool setWeatherClear(i32 duration = 0) = 0;
+
+    /**
+     * @brief 设置天气为降雨
+     * @param duration 持续时间（ticks），0 表示使用默认值
+     * @return 是否成功
+     */
+    virtual bool setWeatherRain(i32 duration = 0) = 0;
+
+    /**
+     * @brief 设置天气为雷暴
+     * @param duration 持续时间（ticks），0 表示使用默认值
+     * @return 是否成功
+     */
+    virtual bool setWeatherThunder(i32 duration = 0) = 0;
+
+    /**
+     * @brief 获取当前天气类型
+     */
+    [[nodiscard]] virtual i32 getWeatherType() const = 0;
+
+    /**
+     * @brief 获取降雨强度
+     */
+    [[nodiscard]] virtual f32 getRainStrength() const = 0;
+
+    /**
+     * @brief 获取雷暴强度
+     */
+    [[nodiscard]] virtual f32 getThunderStrength() const = 0;
+
+    /**
      * @brief 传送玩家
      */
     virtual bool teleportPlayer(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch) = 0;
