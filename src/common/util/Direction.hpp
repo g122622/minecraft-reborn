@@ -263,6 +263,24 @@ namespace Directions {
         }
         return result;
     }
+
+    /**
+     * @brief 从增量获取方向
+     *
+     * @param dx X增量 (-1, 0, 1)
+     * @param dy Y增量 (-1, 0, 1)
+     * @param dz Z增量 (-1, 0, 1)
+     * @return 对应的方向，如果无效返回Direction::None
+     */
+    inline Direction fromDelta(i32 dx, i32 dy, i32 dz) {
+        if (dy < 0 && dx == 0 && dz == 0) return Direction::Down;
+        if (dy > 0 && dx == 0 && dz == 0) return Direction::Up;
+        if (dz < 0 && dx == 0 && dy == 0) return Direction::North;
+        if (dz > 0 && dx == 0 && dy == 0) return Direction::South;
+        if (dx < 0 && dy == 0 && dz == 0) return Direction::West;
+        if (dx > 0 && dy == 0 && dz == 0) return Direction::East;
+        return Direction::None;
+    }
 }
 
 /**

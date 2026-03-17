@@ -51,6 +51,8 @@ void BlockState::cacheProperties() {
     m_isLiquid = m_owner->material().isLiquid();
     m_isFlammable = m_owner->material().isFlammable();
     m_lightLevel = m_owner->lightLevel();
+    m_opacity = m_owner->opacity();
+    m_propagatesSkylightDown = m_owner->doesPropagateSkylightDown();
     m_hardness = m_owner->hardness();
     m_resistance = m_owner->resistance();
     m_blockId = m_owner->blockId();
@@ -161,6 +163,16 @@ BlockProperties& BlockProperties::strength(f32 value) {
     return *this;
 }
 
+BlockProperties& BlockProperties::opacity(i32 value) {
+    m_opacity = value < 0 ? 0 : (value > 15 ? 15 : value);
+    return *this;
+}
+
+BlockProperties& BlockProperties::propagatesSkylightDown(bool value) {
+    m_propagatesSkylightDown = value;
+    return *this;
+}
+
 // ============================================================================
 // Block
 // ============================================================================
@@ -190,8 +202,10 @@ Block::Block(BlockProperties properties)
     , m_hardness(properties.hardness())
     , m_resistance(properties.resistance())
     , m_lightLevel(properties.lightLevel())
+    , m_opacity(properties.opacity())
     , m_hasCollision(properties.hasCollision())
-    , m_isFlammable(properties.isFlammable()) {
+    , m_isFlammable(properties.isFlammable())
+    , m_propagatesSkylightDown(properties.doesPropagateSkylightDown()) {
 }
 
 void Block::createBlockState(std::unique_ptr<StateContainer<Block, BlockState>> container) {
@@ -234,6 +248,24 @@ bool Block::isSolid(const BlockState& state) const {
 bool Block::isOpaque(const BlockState& state) const {
     (void)state;
     return m_material.isOpaque();
+}
+
+i32 Block::getOpacity(const BlockState& state, IWorld* world, const BlockPos* pos) const {
+    (void)world;
+    (void)pos;
+    // 默认实现：如果不透明则返回15（完全阻挡光线），否则返回属性值
+    if (isOpaque(state)) {
+        return 15;
+    }
+    return m_opacity;
+}
+
+bool Block::propagatesSkylightDown(const BlockState& state, IWorld* world, const BlockPos* pos) const {
+    (void)state;
+    (void)world;
+    (void)pos;
+    // 默认返回属性值
+    return m_propagatesSkylightDown;
 }
 
 const fluid::FluidState* Block::getFluidState(const BlockState& state) const {

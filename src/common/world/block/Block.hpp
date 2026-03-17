@@ -109,6 +109,18 @@ public:
     [[nodiscard]] u8 lightLevel() const { return m_lightLevel; }
 
     /**
+     * @brief 获取光照透明度 (0-15)
+     *
+     * 参考: net.minecraft.block.AbstractBlock.AbstractBlockState#getOpacity
+     */
+    [[nodiscard]] i32 getOpacity() const { return m_opacity; }
+
+    /**
+     * @brief 检查是否传播天空光向下
+     */
+    [[nodiscard]] bool propagatesSkylightDown() const { return m_propagatesSkylightDown; }
+
+    /**
      * @brief 获取硬度
      */
     [[nodiscard]] f32 hardness() const { return m_hardness; }
@@ -177,7 +189,9 @@ private:
     bool m_blocksMovement = false;
     bool m_isLiquid = false;
     bool m_isFlammable = false;
+    bool m_propagatesSkylightDown = false;
     u8 m_lightLevel = 0;
+    i32 m_opacity = 15;  // 默认完全不透明
     f32 m_hardness = 0.0f;
     f32 m_resistance = 0.0f;
     u32 m_blockId = 0;
@@ -251,6 +265,28 @@ public:
      */
     BlockProperties& strength(f32 value);
 
+    /**
+     * @brief 设置光照透明度
+     *
+     * @param value 透明度值 (0-15)
+     *   - 0: 完全透明，光线无衰减通过
+     *   - 1-14: 部分透明，光线衰减指定等级
+     *   - 15: 完全不透明，阻挡所有光线
+     *
+     * 参考: net.minecraft.block.AbstractBlock.Properties#opacity
+     */
+    BlockProperties& opacity(i32 value);
+
+    /**
+     * @brief 设置是否传播天空光向下
+     *
+     * 某些方块（如树叶、冰、水）会使天空光衰减1级后传播，
+     * 而不是完全阻挡或无衰减传播。
+     *
+     * 参考: net.minecraft.block.AbstractBlock.Properties#propagatesSkylightDown
+     */
+    BlockProperties& propagatesSkylightDown(bool value = true);
+
     // Getters
     [[nodiscard]] const Material& material() const { return m_material; }
     [[nodiscard]] f32 hardness() const { return m_hardness; }
@@ -261,6 +297,8 @@ public:
     [[nodiscard]] bool isFlammable() const { return m_isFlammable; }
     [[nodiscard]] bool requiresTool() const { return m_requiresTool; }
     [[nodiscard]] bool isReplaceable() const { return m_isReplaceable; }
+    [[nodiscard]] i32 opacity() const { return m_opacity; }
+    [[nodiscard]] bool doesPropagateSkylightDown() const { return m_propagatesSkylightDown; }
 
 private:
     friend class Block;
@@ -275,6 +313,8 @@ private:
     bool m_isFlammable;
     bool m_requiresTool;
     bool m_isReplaceable;
+    i32 m_opacity = 15;  // 默认完全不透明
+    bool m_propagatesSkylightDown = false;
 };
 
 /**
@@ -376,6 +416,16 @@ public:
      */
     [[nodiscard]] u8 lightLevel() const { return m_lightLevel; }
 
+    /**
+     * @brief 获取光照透明度 (0-15)
+     */
+    [[nodiscard]] i32 opacity() const { return m_opacity; }
+
+    /**
+     * @brief 检查是否传播天空光向下
+     */
+    [[nodiscard]] bool doesPropagateSkylightDown() const { return m_propagatesSkylightDown; }
+
     // ========================================================================
     // 虚方法
     // ========================================================================
@@ -418,6 +468,45 @@ public:
      * @param state 方块状态
      */
     [[nodiscard]] virtual bool isOpaque(const BlockState& state) const;
+
+    /**
+     * @brief 获取光照透明度 (0-15)
+     *
+     * 返回方块阻挡光线的程度：
+     * - 0: 完全透明，光线无衰减通过
+     * - 1-14: 部分透明，光线衰减指定等级
+     * - 15: 完全不透明，阻挡所有光线
+     *
+     * 对于透明方块（如玻璃），返回0但仍然阻挡天空光传播。
+     * 对于树叶、冰、水等，返回1-2使光线衰减。
+     *
+     * 参考: net.minecraft.block.BlockState#getOpacity
+     *
+     * @param state 方块状态
+     * @param world 世界（可选，用于上下文相关透明度）
+     * @param pos 位置（可选）
+     * @return 光照透明度 (0-15)
+     */
+    [[nodiscard]] virtual i32 getOpacity(const BlockState& state,
+                                          IWorld* world = nullptr,
+                                          const BlockPos* pos = nullptr) const;
+
+    /**
+     * @brief 检查是否传播天空光向下
+     *
+     * 某些方块（如树叶、冰、水）会使天空光衰减1级后传播，
+     * 而不是完全阻挡或无衰减传播。
+     *
+     * 参考: net.minecraft.block.BlockState#propagatesSkylightDown
+     *
+     * @param state 方块状态
+     * @param world 世界（可选）
+     * @param pos 位置（可选）
+     * @return 如果天空光可以传播返回true
+     */
+    [[nodiscard]] virtual bool propagatesSkylightDown(const BlockState& state,
+                                                       IWorld* world = nullptr,
+                                                       const BlockPos* pos = nullptr) const;
 
     /**
      * @brief 获取流体状态
@@ -503,8 +592,10 @@ protected:
     f32 m_hardness = 0.0f;
     f32 m_resistance = 0.0f;
     u8 m_lightLevel = 0;
+    i32 m_opacity = 15;  // 默认完全不透明
     bool m_hasCollision = true;
     bool m_isFlammable = false;
+    bool m_propagatesSkylightDown = false;
 
     // 由createBlockState设置
     std::unique_ptr<StateContainer<Block, BlockState>> m_stateContainer;

@@ -1,0 +1,155 @@
+#pragma once
+
+#include "BlockLightEngine.hpp"
+#include "../storage/SkyLightStorage.hpp"
+#include "../../block/Block.hpp"
+#include <climits>
+
+namespace mc {
+
+/**
+ * @brief 天空光照引擎
+ *
+ * 实现天空光照的传播算法。
+ * 天空光照从天空向下传播，在透明方块中传播时不衰减，
+ * 只有在不透明方块阻挡时才会衰减。
+ *
+ * 参考: net.minecraft.world.lighting.SkyLightEngine
+ */
+class SkyLightEngine : public LevelBasedGraph {
+public:
+    /**
+     * @brief 构造函数
+     * @param provider 区块光照提供者
+     */
+    explicit SkyLightEngine(IChunkLightProvider* provider);
+
+    // ========================================================================
+    // 光照操作
+    // ========================================================================
+
+    /**
+     * @brief 检查指定位置的光照
+     *
+     * 调度该位置及其相邻位置的光照更新。
+     *
+     * @param pos 方块位置
+     */
+    void checkLight(const BlockPos& pos);
+
+    /**
+     * @brief 获取指定位置的光照等级
+     *
+     * @param pos 方块位置
+     * @return 光照等级 (0-15)
+     */
+    [[nodiscard]] u8 getLightFor(const BlockPos& pos) const;
+
+    /**
+     * @brief 更新区块段状态
+     *
+     * @param pos 区块段位置
+     * @param isEmpty 是否为空
+     */
+    void updateSectionStatus(const SectionPos& pos, bool isEmpty);
+
+    /**
+     * @brief 设置光照数据
+     *
+     * @param pos 区块段位置
+     * @param array 光照数组
+     * @param retain 是否保留
+     */
+    void setData(const SectionPos& pos, NibbleArray* array, bool retain);
+
+    /**
+     * @brief 获取光照数组
+     *
+     * @param pos 区块段位置
+     * @return 光照数组指针
+     */
+    [[nodiscard]] NibbleArray* getData(const SectionPos& pos);
+
+    /**
+     * @brief 启用/禁用区块列
+     *
+     * @param columnPos 区块列位置
+     * @param enabled 是否启用
+     */
+    void setColumnEnabled(i64 columnPos, bool enabled);
+
+    /**
+     * @brief 检查是否有待处理的工作
+     */
+    [[nodiscard]] bool hasWork() const;
+
+    /**
+     * @brief 处理光照更新
+     *
+     * @param maxUpdates 最大更新数量
+     * @param updateSkyLight 是否更新天空光照
+     * @param updateBlockLight 是否更新方块光照（忽略）
+     * @return 剩余配额
+     */
+    i32 tick(i32 maxUpdates, bool updateSkyLight, bool updateBlockLight);
+
+protected:
+    // ========================================================================
+    // LevelBasedGraph 接口实现
+    // ========================================================================
+
+    [[nodiscard]] bool isRoot(i64 pos) const override;
+    [[nodiscard]] i32 computeLevel(i64 pos, i64 excludedSource, i32 level) override;
+    void notifyNeighbors(i64 pos, i32 level, bool isDecreasing) override;
+    [[nodiscard]] i32 getLevel(i64 pos) const override;
+    void setLevel(i64 pos, i32 level) override;
+    [[nodiscard]] i32 getEdgeLevel(i64 fromPos, i64 toPos, i32 startLevel) override;
+
+private:
+    IChunkLightProvider* m_chunkProvider;
+    SkyLightStorage m_storage;
+
+    /**
+     * @brief 获取指定位置的发光等级（天空光照始终为0）
+     */
+    [[nodiscard]] i32 getLightValue(i64 worldPos) const;
+
+    /**
+     * @brief 获取方块及其透明度
+     *
+     * @param pos 世界位置编码
+     * @param opacityOut 透明度输出（可选）
+     * @return 方块状态指针
+     */
+    [[nodiscard]] const BlockState* getBlockAndOpacity(i64 pos, i32* opacityOut) const;
+
+    /**
+     * @brief 获取方块的遮挡形状
+     */
+    [[nodiscard]] const CollisionShape& getVoxelShape(const BlockState& state, i64 pos, Direction dir) const;
+
+    /**
+     * @brief 检查两个方块之间是否有完整的遮挡面
+     */
+    [[nodiscard]] static bool facesHaveOcclusion(
+        IWorld* world,
+        const BlockState& stateA, const BlockPos& posA,
+        const BlockState& stateB, const BlockPos& posB,
+        Direction dir, i32 opacity);
+
+    /**
+     * @brief 从NibbleArray获取光照等级
+     */
+    [[nodiscard]] i32 getLevelFromArray(const NibbleArray* array, i64 worldPos) const;
+
+    /**
+     * @brief 世界位置编码
+     */
+    [[nodiscard]] static i64 packPos(i32 x, i32 y, i32 z);
+    [[nodiscard]] static i64 packPos(const BlockPos& pos);
+    [[nodiscard]] static void unpackPos(i64 packed, i32& x, i32& y, i32& z);
+    [[nodiscard]] static i64 offsetPos(i64 pos, Direction dir);
+    [[nodiscard]] static i64 worldToSectionPos(i64 worldPos);
+};
+
+} // namespace mc

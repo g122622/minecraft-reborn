@@ -199,6 +199,16 @@ add_library(mc_common STATIC
     world/tick/manager/TickManager.cpp
     # (header-only templates: TickPriority.hpp, ScheduledTick.hpp, ITickList.hpp, EmptyTickList.hpp, ServerTickList.hpp)
 
+    # World - Lighting System
+    world/lighting/InternalLight.cpp
+    world/lighting/engine/LevelBasedGraph.cpp
+    world/lighting/engine/BlockLightEngine.cpp
+    world/lighting/engine/SkyLightEngine.cpp
+    world/lighting/storage/BlockLightStorage.cpp
+    world/lighting/storage/SkyLightStorage.cpp
+    world/lighting/manager/WorldLightManager.cpp
+    # (header-only templates: LightType.hpp, IChunkLightProvider.hpp, LightDataMap.hpp, SectionLightStorage.hpp)
+
     # World - Fluid System
     world/fluid/Fluid.cpp
     world/fluid/FluidRegistry.cpp
@@ -234,6 +244,9 @@ add_library(mc_common STATIC
 
     # NBT (Named Binary Tag) Library
     util/nbt/Nbt.cpp
+
+    # NibbleArray (4-bit compact storage for lighting)
+    util/NibbleArray.cpp
 
     # Cache utilities
     util/cache/Long2IntLRUCache.cpp
