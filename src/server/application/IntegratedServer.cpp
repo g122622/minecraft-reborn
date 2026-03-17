@@ -20,6 +20,7 @@
 #include "common/perfetto/PerfettoManager.hpp"
 #include "common/perfetto/TraceEvents.hpp"
 #include "common/entity/EntityRegistry.hpp"
+#include "common/entity/mob/MobEntity.hpp"
 #include "server/menu/CraftingMenu.hpp"
 #include "server/application/MinecraftServer.hpp"
 #include "server/command/CommandRegistry.hpp"
@@ -36,6 +37,39 @@
 #include <cmath>
 
 namespace mc::server {
+
+// ============================================================================
+// ServerCollisionWorld 实现
+// ============================================================================
+
+const BlockState* IntegratedServer::ServerCollisionWorld::getBlockState(i32 x, i32 y, i32 z) const {
+    if (!isWithinWorldBounds(x, y, z)) {
+        return nullptr;
+    }
+
+    ChunkCoord chunkX = world::toChunkCoord(x);
+    ChunkCoord chunkZ = world::toChunkCoord(z);
+
+    const ChunkData* chunk = getChunkAt(chunkX, chunkZ);
+    if (!chunk) {
+        return nullptr;
+    }
+
+    i32 localX = world::toLocalCoord(x);
+    i32 localZ = world::toLocalCoord(z);
+
+    return chunk->getBlock(localX, y, localZ);
+}
+
+bool IntegratedServer::ServerCollisionWorld::isWithinWorldBounds(i32 x, i32 y, i32 z) const {
+    (void)x;  // X/Z理论上无限制
+    (void)z;
+    return y >= getMinBuildHeight() && y < getMaxBuildHeight();
+}
+
+const ChunkData* IntegratedServer::ServerCollisionWorld::getChunkAt(ChunkCoord x, ChunkCoord z) const {
+    return m_chunkManager.getChunk(x, z);
+}
 
 namespace {
 
@@ -177,6 +211,10 @@ Result<void> IntegratedServer::initialize(const IntegratedServerConfig& config) 
     m_chunkManager->startWorkers();
     m_chunkManager->setViewDistance(m_config.viewDistance);
 
+    // 创建物理引擎碰撞世界和物理引擎
+    m_collisionWorld = std::make_unique<ServerCollisionWorld>(*m_chunkManager);
+    m_physicsEngine = std::make_unique<PhysicsEngine>(*m_collisionWorld);
+
     // 设置实体生成回调
     m_chunkManager->setEntitySpawnCallback(
         [this](const std::vector<SpawnedEntityData>& entities) {
@@ -302,6 +340,15 @@ void IntegratedServer::tick() {
         MC_TRACE_EVENT("server.tick", "CoreTick");
         m_serverCore->tick();
     }
+
+    // 更新所有实体（关键：实体移动需要每帧tick）
+    {
+        MC_TRACE_EVENT("server.tick", "EntityTick");
+        m_entityManager.tick();
+    }
+
+    // 同步实体位置到客户端
+    syncEntityPositions();
 
     // 处理网络数据包
     {
@@ -1320,7 +1367,7 @@ void IntegratedServer::handleSpawnedEntities(const std::vector<SpawnedEntityData
             continue;
         }
 
-        // 创建实体（使用 nullptr 作为世界，因为 IntegratedServer 不使用 ServerWorld）
+        // 创建实体（使用 nullptr 作为世界，因为 IntegratedServer 使用 PhysicsEngine）
         std::unique_ptr<Entity> entity = entityType->create(nullptr);
         if (!entity) {
             continue;
@@ -1329,13 +1376,15 @@ void IntegratedServer::handleSpawnedEntities(const std::vector<SpawnedEntityData
         // 设置实体位置
         entity->setPosition(Vector3(entityData.x, entityData.y, entityData.z));
 
+        // 设置物理引擎（用于碰撞检测）
+        if (m_physicsEngine) {
+            entity->setPhysicsEngine(m_physicsEngine.get());
+        }
+
         // 添加到实体管理器，获取分配的ID
         EntityId entityId = m_entityManager.addEntity(std::move(entity));
 
         spawnedEntities.emplace_back(entityId, &entityData);
-
-        // spdlog::info("IntegratedServer: Spawned {} at ({:.1f}, {:.1f}, {:.1f}) with ID {}",
-        //              entityData.entityTypeId, entityData.x, entityData.y, entityData.z, entityId);
     }
 
     // 发送实体生成包到客户端
@@ -1388,6 +1437,73 @@ void IntegratedServer::sendEntitySpawnPackets(const std::vector<std::pair<Entity
                              entityData->entityTypeId, entityId, entityData->x, entityData->y, entityData->z);
             }
         }
+    }
+}
+
+void IntegratedServer::syncEntityPositions() {
+    // 遍历所有实体，检查位置变化并发送更新
+    m_entityManager.forEachEntity([this](Entity* entityPtr) {
+        if (!entityPtr) return true;  // 继续遍历
+
+        Entity& entity = *entityPtr;
+        EntityId entityId = entity.id();
+        Vector3 currentPos = entity.position();
+        f32 currentYaw = entity.yaw();
+        f32 currentPitch = entity.pitch();
+
+        // 查找或创建追踪数据
+        auto it = m_entityTrackData.find(entityId);
+        if (it == m_entityTrackData.end()) {
+            // 新实体，记录位置但不发送更新（spawn时已发送）
+            m_entityTrackData[entityId] = {currentPos, currentYaw, currentPitch, false};
+            return true;  // 继续遍历
+        }
+
+        auto& trackData = it->second;
+
+        // 检查位置变化是否超过阈值
+        constexpr f32 POSITION_THRESHOLD = 0.1f;  // 位置变化阈值
+        constexpr f32 ROTATION_THRESHOLD = 1.0f;  // 旋转变化阈值（度）
+
+        Vector3 delta = currentPos - trackData.lastPosition;
+        bool positionChanged = delta.lengthSquared() > (POSITION_THRESHOLD * POSITION_THRESHOLD);
+        bool rotationChanged = std::abs(currentYaw - trackData.lastYaw) > ROTATION_THRESHOLD ||
+                               std::abs(currentPitch - trackData.lastPitch) > ROTATION_THRESHOLD;
+
+        if (positionChanged || rotationChanged || trackData.needsFullUpdate) {
+            // 发送EntityTeleport包
+            network::EntityTeleportPacket packet;
+            packet.setEntityId(static_cast<u32>(entityId));
+            packet.setPosition(currentPos.x, currentPos.y, currentPos.z);
+            packet.setRotation(currentYaw, currentPitch);
+            packet.setOnGround(entity.onGround());
+
+            auto result = packet.serialize();
+            if (result.success()) {
+                auto fullPacket = core::ConnectionManager::encapsulatePacket(
+                    network::PacketType::EntityTeleport, result.value());
+                sendToClient(fullPacket.data(), fullPacket.size());
+            }
+
+            // 更新追踪数据
+            trackData.lastPosition = currentPos;
+            trackData.lastYaw = currentYaw;
+            trackData.lastPitch = currentPitch;
+            trackData.needsFullUpdate = false;
+        }
+
+        return true;  // 继续遍历
+    });
+
+    // 清理已移除实体的追踪数据
+    std::vector<EntityId> toRemove;
+    for (const auto& [entityId, _] : m_entityTrackData) {
+        if (!m_entityManager.hasEntity(entityId)) {
+            toRemove.push_back(entityId);
+        }
+    }
+    for (EntityId id : toRemove) {
+        m_entityTrackData.erase(id);
     }
 }
 

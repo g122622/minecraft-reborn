@@ -172,6 +172,15 @@ void EntityTracker::tick(ServerWorld& world) {
                               std::abs(currentPitch - tracked.lastPitch) > m_rotationUpdateThreshold;
 
         if (tracked.needsFullUpdate || positionChanged || rotationChanged) {
+            // 检查是否有玩家在追踪此实体
+            if (!tracked.trackingPlayers.empty()) {
+                spdlog::debug("EntityTracker: Entity {} moved from ({:.1f},{:.1f},{:.1f}) to ({:.1f},{:.1f},{:.1f}), sending to {} players",
+                              entityId,
+                              tracked.lastPosition.x, tracked.lastPosition.y, tracked.lastPosition.z,
+                              currentPos.x, currentPos.y, currentPos.z,
+                              tracked.trackingPlayers.size());
+            }
+
             // 发送更新包给所有追踪此实体的玩家
             for (PlayerId playerId : tracked.trackingPlayers) {
                 if (tracked.needsFullUpdate) {

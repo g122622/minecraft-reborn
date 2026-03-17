@@ -1,6 +1,7 @@
 #include "EntityManager.hpp"
 #include "../../entity/Entity.hpp"
 #include <algorithm>
+#include <spdlog/spdlog.h>
 
 namespace mc {
 
@@ -21,8 +22,8 @@ EntityId EntityManager::addEntity(std::unique_ptr<Entity> entity) {
     // 如果ID为0或已存在，分配新ID
     if (id == 0 || m_entities.find(id) != m_entities.end()) {
         id = allocateId();
-        // 设置实体的ID（需要Entity类支持）
-        // entity->setId(id);  // 如果Entity有setId方法
+        // 设置实体的ID
+        entity->setId(id);
     }
 
     m_entities[id] = std::move(entity);

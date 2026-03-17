@@ -1,5 +1,6 @@
 #include "CreatureEntity.hpp"
 #include "../ai/controller/MovementController.hpp"
+#include "../ai/pathfinding/PathNavigator.hpp"
 
 namespace mc {
 
@@ -9,11 +10,20 @@ CreatureEntity::CreatureEntity(LegacyEntityType type, EntityId id)
 }
 
 bool CreatureEntity::tryMoveTo(f64 x, f64 y, f64 z, f64 speed) {
-    // 设置移动控制器目标
+    // 首先尝试使用导航器（如果可用且有路径）
+    if (m_navigator) {
+        if (m_navigator->moveTo(x, y, z, speed)) {
+            return true;
+        }
+    }
+
+    // 如果导航失败或不可用，直接使用移动控制器
+    // 这允许实体在没有完整寻路系统的情况下也能移动
     if (m_moveController) {
         m_moveController->setMoveTo(x, y, z, speed);
         return true;
     }
+
     return false;
 }
 

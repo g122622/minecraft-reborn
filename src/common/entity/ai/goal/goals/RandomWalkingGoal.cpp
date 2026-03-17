@@ -3,6 +3,7 @@
 #include "../../../mob/CreatureEntity.hpp"
 #include "../GoalConstants.hpp"
 #include "../../../ai/pathfinding/PathNavigator.hpp"
+#include "../../../ai/controller/MovementController.hpp"
 #include "../../../../math/random/Random.hpp"
 #include <cmath>
 
@@ -55,12 +56,21 @@ bool RandomWalkingGoal::shouldExecute() {
 bool RandomWalkingGoal::shouldContinueExecuting() {
     if (!m_creature) return false;
 
-    // 检查路径是否完成
-    auto* nav = m_creature->navigator();
-    if (nav && nav->noPath()) return false;
-
     // 检查是否被骑乘
     if (m_creature->isBeingRidden()) return false;
+
+    // 如果有导航路径且未完成，继续执行
+    auto* nav = m_creature->navigator();
+    if (nav && nav->hasPath() && !nav->isDone()) {
+        return m_timeoutCounter > 0;
+    }
+
+    // 如果没有路径，检查移动控制器是否仍在更新
+    // MovementController的MoveTo状态表示仍在移动
+    auto* moveCtrl = m_creature->moveController();
+    if (moveCtrl && moveCtrl->isUpdating()) {
+        return m_timeoutCounter > 0;
+    }
 
     return m_timeoutCounter > 0;
 }

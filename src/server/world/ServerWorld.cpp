@@ -520,10 +520,23 @@ void ServerWorld::tick() {
     m_gameTime.tick();
 
     // 更新所有实体
+    size_t entityCount = m_entityManager.entityCount();
+    if (m_currentTick % 600 == 0 && entityCount > 0) {
+        spdlog::debug("ServerWorld::tick() tick={}, entities={}", m_currentTick, entityCount);
+    }
     m_entityManager.tick();
 
-    // 更新实体追踪
+    // 更新实体追踪（发送位置更新给已追踪的玩家）
     m_entityTracker.tick(*this);
+
+    // 更新玩家对实体的追踪状态
+    {
+        std::lock_guard<std::mutex> lock(m_playerMutex);
+        for (const auto& [playerId, player] : m_players) {
+            Vector3 playerPos(player.x, player.y, player.z);
+            m_entityTracker.updatePlayerTracking(*this, playerId, playerPos);
+        }
+    }
 
     // 更新区块管理器
     if (m_chunkManager) {
@@ -893,11 +906,11 @@ i32 ServerWorld::spawnEntitiesFromChunkGeneration(const std::vector<SpawnedEntit
             continue;
         }
 
+        // 设置实体的世界引用（重要：用于物理引擎和区块访问）
+        entity->setWorld(this);
+
         // 设置实体位置
         entity->setPosition(Vector3(entityData.x, entityData.y, entityData.z));
-
-        // 设置生成原因标记（可选，用于后续处理）
-        // entity->setSpawnReason(entityData.spawnReason);
 
         // 添加到实体管理器
         EntityId entityId = m_entityManager.addEntity(std::move(entity));
@@ -909,16 +922,11 @@ i32 ServerWorld::spawnEntitiesFromChunkGeneration(const std::vector<SpawnedEntit
             }
 
             ++spawnedCount;
-
-            // SPDLOG_TRACE("ServerWorld: Spawned {} at ({:.1f}, {:.1f}, {:.1f}) with ID {}",
-            //              entityData.entityTypeId,
-            //              entityData.x, entityData.y, entityData.z,
-            //              entityId);
         }
     }
 
     if (spawnedCount > 0) {
-        // spdlog::info("ServerWorld: Spawned {} entities from chunk generation", spawnedCount);
+        spdlog::debug("ServerWorld: Spawned {} entities from chunk generation", spawnedCount);
     }
 
     return spawnedCount;

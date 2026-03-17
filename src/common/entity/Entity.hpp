@@ -121,6 +121,13 @@ public:
     // ========== 基本属性 ==========
 
     [[nodiscard]] EntityId id() const { return m_id; }
+    /**
+     * @brief 设置实体ID
+     *
+     * 仅由EntityManager在分配ID时调用。
+     * 不应该在其他地方使用。
+     */
+    void setId(EntityId id) { m_id = id; }
     [[nodiscard]] LegacyEntityType legacyType() const { return m_legacyType; }
     [[nodiscard]] const String& uuid() const { return m_uuid; }
     void setUuid(const String& uuid) { m_uuid = uuid; }

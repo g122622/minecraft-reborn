@@ -1,5 +1,6 @@
 #include "ClientEntity.hpp"
 #include <cmath>
+#include <spdlog/spdlog.h>
 
 namespace mc::client {
 
@@ -10,6 +11,14 @@ ClientEntity::ClientEntity(EntityId id, const String& typeId)
 }
 
 void ClientEntity::setPosition(f32 x, f32 y, f32 z) {
+    // 每60次log一次位置更新
+    // static u32 setPositionCounter = 0;
+    // setPositionCounter++;
+    // if (setPositionCounter % 120 == 0) {
+    //     spdlog::info("[ClientEntity] Entity {} setPosition: ({:.2f}, {:.2f}, {:.2f}) -> ({:.2f}, {:.2f}, {:.2f})",
+    //                  m_id, m_position.x, m_position.y, m_position.z, x, y, z);
+    // }
+
     m_prevPosition = m_position;
     m_position = Vector3(x, y, z);
     m_targetPosition = m_position;

@@ -45,6 +45,7 @@ add_executable(mc_tests
     entity/LivingEntityTests.cpp
     entity/GoalTests.cpp
     entity/PathfindingTests.cpp
+    entity/RandomWalkingGoalTest.cpp
     common/SettingsTest.cpp
     server/ServerWorldTest.cpp
     server/test_integrated_server.cpp
@@ -81,6 +82,8 @@ add_executable(mc_tests
     physics/CollisionCacheTests.cpp
     # ServerWorld 碰撞检测测试
     server/ServerWorldCollisionTests.cpp
+    # 实体追踪器测试
+    server/world/EntityTrackerTest.cpp
     # 资源包兼容层测试
     common/resource/compat/CompatLayerTest.cpp
     # 缓存性能对比测试

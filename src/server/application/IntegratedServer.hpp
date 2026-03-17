@@ -13,6 +13,7 @@
 #include "common/world/chunk/ChunkLoadTicketManager.hpp"
 #include "common/world/entity/EntityManager.hpp"
 #include "common/entity/Player.hpp"
+#include "common/physics/PhysicsEngine.hpp"
 #include "server/world/ServerChunkManager.hpp"
 #include "server/core/ServerCore.hpp"
 #include <memory>
@@ -231,6 +232,31 @@ private:
     // 服务端实体管理器
     EntityManager m_entityManager;
 
+    // 实体位置追踪（用于同步给客户端）
+    struct EntityTrackData {
+        Vector3 lastPosition;
+        f32 lastYaw = 0.0f;
+        f32 lastPitch = 0.0f;
+        bool needsFullUpdate = true;
+    };
+    std::unordered_map<EntityId, EntityTrackData> m_entityTrackData;
+
+    // 物理引擎碰撞世界适配器
+    class ServerCollisionWorld : public ICollisionWorld {
+    public:
+        ServerCollisionWorld(ServerChunkManager& chunkManager) : m_chunkManager(chunkManager) {}
+        [[nodiscard]] const BlockState* getBlockState(i32 x, i32 y, i32 z) const override;
+        [[nodiscard]] bool isWithinWorldBounds(i32 x, i32 y, i32 z) const override;
+        [[nodiscard]] const ChunkData* getChunkAt(ChunkCoord x, ChunkCoord z) const override;
+        [[nodiscard]] i32 getMinBuildHeight() const override { return 0; }
+        [[nodiscard]] i32 getMaxBuildHeight() const override { return 256; }
+    private:
+        ServerChunkManager& m_chunkManager;
+    };
+
+    std::unique_ptr<ServerCollisionWorld> m_collisionWorld;
+    std::unique_ptr<PhysicsEngine> m_physicsEngine;
+
     /**
      * @brief 处理从区块生成的实体
      */
@@ -240,6 +266,13 @@ private:
      * @brief 发送实体生成包到客户端
      */
     void sendEntitySpawnPackets(const std::vector<std::pair<EntityId, const SpawnedEntityData*>>& entities);
+
+    /**
+     * @brief 同步实体位置到客户端
+     *
+     * 检查所有实体的位置变化，发送EntityTeleport包到客户端
+     */
+    void syncEntityPositions();
 };
 
 } // namespace mc::server
