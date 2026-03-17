@@ -5,6 +5,7 @@
 #include <vulkan/vulkan.h>
 #include <glm/glm.hpp>
 #include <memory>
+#include <vector>
 
 namespace mc {
 class ResourceManager;
@@ -285,6 +286,28 @@ private:
      */
     [[nodiscard]] std::vector<u8> generateCloudTexture(u32 width, u32 height);
 
+    /**
+     * @brief 从 RGBA 云纹理提取二值云掩码
+     *
+     * 将 alpha 通道按阈值转换为 0/1 云占据数据，供网格构建时判断。
+     *
+     * @param textureData RGBA 像素数据
+     * @param width 纹理宽度
+     * @param height 纹理高度
+     */
+    void buildCloudMaskFromTexture(const std::vector<u8>& textureData, u32 width, u32 height);
+
+    /**
+     * @brief 查询指定云网格单元是否为“有云”
+     *
+     * 传入网格坐标（可为负），内部会按纹理尺寸循环映射。
+     *
+     * @param gridX 云网格 X
+     * @param gridZ 云网格 Z
+     * @return true 表示该单元存在云体
+     */
+    [[nodiscard]] bool isCloudCellOpaque(i32 gridX, i32 gridZ) const;
+
     // ========================================================================
     // 渲染方法
     // ========================================================================
@@ -353,6 +376,11 @@ private:
 
     // 云网格是否需要更新
     bool m_cloudMeshDirty = true;
+
+    // 云纹理二值掩码（按纹理 alpha 提取）
+    std::vector<u8> m_cloudMask;
+    u32 m_cloudMaskWidth = 0;
+    u32 m_cloudMaskHeight = 0;
 };
 
 } // namespace mc::client::renderer::trident::cloud

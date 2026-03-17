@@ -14,34 +14,29 @@ layout(set = 0, binding = 1) uniform CloudUBO {
 
 // Input from Vertex Shader
 layout(location = 0) in vec2 fragTexCoord;
-layout(location = 1) in vec3 fragNormal;
-layout(location = 2) in float fragBrightness;
-layout(location = 3) in float fragFogFactor;
+layout(location = 1) in float fragBrightness;
 
 // Output
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    // Sample cloud texture
-    vec4 texColor = texture(cloudTexture, fragTexCoord);
+    vec2 texSize = vec2(textureSize(cloudTexture, 0));
+    vec2 wrappedUv = fract(fragTexCoord);
+    vec2 texelUv = (floor(wrappedUv * texSize) + 0.5) / texSize;
 
-    // Discard fully transparent pixels (no cloud here)
-    if (texColor.a < 0.1) {
+    // 使用中心点采样，避免线性插值导致的边缘发黑与拖影
+    vec4 texColor = texture(cloudTexture, texelUv);
+
+    // 使用硬阈值，复刻 MC 云块边界
+    if (texColor.a < 0.5) {
         discard;
     }
 
-    // Apply brightness based on face direction
-    // Top faces: brighter (normal.y = 1)
-    // Bottom faces: darker (normal.y = -1)
-    // Side faces: medium brightness
-    vec3 color = texColor.rgb * fragBrightness;
+    // MC 风格：使用统一云色 + 面向亮度，不使用纹理 RGB 参与着色
+    vec3 color = ubo.cloudColor.rgb * fragBrightness;
 
-    // Apply cloud color tint
-    color *= ubo.cloudColor.rgb;
+    // MC 云整体透明度
+    float alpha = 0.8 * ubo.cloudColor.a;
 
-    // Cloud transparency - MC uses 0.8 alpha for clouds
-    float alpha = texColor.a * 0.8 * ubo.cloudColor.a;
-
-    // Output final color
     outColor = vec4(color, alpha);
 }

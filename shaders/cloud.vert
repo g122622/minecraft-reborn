@@ -12,9 +12,7 @@ layout(location = 2) in vec3 inNormal;
 
 // Output to Fragment Shader
 layout(location = 0) out vec2 fragTexCoord;
-layout(location = 1) out vec3 fragNormal;
-layout(location = 2) out float fragBrightness;
-layout(location = 3) out float fragFogFactor;
+layout(location = 1) out float fragBrightness;
 
 // Uniform Buffer (set = 0, binding = 1)
 layout(set = 0, binding = 1) uniform CloudUBO {
@@ -25,10 +23,6 @@ layout(set = 0, binding = 1) uniform CloudUBO {
     float cameraY;
 } ubo;
 
-// Constants for fog calculation
-const float FOG_NEAR = 0.0;
-const float FOG_FAR = 1.0;
-
 void main() {
     // Transform position
     vec4 worldPos = vec4(inPosition, 1.0);
@@ -37,17 +31,14 @@ void main() {
     // Pass texture coordinates
     fragTexCoord = inTexCoord;
 
-    // Pass normal for lighting
-    fragNormal = inNormal;
-
-    // Calculate brightness based on normal direction
-    // Top faces are brighter, bottom faces are darker
-    // This creates the 3D cloud effect
-    float normalBrightness = dot(inNormal, vec3(0.0, 1.0, 0.0));
-    fragBrightness = normalBrightness * 0.3 + 0.7;
-
-    // Simple distance fog calculation
-    // Fog increases with distance from camera
-    float distance = length(gl_Position.xyz);
-    fragFogFactor = clamp((FOG_FAR - distance) / (FOG_FAR - FOG_NEAR), 0.0, 1.0);
+    // 按 MC 风格固定面亮度：顶面最亮，底面最暗，X/Z 侧面次之
+    if (inNormal.y > 0.5) {
+        fragBrightness = 1.0;
+    } else if (inNormal.y < -0.5) {
+        fragBrightness = 0.7;
+    } else if (abs(inNormal.x) > 0.5) {
+        fragBrightness = 0.9;
+    } else {
+        fragBrightness = 0.8;
+    }
 }

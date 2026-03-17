@@ -24,11 +24,6 @@ constexpr u32 CLOUD_TEXTURE_SIZE = 256;
 // 云动画速度 (MC 1.16.5: 0.03F per tick)
 constexpr f32 CLOUD_SPEED = 0.03f;
 
-// 云网格范围 (-3 到 +4 区块，每区块 8 格)
-constexpr i32 CLOUD_RANGE_MIN = -3;
-constexpr i32 CLOUD_RANGE_MAX = 4;
-constexpr i32 CLOUD_CHUNK_SIZE = 8;
-
 // 云纹理缩放
 constexpr f32 CLOUD_TEXTURE_SCALE = 0.00390625f; // 1/256
 
@@ -38,8 +33,24 @@ constexpr f32 CLOUD_THICKNESS = 4.0f;
 // 云透明度
 constexpr f32 CLOUD_ALPHA = 0.8f;
 
+// 云掩码阈值（与 MC 硬边效果一致，避免半透明糊边）
+constexpr u8 CLOUD_MASK_ALPHA_THRESHOLD = 128;
+
 // 云顶偏移量（避免 z-fighting）
 constexpr f32 CLOUD_TOP_OFFSET = 0.0009765625f; // 约 1/1024
+
+// 云网格单元范围（-32..31，共 64x64）
+constexpr i32 CLOUD_GRID_MIN = -32;
+constexpr i32 CLOUD_GRID_MAX = 32;
+
+// 取模到 [0, mod-1]
+[[nodiscard]] i32 positiveModulo(i32 value, i32 mod) {
+    if (mod <= 0) {
+        return 0;
+    }
+    i32 r = value % mod;
+    return (r < 0) ? (r + mod) : r;
+}
 
 Result<std::vector<u8>> readBinaryFile(const char* path) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
@@ -221,14 +232,14 @@ Result<void> CloudRenderer::initialize(
     m_renderPass = renderPass;
     m_extent = extent;
 
-    // 创建顶点缓冲区
-    auto result1 = createCloudVBO();
+    // 先创建纹理（云网格构建需要云掩码）
+    auto result1 = createTexture(resourceManager);
     if (result1.failed()) {
         return result1;
     }
 
-    // 创建纹理
-    auto result2 = createTexture(resourceManager);
+    // 创建顶点缓冲区
+    auto result2 = createCloudVBO();
     if (result2.failed()) {
         return result2;
     }
@@ -371,6 +382,11 @@ Result<void> CloudRenderer::reloadTexture(const ResourceManager* resourceManager
         return textureResult;
     }
 
+    auto meshResult = createCloudVBO();
+    if (meshResult.failed()) {
+        return meshResult;
+    }
+
     updateTextureDescriptors();
     return Result<void>::ok();
 }
@@ -499,61 +515,77 @@ void CloudRenderer::render(VkCommandBuffer cmd,
 // ============================================================================
 
 Result<void> CloudRenderer::createCloudVBO() {
+    if (m_fastVBO != VK_NULL_HANDLE) {
+        vkDestroyBuffer(m_device, m_fastVBO, nullptr);
+        m_fastVBO = VK_NULL_HANDLE;
+    }
+    if (m_fastVBOMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(m_device, m_fastVBOMemory, nullptr);
+        m_fastVBOMemory = VK_NULL_HANDLE;
+    }
+    if (m_fancyVBO != VK_NULL_HANDLE) {
+        vkDestroyBuffer(m_device, m_fancyVBO, nullptr);
+        m_fancyVBO = VK_NULL_HANDLE;
+    }
+    if (m_fancyVBOMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(m_device, m_fancyVBOMemory, nullptr);
+        m_fancyVBOMemory = VK_NULL_HANDLE;
+    }
+
+    const auto uvCenter = [this](i32 x, i32 z) -> glm::vec2 {
+        const i32 texW = static_cast<i32>(m_cloudMaskWidth);
+        const i32 texH = static_cast<i32>(m_cloudMaskHeight);
+        if (texW <= 0 || texH <= 0) {
+            return glm::vec2(0.0f);
+        }
+
+        const i32 u = positiveModulo(x, texW);
+        const i32 v = positiveModulo(z, texH);
+        const f32 uf = (static_cast<f32>(u) + 0.5f) / static_cast<f32>(texW);
+        const f32 vf = (static_cast<f32>(v) + 0.5f) / static_cast<f32>(texH);
+        return glm::vec2(uf, vf);
+    };
+
+    const auto pushQuad = [](std::vector<CloudVertex>& vertices,
+                              const CloudVertex& v0,
+                              const CloudVertex& v1,
+                              const CloudVertex& v2,
+                              const CloudVertex& v3,
+                              bool clockwise) {
+        if (clockwise) {
+            vertices.push_back(v0);
+            vertices.push_back(v1);
+            vertices.push_back(v2);
+            vertices.push_back(v0);
+            vertices.push_back(v2);
+            vertices.push_back(v3);
+        } else {
+            vertices.push_back(v0);
+            vertices.push_back(v2);
+            vertices.push_back(v1);
+            vertices.push_back(v0);
+            vertices.push_back(v3);
+            vertices.push_back(v2);
+        }
+    };
+
     // 生成 Fast 模式顶点（单层平面）
     {
         std::vector<CloudVertex> vertices;
 
-        // Fast 模式：只渲染底面
-        // 参考 MC 1.16.5 drawClouds() Fast 分支
-        // 范围：-32 到 +32，步长 32
-        for (i32 x = -32; x < 32; x += 32) {
-            for (i32 z = -32; z < 32; z += 32) {
-                // 四个顶点
-                CloudVertex v0, v1, v2, v3;
+        for (i32 x = CLOUD_GRID_MIN; x < CLOUD_GRID_MAX; ++x) {
+            for (i32 z = CLOUD_GRID_MIN; z < CLOUD_GRID_MAX; ++z) {
+                if (!isCloudCellOpaque(x, z)) {
+                    continue;
+                }
 
-                // 位置
-                v0.x = static_cast<f32>(x);
-                v0.y = 0.0f;
-                v0.z = static_cast<f32>(z + 32);
+                const glm::vec2 uv = uvCenter(x, z);
 
-                v1.x = static_cast<f32>(x + 32);
-                v1.y = 0.0f;
-                v1.z = static_cast<f32>(z + 32);
-
-                v2.x = static_cast<f32>(x + 32);
-                v2.y = 0.0f;
-                v2.z = static_cast<f32>(z);
-
-                v3.x = static_cast<f32>(x);
-                v3.y = 0.0f;
-                v3.z = static_cast<f32>(z);
-
-                // 纹理坐标（使用纹理缩放）
-                v0.u = static_cast<f32>(x) * CLOUD_TEXTURE_SCALE;
-                v0.v = static_cast<f32>(z + 32) * CLOUD_TEXTURE_SCALE;
-
-                v1.u = static_cast<f32>(x + 32) * CLOUD_TEXTURE_SCALE;
-                v1.v = static_cast<f32>(z + 32) * CLOUD_TEXTURE_SCALE;
-
-                v2.u = static_cast<f32>(x + 32) * CLOUD_TEXTURE_SCALE;
-                v2.v = static_cast<f32>(z) * CLOUD_TEXTURE_SCALE;
-
-                v3.u = static_cast<f32>(x) * CLOUD_TEXTURE_SCALE;
-                v3.v = static_cast<f32>(z) * CLOUD_TEXTURE_SCALE;
-
-                // 法线（底面朝下）
-                v0.nx = v1.nx = v2.nx = v3.nx = 0.0f;
-                v0.ny = v1.ny = v2.ny = v3.ny = -1.0f;
-                v0.nz = v1.nz = v2.nz = v3.nz = 0.0f;
-
-                // 两个三角形
-                vertices.push_back(v0);
-                vertices.push_back(v1);
-                vertices.push_back(v2);
-
-                vertices.push_back(v0);
-                vertices.push_back(v2);
-                vertices.push_back(v3);
+                CloudVertex v0{static_cast<f32>(x), 0.0f, static_cast<f32>(z + 1), uv.x, uv.y, 0.0f, -1.0f, 0.0f};
+                CloudVertex v1{static_cast<f32>(x + 1), 0.0f, static_cast<f32>(z + 1), uv.x, uv.y, 0.0f, -1.0f, 0.0f};
+                CloudVertex v2{static_cast<f32>(x + 1), 0.0f, static_cast<f32>(z), uv.x, uv.y, 0.0f, -1.0f, 0.0f};
+                CloudVertex v3{static_cast<f32>(x), 0.0f, static_cast<f32>(z), uv.x, uv.y, 0.0f, -1.0f, 0.0f};
+                pushQuad(vertices, v0, v1, v2, v3, true);
             }
         }
 
@@ -581,299 +613,72 @@ Result<void> CloudRenderer::createCloudVBO() {
     {
         std::vector<CloudVertex> vertices;
 
-        // Fancy 模式：渲染完整 3D 云体
-        // 参考 MC 1.16.5 drawClouds() Fancy 分支
-        // 范围：-3 到 +4 区块，每区块 8 格
-        for (i32 chunkX = CLOUD_RANGE_MIN; chunkX <= CLOUD_RANGE_MAX; ++chunkX) {
-            for (i32 chunkZ = CLOUD_RANGE_MIN; chunkZ <= CLOUD_RANGE_MAX; ++chunkZ) {
-                f32 baseX = static_cast<f32>(chunkX * CLOUD_CHUNK_SIZE);
-                f32 baseZ = static_cast<f32>(chunkZ * CLOUD_CHUNK_SIZE);
+        for (i32 x = CLOUD_GRID_MIN; x < CLOUD_GRID_MAX; ++x) {
+            for (i32 z = CLOUD_GRID_MIN; z < CLOUD_GRID_MAX; ++z) {
+                if (!isCloudCellOpaque(x, z)) {
+                    continue;
+                }
 
-                // 云的颜色变体（模拟云层厚度）
-                // 参考 MC: 顶部颜色、底部颜色、侧面颜色
+                const glm::vec2 uv = uvCenter(x, z);
+                const f32 minX = static_cast<f32>(x);
+                const f32 maxX = static_cast<f32>(x + 1);
+                const f32 minZ = static_cast<f32>(z);
+                const f32 maxZ = static_cast<f32>(z + 1);
+                const f32 minY = 0.0f;
+                const f32 maxY = CLOUD_THICKNESS - CLOUD_TOP_OFFSET;
 
-                // 底面（朝下）
+                // 顶面
                 {
-                    CloudVertex v0, v1, v2, v3;
-                    v0.x = baseX;
-                    v0.y = 0.0f;
-                    v0.z = baseZ + CLOUD_CHUNK_SIZE;
-
-                    v1.x = baseX + CLOUD_CHUNK_SIZE;
-                    v1.y = 0.0f;
-                    v1.z = baseZ + CLOUD_CHUNK_SIZE;
-
-                    v2.x = baseX + CLOUD_CHUNK_SIZE;
-                    v2.y = 0.0f;
-                    v2.z = baseZ;
-
-                    v3.x = baseX;
-                    v3.y = 0.0f;
-                    v3.z = baseZ;
-
-                    // 纹理坐标
-                    v0.u = baseX * CLOUD_TEXTURE_SCALE;
-                    v0.v = (baseZ + CLOUD_CHUNK_SIZE) * CLOUD_TEXTURE_SCALE;
-
-                    v1.u = (baseX + CLOUD_CHUNK_SIZE) * CLOUD_TEXTURE_SCALE;
-                    v1.v = (baseZ + CLOUD_CHUNK_SIZE) * CLOUD_TEXTURE_SCALE;
-
-                    v2.u = (baseX + CLOUD_CHUNK_SIZE) * CLOUD_TEXTURE_SCALE;
-                    v2.v = baseZ * CLOUD_TEXTURE_SCALE;
-
-                    v3.u = baseX * CLOUD_TEXTURE_SCALE;
-                    v3.v = baseZ * CLOUD_TEXTURE_SCALE;
-
-                    // 法线（底面朝下）
-                    v0.nx = v1.nx = v2.nx = v3.nx = 0.0f;
-                    v0.ny = v1.ny = v2.ny = v3.ny = -1.0f;
-                    v0.nz = v1.nz = v2.nz = v3.nz = 0.0f;
-
-                    vertices.push_back(v0);
-                    vertices.push_back(v1);
-                    vertices.push_back(v2);
-                    vertices.push_back(v0);
-                    vertices.push_back(v2);
-                    vertices.push_back(v3);
+                    CloudVertex v0{minX, maxY, maxZ, uv.x, uv.y, 0.0f, 1.0f, 0.0f};
+                    CloudVertex v1{maxX, maxY, maxZ, uv.x, uv.y, 0.0f, 1.0f, 0.0f};
+                    CloudVertex v2{maxX, maxY, minZ, uv.x, uv.y, 0.0f, 1.0f, 0.0f};
+                    CloudVertex v3{minX, maxY, minZ, uv.x, uv.y, 0.0f, 1.0f, 0.0f};
+                    pushQuad(vertices, v0, v1, v2, v3, false);
                 }
 
-                // 顶面（朝上）
+                // 底面
                 {
-                    CloudVertex v0, v1, v2, v3;
-                    v0.x = baseX;
-                    v0.y = CLOUD_THICKNESS - CLOUD_TOP_OFFSET;
-                    v0.z = baseZ + CLOUD_CHUNK_SIZE;
-
-                    v1.x = baseX + CLOUD_CHUNK_SIZE;
-                    v1.y = CLOUD_THICKNESS - CLOUD_TOP_OFFSET;
-                    v1.z = baseZ + CLOUD_CHUNK_SIZE;
-
-                    v2.x = baseX + CLOUD_CHUNK_SIZE;
-                    v2.y = CLOUD_THICKNESS - CLOUD_TOP_OFFSET;
-                    v2.z = baseZ;
-
-                    v3.x = baseX;
-                    v3.y = CLOUD_THICKNESS - CLOUD_TOP_OFFSET;
-                    v3.z = baseZ;
-
-                    // 纹理坐标
-                    v0.u = baseX * CLOUD_TEXTURE_SCALE;
-                    v0.v = (baseZ + CLOUD_CHUNK_SIZE) * CLOUD_TEXTURE_SCALE;
-
-                    v1.u = (baseX + CLOUD_CHUNK_SIZE) * CLOUD_TEXTURE_SCALE;
-                    v1.v = (baseZ + CLOUD_CHUNK_SIZE) * CLOUD_TEXTURE_SCALE;
-
-                    v2.u = (baseX + CLOUD_CHUNK_SIZE) * CLOUD_TEXTURE_SCALE;
-                    v2.v = baseZ * CLOUD_TEXTURE_SCALE;
-
-                    v3.u = baseX * CLOUD_TEXTURE_SCALE;
-                    v3.v = baseZ * CLOUD_TEXTURE_SCALE;
-
-                    // 法线（顶面朝上）
-                    v0.nx = v1.nx = v2.nx = v3.nx = 0.0f;
-                    v0.ny = v1.ny = v2.ny = v3.ny = 1.0f;
-                    v0.nz = v1.nz = v2.nz = v3.nz = 0.0f;
-
-                    // 注意：顶面三角形顺序相反
-                    vertices.push_back(v0);
-                    vertices.push_back(v2);
-                    vertices.push_back(v1);
-                    vertices.push_back(v0);
-                    vertices.push_back(v3);
-                    vertices.push_back(v2);
+                    CloudVertex v0{minX, minY, maxZ, uv.x, uv.y, 0.0f, -1.0f, 0.0f};
+                    CloudVertex v1{maxX, minY, maxZ, uv.x, uv.y, 0.0f, -1.0f, 0.0f};
+                    CloudVertex v2{maxX, minY, minZ, uv.x, uv.y, 0.0f, -1.0f, 0.0f};
+                    CloudVertex v3{minX, minY, minZ, uv.x, uv.y, 0.0f, -1.0f, 0.0f};
+                    pushQuad(vertices, v0, v1, v2, v3, true);
                 }
 
-                // 四个侧面（仅在区块边缘渲染）
-                // 西面 (X = chunkX * 8)
-                if (chunkX > CLOUD_RANGE_MIN) {
-                    for (i32 i = 0; i < CLOUD_CHUNK_SIZE; ++i) {
-                        CloudVertex v0, v1, v2, v3;
-                        v0.x = baseX;
-                        v0.y = 0.0f;
-                        v0.z = baseZ + static_cast<f32>(i);
-
-                        v1.x = baseX;
-                        v1.y = CLOUD_THICKNESS;
-                        v1.z = baseZ + static_cast<f32>(i);
-
-                        v2.x = baseX;
-                        v2.y = CLOUD_THICKNESS;
-                        v2.z = baseZ + static_cast<f32>(i + 1);
-
-                        v3.x = baseX;
-                        v3.y = 0.0f;
-                        v3.z = baseZ + static_cast<f32>(i + 1);
-
-                        // 纹理坐标
-                        v0.u = (baseX + 0.5f) * CLOUD_TEXTURE_SCALE;
-                        v0.v = (baseZ + static_cast<f32>(i) + 0.5f) * CLOUD_TEXTURE_SCALE;
-
-                        v1.u = (baseX + 0.5f) * CLOUD_TEXTURE_SCALE;
-                        v1.v = (baseZ + static_cast<f32>(i) + 0.5f) * CLOUD_TEXTURE_SCALE;
-
-                        v2.u = (baseX + 0.5f) * CLOUD_TEXTURE_SCALE;
-                        v2.v = (baseZ + static_cast<f32>(i + 1) + 0.5f) * CLOUD_TEXTURE_SCALE;
-
-                        v3.u = (baseX + 0.5f) * CLOUD_TEXTURE_SCALE;
-                        v3.v = (baseZ + static_cast<f32>(i + 1) + 0.5f) * CLOUD_TEXTURE_SCALE;
-
-                        // 法线（朝西）
-                        v0.nx = v1.nx = v2.nx = v3.nx = -1.0f;
-                        v0.ny = v1.ny = v2.ny = v3.ny = 0.0f;
-                        v0.nz = v1.nz = v2.nz = v3.nz = 0.0f;
-
-                        vertices.push_back(v0);
-                        vertices.push_back(v1);
-                        vertices.push_back(v2);
-                        vertices.push_back(v0);
-                        vertices.push_back(v2);
-                        vertices.push_back(v3);
-                    }
+                // 西侧（邻格透明才绘制）
+                if (!isCloudCellOpaque(x - 1, z)) {
+                    CloudVertex v0{minX, minY, minZ, uv.x, uv.y, -1.0f, 0.0f, 0.0f};
+                    CloudVertex v1{minX, maxY, minZ, uv.x, uv.y, -1.0f, 0.0f, 0.0f};
+                    CloudVertex v2{minX, maxY, maxZ, uv.x, uv.y, -1.0f, 0.0f, 0.0f};
+                    CloudVertex v3{minX, minY, maxZ, uv.x, uv.y, -1.0f, 0.0f, 0.0f};
+                    pushQuad(vertices, v0, v1, v2, v3, true);
                 }
 
-                // 东面 (X = chunkX * 8 + 8)
-                if (chunkX < CLOUD_RANGE_MAX) {
-                    for (i32 i = 0; i < CLOUD_CHUNK_SIZE; ++i) {
-                        CloudVertex v0, v1, v2, v3;
-                        f32 x = baseX + CLOUD_CHUNK_SIZE - CLOUD_TOP_OFFSET;
-
-                        v0.x = x;
-                        v0.y = 0.0f;
-                        v0.z = baseZ + static_cast<f32>(i);
-
-                        v1.x = x;
-                        v1.y = CLOUD_THICKNESS;
-                        v1.z = baseZ + static_cast<f32>(i);
-
-                        v2.x = x;
-                        v2.y = CLOUD_THICKNESS;
-                        v2.z = baseZ + static_cast<f32>(i + 1);
-
-                        v3.x = x;
-                        v3.y = 0.0f;
-                        v3.z = baseZ + static_cast<f32>(i + 1);
-
-                        // 纹理坐标
-                        v0.u = (baseX + CLOUD_CHUNK_SIZE - 0.5f) * CLOUD_TEXTURE_SCALE;
-                        v0.v = (baseZ + static_cast<f32>(i) + 0.5f) * CLOUD_TEXTURE_SCALE;
-
-                        v1.u = (baseX + CLOUD_CHUNK_SIZE - 0.5f) * CLOUD_TEXTURE_SCALE;
-                        v1.v = (baseZ + static_cast<f32>(i) + 0.5f) * CLOUD_TEXTURE_SCALE;
-
-                        v2.u = (baseX + CLOUD_CHUNK_SIZE - 0.5f) * CLOUD_TEXTURE_SCALE;
-                        v2.v = (baseZ + static_cast<f32>(i + 1) + 0.5f) * CLOUD_TEXTURE_SCALE;
-
-                        v3.u = (baseX + CLOUD_CHUNK_SIZE - 0.5f) * CLOUD_TEXTURE_SCALE;
-                        v3.v = (baseZ + static_cast<f32>(i + 1) + 0.5f) * CLOUD_TEXTURE_SCALE;
-
-                        // 法线（朝东）
-                        v0.nx = v1.nx = v2.nx = v3.nx = 1.0f;
-                        v0.ny = v1.ny = v2.ny = v3.ny = 0.0f;
-                        v0.nz = v1.nz = v2.nz = v3.nz = 0.0f;
-
-                        vertices.push_back(v0);
-                        vertices.push_back(v2);
-                        vertices.push_back(v1);
-                        vertices.push_back(v0);
-                        vertices.push_back(v3);
-                        vertices.push_back(v2);
-                    }
+                // 东侧
+                if (!isCloudCellOpaque(x + 1, z)) {
+                    CloudVertex v0{maxX, minY, minZ, uv.x, uv.y, 1.0f, 0.0f, 0.0f};
+                    CloudVertex v1{maxX, maxY, minZ, uv.x, uv.y, 1.0f, 0.0f, 0.0f};
+                    CloudVertex v2{maxX, maxY, maxZ, uv.x, uv.y, 1.0f, 0.0f, 0.0f};
+                    CloudVertex v3{maxX, minY, maxZ, uv.x, uv.y, 1.0f, 0.0f, 0.0f};
+                    pushQuad(vertices, v0, v1, v2, v3, false);
                 }
 
-                // 北面 (Z = chunkZ * 8)
-                if (chunkZ > CLOUD_RANGE_MIN) {
-                    for (i32 i = 0; i < CLOUD_CHUNK_SIZE; ++i) {
-                        CloudVertex v0, v1, v2, v3;
-                        v0.x = baseX + static_cast<f32>(i);
-                        v0.y = CLOUD_THICKNESS;
-                        v0.z = baseZ;
-
-                        v1.x = baseX + static_cast<f32>(i + 1);
-                        v1.y = CLOUD_THICKNESS;
-                        v1.z = baseZ;
-
-                        v2.x = baseX + static_cast<f32>(i + 1);
-                        v2.y = 0.0f;
-                        v2.z = baseZ;
-
-                        v3.x = baseX + static_cast<f32>(i);
-                        v3.y = 0.0f;
-                        v3.z = baseZ;
-
-                        // 纹理坐标
-                        v0.u = (baseX + static_cast<f32>(i)) * CLOUD_TEXTURE_SCALE;
-                        v0.v = (baseZ + 0.5f) * CLOUD_TEXTURE_SCALE;
-
-                        v1.u = (baseX + static_cast<f32>(i + 1)) * CLOUD_TEXTURE_SCALE;
-                        v1.v = (baseZ + 0.5f) * CLOUD_TEXTURE_SCALE;
-
-                        v2.u = (baseX + static_cast<f32>(i + 1)) * CLOUD_TEXTURE_SCALE;
-                        v2.v = (baseZ + 0.5f) * CLOUD_TEXTURE_SCALE;
-
-                        v3.u = (baseX + static_cast<f32>(i)) * CLOUD_TEXTURE_SCALE;
-                        v3.v = (baseZ + 0.5f) * CLOUD_TEXTURE_SCALE;
-
-                        // 法线（朝北）
-                        v0.nx = v1.nx = v2.nx = v3.nx = 0.0f;
-                        v0.ny = v1.ny = v2.ny = v3.ny = 0.0f;
-                        v0.nz = v1.nz = v2.nz = v3.nz = -1.0f;
-
-                        vertices.push_back(v0);
-                        vertices.push_back(v1);
-                        vertices.push_back(v2);
-                        vertices.push_back(v0);
-                        vertices.push_back(v2);
-                        vertices.push_back(v3);
-                    }
+                // 北侧
+                if (!isCloudCellOpaque(x, z - 1)) {
+                    CloudVertex v0{minX, maxY, minZ, uv.x, uv.y, 0.0f, 0.0f, -1.0f};
+                    CloudVertex v1{maxX, maxY, minZ, uv.x, uv.y, 0.0f, 0.0f, -1.0f};
+                    CloudVertex v2{maxX, minY, minZ, uv.x, uv.y, 0.0f, 0.0f, -1.0f};
+                    CloudVertex v3{minX, minY, minZ, uv.x, uv.y, 0.0f, 0.0f, -1.0f};
+                    pushQuad(vertices, v0, v1, v2, v3, true);
                 }
 
-                // 南面 (Z = chunkZ * 8 + 8)
-                if (chunkZ < CLOUD_RANGE_MAX) {
-                    for (i32 i = 0; i < CLOUD_CHUNK_SIZE; ++i) {
-                        CloudVertex v0, v1, v2, v3;
-                        f32 z = baseZ + CLOUD_CHUNK_SIZE - CLOUD_TOP_OFFSET;
-
-                        v0.x = baseX + static_cast<f32>(i);
-                        v0.y = CLOUD_THICKNESS;
-                        v0.z = z;
-
-                        v1.x = baseX + static_cast<f32>(i + 1);
-                        v1.y = CLOUD_THICKNESS;
-                        v1.z = z;
-
-                        v2.x = baseX + static_cast<f32>(i + 1);
-                        v2.y = 0.0f;
-                        v2.z = z;
-
-                        v3.x = baseX + static_cast<f32>(i);
-                        v3.y = 0.0f;
-                        v3.z = z;
-
-                        // 纹理坐标
-                        v0.u = (baseX + static_cast<f32>(i)) * CLOUD_TEXTURE_SCALE;
-                        v0.v = (baseZ + CLOUD_CHUNK_SIZE - 0.5f) * CLOUD_TEXTURE_SCALE;
-
-                        v1.u = (baseX + static_cast<f32>(i + 1)) * CLOUD_TEXTURE_SCALE;
-                        v1.v = (baseZ + CLOUD_CHUNK_SIZE - 0.5f) * CLOUD_TEXTURE_SCALE;
-
-                        v2.u = (baseX + static_cast<f32>(i + 1)) * CLOUD_TEXTURE_SCALE;
-                        v2.v = (baseZ + CLOUD_CHUNK_SIZE - 0.5f) * CLOUD_TEXTURE_SCALE;
-
-                        v3.u = (baseX + static_cast<f32>(i)) * CLOUD_TEXTURE_SCALE;
-                        v3.v = (baseZ + CLOUD_CHUNK_SIZE - 0.5f) * CLOUD_TEXTURE_SCALE;
-
-                        // 法线（朝南）
-                        v0.nx = v1.nx = v2.nx = v3.nx = 0.0f;
-                        v0.ny = v1.ny = v2.ny = v3.ny = 0.0f;
-                        v0.nz = v1.nz = v2.nz = v3.nz = 1.0f;
-
-                        vertices.push_back(v0);
-                        vertices.push_back(v2);
-                        vertices.push_back(v1);
-                        vertices.push_back(v0);
-                        vertices.push_back(v3);
-                        vertices.push_back(v2);
-                    }
+                // 南侧
+                if (!isCloudCellOpaque(x, z + 1)) {
+                    CloudVertex v0{minX, maxY, maxZ, uv.x, uv.y, 0.0f, 0.0f, 1.0f};
+                    CloudVertex v1{maxX, maxY, maxZ, uv.x, uv.y, 0.0f, 0.0f, 1.0f};
+                    CloudVertex v2{maxX, minY, maxZ, uv.x, uv.y, 0.0f, 0.0f, 1.0f};
+                    CloudVertex v3{minX, minY, maxZ, uv.x, uv.y, 0.0f, 0.0f, 1.0f};
+                    pushQuad(vertices, v0, v1, v2, v3, false);
                 }
             }
         }
@@ -959,6 +764,36 @@ std::vector<u8> CloudRenderer::generateCloudTexture(u32 width, u32 height) {
     return data;
 }
 
+void CloudRenderer::buildCloudMaskFromTexture(const std::vector<u8>& textureData, u32 width, u32 height) {
+    m_cloudMaskWidth = width;
+    m_cloudMaskHeight = height;
+    m_cloudMask.assign(static_cast<size_t>(width) * static_cast<size_t>(height), 0);
+
+    if (textureData.size() < static_cast<size_t>(width) * static_cast<size_t>(height) * 4ULL) {
+        return;
+    }
+
+    for (u32 y = 0; y < height; ++y) {
+        for (u32 x = 0; x < width; ++x) {
+            const size_t texel = (static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)) * 4ULL;
+            const u8 alpha = textureData[texel + 3];
+            m_cloudMask[static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)] =
+                (alpha >= CLOUD_MASK_ALPHA_THRESHOLD) ? 1u : 0u;
+        }
+    }
+}
+
+bool CloudRenderer::isCloudCellOpaque(i32 gridX, i32 gridZ) const {
+    if (m_cloudMask.empty() || m_cloudMaskWidth == 0 || m_cloudMaskHeight == 0) {
+        return true;
+    }
+
+    const i32 u = positiveModulo(gridX, static_cast<i32>(m_cloudMaskWidth));
+    const i32 v = positiveModulo(gridZ, static_cast<i32>(m_cloudMaskHeight));
+    const size_t idx = static_cast<size_t>(v) * static_cast<size_t>(m_cloudMaskWidth) + static_cast<size_t>(u);
+    return m_cloudMask[idx] != 0;
+}
+
 Result<void> CloudRenderer::createTexture(const ResourceManager* resourceManager) {
     // 若已有纹理资源，先释放，避免重建时泄漏。
     if (m_textureSampler != VK_NULL_HANDLE) {
@@ -1002,6 +837,8 @@ Result<void> CloudRenderer::createTexture(const ResourceManager* resourceManager
         textureWidth = CLOUD_TEXTURE_SIZE;
         textureHeight = CLOUD_TEXTURE_SIZE;
     }
+
+    buildCloudMaskFromTexture(textureData, textureWidth, textureHeight);
 
     // 创建暂存缓冲区
     VkDeviceSize imageSize = textureData.size();
@@ -1145,8 +982,8 @@ Result<void> CloudRenderer::createTexture(const ResourceManager* resourceManager
     // 创建采样器
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter = VK_FILTER_LINEAR;
-    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.magFilter = VK_FILTER_NEAREST;
+    samplerInfo.minFilter = VK_FILTER_NEAREST;
     samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
@@ -1156,7 +993,7 @@ Result<void> CloudRenderer::createTexture(const ResourceManager* resourceManager
     samplerInfo.unnormalizedCoordinates = VK_FALSE;
     samplerInfo.compareEnable = VK_FALSE;
     samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
     samplerInfo.mipLodBias = 0.0f;
     samplerInfo.minLod = 0.0f;
     samplerInfo.maxLod = 0.0f;
