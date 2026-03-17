@@ -578,12 +578,24 @@ Result<void> CloudRenderer::createCloudVBO() {
         m_fancyVBOMemory = VK_NULL_HANDLE;
     }
 
+    // 参考 MC 1.16.5 WorldRenderer.drawClouds():
+    // 云网格范围：k, l 从 -3 到 4，每个单元格 8 格
+    // Y 坐标：f17 = floor(cloudsY / 4) * 4
+    // 顶点坐标使用网格偏移，变换矩阵处理分数偏移
+
+    // 网格偏移（整数部分）
+    const i32 gridOffsetX = m_cloudGridX;
+    const i32 gridOffsetY = m_cloudGridY;
+    const i32 gridOffsetZ = m_cloudGridZ;
+
+    // Y 基础坐标（参考 MC: f17 = floor(cloudsY / 4) * 4）
+    const f32 baseY = static_cast<f32>(gridOffsetY) * 4.0f;
+
     // UV 计算函数：基于世界网格坐标计算纹理坐标
-    // 纹理坐标会在着色器中加上偏移，所以这里只需要基于网格坐标计算
+    // 参考 MC 1.16.5: tex = pos * 0.00390625F + floor(cloudsX/Z) * 0.00390625F
+    // 纹理偏移通过 UBO 动态应用，这里只计算基础 UV
     const auto getUV = [](f32 x, f32 z) -> glm::vec2 {
-        // UV 缩放因子：每世界单位对应 1/256 纹理单位
-        // 参考 MC 1.16.5: tex = pos * 0.00390625F (= 1/256)
-        constexpr f32 UV_SCALE = 0.00390625f;
+        constexpr f32 UV_SCALE = 0.00390625f; // 1/256
         return glm::vec2(x * UV_SCALE, z * UV_SCALE);
     };
 
@@ -611,35 +623,34 @@ Result<void> CloudRenderer::createCloudVBO() {
     };
 
     // 云网格检查函数：检查纹理采样位置是否有云
-    // 注意：顶点坐标是固定范围，纹理偏移通过 UBO 动态计算
-    const auto isOpaque = [this](f32 worldX, f32 worldZ) -> bool {
-        // 将世界坐标转换为纹理采样坐标
-        // 由于纹理偏移动态应用，这里直接使用世界坐标对纹理尺寸取模
-        i32 gridX = static_cast<i32>(std::floor(worldX));
-        i32 gridZ = static_cast<i32>(std::floor(worldZ));
-        return isCloudCellOpaque(gridX, gridZ);
+    // 纹理坐标需要加上网格偏移来采样正确的位置
+    const auto isOpaque = [this, gridOffsetX, gridOffsetZ](i32 localX, i32 localZ) -> bool {
+        // 将局部网格坐标转换为世界纹理坐标
+        const i32 worldX = localX + gridOffsetX;
+        const i32 worldZ = localZ + gridOffsetZ;
+        return isCloudCellOpaque(worldX, worldZ);
     };
 
-    // 参考 MC 1.16.5 WorldRenderer.drawClouds():
-    // 云网格范围：k, l 从 -3 到 4，每个区块 8 格
-    // 世界坐标范围：-24 到 32（缩放 12 倍后为 -288 到 384 世界单位）
-    // 但我们需要更大的范围来匹配当前实现的 CLOUD_GRID_MIN/MAX
-    // 保持与纹理采样一致的范围
+    // 参考 MC 1.16.5: k, l 从 -3 到 4，每个单元格 8 格
+    // 我们使用 CLOUD_GRID_MIN/MAX 范围
+    // 顶点坐标 = 局部坐标 + 网格偏移
+    constexpr i32 GRID_SIZE = CLOUD_GRID_MAX - CLOUD_GRID_MIN;
 
     // 生成 Fast 模式顶点（单层平面）
     {
         std::vector<CloudVertex> vertices;
 
-        for (i32 x = CLOUD_GRID_MIN; x < CLOUD_GRID_MAX; ++x) {
-            for (i32 z = CLOUD_GRID_MIN; z < CLOUD_GRID_MAX; ++z) {
-                if (!isCloudCellOpaque(x, z)) {
+        for (i32 localX = 0; localX < GRID_SIZE; ++localX) {
+            for (i32 localZ = 0; localZ < GRID_SIZE; ++localZ) {
+                if (!isOpaque(localX, localZ)) {
                     continue;
                 }
 
-                const f32 minX = static_cast<f32>(x);
-                const f32 maxX = static_cast<f32>(x + 1);
-                const f32 minZ = static_cast<f32>(z);
-                const f32 maxZ = static_cast<f32>(z + 1);
+                // 世界坐标 = 局部坐标 + 网格偏移
+                const f32 minX = static_cast<f32>(CLOUD_GRID_MIN + localX);
+                const f32 maxX = static_cast<f32>(CLOUD_GRID_MIN + localX + 1);
+                const f32 minZ = static_cast<f32>(CLOUD_GRID_MIN + localZ);
+                const f32 maxZ = static_cast<f32>(CLOUD_GRID_MIN + localZ + 1);
 
                 const glm::vec2 uv0 = getUV(minX, maxZ);
                 const glm::vec2 uv1 = getUV(maxX, maxZ);
@@ -647,10 +658,10 @@ Result<void> CloudRenderer::createCloudVBO() {
                 const glm::vec2 uv3 = getUV(minX, minZ);
 
                 // 底面（法线朝下）
-                CloudVertex v0{minX, 0.0f, maxZ, uv0.x, uv0.y, 0.0f, -1.0f, 0.0f};
-                CloudVertex v1{maxX, 0.0f, maxZ, uv1.x, uv1.y, 0.0f, -1.0f, 0.0f};
-                CloudVertex v2{maxX, 0.0f, minZ, uv2.x, uv2.y, 0.0f, -1.0f, 0.0f};
-                CloudVertex v3{minX, 0.0f, minZ, uv3.x, uv3.y, 0.0f, -1.0f, 0.0f};
+                CloudVertex v0{minX, baseY, maxZ, uv0.x, uv0.y, 0.0f, -1.0f, 0.0f};
+                CloudVertex v1{maxX, baseY, maxZ, uv1.x, uv1.y, 0.0f, -1.0f, 0.0f};
+                CloudVertex v2{maxX, baseY, minZ, uv2.x, uv2.y, 0.0f, -1.0f, 0.0f};
+                CloudVertex v3{minX, baseY, minZ, uv3.x, uv3.y, 0.0f, -1.0f, 0.0f};
                 pushQuad(vertices, v0, v1, v2, v3, true);
             }
         }
@@ -679,7 +690,6 @@ Result<void> CloudRenderer::createCloudVBO() {
     {
         std::vector<CloudVertex> vertices;
 
-        constexpr i32 GRID_SIZE = CLOUD_GRID_MAX - CLOUD_GRID_MIN;
         std::vector<u8> occupied(static_cast<size_t>(GRID_SIZE) * static_cast<size_t>(GRID_SIZE), 0);
         const auto gridIndex = [GRID_SIZE](i32 gx, i32 gz) -> size_t {
             return static_cast<size_t>(gz) * static_cast<size_t>(GRID_SIZE) + static_cast<size_t>(gx);
@@ -687,9 +697,7 @@ Result<void> CloudRenderer::createCloudVBO() {
 
         for (i32 gz = 0; gz < GRID_SIZE; ++gz) {
             for (i32 gx = 0; gx < GRID_SIZE; ++gx) {
-                const i32 worldX = CLOUD_GRID_MIN + gx;
-                const i32 worldZ = CLOUD_GRID_MIN + gz;
-                occupied[gridIndex(gx, gz)] = isCloudCellOpaque(worldX, worldZ) ? 1u : 0u;
+                occupied[gridIndex(gx, gz)] = isOpaque(gx, gz) ? 1u : 0u;
             }
         }
 
@@ -741,8 +749,8 @@ Result<void> CloudRenderer::createCloudVBO() {
                 const f32 maxX = static_cast<f32>(worldMaxX);
                 const f32 minZ = static_cast<f32>(worldMinZ);
                 const f32 maxZ = static_cast<f32>(worldMaxZ);
-                const f32 minY = 0.0f;
-                const f32 maxY = CLOUD_THICKNESS - CLOUD_TOP_OFFSET;
+                const f32 minY = baseY;
+                const f32 maxY = baseY + CLOUD_THICKNESS - CLOUD_TOP_OFFSET;
 
                 const glm::vec2 uv0 = getUV(minX, maxZ);
                 const glm::vec2 uv1 = getUV(maxX, maxZ);
@@ -770,24 +778,24 @@ Result<void> CloudRenderer::createCloudVBO() {
         }
 
         // 侧面（每个单元格独立渲染）
-        for (i32 x = CLOUD_GRID_MIN; x < CLOUD_GRID_MAX; ++x) {
-            for (i32 z = CLOUD_GRID_MIN; z < CLOUD_GRID_MAX; ++z) {
-                if (!isCloudCellOpaque(x, z)) {
+        for (i32 localX = 0; localX < GRID_SIZE; ++localX) {
+            for (i32 localZ = 0; localZ < GRID_SIZE; ++localZ) {
+                if (!isOpaque(localX, localZ)) {
                     continue;
                 }
 
-                const f32 minX = static_cast<f32>(x);
-                const f32 maxX = static_cast<f32>(x + 1);
-                const f32 minZ = static_cast<f32>(z);
-                const f32 maxZ = static_cast<f32>(z + 1);
-                const f32 minY = 0.0f;
-                const f32 maxY = CLOUD_THICKNESS - CLOUD_TOP_OFFSET;
+                const f32 minX = static_cast<f32>(CLOUD_GRID_MIN + localX);
+                const f32 maxX = static_cast<f32>(CLOUD_GRID_MIN + localX + 1);
+                const f32 minZ = static_cast<f32>(CLOUD_GRID_MIN + localZ);
+                const f32 maxZ = static_cast<f32>(CLOUD_GRID_MIN + localZ + 1);
+                const f32 minY = baseY;
+                const f32 maxY = baseY + CLOUD_THICKNESS - CLOUD_TOP_OFFSET;
 
                 // 侧面 UV 使用单元格中心
                 const glm::vec2 uv = getUV(minX + 0.5f, maxZ);
 
                 // 西侧（邻格透明才绘制）
-                if (!isCloudCellOpaque(x - 1, z)) {
+                if (localX == 0 || !isOpaque(localX - 1, localZ)) {
                     CloudVertex v0{minX, minY, minZ, uv.x, uv.y, -1.0f, 0.0f, 0.0f};
                     CloudVertex v1{minX, maxY, minZ, uv.x, uv.y, -1.0f, 0.0f, 0.0f};
                     CloudVertex v2{minX, maxY, maxZ, uv.x, uv.y, -1.0f, 0.0f, 0.0f};
@@ -796,7 +804,7 @@ Result<void> CloudRenderer::createCloudVBO() {
                 }
 
                 // 东侧
-                if (!isCloudCellOpaque(x + 1, z)) {
+                if (localX == GRID_SIZE - 1 || !isOpaque(localX + 1, localZ)) {
                     CloudVertex v0{maxX, minY, minZ, uv.x, uv.y, 1.0f, 0.0f, 0.0f};
                     CloudVertex v1{maxX, maxY, minZ, uv.x, uv.y, 1.0f, 0.0f, 0.0f};
                     CloudVertex v2{maxX, maxY, maxZ, uv.x, uv.y, 1.0f, 0.0f, 0.0f};
@@ -805,7 +813,7 @@ Result<void> CloudRenderer::createCloudVBO() {
                 }
 
                 // 北侧
-                if (!isCloudCellOpaque(x, z - 1)) {
+                if (localZ == 0 || !isOpaque(localX, localZ - 1)) {
                     const glm::vec2 uvNorth = getUV(minX + 0.5f, minZ + 0.5f);
                     CloudVertex v0{minX, maxY, minZ, uvNorth.x, uvNorth.y, 0.0f, 0.0f, -1.0f};
                     CloudVertex v1{maxX, maxY, minZ, uvNorth.x, uvNorth.y, 0.0f, 0.0f, -1.0f};
@@ -815,7 +823,7 @@ Result<void> CloudRenderer::createCloudVBO() {
                 }
 
                 // 南侧
-                if (!isCloudCellOpaque(x, z + 1)) {
+                if (localZ == GRID_SIZE - 1 || !isOpaque(localX, localZ + 1)) {
                     const glm::vec2 uvSouth = getUV(minX + 0.5f, maxZ + 0.5f);
                     CloudVertex v0{minX, maxY, maxZ, uvSouth.x, uvSouth.y, 0.0f, 0.0f, 1.0f};
                     CloudVertex v1{maxX, maxY, maxZ, uvSouth.x, uvSouth.y, 0.0f, 0.0f, 1.0f};
@@ -846,8 +854,8 @@ Result<void> CloudRenderer::createCloudVBO() {
         vkUnmapMemory(m_device, m_fancyVBOMemory);
     }
 
-    spdlog::debug("Cloud VBO created: Fast={} vertices, Fancy={} vertices",
-                  m_fastVertexCount, m_fancyVertexCount);
+    spdlog::debug("Cloud VBO created: Fast={} vertices, Fancy={} vertices (grid: {}, {}, {})",
+                  m_fastVertexCount, m_fancyVertexCount, gridOffsetX, gridOffsetY, gridOffsetZ);
     return Result<void>::ok();
 }
 
