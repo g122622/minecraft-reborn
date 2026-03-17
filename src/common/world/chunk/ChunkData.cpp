@@ -287,6 +287,40 @@ BlockCoord ChunkData::getHighestBlock(BlockCoord x, BlockCoord z) const {
     return m_heightMap[x * WIDTH + z];
 }
 
+BlockCoord ChunkData::getTopBlockY(HeightmapType type, BlockCoord x, BlockCoord z) const {
+    if (x < 0 || x >= WIDTH || z < 0 || z >= WIDTH) {
+        return -1;
+    }
+
+    // 检查是否有特定类型的高度图
+    auto it = m_heightmaps.find(type);
+    if (it != m_heightmaps.end()) {
+        return it->second.getHeight(x, z);
+    }
+
+    // 默认使用基本高度图
+    return m_heightMap[x * WIDTH + z];
+}
+
+void ChunkData::updateHeightmap(HeightmapType type, BlockCoord x, BlockCoord y, BlockCoord z, const BlockState* state) {
+    if (x < 0 || x >= WIDTH || z < 0 || z >= WIDTH) {
+        return;
+    }
+
+    // 获取或创建高度图
+    auto& heightmap = m_heightmaps[type];
+    if (heightmap.getType() != type) {
+        heightmap = Heightmap(type);
+    }
+
+    heightmap.update(x, y, z, state);
+
+    // 同时更新基本高度图（WorldSurface 类型）
+    if (type == HeightmapType::WorldSurface) {
+        m_heightMap[x * WIDTH + z] = heightmap.getHeight(x, z);
+    }
+}
+
 BiomeId ChunkData::getBiomeAtBlock(BlockCoord x, BlockCoord y, BlockCoord z) const {
     if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT || z < 0 || z >= WIDTH) {
         return Biomes::Plains;

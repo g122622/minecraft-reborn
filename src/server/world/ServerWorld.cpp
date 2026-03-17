@@ -8,11 +8,20 @@
 #include "common/network/Packet.hpp"
 #include "common/network/PacketSerializer.hpp"
 #include "common/physics/collision/CollisionShape.hpp"
+#include "common/world/lighting/manager/WorldLightManager.hpp"
+#include "common/world/chunk/IChunk.hpp"
 #include <chrono>
 #include <spdlog/spdlog.h>
 #include <cmath>
 
 namespace mc::server {
+
+// 使用 mc 命名空间中的类
+using mc::WorldLightManager;
+using mc::IChunk;
+using mc::IChunkLightProvider;
+using mc::LightType;
+using mc::SectionPos;
 
 // ============================================================================
 // ServerWorld 实现
@@ -79,9 +88,12 @@ Result<void> ServerWorld::initialize() {
     // 创建Tick管理器
     m_tickManager = std::make_unique<world::tick::TickManager>(*this);
 
+    // 创建光照管理器（主世界有天空光照）
+    m_lightManager = std::make_unique<WorldLightManager>(this, true, true);
+
     m_initialized = true;
 
-    spdlog::info("Server world initialized with physics engine and tick manager");
+    spdlog::info("Server world initialized with physics engine, tick manager, and light manager");
     return Result<void>::ok();
 }
 
@@ -89,6 +101,9 @@ void ServerWorld::shutdown() {
     spdlog::info("Shutting down server world...");
 
     m_initialized = false;
+
+    // 清除光照管理器
+    m_lightManager.reset();
 
     // 清除Tick管理器
     m_tickManager.reset();
@@ -686,14 +701,18 @@ i32 ServerWorld::getHeight(i32 /*x*/, i32 /*z*/) const {
     return 64;
 }
 
-u8 ServerWorld::getBlockLight(i32 /*x*/, i32 /*y*/, i32 /*z*/) const {
-    // TODO: 实现光照系统
-    return 15;
+u8 ServerWorld::getBlockLight(i32 x, i32 y, i32 z) const {
+    if (m_lightManager) {
+        return m_lightManager->getBlockLight(BlockPos(x, y, z));
+    }
+    return 0;  // 无光
 }
 
-u8 ServerWorld::getSkyLight(i32 /*x*/, i32 /*y*/, i32 /*z*/) const {
-    // TODO: 实现光照系统
-    return 15;
+u8 ServerWorld::getSkyLight(i32 x, i32 y, i32 z) const {
+    if (m_lightManager) {
+        return m_lightManager->getSkyLight(BlockPos(x, y, z));
+    }
+    return 15;  // 默认全亮
 }
 
 // ============================================================================
@@ -976,6 +995,61 @@ void ServerWorld::scheduleFluidTick(const BlockPos& pos, fluid::Fluid& fluid, i3
     if (m_tickManager) {
         m_tickManager->scheduleFluidTick(pos, fluid, delay, priority);
     }
+}
+
+// ============================================================================
+// IChunkLightProvider 接口实现
+// ============================================================================
+
+IChunk* ServerWorld::getChunkForLight(ChunkCoord x, ChunkCoord z) {
+    return getChunk(x, z);
+}
+
+const IChunk* ServerWorld::getChunkForLight(ChunkCoord x, ChunkCoord z) const {
+    return getChunk(x, z);
+}
+
+const BlockState* ServerWorld::getBlockStateForLight(const BlockPos& pos) const {
+    return getBlockState(pos.x, pos.y, pos.z);
+}
+
+IWorld* ServerWorld::getWorld() {
+    return this;
+}
+
+const IWorld* ServerWorld::getWorld() const {
+    return this;
+}
+
+void ServerWorld::markLightChanged(LightType type, const SectionPos& pos) {
+    // 标记区块为脏，以便保存和同步
+    ChunkCoord chunkX = pos.x;
+    ChunkCoord chunkZ = pos.z;
+    ChunkData* chunk = getChunk(chunkX, chunkZ);
+    if (chunk) {
+        chunk->setDirty(true);
+    }
+
+    // TODO: 发送光照更新包给客户端
+    (void)type;
+    (void)pos;
+}
+
+bool ServerWorld::hasSkyLight() const {
+    // 主世界有天空光照，下界和末地没有
+    return m_config.dimension == 0;
+}
+
+i32 ServerWorld::getMinBuildHeight() const {
+    return 0;
+}
+
+i32 ServerWorld::getMaxBuildHeight() const {
+    return 256;
+}
+
+i32 ServerWorld::getSectionCount() const {
+    return 16;  // 256 / 16
 }
 
 } // namespace mc::server

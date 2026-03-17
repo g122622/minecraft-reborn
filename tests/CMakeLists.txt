@@ -97,6 +97,8 @@ add_executable(mc_tests
     # 生物群系层测试
     common/world/biome/layer/BiomeLayerTest.cpp
     common/world/biome/layer/MergeLayersTest.cpp
+    # 光照系统测试
+    lighting/LightingTest.cpp
 )
 
 # 添加服务端源文件

@@ -6,6 +6,7 @@
 #include "common/world/chunk/ChunkData.hpp"
 #include "common/world/entity/EntityManager.hpp"
 #include "common/world/tick/manager/TickManager.hpp"
+#include "common/world/lighting/IChunkLightProvider.hpp"
 #include "common/entity/PlayerManager.hpp"
 #include "common/network/ChunkSync.hpp"
 #include "common/network/ProtocolPackets.hpp"
@@ -20,7 +21,12 @@
 #include <functional>
 #include <mutex>
 
-namespace mc::server {
+namespace mc {
+
+// 前向声明
+class WorldLightManager;
+
+namespace server {
 
 // 前向声明
 class ServerChunkManager;
@@ -55,7 +61,7 @@ struct ServerWorldConfig {
 // 服务端世界
 // ============================================================================
 
-class ServerWorld : public IWorld, public ICollisionWorld {
+class ServerWorld : public IWorld, public ICollisionWorld, public IChunkLightProvider {
 public:
     ServerWorld();
     explicit ServerWorld(const ServerWorldConfig& config);
@@ -197,8 +203,7 @@ public:
         return getChunk(x, z);
     }
 
-    [[nodiscard]] i32 getMinBuildHeight() const override { return 0; }
-    [[nodiscard]] i32 getMaxBuildHeight() const override { return 256; }
+    // 注意：getMinBuildHeight() 和 getMaxBuildHeight() 在 IChunkLightProvider 接口部分实现
 
     // ========== 实体管理 ==========
 
@@ -292,6 +297,27 @@ public:
     void scheduleFluidTick(const BlockPos& pos, fluid::Fluid& fluid, i32 delay,
                           world::tick::TickPriority priority = world::tick::TickPriority::Normal);
 
+    // ========== IChunkLightProvider 接口实现 ==========
+
+    [[nodiscard]] IChunk* getChunkForLight(ChunkCoord x, ChunkCoord z) override;
+    [[nodiscard]] const IChunk* getChunkForLight(ChunkCoord x, ChunkCoord z) const override;
+    [[nodiscard]] const BlockState* getBlockStateForLight(const BlockPos& pos) const override;
+    [[nodiscard]] IWorld* getWorld() override;
+    [[nodiscard]] const IWorld* getWorld() const override;
+    void markLightChanged(LightType type, const SectionPos& pos) override;
+    [[nodiscard]] bool hasSkyLight() const override;
+    [[nodiscard]] i32 getMinBuildHeight() const override;
+    [[nodiscard]] i32 getMaxBuildHeight() const override;
+    [[nodiscard]] i32 getSectionCount() const override;
+
+    // ========== 光照管理 ==========
+
+    /**
+     * @brief 获取光照管理器
+     */
+    [[nodiscard]] WorldLightManager* lightManager() { return m_lightManager.get(); }
+    [[nodiscard]] const WorldLightManager* lightManager() const { return m_lightManager.get(); }
+
 private:
     // 内部方法
     void sendChunkToPlayer(PlayerId playerId, ChunkCoord x, ChunkCoord z);
@@ -310,6 +336,7 @@ private:
     std::unique_ptr<PhysicsEngine> m_physicsEngine;  // 物理引擎
     std::unique_ptr<physics::CollisionCache> m_collisionCache;  // 碰撞缓存
     std::unique_ptr<world::tick::TickManager> m_tickManager;  // Tick管理器
+    std::unique_ptr<WorldLightManager> m_lightManager;  // 光照管理器
     bool m_initialized = false;
 
     // 玩家存储
@@ -326,4 +353,5 @@ private:
     u64 m_lastChunkUnloadCheck = 0;
 };
 
-} // namespace mc::server
+} // namespace server
+} // namespace mc

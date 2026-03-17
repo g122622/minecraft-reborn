@@ -10,6 +10,7 @@
 #include <memory>
 #include <array>
 #include <cstring>
+#include <unordered_map>
 
 namespace mc {
 
@@ -85,7 +86,7 @@ private:
 // 区块数据
 // ============================================================================
 
-class ChunkData {
+class ChunkData : public IChunk {
 public:
     static constexpr i32 WIDTH = world::CHUNK_WIDTH;
     static constexpr i32 HEIGHT = world::CHUNK_HEIGHT;
@@ -103,39 +104,51 @@ public:
     ChunkData(ChunkData&&) = default;
     ChunkData& operator=(ChunkData&&) = default;
 
-    // 位置
-    [[nodiscard]] ChunkCoord x() const { return m_x; }
-    [[nodiscard]] ChunkCoord z() const { return m_z; }
-    [[nodiscard]] ChunkPos pos() const { return ChunkPos(m_x, m_z); }
+    // 位置 (IChunk 接口)
+    [[nodiscard]] ChunkCoord x() const override { return m_x; }
+    [[nodiscard]] ChunkCoord z() const override { return m_z; }
+    [[nodiscard]] ChunkPos pos() const override { return ChunkPos(m_x, m_z); }
 
-    // 方块访问 (使用 BlockState 指针)
-    [[nodiscard]] const BlockState* getBlock(BlockCoord x, BlockCoord y, BlockCoord z) const;
-    void setBlock(BlockCoord x, BlockCoord y, BlockCoord z, const BlockState* state);
+    // 方块访问 (IChunk 接口 - 使用 BlockState 指针)
+    [[nodiscard]] const BlockState* getBlock(BlockCoord x, BlockCoord y, BlockCoord z) const override;
+    void setBlock(BlockCoord x, BlockCoord y, BlockCoord z, const BlockState* state) override;
 
-    // 方块访问 (使用状态ID，更高效)
-    [[nodiscard]] u32 getBlockStateId(BlockCoord x, BlockCoord y, BlockCoord z) const;
-    void setBlockStateId(BlockCoord x, BlockCoord y, BlockCoord z, u32 stateId);
+    // 方块访问 (IChunk 接口 - 使用状态ID，更高效)
+    [[nodiscard]] u32 getBlockStateId(BlockCoord x, BlockCoord y, BlockCoord z) const override;
+    void setBlockStateId(BlockCoord x, BlockCoord y, BlockCoord z, u32 stateId) override;
 
     // 高度图
     [[nodiscard]] BlockCoord getHighestBlock(BlockCoord x, BlockCoord z) const;
     void updateHeightMap(BlockCoord x, BlockCoord z);
 
-    // 生物群系
-    [[nodiscard]] BiomeId getBiomeAtBlock(BlockCoord x, BlockCoord y, BlockCoord z) const;
+    // 生物群系 (IChunk 接口)
+    [[nodiscard]] BiomeId getBiomeAtBlock(BlockCoord x, BlockCoord y, BlockCoord z) const override;
     [[nodiscard]] const BiomeContainer& getBiomes() const { return m_biomes; }
     [[nodiscard]] BiomeContainer& getBiomes() { return m_biomes; }
     void setBiomes(BiomeContainer biomes) { m_biomes = std::move(biomes); }
 
-    // 区块段访问
-    [[nodiscard]] ChunkSection* getSection(i32 index);
-    [[nodiscard]] const ChunkSection* getSection(i32 index) const;
-    [[nodiscard]] bool hasSection(i32 index) const;
+    // 区块段访问 (IChunk 接口)
+    [[nodiscard]] ChunkSection* getSection(i32 index) override;
+    [[nodiscard]] const ChunkSection* getSection(i32 index) const override;
+    [[nodiscard]] bool hasSection(i32 index) const override;
+    ChunkSection* createSection(i32 index) override;
 
-    // 创建/删除段
-    ChunkSection* createSection(i32 index);
+    // 删除段
     void removeSection(i32 index);
 
-    // 区块状态
+    // 高度图 (IChunk 接口)
+    [[nodiscard]] BlockCoord getTopBlockY(HeightmapType type, BlockCoord x, BlockCoord z) const override;
+    void updateHeightmap(HeightmapType type, BlockCoord x, BlockCoord y, BlockCoord z, const BlockState* state) override;
+
+    // 区块状态 (IChunk 接口)
+    [[nodiscard]] ChunkLoadStatus getStatus() const override { return m_status; }
+    void setStatus(ChunkLoadStatus status) override { m_status = status; }
+
+    // 修改标记 (IChunk 接口)
+    [[nodiscard]] bool isModified() const override { return m_dirty; }
+    void setModified(bool modified) override { m_dirty = modified; }
+
+    // 其他状态
     [[nodiscard]] bool isFullyGenerated() const { return m_fullyGenerated; }
     void setFullyGenerated(bool value) { m_fullyGenerated = value; }
 
@@ -162,10 +175,14 @@ private:
     // 高度图 (最高方块Y坐标)
     std::array<BlockCoord, WIDTH * WIDTH> m_heightMap;
 
+    // 高度图 (IChunk 接口)
+    std::unordered_map<HeightmapType, Heightmap> m_heightmaps;
+
     // 生物群系采样数据
     BiomeContainer m_biomes;
 
     // 状态
+    ChunkLoadStatus m_status = ChunkLoadStatus::Empty;
     bool m_fullyGenerated = false;
     bool m_dirty = false;
     bool m_loaded = false;
