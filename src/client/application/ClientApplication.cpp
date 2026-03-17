@@ -345,6 +345,12 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         if (fogInitResult.failed()) {
             spdlog::warn("Failed to initialize fog manager: {}", fogInitResult.error().toString());
         }
+
+        // 初始化云渲染器
+        auto cloudInitResult = m_renderer->initializeCloudRenderer();
+        if (cloudInitResult.failed()) {
+            spdlog::warn("Failed to initialize cloud renderer: {}", cloudInitResult.error().toString());
+        }
     }
 
     // 启动内置服务端

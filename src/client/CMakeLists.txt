@@ -25,6 +25,8 @@ add_executable(minecraft-client
     renderer/trident/core/render/UniformManager.cpp
     # 雾效果模块
     renderer/trident/fog/FogManager.cpp
+    # 云渲染模块
+    renderer/trident/cloud/CloudRenderer.cpp
     # 子渲染器
     renderer/trident/chunk/ChunkRenderer.cpp
     renderer/trident/chunk/ChunkMesher.cpp

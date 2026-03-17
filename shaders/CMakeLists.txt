@@ -50,6 +50,8 @@ set(SHADER_SOURCES
     moon.frag
     star.vert
     star.frag
+    cloud.vert
+    cloud.frag
 )
 
 # 输出目录

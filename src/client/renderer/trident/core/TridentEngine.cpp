@@ -15,6 +15,7 @@
 #include "../../util/ShaderPath.hpp"
 #include "../sky/SkyRenderer.hpp"
 #include "../fog/FogManager.hpp"
+#include "../cloud/CloudRenderer.hpp"
 #include "../gui/GuiRenderer.hpp"
 #include "../../../ui/Font.hpp"
 #include "../../../ui/DefaultAsciiFont.hpp"
@@ -213,6 +214,12 @@ void TridentEngine::destroy() {
         m_fogManager.reset();
     }
 
+    // 销毁云渲染器
+    if (m_cloudRenderer) {
+        m_cloudRenderer->destroy();
+        m_cloudRenderer.reset();
+    }
+
     m_itemRendererPtr.reset();
     m_entityRendererManager.reset();
     m_font.reset();
@@ -229,6 +236,7 @@ void TridentEngine::destroy() {
     m_entityRendererInitialized = false;
     m_entityTextureAtlasInitialized = false;
     m_fogManagerInitialized = false;
+    m_cloudRendererInitialized = false;
 
     m_guiRenderCallback = nullptr;
     m_entityRenderCallback = nullptr;
@@ -427,6 +435,35 @@ Result<void> TridentEngine::render() {
             0.0f, // 雷暴强度
             m_skyRendererPtr->fogColor(),
             cameraPos
+        );
+    }
+
+    // 4.5 渲染云（在天空之后，区块之前）
+    if (m_cloudRendererInitialized && m_cloudRenderer && m_skyRendererInitialized && m_skyRendererPtr) {
+        glm::vec3 cameraPos(0.0f);
+        if (m_frameContext.camera) {
+            cameraPos = m_frameContext.camera->position();
+        }
+
+        // TODO: 从游戏状态获取云模式和维度设置
+        // 目前使用 Fancy 模式和主世界云高度
+        constexpr f32 CLOUD_HEIGHT = 192.0f; // 主世界云高度
+
+        m_cloudRenderer->update(
+            m_dayTime,
+            m_gameTime,
+            m_partialTick,
+            CLOUD_HEIGHT,
+            m_skyRendererPtr->fogColor() // 云颜色使用雾颜色
+        );
+
+        m_cloudRenderer->render(
+            cmd,
+            m_frameContext.projectionMatrix,
+            m_frameContext.viewMatrix,
+            cameraPos,
+            cloud::CloudMode::Fancy, // TODO: 从设置获取
+            m_frameContext.frameIndex
         );
     }
 
@@ -841,6 +878,14 @@ Result<void> TridentEngine::recreateSwapchain() {
         auto skyResult = m_skyRendererPtr->onResize(VkExtent2D{m_windowWidth, m_windowHeight});
         if (skyResult.failed()) {
             spdlog::warn("Failed to recreate sky renderer: {}", skyResult.error().toString());
+        }
+    }
+
+    // 重建云渲染器
+    if (m_cloudRendererInitialized && m_cloudRenderer) {
+        auto cloudResult = m_cloudRenderer->onResize(VkExtent2D{m_windowWidth, m_windowHeight});
+        if (cloudResult.failed()) {
+            spdlog::warn("Failed to recreate cloud renderer: {}", cloudResult.error().toString());
         }
     }
 
@@ -1285,6 +1330,47 @@ Result<void> TridentEngine::initializeFogManager() {
     m_fogManagerInitialized = true;
     spdlog::info("Fog manager initialized");
     return {};
+}
+
+Result<void> TridentEngine::initializeCloudRenderer() {
+    if (m_cloudRendererInitialized) {
+        return {};
+    }
+
+    spdlog::info("Initializing cloud renderer...");
+
+    if (!m_cloudRenderer) {
+        m_cloudRenderer = std::make_unique<cloud::CloudRenderer>();
+    }
+
+    auto result = m_cloudRenderer->initialize(
+        device(),
+        physicalDevice(),
+        commandPool(),
+        graphicsQueue(),
+        renderPass(),
+        swapchainExtent()
+    );
+
+    if (result.failed()) {
+        m_cloudRenderer.reset();
+        return result.error();
+    }
+
+    m_cloudRendererInitialized = true;
+    spdlog::info("Cloud renderer initialized");
+    return {};
+}
+
+cloud::CloudRenderer& TridentEngine::cloudRenderer() {
+    if (!m_cloudRenderer) {
+        m_cloudRenderer = std::make_unique<cloud::CloudRenderer>();
+    }
+    return *m_cloudRenderer;
+}
+
+const cloud::CloudRenderer& TridentEngine::cloudRenderer() const {
+    return *m_cloudRenderer;
 }
 
 Result<void> TridentEngine::updateTextureAtlas(const AtlasBuildResult& atlasResult) {

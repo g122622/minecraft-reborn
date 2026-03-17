@@ -52,6 +52,10 @@ namespace fog {
 class FogManager;
 }
 
+namespace cloud {
+class CloudRenderer;
+}
+
 namespace item {
 class ItemRenderer;
 }
@@ -377,6 +381,13 @@ public:
     [[nodiscard]] const fog::FogManager& fogManager() const;
     [[nodiscard]] bool isFogManagerInitialized() const { return m_fogManagerInitialized; }
 
+    /**
+     * @brief 获取云渲染器
+     */
+    [[nodiscard]] cloud::CloudRenderer& cloudRenderer();
+    [[nodiscard]] const cloud::CloudRenderer& cloudRenderer() const;
+    [[nodiscard]] bool isCloudRendererInitialized() const { return m_cloudRendererInitialized; }
+
     // ========================================================================
     // 子渲染器初始化
     // ========================================================================
@@ -415,6 +426,11 @@ public:
      * @brief 初始化雾效果管理器
      */
     [[nodiscard]] Result<void> initializeFogManager();
+
+    /**
+     * @brief 初始化云渲染器
+     */
+    [[nodiscard]] Result<void> initializeCloudRenderer();
 
     /**
      * @brief 更新纹理图集
@@ -474,6 +490,7 @@ private:
     std::unique_ptr<item::ItemRenderer> m_itemRendererPtr;
     std::unique_ptr<renderer::EntityRendererManager> m_entityRendererManager;
     std::unique_ptr<fog::FogManager> m_fogManager;
+    std::unique_ptr<cloud::CloudRenderer> m_cloudRenderer;
 
     // 实体渲染管线（独立于区块管线）
     std::unique_ptr<EntityPipeline> m_entityPipeline;
@@ -495,6 +512,7 @@ private:
     bool m_entityRendererInitialized = false;
     bool m_entityTextureAtlasInitialized = false;
     bool m_fogManagerInitialized = false;
+    bool m_cloudRendererInitialized = false;
 
     // 内部方法
     [[nodiscard]] Result<void> recreateSwapchain();
