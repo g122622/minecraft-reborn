@@ -28,7 +28,6 @@ enum class CloudMode : u8 {
  * 传递给云着色器的 Uniform 数据。
  */
 struct CloudUBO {
-    alignas(16) glm::mat4 viewProjection;   ///< 视图-投影矩阵
     alignas(16) glm::vec4 cloudColor;       ///< 云颜色 (RGBA)
     alignas(4)  f32 cloudHeight;            ///< 云高度 (192.0f 主世界)
     alignas(4)  f32 time;                   ///< 时间（用于动画）

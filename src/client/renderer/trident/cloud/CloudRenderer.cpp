@@ -430,7 +430,9 @@ void CloudRenderer::render(VkCommandBuffer cmd,
     vkCmdBindVertexBuffers(cmd, 0, 1, &vbo, offsets);
 
     // 推送常量：视图-投影矩阵
-    glm::mat4 viewProjection = projection * view;
+    // 云层应当围绕相机渲染（无限远平铺效果），因此仅保留视图旋转，移除平移分量。
+    glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(view));
+    glm::mat4 viewProjection = projection * viewNoTranslation;
 
     // 云的变换矩阵
     // 参考 MC 1.16.5 WorldRenderer.renderClouds():
@@ -458,13 +460,13 @@ void CloudRenderer::render(VkCommandBuffer cmd,
 
     // Y 坐标（相对相机）
     f32 cloudY = m_cloudHeight - cameraPos.y + 0.33f;
-    f32 fracY = cloudY / 4.0f - std::floor(cloudY / 4.0f);
 
-    // 变换：先缩放，再平移
-    // 注意：平移值是在缩放后的坐标系中
+    // 变换：先缩放，再平移（保持与 MC 云网格坐标一致）
+    // 注意：X/Z 的平移在缩放后生效（对应每格 12 世界单位）。
+    // Y 必须使用完整相对高度，否则云层会错误地贴近世界原点附近。
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::scale(model, glm::vec3(12.0f, 1.0f, 12.0f));
-    model = glm::translate(model, glm::vec3(-fracX, fracY * 4.0f, -fracZ));
+    model = glm::translate(model, glm::vec3(-fracX, cloudY, -fracZ));
 
     glm::mat4 mvp = viewProjection * model;
     vkCmdPushConstants(cmd, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
@@ -1346,7 +1348,8 @@ Result<void> CloudRenderer::createPipelines() {
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    // 云为半透明体，且面向组合较多，关闭剔除可避免由绕序差异导致的整片云不可见。
+    rasterizer.cullMode = VK_CULL_MODE_NONE;
     rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE; // MC 使用顺时针
     rasterizer.depthBiasEnable = VK_FALSE;
 

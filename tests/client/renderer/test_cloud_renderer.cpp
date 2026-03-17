@@ -9,6 +9,7 @@
 #include <glm/glm.hpp>
 #include <cmath>
 #include <limits>
+#include <cstddef>
 
 namespace mc::world {
 namespace test {
@@ -107,8 +108,14 @@ TEST(CloudModeTest, EnumValues) {
  * @brief 测试 CloudUBO 结构大小和对齐
  */
 TEST(CloudUBOTest, StructureSize) {
-    // 确保 CloudUBO 大小足够容纳所有字段
-    EXPECT_GE(sizeof(CloudUBO), 80);
+    // CloudUBO 需与 cloud.vert/cloud.frag 中的 std140 布局保持一致：
+    // vec4 + 4 * float = 32 字节
+    EXPECT_EQ(sizeof(CloudUBO), 32);
+    EXPECT_EQ(offsetof(CloudUBO, cloudColor), 0);
+    EXPECT_EQ(offsetof(CloudUBO, cloudHeight), 16);
+    EXPECT_EQ(offsetof(CloudUBO, time), 20);
+    EXPECT_EQ(offsetof(CloudUBO, textureScale), 24);
+    EXPECT_EQ(offsetof(CloudUBO, cameraY), 28);
 
     // 测试默认值
     CloudUBO ubo{};
