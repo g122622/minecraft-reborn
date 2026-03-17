@@ -2,45 +2,11 @@
 
 #include "../../core/Types.hpp"
 #include "../../math/Vector3.hpp"
+#include "../block/BlockPos.hpp"
 #include "TickPriority.hpp"
 #include <functional>
 
-namespace mc {
-
-// 前向声明
-class BlockPos;
-
-namespace world::tick {
-
-/**
- * @brief 方块位置（简化版，用于tick系统）
- *
- * 避免包含整个BlockPos头文件的依赖
- */
-struct TickPos {
-    i32 x;
-    i32 y;
-    i32 z;
-
-    TickPos() : x(0), y(0), z(0) {}
-    TickPos(i32 x, i32 y, i32 z) : x(x), y(y), z(z) {}
-
-    [[nodiscard]] bool operator==(const TickPos& other) const {
-        return x == other.x && y == other.y && z == other.z;
-    }
-
-    [[nodiscard]] bool operator!=(const TickPos& other) const {
-        return !(*this == other);
-    }
-
-    [[nodiscard]] size_t hashCode() const {
-        // 使用简单的哈希组合
-        size_t h = static_cast<size_t>(x);
-        h ^= static_cast<size_t>(y) << 16;
-        h ^= static_cast<size_t>(z) << 32;
-        return h;
-    }
-};
+namespace mc::world::tick {
 
 /**
  * @brief 调度的Tick条目
@@ -54,7 +20,7 @@ struct TickPos {
  */
 template<typename T>
 struct ScheduledTick {
-    TickPos position;           ///< 方块位置
+    BlockPos position;          ///< 方块位置
     T* target;                  ///< 目标对象指针
     u64 scheduledTick;          ///< 调度执行的游戏刻
     TickPriority priority;      ///< 执行优先级
@@ -77,7 +43,7 @@ struct ScheduledTick {
      * @param priority 优先级
      * @param tickEntryId 唯一ID
      */
-    ScheduledTick(const TickPos& pos, T* target, u64 scheduledTick,
+    ScheduledTick(const BlockPos& pos, T* target, u64 scheduledTick,
                   TickPriority priority, u64 tickEntryId)
         : position(pos)
         , target(target)
@@ -115,7 +81,7 @@ struct ScheduledTick {
      * @brief 哈希值，基于位置和目标
      */
     [[nodiscard]] size_t hashCode() const {
-        size_t h = position.hashCode();
+        size_t h = position.toId();
         // 混合目标指针
         h ^= reinterpret_cast<size_t>(target) + 0x9e3779b9 + (h << 6) + (h >> 2);
         return h;
@@ -133,4 +99,3 @@ struct ScheduledTickHash {
 };
 
 } // namespace mc::world::tick
-} // namespace mc

@@ -4,6 +4,7 @@
 #include "common/world/tick/ITickList.hpp"
 #include "common/world/tick/EmptyTickList.hpp"
 #include "common/world/tick/ServerTickList.hpp"
+#include "common/world/block/BlockPos.hpp"
 
 using namespace mc::world::tick;
 
@@ -47,7 +48,7 @@ public:
 };
 
 TEST(ScheduledTickTest, Construction) {
-    TickPos pos(10, 20, 30);
+    mc::BlockPos pos(10, 20, 30);
     MockTarget target(1);
 
     ScheduledTick<MockTarget> tick(pos, &target, 100, TickPriority::Normal, 1);
@@ -64,8 +65,8 @@ TEST(ScheduledTickTest, Construction) {
 TEST(ScheduledTickTest, ComparisonOrdersByScheduledTick) {
     MockTarget target(1);
 
-    ScheduledTick<MockTarget> tick1(TickPos(0, 0, 0), &target, 10, TickPriority::Normal, 1);
-    ScheduledTick<MockTarget> tick2(TickPos(0, 0, 0), &target, 20, TickPriority::Normal, 2);
+    ScheduledTick<MockTarget> tick1(mc::BlockPos(0, 0, 0), &target, 10, TickPriority::Normal, 1);
+    ScheduledTick<MockTarget> tick2(mc::BlockPos(0, 0, 0), &target, 20, TickPriority::Normal, 2);
 
     EXPECT_TRUE(tick1 < tick2);
     EXPECT_FALSE(tick2 < tick1);
@@ -74,8 +75,8 @@ TEST(ScheduledTickTest, ComparisonOrdersByScheduledTick) {
 TEST(ScheduledTickTest, ComparisonOrdersByPriorityWhenSameTick) {
     MockTarget target(1);
 
-    ScheduledTick<MockTarget> tick1(TickPos(0, 0, 0), &target, 100, TickPriority::High, 1);
-    ScheduledTick<MockTarget> tick2(TickPos(0, 0, 0), &target, 100, TickPriority::Normal, 2);
+    ScheduledTick<MockTarget> tick1(mc::BlockPos(0, 0, 0), &target, 100, TickPriority::High, 1);
+    ScheduledTick<MockTarget> tick2(mc::BlockPos(0, 0, 0), &target, 100, TickPriority::Normal, 2);
 
     EXPECT_TRUE(tick1 < tick2);  // High优先级 < Normal优先级
     EXPECT_FALSE(tick2 < tick1);
@@ -84,8 +85,8 @@ TEST(ScheduledTickTest, ComparisonOrdersByPriorityWhenSameTick) {
 TEST(ScheduledTickTest, ComparisonOrdersByIdWhenSameTickAndPriority) {
     MockTarget target(1);
 
-    ScheduledTick<MockTarget> tick1(TickPos(0, 0, 0), &target, 100, TickPriority::Normal, 1);
-    ScheduledTick<MockTarget> tick2(TickPos(0, 0, 0), &target, 100, TickPriority::Normal, 2);
+    ScheduledTick<MockTarget> tick1(mc::BlockPos(0, 0, 0), &target, 100, TickPriority::Normal, 1);
+    ScheduledTick<MockTarget> tick2(mc::BlockPos(0, 0, 0), &target, 100, TickPriority::Normal, 2);
 
     EXPECT_TRUE(tick1 < tick2);
     EXPECT_FALSE(tick2 < tick1);
@@ -95,10 +96,10 @@ TEST(ScheduledTickTest, EqualityBasedOnPositionAndTarget) {
     MockTarget target1(1);
     MockTarget target2(2);
 
-    ScheduledTick<MockTarget> tick1(TickPos(0, 0, 0), &target1, 10, TickPriority::Normal, 1);
-    ScheduledTick<MockTarget> tick2(TickPos(0, 0, 0), &target1, 20, TickPriority::High, 2);  // Same pos and target
-    ScheduledTick<MockTarget> tick3(TickPos(1, 0, 0), &target1, 10, TickPriority::Normal, 3);  // Different pos
-    ScheduledTick<MockTarget> tick4(TickPos(0, 0, 0), &target2, 10, TickPriority::Normal, 4);  // Different target
+    ScheduledTick<MockTarget> tick1(mc::BlockPos(0, 0, 0), &target1, 10, TickPriority::Normal, 1);
+    ScheduledTick<MockTarget> tick2(mc::BlockPos(0, 0, 0), &target1, 20, TickPriority::High, 2);  // Same pos and target
+    ScheduledTick<MockTarget> tick3(mc::BlockPos(1, 0, 0), &target1, 10, TickPriority::Normal, 3);  // Different pos
+    ScheduledTick<MockTarget> tick4(mc::BlockPos(0, 0, 0), &target2, 10, TickPriority::Normal, 4);  // Different target
 
     EXPECT_TRUE(tick1 == tick2);  // Same position and target
     EXPECT_FALSE(tick1 == tick3);  // Different position
@@ -108,8 +109,8 @@ TEST(ScheduledTickTest, EqualityBasedOnPositionAndTarget) {
 TEST(ScheduledTickTest, HashCodeConsistency) {
     MockTarget target(1);
 
-    ScheduledTick<MockTarget> tick1(TickPos(0, 0, 0), &target, 10, TickPriority::Normal, 1);
-    ScheduledTick<MockTarget> tick2(TickPos(0, 0, 0), &target, 20, TickPriority::High, 2);
+    ScheduledTick<MockTarget> tick1(mc::BlockPos(0, 0, 0), &target, 10, TickPriority::Normal, 1);
+    ScheduledTick<MockTarget> tick2(mc::BlockPos(0, 0, 0), &target, 20, TickPriority::High, 2);
 
     // Same position and target should have same hash
     EXPECT_EQ(tick1.hashCode(), tick2.hashCode());
@@ -123,7 +124,7 @@ TEST(EmptyTickListTest, AllOperationsReturnFalse) {
     EmptyTickList<MockTarget>& tickList = EmptyTickList<MockTarget>::get();
 
     MockTarget target(1);
-    TickPos pos(0, 0, 0);
+    mc::BlockPos pos(0, 0, 0);
 
     EXPECT_FALSE(tickList.isTickScheduled(pos, target));
     EXPECT_FALSE(tickList.isTickPending(pos, target));
@@ -134,7 +135,7 @@ TEST(EmptyTickListTest, ScheduleDoesNothing) {
     EmptyTickList<MockTarget>& tickList = EmptyTickList<MockTarget>::get();
 
     MockTarget target(1);
-    TickPos pos(0, 0, 0);
+    mc::BlockPos pos(0, 0, 0);
 
     // Should not throw or do anything
     tickList.scheduleTick(pos, target, 10);
@@ -164,43 +165,4 @@ TEST(ServerTickListTest, Construction) {
 
     // This test would require mocking ServerWorld, which is complex
     // For full integration tests, see the integration test suite
-}
-
-// ============================================================================
-// TickPos Tests
-// ============================================================================
-
-TEST(TickPosTest, Construction) {
-    TickPos pos(10, 20, 30);
-
-    EXPECT_EQ(pos.x, 10);
-    EXPECT_EQ(pos.y, 20);
-    EXPECT_EQ(pos.z, 30);
-}
-
-TEST(TickPosTest, DefaultConstruction) {
-    TickPos pos;
-
-    EXPECT_EQ(pos.x, 0);
-    EXPECT_EQ(pos.y, 0);
-    EXPECT_EQ(pos.z, 0);
-}
-
-TEST(TickPosTest, Equality) {
-    TickPos pos1(10, 20, 30);
-    TickPos pos2(10, 20, 30);
-    TickPos pos3(10, 20, 31);
-
-    EXPECT_TRUE(pos1 == pos2);
-    EXPECT_FALSE(pos1 == pos3);
-    EXPECT_TRUE(pos1 != pos3);
-}
-
-TEST(TickPosTest, HashCode) {
-    TickPos pos1(10, 20, 30);
-    TickPos pos2(10, 20, 30);
-    TickPos pos3(10, 20, 31);
-
-    EXPECT_EQ(pos1.hashCode(), pos2.hashCode());
-    // Different positions might have different hashes (not guaranteed, but likely)
 }

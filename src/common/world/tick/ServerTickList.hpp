@@ -13,7 +13,6 @@
 namespace mc {
 
 // 前向声明
-class BlockPos;
 class ChunkPos;
 
 namespace server {
@@ -45,7 +44,7 @@ namespace world::tick {
  *     [](Block& b) { return b.isAir(); },  // 过滤空气方块
  *     [](Block& b) { return b.blockLocation(); },  // 序列化
  *     [](const ResourceLocation& id) { return Block::getBlock(id); },  // 反序列化
- *     [](ServerWorld& w, const TickPos& pos, Block& b) { b.tick(w, pos); }  // tick回调
+ *     [](ServerWorld& w, const BlockPos& pos, Block& b) { b.tick(w, pos); }  // tick回调
  * );
  *
  * // 调度一个tick
@@ -63,7 +62,7 @@ public:
     /**
      * @brief Tick执行回调类型
      */
-    using TickCallback = std::function<void(server::ServerWorld&, const TickPos&, T&)>;
+    using TickCallback = std::function<void(server::ServerWorld&, const BlockPos&, T&)>;
 
     /**
      * @brief 过滤器类型，返回true表示忽略该目标
@@ -97,11 +96,11 @@ public:
 
     // ========== ITickList接口实现 ==========
 
-    [[nodiscard]] bool isTickScheduled(const TickPos& pos, T& target) const override;
-    [[nodiscard]] bool isTickPending(const TickPos& pos, T& target) const override;
-    void scheduleTick(const TickPos& pos, T& target, i32 delay,
+    [[nodiscard]] bool isTickScheduled(const BlockPos& pos, T& target) const override;
+    [[nodiscard]] bool isTickPending(const BlockPos& pos, T& target) const override;
+    void scheduleTick(const BlockPos& pos, T& target, i32 delay,
                       TickPriority priority) override;
-    bool cancelTick(const TickPos& pos, T& target) override;
+    bool cancelTick(const BlockPos& pos, T& target) override;
     [[nodiscard]] size_t pendingCount() const override;
 
     // ========== 核心方法 ==========
@@ -176,7 +175,7 @@ private:
     /**
      * @brief 检查位置是否可tick（区块已加载）
      */
-    [[nodiscard]] bool canTick(const TickPos& pos) const;
+    [[nodiscard]] bool canTick(const BlockPos& pos) const;
 
     /**
      * @brief 生成新的tick条目ID
@@ -221,13 +220,13 @@ ServerTickList<T>::ServerTickList(server::ServerWorld& world,
 }
 
 template<typename T>
-bool ServerTickList<T>::isTickScheduled(const TickPos& pos, T& target) const {
+bool ServerTickList<T>::isTickScheduled(const BlockPos& pos, T& target) const {
     ScheduledTick<T> key(pos, &target, 0, TickPriority::Normal, 0);
     return m_pendingTicksSet.find(key) != m_pendingTicksSet.end();
 }
 
 template<typename T>
-bool ServerTickList<T>::isTickPending(const TickPos& pos, T& target) const {
+bool ServerTickList<T>::isTickPending(const BlockPos& pos, T& target) const {
     // 检查当前tick待处理队列
     std::queue<ScheduledTick<T>> tempQueue = m_ticksThisTick;
     while (!tempQueue.empty()) {
@@ -241,7 +240,7 @@ bool ServerTickList<T>::isTickPending(const TickPos& pos, T& target) const {
 }
 
 template<typename T>
-void ServerTickList<T>::scheduleTick(const TickPos& pos, T& target, i32 delay,
+void ServerTickList<T>::scheduleTick(const BlockPos& pos, T& target, i32 delay,
                                       TickPriority priority) {
     // 检查过滤器
     if (m_filter && m_filter(target)) {
@@ -268,7 +267,7 @@ void ServerTickList<T>::scheduleTick(const TickPos& pos, T& target, i32 delay,
 }
 
 template<typename T>
-bool ServerTickList<T>::cancelTick(const TickPos& pos, T& target) {
+bool ServerTickList<T>::cancelTick(const BlockPos& pos, T& target) {
     ScheduledTick<T> key(pos, &target, 0, TickPriority::Normal, 0);
 
     auto it = m_pendingTicksSet.find(key);
@@ -403,9 +402,9 @@ void ServerTickList<T>::copyTicks(i32 minX, i32 minY, i32 minZ,
 
     // 添加偏移后重新调度
     for (const auto& tick : ticksToCopy) {
-        TickPos newPos(tick.position.x + offsetX,
-                       tick.position.y + offsetY,
-                       tick.position.z + offsetZ);
+        BlockPos newPos(tick.position.x + offsetX,
+                        tick.position.y + offsetY,
+                        tick.position.z + offsetZ);
         ScheduledTick<T> newTick(newPos, tick.target, tick.scheduledTick,
                                   tick.priority, nextTickEntryId());
         addEntry(newTick);
@@ -419,7 +418,7 @@ void ServerTickList<T>::addEntry(const ScheduledTick<T>& entry) {
 }
 
 template<typename T>
-bool ServerTickList<T>::canTick(const TickPos& pos) const {
+bool ServerTickList<T>::canTick(const BlockPos& pos) const {
     // 检查区块是否加载
     // 这里需要调用ServerWorld的方法
     // 暂时返回true，实际实现需要访问world.hasChunk()

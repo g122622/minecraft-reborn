@@ -35,19 +35,19 @@ public:
         return instance;
     }
 
-    [[nodiscard]] bool isTickScheduled(const TickPos& pos, T& target) const override {
+    [[nodiscard]] bool isTickScheduled(const BlockPos& pos, T& target) const override {
         return false;
     }
 
-    [[nodiscard]] bool isTickPending(const TickPos& pos, T& target) const override {
+    [[nodiscard]] bool isTickPending(const BlockPos& pos, T& target) const override {
         return false;
     }
 
-    void scheduleTick(const TickPos& pos, T& target, i32 delay) override {
+    void scheduleTick(const BlockPos& pos, T& target, i32 delay) override {
         // 空操作
     }
 
-    void scheduleTick(const TickPos& pos, T& target, i32 delay,
+    void scheduleTick(const BlockPos& pos, T& target, i32 delay,
                       TickPriority priority) override {
         // 空操作
     }
