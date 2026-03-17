@@ -20,23 +20,13 @@ layout(location = 1) in float fragBrightness;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    vec2 texSize = vec2(textureSize(cloudTexture, 0));
-    vec2 wrappedUv = fract(fragTexCoord);
-    vec2 texelUv = (floor(wrappedUv * texSize) + 0.5) / texSize;
+    // 几何阶段已基于云掩码生成，此处不再按纹理 alpha 打孔，避免棋盘格碎块感。
+    // 保留少量天空色调影响，但整体更接近 MC 洁白云。
+    vec3 whitenedCloudColor = mix(vec3(1.0), ubo.cloudColor.rgb, 0.22);
+    vec3 color = whitenedCloudColor * fragBrightness;
 
-    // 使用中心点采样，避免线性插值导致的边缘发黑与拖影
-    vec4 texColor = texture(cloudTexture, texelUv);
-
-    // 使用硬阈值，复刻 MC 云块边界
-    if (texColor.a < 0.5) {
-        discard;
-    }
-
-    // MC 风格：使用统一云色 + 面向亮度，不使用纹理 RGB 参与着色
-    vec3 color = ubo.cloudColor.rgb * fragBrightness;
-
-    // MC 云整体透明度
-    float alpha = 0.8 * ubo.cloudColor.a;
+    // 提升不透明度，贴近原版观感。
+    float alpha = 0.95 * ubo.cloudColor.a;
 
     outColor = vec4(color, alpha);
 }

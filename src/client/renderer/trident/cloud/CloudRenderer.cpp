@@ -34,7 +34,7 @@ constexpr f32 CLOUD_THICKNESS = 4.0f;
 constexpr f32 CLOUD_ALPHA = 0.8f;
 
 // 云掩码阈值（与 MC 硬边效果一致，避免半透明糊边）
-constexpr u8 CLOUD_MASK_ALPHA_THRESHOLD = 128;
+constexpr u8 CLOUD_MASK_ALPHA_THRESHOLD = 8;
 
 // 云顶偏移量（避免 z-fighting）
 constexpr f32 CLOUD_TOP_OFFSET = 0.0009765625f; // 约 1/1024
@@ -781,6 +781,38 @@ void CloudRenderer::buildCloudMaskFromTexture(const std::vector<u8>& textureData
                 (alpha >= CLOUD_MASK_ALPHA_THRESHOLD) ? 1u : 0u;
         }
     }
+
+    // 对云掩码执行一次轻量“闭运算”：填补孤立小孔，降低棋盘格/碎块观感。
+    std::vector<u8> smoothedMask = m_cloudMask;
+    for (u32 y = 0; y < height; ++y) {
+        for (u32 x = 0; x < width; ++x) {
+            const size_t idx = static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x);
+            if (m_cloudMask[idx] != 0) {
+                continue;
+            }
+
+            u32 neighborOpaqueCount = 0;
+            for (i32 dz = -1; dz <= 1; ++dz) {
+                for (i32 dx = -1; dx <= 1; ++dx) {
+                    if (dx == 0 && dz == 0) {
+                        continue;
+                    }
+
+                    const i32 nx = positiveModulo(static_cast<i32>(x) + dx, static_cast<i32>(width));
+                    const i32 ny = positiveModulo(static_cast<i32>(y) + dz, static_cast<i32>(height));
+                    const size_t nidx = static_cast<size_t>(ny) * static_cast<size_t>(width) + static_cast<size_t>(nx);
+                    if (m_cloudMask[nidx] != 0) {
+                        ++neighborOpaqueCount;
+                    }
+                }
+            }
+
+            if (neighborOpaqueCount >= 5) {
+                smoothedMask[idx] = 1;
+            }
+        }
+    }
+    m_cloudMask.swap(smoothedMask);
 }
 
 bool CloudRenderer::isCloudCellOpaque(i32 gridX, i32 gridZ) const {
