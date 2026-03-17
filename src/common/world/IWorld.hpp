@@ -225,6 +225,61 @@ public:
      */
     [[nodiscard]] virtual i32 difficulty() const = 0;
 
+    // ========== 天气 ==========
+
+    /**
+     * @brief 是否正在降雨（强度检查）
+     *
+     * 使用强度阈值判断，rainStrength > 0.2 返回 true
+     *
+     * @return 是否正在下雨
+     */
+    [[nodiscard]] virtual bool isRaining() const { return false; }
+
+    /**
+     * @brief 是否正在雷暴（强度检查）
+     *
+     * 使用强度阈值判断，thunderStrength > 0.9 返回 true
+     *
+     * @return 是否正在雷暴
+     */
+    [[nodiscard]] virtual bool isThundering() const { return false; }
+
+    /**
+     * @brief 获取降雨强度
+     *
+     * @param partialTick 部分 tick (0.0 - 1.0)，用于插值
+     * @return 降雨强度 (0.0 - 1.0)
+     */
+    [[nodiscard]] virtual f32 rainStrength(f32 partialTick = 0.0f) const {
+        (void)partialTick;
+        return 0.0f;
+    }
+
+    /**
+     * @brief 获取雷暴强度
+     *
+     * @param partialTick 部分 tick (0.0 - 1.0)，用于插值
+     * @return 雷暴强度 (0.0 - 1.0)
+     */
+    [[nodiscard]] virtual f32 thunderStrength(f32 partialTick = 0.0f) const {
+        (void)partialTick;
+        return 0.0f;
+    }
+
+    /**
+     * @brief 判断指定位置是否可以降雨
+     *
+     * 需要满足：可以看到天空 + 生物群系允许降水
+     *
+     * @param pos 方块位置
+     * @return 是否可以降雨
+     */
+    [[nodiscard]] virtual bool canRainAt(const BlockPos& pos) const {
+        (void)pos;
+        return false;
+    }
+
     // ========== Tick调度 ==========
 
     /**

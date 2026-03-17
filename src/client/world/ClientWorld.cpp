@@ -632,4 +632,24 @@ void ClientWorld::processMeshBuildResults(u32 maxPerFrame) {
     );
 }
 
+// ============================================================================
+// 天气同步
+// ============================================================================
+
+void ClientWorld::onRainStrengthChange(f32 strength) {
+    m_weather.setRainStrength(strength);
+}
+
+void ClientWorld::onThunderStrengthChange(f32 strength) {
+    m_weather.setThunderStrength(strength);
+}
+
+void ClientWorld::onBeginRaining() {
+    m_weather.beginRain();
+}
+
+void ClientWorld::onEndRaining() {
+    m_weather.endRain();
+}
+
 } // namespace mc::client

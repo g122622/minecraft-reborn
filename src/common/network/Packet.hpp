@@ -36,6 +36,7 @@ enum class PacketType : u16 {
     Teleport = 206,
     ChatBroadcast = 207,
     TimeUpdate = 208,   // 时间同步
+    GameStateChange = 209, // 游戏状态变化（天气等）
 
     // 实体同步包 (S->C)
     SpawnEntity = 210,          // 实体生成（物品、经验球等）

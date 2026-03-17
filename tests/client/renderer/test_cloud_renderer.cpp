@@ -109,13 +109,16 @@ TEST(CloudModeTest, EnumValues) {
  */
 TEST(CloudUBOTest, StructureSize) {
     // CloudUBO 需与 cloud.vert/cloud.frag 中的 std140 布局保持一致：
-    // vec4 + 4 * float = 32 字节
-    EXPECT_EQ(sizeof(CloudUBO), 32);
+    // vec4 (16) + 6 * float (24) + padding (8) = 48 字节
+    // 由于 alignas(16) 在 cloudColor 上，结构体大小会按 16 字节对齐
+    EXPECT_EQ(sizeof(CloudUBO), 48);
     EXPECT_EQ(offsetof(CloudUBO, cloudColor), 0);
     EXPECT_EQ(offsetof(CloudUBO, cloudHeight), 16);
     EXPECT_EQ(offsetof(CloudUBO, time), 20);
     EXPECT_EQ(offsetof(CloudUBO, textureScale), 24);
     EXPECT_EQ(offsetof(CloudUBO, cameraY), 28);
+    EXPECT_EQ(offsetof(CloudUBO, textureOffsetX), 32);
+    EXPECT_EQ(offsetof(CloudUBO, textureOffsetZ), 36);
 
     // 测试默认值
     CloudUBO ubo{};
@@ -127,6 +130,8 @@ TEST(CloudUBOTest, StructureSize) {
     EXPECT_FLOAT_EQ(ubo.time, 0.0f);
     EXPECT_FLOAT_EQ(ubo.textureScale, 0.0f);
     EXPECT_FLOAT_EQ(ubo.cameraY, 0.0f);
+    EXPECT_FLOAT_EQ(ubo.textureOffsetX, 0.0f);
+    EXPECT_FLOAT_EQ(ubo.textureOffsetZ, 0.0f);
 }
 
 /**
@@ -139,6 +144,8 @@ TEST(CloudUBOTest, FieldAssignment) {
     ubo.time = 1000.0f;
     ubo.textureScale = 0.00390625f;
     ubo.cameraY = 64.0f;
+    ubo.textureOffsetX = 100.0f;
+    ubo.textureOffsetZ = -50.0f;
 
     EXPECT_FLOAT_EQ(ubo.cloudColor.x, 1.0f);
     EXPECT_FLOAT_EQ(ubo.cloudColor.y, 0.9f);
@@ -148,6 +155,8 @@ TEST(CloudUBOTest, FieldAssignment) {
     EXPECT_FLOAT_EQ(ubo.time, 1000.0f);
     EXPECT_FLOAT_EQ(ubo.textureScale, 0.00390625f);
     EXPECT_FLOAT_EQ(ubo.cameraY, 64.0f);
+    EXPECT_FLOAT_EQ(ubo.textureOffsetX, 100.0f);
+    EXPECT_FLOAT_EQ(ubo.textureOffsetZ, -50.0f);
 }
 
 } // namespace test

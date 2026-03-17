@@ -52,6 +52,10 @@ set(SHADER_SOURCES
     star.frag
     cloud.vert
     cloud.frag
+    weather.vert
+    weather.frag
+    particle.vert
+    particle.frag
 )
 
 # 输出目录

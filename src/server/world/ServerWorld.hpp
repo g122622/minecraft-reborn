@@ -15,6 +15,7 @@
 #include "common/physics/CollisionCache.hpp"
 #include "server/core/ServerPlayerData.hpp"
 #include "server/world/entity/EntityTracker.hpp"
+#include "server/world/weather/WeatherManager.hpp"
 #include <unordered_map>
 #include <memory>
 #include <functional>
@@ -149,6 +150,14 @@ public:
      */
     void setDaylightCycleEnabled(bool enabled);
 
+    // ========== 天气管理 ==========
+
+    /**
+     * @brief 获取天气管理器
+     */
+    [[nodiscard]] WeatherManager& weatherManager() { return *m_weatherManager; }
+    [[nodiscard]] const WeatherManager& weatherManager() const { return *m_weatherManager; }
+
     // ========== 其他 IWorld 接口 ==========
 
     [[nodiscard]] const fluid::FluidState* getFluidState(i32 x, i32 y, i32 z) const override;
@@ -171,6 +180,14 @@ public:
     [[nodiscard]] i64 dayTime() const override { return m_gameTime.dayTime(); }
     [[nodiscard]] bool isHardcore() const override { return false; }
     [[nodiscard]] i32 difficulty() const override { return 1; } // Normal
+
+    // ========== 天气接口 (IWorld) ==========
+
+    [[nodiscard]] bool isRaining() const override;
+    [[nodiscard]] bool isThundering() const override;
+    [[nodiscard]] f32 rainStrength(f32 partialTick = 0.0f) const override;
+    [[nodiscard]] f32 thunderStrength(f32 partialTick = 0.0f) const override;
+    [[nodiscard]] bool canRainAt(const BlockPos& pos) const override;
 
     // ========== 物理引擎 ==========
 
@@ -310,6 +327,7 @@ private:
     std::unique_ptr<PhysicsEngine> m_physicsEngine;  // 物理引擎
     std::unique_ptr<physics::CollisionCache> m_collisionCache;  // 碰撞缓存
     std::unique_ptr<world::tick::TickManager> m_tickManager;  // Tick管理器
+    std::unique_ptr<WeatherManager> m_weatherManager;  // 天气管理器
     bool m_initialized = false;
 
     // 玩家存储

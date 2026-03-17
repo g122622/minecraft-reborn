@@ -84,6 +84,12 @@ struct NetworkClientCallbacks {
     std::function<void(u32 entityId, u8 animation)> onEntityAnimation;
     std::function<void(u32 entityId, f32 headYaw)> onEntityHeadLook;
     std::function<void(u32 entityId, u8 status)> onEntityStatus;
+
+    // 天气事件
+    std::function<void(f32 rainStrength)> onRainStrengthChange;
+    std::function<void(f32 thunderStrength)> onThunderStrengthChange;
+    std::function<void()> onBeginRaining;
+    std::function<void()> onEndRaining;
 };
 
 // ============================================================================
@@ -180,6 +186,9 @@ private:
     void handleEntityAnimation(network::PacketDeserializer& deser);
     void handleEntityHeadLook(network::PacketDeserializer& deser);
     void handleEntityStatus(network::PacketDeserializer& deser);
+
+    // 天气包处理
+    void handleGameStateChange(network::PacketDeserializer& deser);
 
     // ASIO 网络
     asio::io_context m_ioContext;

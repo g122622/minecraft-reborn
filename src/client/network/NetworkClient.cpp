@@ -1,6 +1,7 @@
 #include "NetworkClient.hpp"
 #include "common/network/Packet.hpp"
 #include "common/network/EntityPackets.hpp"
+#include "common/network/GameStateChangePacket.hpp"
 #include <chrono>
 #include <spdlog/spdlog.h>
 
@@ -594,6 +595,11 @@ void NetworkClient::processPacket(const u8* data, size_t size) {
             break;
         }
 
+        case network::PacketType::GameStateChange: {
+            handleGameStateChange(bodyDeser);
+            break;
+        }
+
         default:
             spdlog::debug("Unhandled packet type: {}", static_cast<int>(packetType));
             break;
@@ -1071,6 +1077,57 @@ void NetworkClient::handleEntityStatus(network::PacketDeserializer& deser) {
             packet.entityId(),
             static_cast<u8>(packet.status())
         );
+    }
+}
+
+void NetworkClient::handleGameStateChange(network::PacketDeserializer& deser) {
+    // GameStateChangePacket 使用原始数据 deserialize，需要获取底层数据
+    const u8* data = deser.data();
+    size_t size = deser.size();
+
+    network::GameStateChangePacket packet;
+    auto result = packet.deserialize(data, size);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize GameStateChange packet: {}", result.error().message());
+        return;
+    }
+
+    const auto reason = packet.reason();
+    const f32 value = packet.value();
+
+    switch (reason) {
+        case network::GameStateChangeReason::EndRaining:
+            spdlog::debug("Weather: EndRaining received");
+            if (m_callbacks.onEndRaining) {
+                m_callbacks.onEndRaining();
+            }
+            break;
+
+        case network::GameStateChangeReason::BeginRaining:
+            spdlog::debug("Weather: BeginRaining received");
+            if (m_callbacks.onBeginRaining) {
+                m_callbacks.onBeginRaining();
+            }
+            break;
+
+        case network::GameStateChangeReason::RainStrengthChange:
+            spdlog::debug("Weather: RainStrengthChange received, value={}", value);
+            if (m_callbacks.onRainStrengthChange) {
+                m_callbacks.onRainStrengthChange(value);
+            }
+            break;
+
+        case network::GameStateChangeReason::ThunderStrengthChange:
+            spdlog::debug("Weather: ThunderStrengthChange received, value={}", value);
+            if (m_callbacks.onThunderStrengthChange) {
+                m_callbacks.onThunderStrengthChange(value);
+            }
+            break;
+
+        default:
+            spdlog::debug("GameStateChange: unhandled reason={}, value={}",
+                          static_cast<u8>(reason), value);
+            break;
     }
 }
 

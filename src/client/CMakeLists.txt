@@ -27,6 +27,13 @@ add_executable(minecraft-client
     renderer/trident/fog/FogManager.cpp
     # 云渲染模块
     renderer/trident/cloud/CloudRenderer.cpp
+    # 天气渲染模块
+    renderer/trident/weather/WeatherRenderer.cpp
+    # 粒子系统
+    renderer/trident/particle/Particle.cpp
+    renderer/trident/particle/ParticleManager.cpp
+    renderer/trident/particle/particles/RainParticle.cpp
+    renderer/trident/particle/particles/SnowParticle.cpp
     # 子渲染器
     renderer/trident/chunk/ChunkRenderer.cpp
     renderer/trident/chunk/ChunkMesher.cpp
@@ -90,6 +97,7 @@ add_executable(minecraft-client
     ${CMAKE_SOURCE_DIR}/src/server/world/spawn/SpawnConditions.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/spawn/NaturalSpawner.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/entity/EntityTracker.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/world/weather/WeatherManager.cpp
     ${CMAKE_SOURCE_DIR}/src/server/player/ServerPlayer.cpp
     ${CMAKE_SOURCE_DIR}/src/server/menu/CraftingMenu.cpp
     ${CMAKE_SOURCE_DIR}/src/server/command/ServerCommandSource.cpp
@@ -103,6 +111,7 @@ add_executable(minecraft-client
     ${CMAKE_SOURCE_DIR}/src/server/command/commands/TeleportCommand.cpp
     ${CMAKE_SOURCE_DIR}/src/server/command/commands/GiveCommand.cpp
     ${CMAKE_SOURCE_DIR}/src/server/command/commands/ClearCommand.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/command/commands/WeatherCommand.cpp
 )
 
 target_link_libraries(minecraft-client

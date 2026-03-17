@@ -402,6 +402,18 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         if (cloudInitResult.failed()) {
             spdlog::warn("Failed to initialize cloud renderer: {}", cloudInitResult.error().toString());
         }
+
+        // 初始化粒子管理器
+        auto particleInitResult = m_renderer->initializeParticleManager();
+        if (particleInitResult.failed()) {
+            spdlog::warn("Failed to initialize particle manager: {}", particleInitResult.error().toString());
+        }
+
+        // 初始化天气渲染器
+        auto weatherInitResult = m_renderer->initializeWeatherRenderer();
+        if (weatherInitResult.failed()) {
+            spdlog::warn("Failed to initialize weather renderer: {}", weatherInitResult.error().toString());
+        }
     }
 
     // 启动内置服务端
@@ -966,6 +978,12 @@ void ClientApplication::update(f32 deltaTime)
         }
 
         m_renderer->updateTime(m_renderDayTime, m_renderGameTime, m_renderTickAccumulator);
+
+        // 更新天气状态到渲染器
+        m_renderer->updateWeather(
+            m_world.weather().rainStrength(m_renderTickAccumulator),
+            m_world.weather().thunderStrength(m_renderTickAccumulator)
+        );
     }
 
     // 上传网格到 GPU（只处理已完成异步构建的网格）
@@ -1363,6 +1381,23 @@ void ClientApplication::setupNetworkCallbacks()
     callbacks.onEntityStatus = [this](u32 entityId, u8 /*status*/) {
         // TODO: 处理实体状态（受伤、死亡等）
         (void)entityId;
+    };
+
+    // ========== 天气回调 ==========
+    callbacks.onRainStrengthChange = [this](f32 strength) {
+        m_world.onRainStrengthChange(strength);
+    };
+
+    callbacks.onThunderStrengthChange = [this](f32 strength) {
+        m_world.onThunderStrengthChange(strength);
+    };
+
+    callbacks.onBeginRaining = [this]() {
+        m_world.onBeginRaining();
+    };
+
+    callbacks.onEndRaining = [this]() {
+        m_world.onEndRaining();
     };
 
     m_networkClient->setCallbacks(callbacks);

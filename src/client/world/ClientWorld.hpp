@@ -11,6 +11,7 @@
 #include "../renderer/Camera.hpp"
 #include "../renderer/mesh/MeshWorkerPool.hpp"
 #include "entity/ClientEntityManager.hpp"
+#include "ClientWeather.hpp"
 #include <unordered_map>
 #include <unordered_set>
 #include <memory>
@@ -285,6 +286,34 @@ public:
     [[nodiscard]] ClientEntityManager& entityManager() { return m_entityManager; }
     [[nodiscard]] const ClientEntityManager& entityManager() const { return m_entityManager; }
 
+    // ========== 天气管理 ==========
+
+    /**
+     * @brief 获取客户端天气状态
+     */
+    [[nodiscard]] ClientWeather& weather() { return m_weather; }
+    [[nodiscard]] const ClientWeather& weather() const { return m_weather; }
+
+    /**
+     * @brief 处理服务端天气同步 - 降雨强度变化
+     */
+    void onRainStrengthChange(f32 strength);
+
+    /**
+     * @brief 处理服务端天气同步 - 雷暴强度变化
+     */
+    void onThunderStrengthChange(f32 strength);
+
+    /**
+     * @brief 处理服务端天气同步 - 开始下雨
+     */
+    void onBeginRaining();
+
+    /**
+     * @brief 处理服务端天气同步 - 雨停
+     */
+    void onEndRaining();
+
 private:
     // 区块卸载回调
     std::function<void(const ChunkId&)> m_chunkUnloadCallback;
@@ -343,6 +372,9 @@ private:
 
     // 实体管理器
     ClientEntityManager m_entityManager;
+
+    // 客户端天气状态
+    ClientWeather m_weather;
 };
 
 } // namespace mc::client

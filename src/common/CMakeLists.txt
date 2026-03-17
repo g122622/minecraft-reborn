@@ -37,6 +37,7 @@ add_library(mc_common STATIC
     network/ContainerPacketHandler.cpp
     network/EntityPackets.cpp
     network/EntityMetadataSerializer.cpp
+    network/GameStateChangePacket.cpp
 
     # Entity
     entity/Entity.cpp
@@ -194,6 +195,9 @@ add_library(mc_common STATIC
 
     # World - Time
     world/time/GameTime.cpp
+
+    # World - Weather
+    world/weather/WeatherUtils.cpp
 
     # World - Tick System
     world/tick/manager/TickManager.cpp

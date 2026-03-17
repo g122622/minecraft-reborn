@@ -59,6 +59,7 @@ add_executable(mc_tests
     server/core/KeepAliveManagerTest.cpp
     server/core/PositionTrackerTest.cpp
     server/core/ServerCoreTest.cpp
+    server/weather/WeatherManagerTest.cpp
     client/test_mesh_worker_pool.cpp
     client/renderer/test_renderer.cpp
     client/renderer/test_trident_api.cpp
@@ -116,6 +117,7 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/server/world/entity/EntityTracker.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/spawn/NaturalSpawner.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/spawn/SpawnConditions.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/world/weather/WeatherManager.cpp
         ${CMAKE_SOURCE_DIR}/src/server/player/ServerPlayer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpServer.cpp
         ${CMAKE_SOURCE_DIR}/src/server/network/TcpSession.cpp
@@ -134,6 +136,7 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/server/command/commands/TeleportCommand.cpp
         ${CMAKE_SOURCE_DIR}/src/server/command/commands/GiveCommand.cpp
         ${CMAKE_SOURCE_DIR}/src/server/command/commands/ClearCommand.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/command/commands/WeatherCommand.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/LocalConnection.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/LocalServerConnection.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/ChunkSync.cpp

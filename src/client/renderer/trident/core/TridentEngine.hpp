@@ -56,6 +56,14 @@ namespace cloud {
 class CloudRenderer;
 }
 
+namespace particle {
+class ParticleManager;
+}
+
+namespace weather {
+class WeatherRenderer;
+}
+
 namespace item {
 class ItemRenderer;
 }
@@ -220,6 +228,14 @@ public:
      * @brief 更新时间状态
      */
     void updateTime(i64 dayTime, i64 gameTime, f32 partialTick = 0.0f);
+
+    /**
+     * @brief 更新天气状态
+     *
+     * @param rainStrength 降雨强度 (0.0 - 1.0)
+     * @param thunderStrength 雷暴强度 (0.0 - 1.0)
+     */
+    void updateWeather(f32 rainStrength, f32 thunderStrength);
 
     /**
      * @brief 执行一帧渲染
@@ -388,6 +404,20 @@ public:
     [[nodiscard]] const cloud::CloudRenderer& cloudRenderer() const;
     [[nodiscard]] bool isCloudRendererInitialized() const { return m_cloudRendererInitialized; }
 
+    /**
+     * @brief 获取粒子管理器
+     */
+    [[nodiscard]] particle::ParticleManager& particleManager();
+    [[nodiscard]] const particle::ParticleManager& particleManager() const;
+    [[nodiscard]] bool isParticleManagerInitialized() const { return m_particleManagerInitialized; }
+
+    /**
+     * @brief 获取天气渲染器
+     */
+    [[nodiscard]] weather::WeatherRenderer& weatherRenderer();
+    [[nodiscard]] const weather::WeatherRenderer& weatherRenderer() const;
+    [[nodiscard]] bool isWeatherRendererInitialized() const { return m_weatherRendererInitialized; }
+
     // ========================================================================
     // 子渲染器初始化
     // ========================================================================
@@ -431,6 +461,16 @@ public:
      * @brief 初始化云渲染器
      */
     [[nodiscard]] Result<void> initializeCloudRenderer(ResourceManager* resourceManager = nullptr);
+
+    /**
+     * @brief 初始化粒子管理器
+     */
+    [[nodiscard]] Result<void> initializeParticleManager();
+
+    /**
+     * @brief 初始化天气渲染器
+     */
+    [[nodiscard]] Result<void> initializeWeatherRenderer();
 
     /**
      * @brief 重新加载云纹理
@@ -478,6 +518,10 @@ private:
     i64 m_gameTime = 0;
     f32 m_partialTick = 0.0f;
 
+    // 天气状态
+    f32 m_rainStrength = 0.0f;
+    f32 m_thunderStrength = 0.0f;
+
     // 窗口尺寸
     u32 m_windowWidth = 0;
     u32 m_windowHeight = 0;
@@ -499,6 +543,8 @@ private:
     std::unique_ptr<renderer::EntityRendererManager> m_entityRendererManager;
     std::unique_ptr<fog::FogManager> m_fogManager;
     std::unique_ptr<cloud::CloudRenderer> m_cloudRenderer;
+    std::unique_ptr<particle::ParticleManager> m_particleManager;
+    std::unique_ptr<weather::WeatherRenderer> m_weatherRenderer;
 
     // 实体渲染管线（独立于区块管线）
     std::unique_ptr<EntityPipeline> m_entityPipeline;
@@ -521,6 +567,8 @@ private:
     bool m_entityTextureAtlasInitialized = false;
     bool m_fogManagerInitialized = false;
     bool m_cloudRendererInitialized = false;
+    bool m_particleManagerInitialized = false;
+    bool m_weatherRendererInitialized = false;
 
     // 内部方法
     [[nodiscard]] Result<void> recreateSwapchain();
