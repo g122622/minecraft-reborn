@@ -615,7 +615,7 @@ Result<void> CloudRenderer::createCloudVBO() {
 
         constexpr i32 GRID_SIZE = CLOUD_GRID_MAX - CLOUD_GRID_MIN;
         std::vector<u8> occupied(static_cast<size_t>(GRID_SIZE) * static_cast<size_t>(GRID_SIZE), 0);
-        const auto gridIndex = [](i32 gx, i32 gz) -> size_t {
+        const auto gridIndex = [GRID_SIZE](i32 gx, i32 gz) -> size_t {
             return static_cast<size_t>(gz) * static_cast<size_t>(GRID_SIZE) + static_cast<size_t>(gx);
         };
 
