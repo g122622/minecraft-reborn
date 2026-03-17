@@ -109,13 +109,16 @@ TEST(CloudModeTest, EnumValues) {
  */
 TEST(CloudUBOTest, StructureSize) {
     // CloudUBO 需与 cloud.vert/cloud.frag 中的 std140 布局保持一致：
-    // vec4 + 4 * float = 32 字节
-    EXPECT_EQ(sizeof(CloudUBO), 32);
+    // vec4 (16字节) + 6 * float (24字节) = 40 字节
+    // std140 布局要求结构体大小是 16 字节的倍数，所以实际为 48 字节
+    EXPECT_EQ(sizeof(CloudUBO), 48);
     EXPECT_EQ(offsetof(CloudUBO, cloudColor), 0);
     EXPECT_EQ(offsetof(CloudUBO, cloudHeight), 16);
     EXPECT_EQ(offsetof(CloudUBO, time), 20);
     EXPECT_EQ(offsetof(CloudUBO, textureScale), 24);
     EXPECT_EQ(offsetof(CloudUBO, cameraY), 28);
+    EXPECT_EQ(offsetof(CloudUBO, textureOffsetX), 32);
+    EXPECT_EQ(offsetof(CloudUBO, textureOffsetZ), 36);
 
     // 测试默认值
     CloudUBO ubo{};
@@ -127,6 +130,8 @@ TEST(CloudUBOTest, StructureSize) {
     EXPECT_FLOAT_EQ(ubo.time, 0.0f);
     EXPECT_FLOAT_EQ(ubo.textureScale, 0.0f);
     EXPECT_FLOAT_EQ(ubo.cameraY, 0.0f);
+    EXPECT_FLOAT_EQ(ubo.textureOffsetX, 0.0f);
+    EXPECT_FLOAT_EQ(ubo.textureOffsetZ, 0.0f);
 }
 
 /**
