@@ -3,6 +3,7 @@
 #include "../../core/Types.hpp"
 #include "../../core/Result.hpp"
 #include "../block/Block.hpp"
+#include "../../util/NibbleArray.hpp"
 #include "ChunkPos.hpp"
 #include "IChunk.hpp"
 #include "../WorldConstants.hpp"
@@ -66,6 +67,24 @@ public:
     [[nodiscard]] u8 getBlockLight(i32 x, i32 y, i32 z) const;
     void setBlockLight(i32 x, i32 y, i32 z, u8 light);
 
+    // 光照访问器
+    /**
+     * @brief 获取天空光照数组（只读）
+     */
+    [[nodiscard]] const NibbleArray& skyLightNibble() const { return m_skyLight; }
+    /**
+     * @brief 获取天空光照数组（可变）
+     */
+    [[nodiscard]] NibbleArray& skyLightNibble() { return m_skyLight; }
+    /**
+     * @brief 获取方块光照数组（只读）
+     */
+    [[nodiscard]] const NibbleArray& blockLightNibble() const { return m_blockLight; }
+    /**
+     * @brief 获取方块光照数组（可变）
+     */
+    [[nodiscard]] NibbleArray& blockLightNibble() { return m_blockLight; }
+
     // 序列化
     [[nodiscard]] std::vector<u8> serialize() const;
     [[nodiscard]] static Result<std::unique_ptr<ChunkSection>> deserialize(const u8* data, size_t size);
@@ -73,11 +92,24 @@ public:
     // 填充
     void fill(u32 stateId);
 
+    // 填充光照
+    /**
+     * @brief 填充天空光照
+     * @param light 光照值 (0-15)
+     */
+    void fillSkyLight(u8 light) { m_skyLight.fill(light); }
+
+    /**
+     * @brief 填充方块光照
+     * @param light 光照值 (0-15)
+     */
+    void fillBlockLight(u8 light) { m_blockLight.fill(light); }
+
 private:
     // 使用状态ID存储 (紧凑格式，后续可改为调色板)
     std::vector<u32> m_blockStates;  // BlockState::stateId()
-    std::vector<u8> m_skyLight;      // 天空光照 (4位/方块)
-    std::vector<u8> m_blockLight;    // 方块光照 (4位/方块)
+    NibbleArray m_skyLight;          // 天空光照 (4位/方块)
+    NibbleArray m_blockLight;        // 方块光照 (4位/方块)
     u16 m_blockCount = 0;            // 非空气方块数量
     bool m_needsRecalculate = false;
 };

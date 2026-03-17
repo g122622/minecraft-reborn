@@ -179,6 +179,7 @@ public:
     // ========================================================================
     static Block* SNOW;
     static Block* ICE;
+    static Block* GLASS;          // 玻璃（透明，不传播天空光）
     static Block* NETHERRACK;
     static Block* GLOWSTONE;
     static Block* END_STONE;

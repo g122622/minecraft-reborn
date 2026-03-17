@@ -133,6 +133,7 @@ Block* VanillaBlocks::DARK_OAK_SAPLING = nullptr;
 // 其他方块
 Block* VanillaBlocks::SNOW = nullptr;
 Block* VanillaBlocks::ICE = nullptr;
+Block* VanillaBlocks::GLASS = nullptr;
 Block* VanillaBlocks::NETHERRACK = nullptr;
 Block* VanillaBlocks::GLOWSTONE = nullptr;
 Block* VanillaBlocks::END_STONE = nullptr;
@@ -221,12 +222,14 @@ void VanillaBlocks::registerBaseBlocks() {
     );
 
     // 水 - ID 6
+    // 水：透明度2，传播天空光
     WATER = &registry.registerBlock<SimpleBlock>(
         ResourceLocation("minecraft:water"),
-        BlockProperties(Material::WATER).noCollision().notSolid()
+        BlockProperties(Material::WATER).noCollision().notSolid().opacity(2).propagatesSkylightDown()
     );
 
     // 岩浆 - ID 7
+    // 岩浆：发光15级，不透明
     LAVA = &registry.registerBlock<SimpleBlock>(
         ResourceLocation("minecraft:lava"),
         BlockProperties(Material::LAVA).noCollision().notSolid().lightLevel(15)
@@ -254,20 +257,27 @@ void VanillaBlocks::registerBaseBlocks() {
     );
 
     // 雪 - ID 18
-    // 参考: new SnowBlock(Properties.create(Material.SNOW).tickRandomly().hardnessAndResistance(0.1F))
+    // 雪：透明度1，不传播天空光（阻挡）
     SNOW = &registry.registerBlock<SimpleBlock>(
         ResourceLocation("minecraft:snow"),
-        BlockProperties(Material::SNOW).hardness(0.2f)
+        BlockProperties(Material::SNOW).hardness(0.2f).opacity(1)
     );
 
     // 冰 - ID 19
-    // 参考: new IceBlock(Properties.create(Material.ICE).slipperiness(0.98F).hardnessAndResistance(0.5F))
+    // 冰：透明度2，传播天空光
     ICE = &registry.registerBlock<SimpleBlock>(
         ResourceLocation("minecraft:ice"),
-        BlockProperties(Material::ICE).hardness(0.5f).notSolid()
+        BlockProperties(Material::ICE).hardness(0.5f).notSolid().opacity(2).propagatesSkylightDown()
     );
 
-    // 下界岩 - ID 20
+    // 玻璃 - ID 20 (调整后的ID)
+    // 玻璃：透明度0，不传播天空光（完全透明但阻挡天空光）
+    GLASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:glass"),
+        BlockProperties(Material::GLASS).hardness(0.3f).notSolid()
+    );
+
+    // 下界岩 - ID 21
     // 参考: new Block(Properties.create(Material.ROCK).hardnessAndResistance(0.4F))
     NETHERRACK = &registry.registerBlock<SimpleBlock>(
         ResourceLocation("minecraft:netherrack"),
@@ -697,10 +707,12 @@ void VanillaBlocks::registerNetherBlocks() {
 void VanillaBlocks::registerTreeVariants() {
     auto& registry = BlockRegistry::instance();
 
-    // 木头属性
+    // 木头属性：完全不透明
     BlockProperties logProps = BlockProperties(Material::WOOD).hardness(2.0f).resistance(2.0f).flammable();
-    // 树叶属性
-    BlockProperties leavesProps = BlockProperties(Material::LEAVES).hardness(0.2f).flammable().notSolid();
+
+    // 树叶属性：透明度2，传播天空光（光线穿过树叶衰减2级）
+    BlockProperties leavesProps = BlockProperties(Material::LEAVES)
+        .hardness(0.2f).flammable().notSolid().opacity(2).propagatesSkylightDown();
 
     // 云杉原木和树叶
     SPRUCE_LOG = &registry.registerBlock<RotatedPillarBlock>(

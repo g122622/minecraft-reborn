@@ -12,8 +12,8 @@ namespace mc {
 
 ChunkSection::ChunkSection()
     : m_blockStates(VOLUME, 0)  // 默认所有方块为空气 (stateId = 0)
-    , m_skyLight(VOLUME / 2, 0xFF)  // 默认全亮
-    , m_blockLight(VOLUME / 2, 0)    // 默认无光
+    , m_skyLight(NibbleArray::filled(15))  // 默认天空光照全亮
+    , m_blockLight()                          // 默认方块光照无光（空数组，返回0）
 {
 }
 
@@ -66,60 +66,35 @@ u8 ChunkSection::getSkyLight(i32 x, i32 y, i32 z) const {
     if (x < 0 || x >= SIZE || y < 0 || y >= SIZE || z < 0 || z >= SIZE) {
         return 15;
     }
-    i32 index = blockIndex(x, y, z);
-    i32 byteIndex = index / 2;
-    if (index % 2 == 0) {
-        return m_skyLight[byteIndex] & 0x0F;
-    } else {
-        return (m_skyLight[byteIndex] >> 4) & 0x0F;
-    }
+    return m_skyLight.get(x, y, z);
 }
 
 void ChunkSection::setSkyLight(i32 x, i32 y, i32 z, u8 light) {
     if (x < 0 || x >= SIZE || y < 0 || y >= SIZE || z < 0 || z >= SIZE) {
         return;
     }
-    light = std::min(light, static_cast<u8>(15));
-    i32 index = blockIndex(x, y, z);
-    i32 byteIndex = index / 2;
-    if (index % 2 == 0) {
-        m_skyLight[byteIndex] = (m_skyLight[byteIndex] & 0xF0) | light;
-    } else {
-        m_skyLight[byteIndex] = (m_skyLight[byteIndex] & 0x0F) | (light << 4);
-    }
+    m_skyLight.set(x, y, z, std::min(light, static_cast<u8>(15)));
 }
 
 u8 ChunkSection::getBlockLight(i32 x, i32 y, i32 z) const {
     if (x < 0 || x >= SIZE || y < 0 || y >= SIZE || z < 0 || z >= SIZE) {
         return 0;
     }
-    i32 index = blockIndex(x, y, z);
-    i32 byteIndex = index / 2;
-    if (index % 2 == 0) {
-        return m_blockLight[byteIndex] & 0x0F;
-    } else {
-        return (m_blockLight[byteIndex] >> 4) & 0x0F;
-    }
+    return m_blockLight.get(x, y, z);
 }
 
 void ChunkSection::setBlockLight(i32 x, i32 y, i32 z, u8 light) {
     if (x < 0 || x >= SIZE || y < 0 || y >= SIZE || z < 0 || z >= SIZE) {
         return;
     }
-    light = std::min(light, static_cast<u8>(15));
-    i32 index = blockIndex(x, y, z);
-    i32 byteIndex = index / 2;
-    if (index % 2 == 0) {
-        m_blockLight[byteIndex] = (m_blockLight[byteIndex] & 0xF0) | light;
-    } else {
-        m_blockLight[byteIndex] = (m_blockLight[byteIndex] & 0x0F) | (light << 4);
-    }
+    m_blockLight.set(x, y, z, std::min(light, static_cast<u8>(15)));
 }
 
 std::vector<u8> ChunkSection::serialize() const {
     std::vector<u8> data;
-    // 格式: 块数量 + 方块状态ID + 光照
-    data.reserve(2 + m_blockStates.size() * 4 + m_skyLight.size() * 2);
+    // 格式: 块数量 + 方块状态ID + 天空光照 + 方块光照
+    // 注意：NibbleArray::BYTE_SIZE = 2048 = VOLUME / 2
+    data.reserve(2 + m_blockStates.size() * 4 + NibbleArray::BYTE_SIZE * 2);
 
     // 块数量
     data.push_back(static_cast<u8>(m_blockCount >> 8));
@@ -133,16 +108,30 @@ std::vector<u8> ChunkSection::serialize() const {
         data.push_back(static_cast<u8>(stateId & 0xFF));
     }
 
-    // 光照
-    data.insert(data.end(), m_skyLight.begin(), m_skyLight.end());
-    data.insert(data.end(), m_blockLight.begin(), m_blockLight.end());
+    // 天空光照
+    const auto& skyLightData = m_skyLight.data();
+    if (!skyLightData.empty()) {
+        data.insert(data.end(), skyLightData.begin(), skyLightData.end());
+    } else {
+        // 如果为空，写入全亮数据
+        data.insert(data.end(), NibbleArray::BYTE_SIZE, 0xFF);
+    }
+
+    // 方块光照
+    const auto& blockLightData = m_blockLight.data();
+    if (!blockLightData.empty()) {
+        data.insert(data.end(), blockLightData.begin(), blockLightData.end());
+    } else {
+        // 如果为空，写入全黑数据
+        data.insert(data.end(), NibbleArray::BYTE_SIZE, 0);
+    }
 
     return data;
 }
 
 Result<std::unique_ptr<ChunkSection>> ChunkSection::deserialize(const u8* data, size_t size) {
-    // 新格式大小: 2 + VOLUME * 4 + VOLUME
-    size_t expectedSize = 2 + VOLUME * 4 + VOLUME;
+    // 新格式大小: 2 + VOLUME * 4 + BYTE_SIZE * 2
+    constexpr size_t expectedSize = 2 + VOLUME * 4 + NibbleArray::BYTE_SIZE * 2;
     if (size < expectedSize) {
         return Error(ErrorCode::InvalidArgument, "Invalid section data size");
     }
@@ -164,11 +153,13 @@ Result<std::unique_ptr<ChunkSection>> ChunkSection::deserialize(const u8* data, 
     }
 
     // 天空光照
-    std::copy(data + offset, data + offset + VOLUME / 2, section->m_skyLight.begin());
-    offset += VOLUME / 2;
+    std::vector<u8> skyLightData(data + offset, data + offset + NibbleArray::BYTE_SIZE);
+    section->m_skyLight = NibbleArray(std::move(skyLightData));
+    offset += NibbleArray::BYTE_SIZE;
 
     // 方块光照
-    std::copy(data + offset, data + offset + VOLUME / 2, section->m_blockLight.begin());
+    std::vector<u8> blockLightData(data + offset, data + offset + NibbleArray::BYTE_SIZE);
+    section->m_blockLight = NibbleArray(std::move(blockLightData));
 
     return section;
 }

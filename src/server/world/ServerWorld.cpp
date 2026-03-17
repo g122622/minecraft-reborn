@@ -546,6 +546,12 @@ void ServerWorld::tick() {
         m_tickManager->tick(m_currentTick);
     }
 
+    // 更新光照（处理光照传播队列）
+    if (m_lightManager && m_lightManager->hasLightWork()) {
+        // 每tick处理最多512个光照更新
+        m_lightManager->tick(512, true, true);
+    }
+
     // 更新所有实体
     size_t entityCount = m_entityManager.entityCount();
     if (m_currentTick % 600 == 0 && entityCount > 0) {
@@ -688,8 +694,27 @@ bool ServerWorld::setBlock(i32 x, i32 y, i32 z, const BlockState* state) {
     i32 localX = x - chunkX * 16;
     i32 localZ = z - chunkZ * 16;
 
+    // 获取旧方块状态（用于光照更新）
+    const BlockState* oldState = chunk->getBlock(localX, y, localZ);
+    i32 oldLightLevel = oldState ? oldState->lightLevel() : 0;
+    i32 newLightLevel = state ? state->lightLevel() : 0;
+
+    // 设置新方块
     chunk->setBlock(localX, y, localZ, state);
     chunk->setDirty(true);
+
+    // 更新光照
+    if (m_lightManager) {
+        BlockPos pos(x, y, z);
+
+        // 检查位置的光照变化
+        m_lightManager->checkBlock(pos);
+
+        // 如果光源等级增加，通知光照引擎
+        if (newLightLevel > oldLightLevel) {
+            m_lightManager->onBlockEmissionIncrease(pos, newLightLevel);
+        }
+    }
 
     // 广播方块更新
     broadcastBlockUpdate(x, y, z, state ? state->stateId() : 0);

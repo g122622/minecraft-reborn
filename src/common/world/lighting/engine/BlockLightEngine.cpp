@@ -1,4 +1,5 @@
 #include "BlockLightEngine.hpp"
+#include "LightEngineUtils.hpp"
 #include "../../IWorld.hpp"
 #include "../../block/Block.hpp"
 #include "../../chunk/IChunk.hpp"
