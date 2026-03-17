@@ -5,6 +5,7 @@
 #include "common/world/IWorld.hpp"
 #include "common/world/chunk/ChunkData.hpp"
 #include "common/world/entity/EntityManager.hpp"
+#include "common/world/tick/manager/TickManager.hpp"
 #include "common/entity/PlayerManager.hpp"
 #include "common/network/ChunkSync.hpp"
 #include "common/network/ProtocolPackets.hpp"
@@ -259,6 +260,38 @@ public:
      */
     i32 spawnEntitiesFromChunkGeneration(const std::vector<SpawnedEntityData>& entities);
 
+    // ========== Tick管理 ==========
+
+    /**
+     * @brief 获取Tick管理器
+     */
+    [[nodiscard]] world::tick::TickManager& tickManager() { return *m_tickManager; }
+    [[nodiscard]] const world::tick::TickManager& tickManager() const { return *m_tickManager; }
+
+    // ========== 方块和流体tick调度便捷方法 ==========
+
+    /**
+     * @brief 调度方块tick
+     *
+     * @param pos 方块位置
+     * @param block 方块引用
+     * @param delay 延迟tick数
+     * @param priority 优先级（默认Normal）
+     */
+    void scheduleBlockTick(const BlockPos& pos, Block& block, i32 delay,
+                          world::tick::TickPriority priority = world::tick::TickPriority::Normal);
+
+    /**
+     * @brief 调度流体tick
+     *
+     * @param pos 流体位置
+     * @param fluid 流体引用
+     * @param delay 延迟tick数
+     * @param priority 优先级（默认Normal）
+     */
+    void scheduleFluidTick(const BlockPos& pos, fluid::Fluid& fluid, i32 delay,
+                          world::tick::TickPriority priority = world::tick::TickPriority::Normal);
+
 private:
     // 内部方法
     void sendChunkToPlayer(PlayerId playerId, ChunkCoord x, ChunkCoord z);
@@ -276,6 +309,7 @@ private:
     EntityTracker m_entityTracker;   // 实体追踪器
     std::unique_ptr<PhysicsEngine> m_physicsEngine;  // 物理引擎
     std::unique_ptr<physics::CollisionCache> m_collisionCache;  // 碰撞缓存
+    std::unique_ptr<world::tick::TickManager> m_tickManager;  // Tick管理器
     bool m_initialized = false;
 
     // 玩家存储

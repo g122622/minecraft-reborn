@@ -3,6 +3,7 @@
 #include "../core/Types.hpp"
 #include "../math/Vector3.hpp"
 #include "../util/AxisAlignedBB.hpp"
+#include "tick/base/TickPriority.hpp"
 #include <vector>
 
 namespace mc {
@@ -13,22 +14,13 @@ class BlockState;
 class ChunkData;
 class BlockPos;
 class PhysicsEngine;
+class Block;
+class IRandom;
 
 namespace fluid {
 class Fluid;
 class FluidState;
 }
-
-namespace world::tick {
-template<typename T> class ITickList;
-enum class TickPriority : i8;
-}
-
-namespace block {
-class BlockPos;
-}
-
-using namespace world::tick;
 
 /**
  * @brief 世界访问接口
@@ -232,6 +224,48 @@ public:
      * @brief 获取难度
      */
     [[nodiscard]] virtual i32 difficulty() const = 0;
+
+    // ========== Tick调度 ==========
+
+    /**
+     * @brief 调度方块tick
+     *
+     * 方便方法，委托给TickManager。
+     * 默认实现为空操作，ServerWorld会重写以实际调度。
+     *
+     * @param pos 方块位置
+     * @param block 方块引用
+     * @param delay 延迟tick数
+     * @param priority 优先级（默认Normal）
+     */
+    virtual void scheduleBlockTick(const BlockPos& pos, Block& block, i32 delay,
+                                   world::tick::TickPriority priority = world::tick::TickPriority::Normal) {
+        // 默认空操作，客户端不需要调度tick
+        (void)pos;
+        (void)block;
+        (void)delay;
+        (void)priority;
+    }
+
+    /**
+     * @brief 调度流体tick
+     *
+     * 方便方法，委托给TickManager。
+     * 默认实现为空操作，ServerWorld会重写以实际调度。
+     *
+     * @param pos 流体位置
+     * @param fluid 流体引用
+     * @param delay 延迟tick数
+     * @param priority 优先级（默认Normal）
+     */
+    virtual void scheduleFluidTick(const BlockPos& pos, fluid::Fluid& fluid, i32 delay,
+                                   world::tick::TickPriority priority = world::tick::TickPriority::Normal) {
+        // 默认空操作，客户端不需要调度tick
+        (void)pos;
+        (void)fluid;
+        (void)delay;
+        (void)priority;
+    }
 
 protected:
     IWorld() = default;

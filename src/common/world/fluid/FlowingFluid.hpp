@@ -3,6 +3,7 @@
 #include "Fluid.hpp"
 #include "../../util/property/FluidProperties.hpp"
 #include "../../util/Direction.hpp"
+#include "../block/BlockPos.hpp"
 #include <unordered_map>
 
 namespace mc {

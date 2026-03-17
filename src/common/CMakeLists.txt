@@ -195,7 +195,9 @@ add_library(mc_common STATIC
     # World - Time
     world/time/GameTime.cpp
 
-    # World - Tick System (header-only templates: TickPriority.hpp, ScheduledTick.hpp, ITickList.hpp, EmptyTickList.hpp, ServerTickList.hpp)
+    # World - Tick System
+    world/tick/manager/TickManager.cpp
+    # (header-only templates: TickPriority.hpp, ScheduledTick.hpp, ITickList.hpp, EmptyTickList.hpp, ServerTickList.hpp)
 
     # World - Fluid System
     world/fluid/Fluid.cpp

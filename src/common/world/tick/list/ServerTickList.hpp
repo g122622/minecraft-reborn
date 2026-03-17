@@ -2,22 +2,17 @@
 
 #include "ITickList.hpp"
 #include "../base/ScheduledTick.hpp"
-#include "../../../core/Result.hpp"
+#include "../../../core/Types.hpp"
 #include "../../../resource/ResourceLocation.hpp"
+#include "../../IWorld.hpp"
 #include <set>
 #include <unordered_set>
 #include <queue>
 #include <vector>
 #include <functional>
+#include <cmath>
 
 namespace mc {
-
-// 前向声明
-class ChunkPos;
-
-namespace server {
-class ServerWorld;
-}
 
 namespace world::tick {
 
@@ -41,10 +36,10 @@ namespace world::tick {
  * // 创建方块tick列表
  * auto blockTicks = std::make_unique<ServerTickList<Block>>(
  *     world,
- *     [](Block& b) { return b.isAir(); },  // 过滤空气方块
+ *     [](Block& b) { return false; },  // 过滤器
  *     [](Block& b) { return b.blockLocation(); },  // 序列化
  *     [](const ResourceLocation& id) { return Block::getBlock(id); },  // 反序列化
- *     [](ServerWorld& w, const BlockPos& pos, Block& b) { b.tick(w, pos); }  // tick回调
+ *     [](IWorld& w, const BlockPos& pos, Block& b) { b.tick(w, pos); }  // tick回调
  * );
  *
  * // 调度一个tick
@@ -62,7 +57,7 @@ public:
     /**
      * @brief Tick执行回调类型
      */
-    using TickCallback = std::function<void(server::ServerWorld&, const BlockPos&, T&)>;
+    using TickCallback = std::function<void(IWorld&, const BlockPos&, T&)>;
 
     /**
      * @brief 过滤器类型，返回true表示忽略该目标
@@ -88,13 +83,16 @@ public:
      * @param deserializer 反序列化函数
      * @param tickFunction tick执行回调
      */
-    ServerTickList(server::ServerWorld& world,
+    ServerTickList(IWorld& world,
                    Filter filter,
                    Serializer serializer,
                    Deserializer deserializer,
                    TickCallback tickFunction);
 
     // ========== ITickList接口实现 ==========
+
+    // 引入基类的默认优先级版本
+    using ITickList<T>::scheduleTick;
 
     [[nodiscard]] bool isTickScheduled(const BlockPos& pos, T& target) const override;
     [[nodiscard]] bool isTickPending(const BlockPos& pos, T& target) const override;
@@ -164,6 +162,18 @@ public:
      */
     [[nodiscard]] size_t executedThisTickCount() const { return m_executedThisTick.size(); }
 
+    /**
+     * @brief 设置当前游戏刻（用于调度时计算目标时间）
+     *
+     * @param tick 当前游戏刻
+     */
+    void setCurrentTick(u64 tick) { mCurrentTick = tick; }
+
+    /**
+     * @brief 获取当前游戏刻
+     */
+    [[nodiscard]] u64 currentTick() const { return mCurrentTick; }
+
 private:
     /**
      * @brief 添加tick条目（内部方法）
@@ -186,7 +196,7 @@ private:
     }
 
 private:
-    server::ServerWorld& m_world;
+    IWorld& m_world;
     Filter m_filter;                   ///< 过滤器
     Serializer m_serializer;           ///< 序列化
     Deserializer m_deserializer;       ///< 反序列化
@@ -200,6 +210,9 @@ private:
     std::queue<ScheduledTick<T>> m_ticksThisTick;     ///< 本tick待处理
     std::vector<ScheduledTick<T>> m_executedThisTick; ///< 本tick已执行
 
+    // 当前游戏刻
+    u64 mCurrentTick = 0;
+
     // 调试统计
     size_t m_totalProcessed = 0;
 };
@@ -207,7 +220,7 @@ private:
 // ========== 模板实现 ==========
 
 template<typename T>
-ServerTickList<T>::ServerTickList(server::ServerWorld& world,
+ServerTickList<T>::ServerTickList(IWorld& world,
                                    Filter filter,
                                    Serializer serializer,
                                    Deserializer deserializer,
@@ -247,9 +260,8 @@ void ServerTickList<T>::scheduleTick(const BlockPos& pos, T& target, i32 delay,
         return;
     }
 
-    // 计算调度时间
-    // 注意：实际游戏中需要传入currentTick，这里先用delay作为相对时间
-    u64 scheduledTick = static_cast<u64>(delay > 0 ? delay : 0);
+    // 计算调度时间 = 当前tick + 延迟
+    u64 scheduledTick = mCurrentTick + static_cast<u64>(delay > 0 ? delay : 0);
 
     // 创建新的tick条目
     ScheduledTick<T> entry(pos, &target, scheduledTick, priority, nextTickEntryId());
@@ -286,6 +298,9 @@ size_t ServerTickList<T>::pendingCount() const {
 
 template<typename T>
 void ServerTickList<T>::tick(u64 currentTick, size_t maxTicks) {
+    // 更新当前tick
+    mCurrentTick = currentTick;
+
     // 检查一致性
     if (m_pendingTicksTree.size() != m_pendingTicksSet.size()) {
         // 数据不一致，需要修复
@@ -420,9 +435,10 @@ void ServerTickList<T>::addEntry(const ScheduledTick<T>& entry) {
 template<typename T>
 bool ServerTickList<T>::canTick(const BlockPos& pos) const {
     // 检查区块是否加载
-    // 这里需要调用ServerWorld的方法
-    // 暂时返回true，实际实现需要访问world.hasChunk()
-    return true;  // TODO: 实际检查区块加载状态
+    // 将方块坐标转换为区块坐标
+    ChunkCoord chunkX = static_cast<ChunkCoord>(std::floor(static_cast<f32>(pos.x) / 16.0f));
+    ChunkCoord chunkZ = static_cast<ChunkCoord>(std::floor(static_cast<f32>(pos.z) / 16.0f));
+    return m_world.hasChunk(chunkX, chunkZ);
 }
 
 } // namespace mc::world::tick

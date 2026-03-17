@@ -56,7 +56,8 @@ void FlowingFluid::tick(IWorld& world, const BlockPos& pos, FluidState& state) {
     flowAround(world, pos, state);
 
     // 调度下一次tick
-    // world.scheduleFluidTick(pos, *this, getTickDelay());
+    // 通过IWorld的scheduleFluidTick方法调度
+    world.scheduleFluidTick(pos, *this, getTickDelay());
 }
 
 Vector3 FlowingFluid::getFlow(IBlockReader& world, const BlockPos& pos,
@@ -158,7 +159,7 @@ void FlowingFluid::flowInto(IWorld& world, const BlockPos& pos, const BlockState
     // world.setBlock(pos.x, pos.y, pos.z, state.getBlockState());
 
     // 调度下一次tick
-    // world.scheduleFluidTick(pos, *this, getTickDelay());
+    world.scheduleFluidTick(pos, *this, getTickDelay());
 }
 
 FluidState FlowingFluid::calculateCorrectFlowingState(IWorld& world,

@@ -1,9 +1,11 @@
 #include "Block.hpp"
 #include "BlockRegistry.hpp"
 #include "Material.hpp"
+#include "../IWorld.hpp"
 #include "../fluid/Fluid.hpp"
 #include "../fluid/FluidRegistry.hpp"
 #include "../fluid/fluids/EmptyFluid.hpp"
+#include "../../math/random/IRandom.hpp"
 #include <sstream>
 
 namespace mc {
@@ -246,6 +248,23 @@ const fluid::FluidState* Block::getFluidState(const BlockState& state) const {
         }
     }
     return emptyState;
+}
+
+void Block::tick(IWorld& world, const BlockPos& pos, BlockState& state) {
+    // 默认实现：空操作
+    // 需要tick行为的方块应重写此方法
+    (void)world;
+    (void)pos;
+    (void)state;
+}
+
+void Block::randomTick(IWorld& world, const BlockPos& pos, BlockState& state, IRandom& random) {
+    // 默认实现：空操作
+    // 需要随机tick行为的方块应重写此方法
+    (void)world;
+    (void)pos;
+    (void)state;
+    (void)random;
 }
 
 } // namespace mc

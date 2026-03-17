@@ -76,9 +76,12 @@ Result<void> ServerWorld::initialize() {
     // 创建物理引擎（ServerWorld 实现了 ICollisionWorld）
     m_physicsEngine = std::make_unique<PhysicsEngine>(*this);
 
+    // 创建Tick管理器
+    m_tickManager = std::make_unique<world::tick::TickManager>(*this);
+
     m_initialized = true;
 
-    spdlog::info("Server world initialized with physics engine");
+    spdlog::info("Server world initialized with physics engine and tick manager");
     return Result<void>::ok();
 }
 
@@ -86,6 +89,9 @@ void ServerWorld::shutdown() {
     spdlog::info("Shutting down server world...");
 
     m_initialized = false;
+
+    // 清除Tick管理器
+    m_tickManager.reset();
 
     // 清除物理引擎和碰撞缓存
     m_physicsEngine.reset();
@@ -520,6 +526,11 @@ void ServerWorld::tick() {
     // 更新游戏时间
     m_gameTime.tick();
 
+    // 执行计划刻（方块tick和流体tick）
+    if (m_tickManager) {
+        m_tickManager->tick(m_currentTick);
+    }
+
     // 更新所有实体
     m_entityManager.tick();
 
@@ -939,6 +950,24 @@ i32 ServerWorld::spawnEntitiesFromChunkGeneration(const std::vector<SpawnedEntit
     }
 
     return spawnedCount;
+}
+
+// ============================================================================
+// Tick调度便捷方法
+// ============================================================================
+
+void ServerWorld::scheduleBlockTick(const BlockPos& pos, Block& block, i32 delay,
+                                     world::tick::TickPriority priority) {
+    if (m_tickManager) {
+        m_tickManager->scheduleBlockTick(pos, block, delay, priority);
+    }
+}
+
+void ServerWorld::scheduleFluidTick(const BlockPos& pos, fluid::Fluid& fluid, i32 delay,
+                                     world::tick::TickPriority priority) {
+    if (m_tickManager) {
+        m_tickManager->scheduleFluidTick(pos, fluid, delay, priority);
+    }
 }
 
 } // namespace mc::server
