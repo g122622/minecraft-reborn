@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
-#include "common/world/tick/TickPriority.hpp"
-#include "common/world/tick/ScheduledTick.hpp"
-#include "common/world/tick/ITickList.hpp"
-#include "common/world/tick/EmptyTickList.hpp"
-#include "common/world/tick/ServerTickList.hpp"
+#include "common/world/tick/base/TickPriority.hpp"
+#include "common/world/tick/base/ScheduledTick.hpp"
+#include "common/world/tick/list/ITickList.hpp"
+#include "common/world/tick/list/EmptyTickList.hpp"
+#include "common/world/tick/list/ServerTickList.hpp"
 #include "common/world/block/BlockPos.hpp"
 
 using namespace mc::world::tick;

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "TickPriority.hpp"
-#include "../block/BlockPos.hpp"
+#include "../base/TickPriority.hpp"
+#include "../../block/BlockPos.hpp"
 
 namespace mc::world::tick {
 

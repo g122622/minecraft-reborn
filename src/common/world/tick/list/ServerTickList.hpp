@@ -1,9 +1,9 @@
 #pragma once
 
 #include "ITickList.hpp"
-#include "ScheduledTick.hpp"
-#include "../../core/Result.hpp"
-#include "../../resource/ResourceLocation.hpp"
+#include "../base/ScheduledTick.hpp"
+#include "../../../core/Result.hpp"
+#include "../../../resource/ResourceLocation.hpp"
 #include <set>
 #include <unordered_set>
 #include <queue>
