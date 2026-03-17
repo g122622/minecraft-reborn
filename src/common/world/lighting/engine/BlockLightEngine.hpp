@@ -153,6 +153,7 @@ private:
     [[nodiscard]] static i64 packPos(const BlockPos& pos);
     [[nodiscard]] static void unpackPos(i64 packed, i32& x, i32& y, i32& z);
     [[nodiscard]] static i64 offsetPos(i64 pos, Direction dir);
+    [[nodiscard]] static i64 worldToSectionPos(i64 worldPos);
 };
 
 } // namespace mc

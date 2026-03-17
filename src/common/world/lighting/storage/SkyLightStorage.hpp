@@ -120,6 +120,11 @@ public:
     [[nodiscard]] bool hasSectionsToUpdate() const override;
 
     /**
+     * @brief 检查Y坐标是否在底部之上
+     */
+    [[nodiscard]] bool isAboveBottom(i32 sectionY) const;
+
+    /**
      * @brief 处理区块段更新
      *
      * @param engine 光照引擎
@@ -147,11 +152,6 @@ protected:
     [[nodiscard]] NibbleArray getOrCreateArray(i64 sectionPos);
 
 private:
-    /**
-     * @brief 检查Y坐标是否在底部之上
-     */
-    [[nodiscard]] bool isAboveBottom(i32 sectionY) const;
-
     /**
      * @brief 调度完整更新
      */
@@ -214,89 +214,28 @@ i32 SkyLightStorage::updateSections(E* engine, bool updateSkyLight, bool updateB
     // 处理待添加的区块段
     if (!m_pendingAdditions.empty()) {
         for (i64 sectionPos : m_pendingAdditions) {
-            i32 level = getLevel(sectionPos);
-
-            if (level != 2 && !m_pendingRemovals.count(sectionPos) &&
+            if (!m_pendingRemovals.count(sectionPos) &&
                 m_sectionsWithLight.insert(sectionPos).second) {
 
-                if (level == 1) {
-                    // 已有数据，需要重新初始化
-                    cancelSectionUpdates(sectionPos);
+                // 标记为脏
+                m_dirtyCachedSections.insert(sectionPos);
 
-                    if (m_dirtyCachedSections.insert(sectionPos).second) {
-                        m_cachedLightData.copyArray(sectionPos);
-                    }
+                // 填充为全亮
+                NibbleArray* array = getArray(sectionPos, true);
+                if (array != nullptr) {
+                    array->fill(15);
+                }
 
-                    // 填充为全亮
-                    NibbleArray* array = getArray(sectionPos, true);
-                    if (array != nullptr) {
-                        array->fill(15);
-                    }
+                // 新区块段，从顶部开始调度光照更新
+                SectionPos pos = SectionPos::fromLong(sectionPos);
+                i32 worldX = pos.x * 16;
+                i32 worldY = pos.y * 16;
+                i32 worldZ = pos.z * 16;
 
-                    // 调度水平邻居更新
-                    i32 worldX = SectionPos::fromLong(sectionPos).x * 16;
-                    i32 worldY = SectionPos::fromLong(sectionPos).y * 16;
-                    i32 worldZ = SectionPos::fromLong(sectionPos).z * 16;
-
-                    for (const Direction& dir : HORIZONTAL_DIRECTIONS) {
-                        i64 neighborPos = SectionPos::fromLong(sectionPos).offset(dir).toLong();
-
-                        if ((m_pendingRemovals.count(neighborPos) > 0 ||
-                             (m_sectionsWithLight.count(neighborPos) == 0 &&
-                              m_pendingAdditions.count(neighborPos) == 0)) &&
-                            hasSection(neighborPos)) {
-
-                            for (i32 localX = 0; localX < 16; ++localX) {
-                                for (i32 localZ = 0; localZ < 16; ++localZ) {
-                                    i64 fromPos, toPos;
-
-                                    switch (dir) {
-                                        case Direction::North:
-                                            fromPos = packPos(worldX + localX, worldY + localZ, worldZ);
-                                            toPos = packPos(worldX + localX, worldY + localZ, worldZ - 1);
-                                            break;
-                                        case Direction::South:
-                                            fromPos = packPos(worldX + localX, worldY + localZ, worldZ + 15);
-                                            toPos = packPos(worldX + localX, worldY + localZ, worldZ + 16);
-                                            break;
-                                        case Direction::West:
-                                            fromPos = packPos(worldX, worldY + localX, worldZ + localZ);
-                                            toPos = packPos(worldX - 1, worldY + localX, worldZ + localZ);
-                                            break;
-                                        case Direction::East:
-                                        default:
-                                            fromPos = packPos(worldX + 15, worldY + localX, worldZ + localZ);
-                                            toPos = packPos(worldX + 16, worldY + localX, worldZ + localZ);
-                                            break;
-                                    }
-
-                                    engine->scheduleUpdate(fromPos, toPos,
-                                                          engine->getEdgeLevel(fromPos, toPos, 0), true);
-                                }
-                            }
-                        }
-                    }
-
-                    // 调度底部更新
-                    for (i32 localX = 0; localX < 16; ++localX) {
-                        for (i32 localZ = 0; localZ < 16; ++localZ) {
-                            i64 fromPos = packPos(worldX + localX, worldY, worldZ + localZ);
-                            i64 toPos = packPos(worldX + localX, worldY - 1, worldZ + localZ);
-                            engine->scheduleUpdate(fromPos, toPos,
-                                                  engine->getEdgeLevel(fromPos, toPos, 0), true);
-                        }
-                    }
-                } else {
-                    // 新区块段，从顶部开始调度
-                    i32 worldX = SectionPos::fromLong(sectionPos).x * 16;
-                    i32 worldY = SectionPos::fromLong(sectionPos).y * 16;
-                    i32 worldZ = SectionPos::fromLong(sectionPos).z * 16;
-
-                    for (i32 localX = 0; localX < 16; ++localX) {
-                        for (i32 localZ = 0; localZ < 16; ++localZ) {
-                            i64 pos = packPos(worldX + localX, worldY + 15, worldZ + localZ);
-                            engine->scheduleUpdate(LONG_MAX, pos, 0, true);
-                        }
+                for (i32 localX = 0; localX < 16; ++localX) {
+                    for (i32 localZ = 0; localZ < 16; ++localZ) {
+                        i64 blockPos = packPos(worldX + localX, worldY + 15, worldZ + localZ);
+                        engine->scheduleUpdate(blockPos);
                     }
                 }
             }
@@ -309,14 +248,15 @@ i32 SkyLightStorage::updateSections(E* engine, bool updateSkyLight, bool updateB
     if (!m_pendingRemovals.empty()) {
         for (i64 sectionPos : m_pendingRemovals) {
             if (m_sectionsWithLight.erase(sectionPos) > 0 && hasSection(sectionPos)) {
-                i32 worldX = SectionPos::fromLong(sectionPos).x * 16;
-                i32 worldY = SectionPos::fromLong(sectionPos).y * 16;
-                i32 worldZ = SectionPos::fromLong(sectionPos).z * 16;
+                SectionPos pos = SectionPos::fromLong(sectionPos);
+                i32 worldX = pos.x * 16;
+                i32 worldY = pos.y * 16;
+                i32 worldZ = pos.z * 16;
 
                 for (i32 localX = 0; localX < 16; ++localX) {
                     for (i32 localZ = 0; localZ < 16; ++localZ) {
-                        i64 pos = packPos(worldX + localX, worldY + 15, worldZ + localZ);
-                        engine->scheduleUpdate(LONG_MAX, pos, 15, false);
+                        i64 blockPos = packPos(worldX + localX, worldY + 15, worldZ + localZ);
+                        engine->scheduleUpdate(blockPos);
                     }
                 }
             }

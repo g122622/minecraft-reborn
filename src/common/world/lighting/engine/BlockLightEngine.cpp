@@ -1,6 +1,7 @@
 #include "BlockLightEngine.hpp"
 #include "../../IWorld.hpp"
 #include "../../block/Block.hpp"
+#include "../../chunk/IChunk.hpp"
 #include <climits>
 
 namespace mc {
@@ -65,13 +66,11 @@ bool BlockLightEngine::hasWork() const {
 }
 
 i32 BlockLightEngine::tick(i32 maxUpdates, bool updateSkyLight, bool updateBlockLight) {
-    // 处理存储更新
-    if (m_storage.needsUpdate()) {
-        maxUpdates = m_storage.processUpdates(maxUpdates);
-        if (maxUpdates == 0) {
-            return 0;
-        }
-    }
+    (void)updateSkyLight;   // 方块光照引擎不处理天空光照
+    (void)updateBlockLight; // 参数保留用于接口一致性
+
+    // 处理存储更新（如区块段状态变化）
+    m_storage.processAllLevelUpdates();
 
     // 处理光照传播
     if (needsUpdate()) {
@@ -209,8 +208,8 @@ i32 BlockLightEngine::getEdgeLevel(i64 fromPos, i64 toPos, i32 startLevel) {
     i32 dy = (toY > fromY) ? 1 : ((toY < fromY) ? -1 : 0);
     i32 dz = (toZ > fromZ) ? 1 : ((toZ < fromZ) ? -1 : 0);
 
-    Direction direction = Direction::fromDelta(dx, dy, dz);
-    if (!direction.has_value()) {
+    Direction direction = Directions::fromDelta(dx, dy, dz);
+    if (direction == Direction::None) {
         return 15;
     }
 
@@ -360,7 +359,7 @@ i64 BlockLightEngine::offsetPos(i64 pos, Direction dir) {
     i32 x, y, z;
     unpackPos(pos, x, y, z);
 
-    switch (dir.value()) {
+    switch (dir) {
         case Direction::Down:    y--; break;
         case Direction::Up:      y++; break;
         case Direction::North:   z--; break;
@@ -371,6 +370,18 @@ i64 BlockLightEngine::offsetPos(i64 pos, Direction dir) {
     }
 
     return packPos(x, y, z);
+}
+
+i64 BlockLightEngine::worldToSectionPos(i64 worldPos) {
+    i32 x = static_cast<i32>((worldPos >> 38) & 0xFFFFFFF);
+    i32 y = static_cast<i32>(worldPos & 0xFFF);
+    i32 z = static_cast<i32>((worldPos >> 12) & 0xFFFFFFF);
+
+    // 符号扩展
+    x = (x << 4) >> 4;
+    z = (z << 4) >> 4;
+
+    return SectionPos(x >> 4, y >> 4, z >> 4).toLong();
 }
 
 } // namespace mc

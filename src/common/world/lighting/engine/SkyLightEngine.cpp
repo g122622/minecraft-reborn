@@ -1,6 +1,7 @@
 #include "SkyLightEngine.hpp"
 #include "../../IWorld.hpp"
 #include "../../block/Block.hpp"
+#include "../../chunk/IChunk.hpp"
 #include <climits>
 
 namespace mc {
@@ -85,12 +86,7 @@ i32 SkyLightEngine::tick(i32 maxUpdates, bool updateSkyLight, bool updateBlockLi
     (void)updateBlockLight;  // 天空光照引擎不处理方块光照
 
     // 处理存储更新
-    if (m_storage.needsUpdate()) {
-        maxUpdates = m_storage.processUpdates(maxUpdates);
-        if (maxUpdates == 0) {
-            return 0;
-        }
-    }
+    m_storage.processAllLevelUpdates();
 
     // 处理区块段更新（添加/移除）
     maxUpdates = m_storage.updateSections(this, updateSkyLight, false);
@@ -326,10 +322,10 @@ i32 SkyLightEngine::getEdgeLevel(i64 fromPos, i64 toPos, i32 startLevel) {
     if (fromPos == LONG_MAX) {
         direction = Direction::Down;
     } else {
-        direction = Direction::fromDelta(dx, dy, dz);
+        direction = Directions::fromDelta(dx, dy, dz);
     }
 
-    if (direction.has_value()) {
+    if (direction != Direction::None) {
         // 检查面遮挡
         if (facesHaveOcclusion(world, *fromState, BlockPos(fromX, fromY, fromZ),
                               *toState, BlockPos(toX, toY, toZ),
@@ -344,12 +340,12 @@ i32 SkyLightEngine::getEdgeLevel(i64 fromPos, i64 toPos, i32 startLevel) {
         }
 
         i32 adjustedDy = sameXZ ? -1 : 0;
-        Direction adjustedDir = Direction::fromDelta(dx, adjustedDy, dz);
-        if (!adjustedDir.has_value()) {
+        Direction adjustedDir = Directions::fromDelta(dx, adjustedDy, dz);
+        if (adjustedDir == Direction::None) {
             return 15;
         }
 
-        const CollisionShape& toShape = getVoxelShape(*toState, toPos, adjustedDir.opposite());
+        const CollisionShape& toShape = getVoxelShape(*toState, toPos, Directions::opposite(adjustedDir));
         if (!toShape.isEmpty()) {
             return 15;
         }
@@ -487,7 +483,7 @@ i64 SkyLightEngine::offsetPos(i64 pos, Direction dir) {
     i32 x, y, z;
     unpackPos(pos, x, y, z);
 
-    switch (dir.value()) {
+    switch (dir) {
         case Direction::Down:    y--; break;
         case Direction::Up:      y++; break;
         case Direction::North:   z--; break;
