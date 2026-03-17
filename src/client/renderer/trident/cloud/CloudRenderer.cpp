@@ -613,17 +613,69 @@ Result<void> CloudRenderer::createCloudVBO() {
     {
         std::vector<CloudVertex> vertices;
 
-        for (i32 x = CLOUD_GRID_MIN; x < CLOUD_GRID_MAX; ++x) {
-            for (i32 z = CLOUD_GRID_MIN; z < CLOUD_GRID_MAX; ++z) {
-                if (!isCloudCellOpaque(x, z)) {
+        constexpr i32 GRID_SIZE = CLOUD_GRID_MAX - CLOUD_GRID_MIN;
+        std::vector<u8> occupied(static_cast<size_t>(GRID_SIZE) * static_cast<size_t>(GRID_SIZE), 0);
+        const auto gridIndex = [](i32 gx, i32 gz) -> size_t {
+            return static_cast<size_t>(gz) * static_cast<size_t>(GRID_SIZE) + static_cast<size_t>(gx);
+        };
+
+        for (i32 gz = 0; gz < GRID_SIZE; ++gz) {
+            for (i32 gx = 0; gx < GRID_SIZE; ++gx) {
+                const i32 worldX = CLOUD_GRID_MIN + gx;
+                const i32 worldZ = CLOUD_GRID_MIN + gz;
+                occupied[gridIndex(gx, gz)] = isCloudCellOpaque(worldX, worldZ) ? 1u : 0u;
+            }
+        }
+
+        // 顶/底面贪心合并：将连续云块合并为大矩形，消除大云内部接缝。
+        std::vector<u8> visitedTop(static_cast<size_t>(GRID_SIZE) * static_cast<size_t>(GRID_SIZE), 0);
+        for (i32 z0 = 0; z0 < GRID_SIZE; ++z0) {
+            for (i32 x0 = 0; x0 < GRID_SIZE; ++x0) {
+                const size_t start = gridIndex(x0, z0);
+                if (occupied[start] == 0 || visitedTop[start] != 0) {
                     continue;
                 }
 
-                const glm::vec2 uv = uvCenter(x, z);
-                const f32 minX = static_cast<f32>(x);
-                const f32 maxX = static_cast<f32>(x + 1);
-                const f32 minZ = static_cast<f32>(z);
-                const f32 maxZ = static_cast<f32>(z + 1);
+                i32 runWidth = 1;
+                while (x0 + runWidth < GRID_SIZE) {
+                    const size_t idx = gridIndex(x0 + runWidth, z0);
+                    if (occupied[idx] == 0 || visitedTop[idx] != 0) {
+                        break;
+                    }
+                    ++runWidth;
+                }
+
+                i32 runHeight = 1;
+                bool canExtend = true;
+                while (z0 + runHeight < GRID_SIZE && canExtend) {
+                    for (i32 dx = 0; dx < runWidth; ++dx) {
+                        const size_t idx = gridIndex(x0 + dx, z0 + runHeight);
+                        if (occupied[idx] == 0 || visitedTop[idx] != 0) {
+                            canExtend = false;
+                            break;
+                        }
+                    }
+                    if (canExtend) {
+                        ++runHeight;
+                    }
+                }
+
+                for (i32 dz = 0; dz < runHeight; ++dz) {
+                    for (i32 dx = 0; dx < runWidth; ++dx) {
+                        visitedTop[gridIndex(x0 + dx, z0 + dz)] = 1;
+                    }
+                }
+
+                const i32 worldMinX = CLOUD_GRID_MIN + x0;
+                const i32 worldMinZ = CLOUD_GRID_MIN + z0;
+                const i32 worldMaxX = worldMinX + runWidth;
+                const i32 worldMaxZ = worldMinZ + runHeight;
+                const glm::vec2 uv = uvCenter(worldMinX, worldMinZ);
+
+                const f32 minX = static_cast<f32>(worldMinX);
+                const f32 maxX = static_cast<f32>(worldMaxX);
+                const f32 minZ = static_cast<f32>(worldMinZ);
+                const f32 maxZ = static_cast<f32>(worldMaxZ);
                 const f32 minY = 0.0f;
                 const f32 maxY = CLOUD_THICKNESS - CLOUD_TOP_OFFSET;
 
@@ -644,6 +696,22 @@ Result<void> CloudRenderer::createCloudVBO() {
                     CloudVertex v3{minX, minY, minZ, uv.x, uv.y, 0.0f, -1.0f, 0.0f};
                     pushQuad(vertices, v0, v1, v2, v3, true);
                 }
+            }
+        }
+
+        for (i32 x = CLOUD_GRID_MIN; x < CLOUD_GRID_MAX; ++x) {
+            for (i32 z = CLOUD_GRID_MIN; z < CLOUD_GRID_MAX; ++z) {
+                if (!isCloudCellOpaque(x, z)) {
+                    continue;
+                }
+
+                const glm::vec2 uv = uvCenter(x, z);
+                const f32 minX = static_cast<f32>(x);
+                const f32 maxX = static_cast<f32>(x + 1);
+                const f32 minZ = static_cast<f32>(z);
+                const f32 maxZ = static_cast<f32>(z + 1);
+                const f32 minY = 0.0f;
+                const f32 maxY = CLOUD_THICKNESS - CLOUD_TOP_OFFSET;
 
                 // 西侧（邻格透明才绘制）
                 if (!isCloudCellOpaque(x - 1, z)) {
@@ -1311,14 +1379,14 @@ Result<void> CloudRenderer::createPipelines() {
     multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
     // 深度模板
-    // 云是半透明物体，需要：
-    // - 启用深度测试：与天空球比较深度
-    // - 禁用深度写入：不阻挡后面的地形
-    // 参考 MC 1.16.5 云渲染深度设置
+    // 云需要正确自遮挡以避免同一朵云内部出现接缝：
+    // - 启用深度测试：与天空/世界比较深度
+    // - 启用深度写入：阻止云的远侧/背侧面再次混合到近侧表面
+    // 这样可消除由半透明叠加导致的网格缝线伪影。
     VkPipelineDepthStencilStateCreateInfo depthStencil{};
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depthStencil.depthTestEnable = VK_TRUE;
-    depthStencil.depthWriteEnable = VK_FALSE;  // 禁用深度写入，避免阻挡地形
+    depthStencil.depthWriteEnable = VK_TRUE;
     depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
     depthStencil.depthBoundsTestEnable = VK_FALSE;
     depthStencil.stencilTestEnable = VK_FALSE;
