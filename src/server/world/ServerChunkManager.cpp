@@ -201,6 +201,10 @@ void ServerChunkManager::startWorkers(i32 count)
                     // 第一阶段：所有区块生成到 CARVERS
                     // 第二阶段：批量执行 FEATURES
                     m_generator->placeFeatures(region, chunk);
+                } else if (status == ChunkStatus::LIGHT) {
+                    // 光照初始化
+                    chunk.initializeSkyLight();
+                    chunk.initializeBlockLight();
                 } else if (status == ChunkStatus::HEIGHTMAPS) {
                     chunk.updateAllHeightmaps();
                 }
@@ -558,6 +562,10 @@ void ServerChunkManager::executeGenerationTask(ChunkHolder& holder, const ChunkS
             } else if (s == ChunkStatus::FEATURES) {
                 // 同步路径：不检查邻居依赖，直接执行
                 m_generator->placeFeatures(region, *primer);
+            } else if (s == ChunkStatus::LIGHT) {
+                // 光照初始化
+                primer->initializeSkyLight();
+                primer->initializeBlockLight();
             } else if (s == ChunkStatus::HEIGHTMAPS) {
                 primer->updateAllHeightmaps();
             }

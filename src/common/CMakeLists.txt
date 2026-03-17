@@ -204,6 +204,7 @@ add_library(mc_common STATIC
     world/lighting/engine/LevelBasedGraph.cpp
     world/lighting/engine/BlockLightEngine.cpp
     world/lighting/engine/SkyLightEngine.cpp
+    world/lighting/engine/LightEngineUtils.cpp
     world/lighting/storage/BlockLightStorage.cpp
     world/lighting/storage/SkyLightStorage.cpp
     world/lighting/manager/WorldLightManager.cpp

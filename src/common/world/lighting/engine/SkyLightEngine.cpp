@@ -23,8 +23,8 @@ SkyLightEngine::SkyLightEngine(IChunkLightProvider* provider)
 void SkyLightEngine::checkLight(const BlockPos& pos) {
     m_storage.processAllLevelUpdates();
 
-    i64 packedPos = packPos(pos);
-    i64 sectionPos = worldToSectionPos(packedPos);
+    i64 packedPos = LightEngineUtils::packPos(pos);
+    i64 sectionPos = LightEngineUtils::worldToSectionPos(packedPos);
 
     if (m_storage.hasSection(sectionPos)) {
         scheduleUpdate(packedPos);
@@ -35,13 +35,12 @@ void SkyLightEngine::checkLight(const BlockPos& pos) {
 
         while (!m_storage.hasSection(currentSectionPos) &&
                !m_storage.isAboveWorld(currentPos)) {
-            currentPos = offsetPos(currentPos, Direction::Up);
-            currentSectionPos = worldToSectionPos(currentPos);
+            currentPos = LightEngineUtils::offsetPos(currentPos, Direction::Up);
+            currentSectionPos = LightEngineUtils::worldToSectionPos(currentPos);
             // 注意：这里需要移动16格
-            currentPos = packPos(
-                static_cast<i32>((currentPos >> 38) & 0xFFFFFFF),
-                static_cast<i32>((currentPos & 0xFFF) + 16),
-                static_cast<i32>((currentPos >> 26) & 0xFFFFFFF));
+            i32 x, y, z;
+            LightEngineUtils::unpackPos(currentPos, x, y, z);
+            currentPos = LightEngineUtils::packPos(x, y + 16, z);
         }
 
         if (m_storage.hasSection(currentSectionPos)) {
@@ -50,16 +49,16 @@ void SkyLightEngine::checkLight(const BlockPos& pos) {
     }
 
     // 通知相邻方块
-    scheduleUpdate(offsetPos(packedPos, Direction::Down));
-    scheduleUpdate(offsetPos(packedPos, Direction::Up));
-    scheduleUpdate(offsetPos(packedPos, Direction::North));
-    scheduleUpdate(offsetPos(packedPos, Direction::South));
-    scheduleUpdate(offsetPos(packedPos, Direction::West));
-    scheduleUpdate(offsetPos(packedPos, Direction::East));
+    scheduleUpdate(LightEngineUtils::offsetPos(packedPos, Direction::Down));
+    scheduleUpdate(LightEngineUtils::offsetPos(packedPos, Direction::Up));
+    scheduleUpdate(LightEngineUtils::offsetPos(packedPos, Direction::North));
+    scheduleUpdate(LightEngineUtils::offsetPos(packedPos, Direction::South));
+    scheduleUpdate(LightEngineUtils::offsetPos(packedPos, Direction::West));
+    scheduleUpdate(LightEngineUtils::offsetPos(packedPos, Direction::East));
 }
 
 u8 SkyLightEngine::getLightFor(const BlockPos& pos) const {
-    return m_storage.getLightOrDefault(packPos(pos));
+    return m_storage.getLightOrDefault(LightEngineUtils::packPos(pos));
 }
 
 void SkyLightEngine::updateSectionStatus(const SectionPos& pos, bool isEmpty) {
@@ -130,7 +129,7 @@ i32 SkyLightEngine::computeLevel(i64 pos, i64 excludedSource, i32 level) {
         }
     }
 
-    i64 sectionPos = worldToSectionPos(pos);
+    i64 sectionPos = LightEngineUtils::worldToSectionPos(pos);
     const NibbleArray* array = m_storage.getArray(sectionPos, true);
 
     // 检查所有相邻方向
@@ -140,12 +139,12 @@ i32 SkyLightEngine::computeLevel(i64 pos, i64 excludedSource, i32 level) {
     };
 
     for (Direction dir : directions) {
-        i64 neighborPos = offsetPos(pos, dir);
+        i64 neighborPos = LightEngineUtils::offsetPos(pos, dir);
         if (neighborPos == excludedSource) {
             continue;
         }
 
-        i64 neighborSectionPos = worldToSectionPos(neighborPos);
+        i64 neighborSectionPos = LightEngineUtils::worldToSectionPos(neighborPos);
         const NibbleArray* neighborArray;
 
         if (neighborSectionPos == sectionPos) {
@@ -169,10 +168,6 @@ i32 SkyLightEngine::computeLevel(i64 pos, i64 excludedSource, i32 level) {
             // 向上查找有效的区块段
             i64 searchPos = neighborPos;
             i64 searchSectionPos = neighborSectionPos;
-
-            // 计算区块段底部Y坐标
-            i32 neighborY = static_cast<i32>(neighborPos & 0xFFF);
-            neighborY = (neighborY & 0xF);  // 局部Y
 
             while (!m_storage.hasSection(searchSectionPos) &&
                    !m_storage.isAboveWorld(searchPos)) {
@@ -204,7 +199,7 @@ i32 SkyLightEngine::computeLevel(i64 pos, i64 excludedSource, i32 level) {
 }
 
 void SkyLightEngine::notifyNeighbors(i64 pos, i32 level, bool isDecreasing) {
-    i64 sectionPos = worldToSectionPos(pos);
+    i64 sectionPos = LightEngineUtils::worldToSectionPos(pos);
     i32 y = static_cast<i32>(pos & 0xFFF);
     i32 localY = y & 0xF;
     i32 sectionY = y >> 4;
@@ -221,19 +216,18 @@ void SkyLightEngine::notifyNeighbors(i64 pos, i32 level, bool isDecreasing) {
     }
 
     // 向下传播（可能跨越多个区块段）
-    i64 downPos = packPos(
-        static_cast<i32>((pos >> 38) & 0xFFFFFFF),
-        static_cast<i32>((pos & 0xFFF) - 1 - skipSections * 16),
-        static_cast<i32>((pos >> 26) & 0xFFFFFFF));
-    i64 downSectionPos = worldToSectionPos(downPos);
+    i32 x, z;
+    LightEngineUtils::unpackPos(pos, x, y, z);
+    i64 downPos = LightEngineUtils::packPos(x, y - 1 - skipSections * 16, z);
+    i64 downSectionPos = LightEngineUtils::worldToSectionPos(downPos);
 
     if (sectionPos == downSectionPos || m_storage.hasSection(downSectionPos)) {
         propagateLevel(pos, downPos, level, isDecreasing);
     }
 
     // 向上传播
-    i64 upPos = offsetPos(pos, Direction::Up);
-    i64 upSectionPos = worldToSectionPos(upPos);
+    i64 upPos = LightEngineUtils::offsetPos(pos, Direction::Up);
+    i64 upSectionPos = LightEngineUtils::worldToSectionPos(upPos);
     if (sectionPos == upSectionPos || m_storage.hasSection(upSectionPos)) {
         propagateLevel(pos, upPos, level, isDecreasing);
     }
@@ -249,11 +243,9 @@ void SkyLightEngine::notifyNeighbors(i64 pos, i32 level, bool isDecreasing) {
 
         i32 offset = 0;
         while (true) {
-            i64 neighborPos = packPos(
-                static_cast<i32>((pos >> 38) & 0xFFFFFFF) + dx,
-                static_cast<i32>((pos & 0xFFF) - offset),
-                static_cast<i32>((pos >> 26) & 0xFFFFFFF) + dz);
-            i64 neighborSectionPos = worldToSectionPos(neighborPos);
+            LightEngineUtils::unpackPos(pos, x, y, z);
+            i64 neighborPos = LightEngineUtils::packPos(x + dx, y - offset, z + dz);
+            i64 neighborSectionPos = LightEngineUtils::worldToSectionPos(neighborPos);
 
             if (sectionPos == neighborSectionPos) {
                 propagateLevel(pos, neighborPos, level, isDecreasing);
@@ -310,8 +302,8 @@ i32 SkyLightEngine::getEdgeLevel(i64 fromPos, i64 toPos, i32 startLevel) {
     // 计算方向
     i32 fromX, fromY, fromZ;
     i32 toX, toY, toZ;
-    unpackPos(fromPos, fromX, fromY, fromZ);
-    unpackPos(toPos, toX, toY, toZ);
+    LightEngineUtils::unpackPos(fromPos, fromX, fromY, fromZ);
+    LightEngineUtils::unpackPos(toPos, toX, toY, toZ);
 
     bool sameXZ = (fromX == toX) && (fromZ == toZ);
     i32 dx = (toX > fromX) ? 1 : ((toX < fromX) ? -1 : 0);
@@ -327,7 +319,7 @@ i32 SkyLightEngine::getEdgeLevel(i64 fromPos, i64 toPos, i32 startLevel) {
 
     if (direction != Direction::None) {
         // 检查面遮挡
-        if (facesHaveOcclusion(world, *fromState, BlockPos(fromX, fromY, fromZ),
+        if (LightEngineUtils::facesHaveOcclusion(world, *fromState, BlockPos(fromX, fromY, fromZ),
                               *toState, BlockPos(toX, toY, toZ),
                               direction, opacity)) {
             return 15;
@@ -378,13 +370,8 @@ const BlockState* SkyLightEngine::getBlockAndOpacity(i64 worldPos, i32* opacityO
         return nullptr;  // 空气
     }
 
-    i32 x = static_cast<i32>((worldPos >> 38) & 0xFFFFFFF);
-    i32 y = static_cast<i32>((worldPos >> 0) & 0xFFF);
-    i32 z = static_cast<i32>((worldPos >> 26) & 0xFFFFFFF);
-
-    // 符号扩展
-    x = (x << 4) >> 4;
-    z = (z << 4) >> 4;
+    i32 x, y, z;
+    LightEngineUtils::unpackPos(worldPos, x, y, z);
 
     const IChunk* chunk = m_chunkProvider->getChunkForLight(x >> 4, z >> 4);
     if (chunk == nullptr) {
@@ -403,7 +390,6 @@ const BlockState* SkyLightEngine::getBlockAndOpacity(i64 worldPos, i32* opacityO
     }
 
     if (opacityOut != nullptr) {
-        IWorld* world = m_chunkProvider->getWorld();
         *opacityOut = state->getOpacity();
     }
 
@@ -420,30 +406,6 @@ const CollisionShape& SkyLightEngine::getVoxelShape(const BlockState& state, i64
     return VoxelShapes::empty();
 }
 
-bool SkyLightEngine::facesHaveOcclusion(
-    IWorld* world,
-    const BlockState& stateA, const BlockPos& posA,
-    const BlockState& stateB, const BlockPos& posB,
-    Direction dir, i32 opacity) {
-    (void)world;
-    (void)posA;
-    (void)posB;
-    (void)dir;
-    (void)opacity;
-
-    // 简化版本：检查两个方块是否都是固体且有完整遮挡面
-    bool isSolidA = stateA.isSolid() && stateA.isTransparent();
-    bool isSolidB = stateB.isSolid() && stateB.isTransparent();
-
-    if (!isSolidA && !isSolidB) {
-        return false;
-    }
-
-    // 完整实现需要检查VoxelShape的面遮挡
-    // 这里使用简化版本
-    return false;
-}
-
 i32 SkyLightEngine::getLevelFromArray(const NibbleArray* array, i64 worldPos) const {
     if (array == nullptr) {
         return 15;
@@ -455,57 +417,6 @@ i32 SkyLightEngine::getLevelFromArray(const NibbleArray* array, i64 worldPos) co
     i32 localY = y & 0xF;
 
     return 15 - array->get(x, localY, z);
-}
-
-i64 SkyLightEngine::packPos(i32 x, i32 y, i32 z) {
-    // 编码格式: X(28位) | Z(28位) | Y(12位)
-    u64 ux = static_cast<u64>(static_cast<i64>(x) & 0xFFFFFFFLL);
-    u64 uz = static_cast<u64>(static_cast<i64>(z) & 0xFFFFFFFLL);
-    u64 uy = static_cast<u64>(y) & 0xFFF;
-    return (ux << 38) | (uz << 12) | uy;
-}
-
-i64 SkyLightEngine::packPos(const BlockPos& pos) {
-    return packPos(pos.x, pos.y, pos.z);
-}
-
-void SkyLightEngine::unpackPos(i64 packed, i32& x, i32& y, i32& z) {
-    x = static_cast<i32>((packed >> 38) & 0xFFFFFFF);
-    y = static_cast<i32>(packed & 0xFFF);
-    z = static_cast<i32>((packed >> 12) & 0xFFFFFFF);
-
-    // 符号扩展
-    x = (x << 4) >> 4;
-    z = (z << 4) >> 4;
-}
-
-i64 SkyLightEngine::offsetPos(i64 pos, Direction dir) {
-    i32 x, y, z;
-    unpackPos(pos, x, y, z);
-
-    switch (dir) {
-        case Direction::Down:    y--; break;
-        case Direction::Up:      y++; break;
-        case Direction::North:   z--; break;
-        case Direction::South:   z++; break;
-        case Direction::West:    x--; break;
-        case Direction::East:    x++; break;
-        default: break;
-    }
-
-    return packPos(x, y, z);
-}
-
-i64 SkyLightEngine::worldToSectionPos(i64 worldPos) {
-    i32 x = static_cast<i32>((worldPos >> 38) & 0xFFFFFFF);
-    i32 y = static_cast<i32>(worldPos & 0xFFF);
-    i32 z = static_cast<i32>((worldPos >> 12) & 0xFFFFFFF);
-
-    // 符号扩展
-    x = (x << 4) >> 4;
-    z = (z << 4) >> 4;
-
-    return SectionPos(x >> 4, y >> 4, z >> 4).toLong();
 }
 
 } // namespace mc

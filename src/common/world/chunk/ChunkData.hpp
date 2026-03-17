@@ -197,6 +197,12 @@ public:
     // 填充
     void fill(BlockCoord minY, BlockCoord maxY, u32 stateId);
 
+    // 光照访问
+    [[nodiscard]] u8 getSkyLight(BlockCoord x, BlockCoord y, BlockCoord z) const;
+    void setSkyLight(BlockCoord x, BlockCoord y, BlockCoord z, u8 light);
+    [[nodiscard]] u8 getBlockLight(BlockCoord x, BlockCoord y, BlockCoord z) const;
+    void setBlockLight(BlockCoord x, BlockCoord y, BlockCoord z, u8 light);
+
 private:
     ChunkCoord m_x = 0;
     ChunkCoord m_z = 0;

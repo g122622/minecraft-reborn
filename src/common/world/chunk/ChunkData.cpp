@@ -534,6 +534,80 @@ void ChunkData::fill(BlockCoord minY, BlockCoord maxY, u32 stateId) {
 }
 
 // ============================================================================
+// 光照访问
+// ============================================================================
+
+u8 ChunkData::getSkyLight(BlockCoord x, BlockCoord y, BlockCoord z) const {
+    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT || z < 0 || z >= WIDTH) {
+        return 15;  // 边界外默认全亮
+    }
+
+    i32 sectionIndex = y / world::CHUNK_SECTION_HEIGHT;
+    const auto& section = m_sections[sectionIndex];
+
+    if (!section) {
+        return 15;  // 未创建的段默认全亮
+    }
+
+    i32 localY = y % world::CHUNK_SECTION_HEIGHT;
+    return section->getSkyLight(x, localY, z);
+}
+
+void ChunkData::setSkyLight(BlockCoord x, BlockCoord y, BlockCoord z, u8 light) {
+    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT || z < 0 || z >= WIDTH) {
+        return;
+    }
+
+    i32 sectionIndex = y / world::CHUNK_SECTION_HEIGHT;
+    auto& section = m_sections[sectionIndex];
+
+    if (!section) {
+        if (light == 15) {
+            return;  // 默认就是15，不需要创建段
+        }
+        section = std::make_unique<ChunkSection>();
+    }
+
+    i32 localY = y % world::CHUNK_SECTION_HEIGHT;
+    section->setSkyLight(x, localY, z, light);
+}
+
+u8 ChunkData::getBlockLight(BlockCoord x, BlockCoord y, BlockCoord z) const {
+    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT || z < 0 || z >= WIDTH) {
+        return 0;  // 边界外默认无光
+    }
+
+    i32 sectionIndex = y / world::CHUNK_SECTION_HEIGHT;
+    const auto& section = m_sections[sectionIndex];
+
+    if (!section) {
+        return 0;  // 未创建的段默认无光
+    }
+
+    i32 localY = y % world::CHUNK_SECTION_HEIGHT;
+    return section->getBlockLight(x, localY, z);
+}
+
+void ChunkData::setBlockLight(BlockCoord x, BlockCoord y, BlockCoord z, u8 light) {
+    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT || z < 0 || z >= WIDTH) {
+        return;
+    }
+
+    i32 sectionIndex = y / world::CHUNK_SECTION_HEIGHT;
+    auto& section = m_sections[sectionIndex];
+
+    if (!section) {
+        if (light == 0) {
+            return;  // 默认就是0，不需要创建段
+        }
+        section = std::make_unique<ChunkSection>();
+    }
+
+    i32 localY = y % world::CHUNK_SECTION_HEIGHT;
+    section->setBlockLight(x, localY, z, light);
+}
+
+// ============================================================================
 // ChunkDataRef 实现
 // ============================================================================
 

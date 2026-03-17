@@ -1,9 +1,9 @@
 #pragma once
 
 #include "BlockLightEngine.hpp"
+#include "LightEngineUtils.hpp"
 #include "../storage/SkyLightStorage.hpp"
 #include "../../block/Block.hpp"
-#include <climits>
 
 namespace mc {
 
@@ -129,27 +129,9 @@ private:
     [[nodiscard]] const CollisionShape& getVoxelShape(const BlockState& state, i64 pos, Direction dir) const;
 
     /**
-     * @brief 检查两个方块之间是否有完整的遮挡面
-     */
-    [[nodiscard]] static bool facesHaveOcclusion(
-        IWorld* world,
-        const BlockState& stateA, const BlockPos& posA,
-        const BlockState& stateB, const BlockPos& posB,
-        Direction dir, i32 opacity);
-
-    /**
      * @brief 从NibbleArray获取光照等级
      */
     [[nodiscard]] i32 getLevelFromArray(const NibbleArray* array, i64 worldPos) const;
-
-    /**
-     * @brief 世界位置编码
-     */
-    [[nodiscard]] static i64 packPos(i32 x, i32 y, i32 z);
-    [[nodiscard]] static i64 packPos(const BlockPos& pos);
-    [[nodiscard]] static void unpackPos(i64 packed, i32& x, i32& y, i32& z);
-    [[nodiscard]] static i64 offsetPos(i64 pos, Direction dir);
-    [[nodiscard]] static i64 worldToSectionPos(i64 worldPos);
 };
 
 } // namespace mc

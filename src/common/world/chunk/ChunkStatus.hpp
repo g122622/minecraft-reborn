@@ -27,6 +27,7 @@ class ChunkPrimer;
  * - SURFACE: 地表已生成
  * - CARVERS: 洞穴雕刻已应用
  * - FEATURES: 特性（树木、矿石等）已放置
+ * - LIGHT: 光照已计算
  * - HEIGHTMAPS: 高度图已更新
  * - FULL: 完整区块
  */
@@ -39,6 +40,7 @@ public:
     static const ChunkStatus SURFACE;
     static const ChunkStatus CARVERS;
     static const ChunkStatus FEATURES;
+    static const ChunkStatus LIGHT;
     static const ChunkStatus HEIGHTMAPS;
     static const ChunkStatus FULL;
 
@@ -161,11 +163,12 @@ constexpr i32 NOISE_ORDINAL = 2;
 constexpr i32 SURFACE_ORDINAL = 3;
 constexpr i32 CARVERS_ORDINAL = 4;
 constexpr i32 FEATURES_ORDINAL = 5;
-constexpr i32 HEIGHTMAPS_ORDINAL = 6;
-constexpr i32 FULL_ORDINAL = 7;
+constexpr i32 LIGHT_ORDINAL = 6;
+constexpr i32 HEIGHTMAPS_ORDINAL = 7;
+constexpr i32 FULL_ORDINAL = 8;
 
 // 总阶段数
-constexpr i32 COUNT = 8;
+constexpr i32 COUNT = 9;
 
 } // namespace ChunkStatuses
 

@@ -1,7 +1,8 @@
 #include "LightEngineUtils.hpp"
 #include "../../IWorld.hpp"
-#include "../../physics/collision/CollisionShape.hpp"
-#include "../block/Block.hpp"
+#include "../../../physics/collision/CollisionShape.hpp"
+#include "../../block/Block.hpp"
+#include "../../chunk/ChunkPos.hpp"
 #include <climits>
 
 namespace mc {

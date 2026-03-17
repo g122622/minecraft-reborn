@@ -2,8 +2,8 @@
 
 #include "../storage/BlockLightStorage.hpp"
 #include "LevelBasedGraph.hpp"
+#include "LightEngineUtils.hpp"
 #include "../../block/BlockPos.hpp"
-#include "../../../util/Direction.hpp"
 
 namespace mc {
 
@@ -114,7 +114,6 @@ protected:
 private:
     IChunkLightProvider* m_chunkProvider;
     BlockLightStorage m_storage;
-    BlockPos m_scratchPos;
 
     /**
      * @brief 获取指定位置的发光等级
@@ -134,26 +133,6 @@ private:
      * @brief 获取方块的遮挡形状
      */
     [[nodiscard]] const CollisionShape& getVoxelShape(const BlockState& state, i64 pos, Direction dir) const;
-
-    /**
-     * @brief 检查两个方块之间是否有完整的遮挡面
-     *
-     * 参考: net.minecraft.world.lighting.LightEngine#func_215613_a
-     */
-    [[nodiscard]] static bool facesHaveOcclusion(
-        IWorld* world,
-        const BlockState& stateA, const BlockPos& posA,
-        const BlockState& stateB, const BlockPos& posB,
-        Direction dir, i32 opacity);
-
-    /**
-     * @brief 世界位置编码
-     */
-    [[nodiscard]] static i64 packPos(i32 x, i32 y, i32 z);
-    [[nodiscard]] static i64 packPos(const BlockPos& pos);
-    [[nodiscard]] static void unpackPos(i64 packed, i32& x, i32& y, i32& z);
-    [[nodiscard]] static i64 offsetPos(i64 pos, Direction dir);
-    [[nodiscard]] static i64 worldToSectionPos(i64 worldPos);
 };
 
 } // namespace mc

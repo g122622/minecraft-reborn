@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../../core/Types.hpp"
-#include "../../util/Direction.hpp"
-#include "../block/Block.hpp"
-#include "../chunk/BlockPos.hpp"
+#include "../../../core/Types.hpp"
+#include "../../../util/Direction.hpp"
+#include "../../block/Block.hpp"
+#include "../../block/BlockPos.hpp"
 
 namespace mc {
 
@@ -43,7 +43,7 @@ public:
     /**
      * @brief 世界位置解码
      */
-    static void unpackPos(i64 packed, i32& x, i32& y, i32& z) {
+    [[nodiscard]] static constexpr void unpackPos(i64 packed, i32& x, i32& y, i32& z) {
         x = static_cast<i32>((packed >> 38) & 0xFFFFFFF);
         y = static_cast<i32>(packed & 0xFFF);
         z = static_cast<i32>((packed >> 12) & 0xFFFFFFF);
@@ -56,7 +56,7 @@ public:
     /**
      * @brief 位置偏移
      */
-    [[nodiscard]] static constexpr i64 offsetPos(i64 pos, Direction dir) {
+    [[nodiscard]] static i64 offsetPos(i64 pos, Direction dir) {
         i32 x, y, z;
         unpackPos(pos, x, y, z);
 

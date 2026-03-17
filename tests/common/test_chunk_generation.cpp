@@ -29,7 +29,7 @@ TEST(ChunkStatus, BasicProperties) {
     EXPECT_EQ(ChunkStatus::BIOMES.parent(), &ChunkStatus::EMPTY);
 
     EXPECT_EQ(ChunkStatus::FULL.name(), "full");
-    EXPECT_EQ(ChunkStatus::FULL.ordinal(), 7);
+    EXPECT_EQ(ChunkStatus::FULL.ordinal(), 8);
     EXPECT_EQ(ChunkStatus::FULL.parent(), &ChunkStatus::HEIGHTMAPS);
 }
 
@@ -66,7 +66,7 @@ TEST(ChunkStatus, TaskRange) {
 
 TEST(ChunkStatus, GetAll) {
     const auto& all = ChunkStatus::getAll();
-    EXPECT_EQ(all.size(), 8u);
+    EXPECT_EQ(all.size(), 9u);
 
     // 验证顺序
     EXPECT_EQ(all[0], ChunkStatus::EMPTY);
@@ -75,8 +75,9 @@ TEST(ChunkStatus, GetAll) {
     EXPECT_EQ(all[3], ChunkStatus::SURFACE);
     EXPECT_EQ(all[4], ChunkStatus::CARVERS);
     EXPECT_EQ(all[5], ChunkStatus::FEATURES);
-    EXPECT_EQ(all[6], ChunkStatus::HEIGHTMAPS);
-    EXPECT_EQ(all[7], ChunkStatus::FULL);
+    EXPECT_EQ(all[6], ChunkStatus::LIGHT);
+    EXPECT_EQ(all[7], ChunkStatus::HEIGHTMAPS);
+    EXPECT_EQ(all[8], ChunkStatus::FULL);
 }
 
 TEST(ChunkStatus, ByName) {
