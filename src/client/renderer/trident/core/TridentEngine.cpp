@@ -837,6 +837,11 @@ void TridentEngine::updateTime(i64 dayTime, i64 gameTime, f32 partialTick) {
 }
 
 void TridentEngine::updateWeather(f32 rainStrength, f32 thunderStrength) {
+    // 只在有变化时记录日志
+    if (std::abs(m_rainStrength - rainStrength) > 0.01f || std::abs(m_thunderStrength - thunderStrength) > 0.01f) {
+        spdlog::info("TridentEngine::updateWeather: rain={:.2f} -> {:.2f}, thunder={:.2f} -> {:.2f}",
+                     m_rainStrength, rainStrength, m_thunderStrength, thunderStrength);
+    }
     m_rainStrength = rainStrength;
     m_thunderStrength = thunderStrength;
 }

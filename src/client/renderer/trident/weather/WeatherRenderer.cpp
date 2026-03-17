@@ -287,6 +287,11 @@ void WeatherRenderer::render(VkCommandBuffer cmd,
         return;  // 不下雨/雪，不渲染
     }
 
+    if (!m_initialized) {
+        spdlog::warn("WeatherRenderer::render: Not initialized!");
+        return;
+    }
+
     MC_TRACE_EVENT_BEGIN("rendering", "WeatherRenderer::render");
 
     m_cameraPos = cameraPos;
@@ -361,6 +366,9 @@ void WeatherRenderer::generateWeatherGeometry() {
     if (m_rainStrength <= 0.001f) {
         return;
     }
+
+    spdlog::debug("WeatherRenderer: Generating rain geometry, rainStrength={}, cameraPos=({},{},{})",
+                  m_rainStrength, m_cameraPos.x, m_cameraPos.y, m_cameraPos.z);
 
     // 参考 MC 1.16.5 WorldRenderer.renderRainSnow()
     // 遍历玩家周围的区块
@@ -507,6 +515,9 @@ void WeatherRenderer::generateWeatherGeometry() {
 
     m_rainVertexCount = static_cast<u32>(m_rainVertices.size());
     m_snowVertexCount = static_cast<u32>(m_snowVertices.size());
+
+    spdlog::debug("WeatherRenderer: Generated {} rain vertices, {} snow vertices",
+                  m_rainVertexCount, m_snowVertexCount);
 }
 
 Result<void> WeatherRenderer::createVertexBuffer() {
