@@ -171,10 +171,12 @@ private:
 // 预定义生物群系ID常量（参考 MC 1.16.5 Biomes.java）
 // 完整列表，ID 与 MC 1.16.5 完全一致
 // ============================================================================
+// 注意：这些 ID 与 BiomeValues.hpp 中的值保持一致
+// ============================================================================
 
 namespace Biomes {
 
-// 基础生物群系 (0-35)
+// 基础生物群系 (0-13)
 constexpr BiomeId Ocean = 0;
 constexpr BiomeId Plains = 1;
 constexpr BiomeId Desert = 2;
@@ -189,38 +191,65 @@ constexpr BiomeId FrozenOcean = 10;
 constexpr BiomeId FrozenRiver = 11;
 constexpr BiomeId SnowyPlains = 12;        // snowy_tundra
 constexpr BiomeId SnowyMountains = 13;
+
+// 蘑菇岛 (14-15)
 constexpr BiomeId MushroomFields = 14;
 constexpr BiomeId MushroomFieldShore = 15;
-constexpr BiomeId Beach = 16;
-constexpr BiomeId Jungle = 17;
-constexpr BiomeId JungleHills = 18;
-constexpr BiomeId JungleEdge = 19;
-constexpr BiomeId DeepOcean = 20;
-constexpr BiomeId StoneShore = 21;
-constexpr BiomeId SnowyBeach = 22;
-constexpr BiomeId BirchForest = 23;
-constexpr BiomeId BirchForestHills = 24;
-constexpr BiomeId DarkForest = 25;
-constexpr BiomeId SnowyTaiga = 26;
-constexpr BiomeId SnowyTaigaHills = 27;
-constexpr BiomeId GiantTreeTaiga = 28;
-constexpr BiomeId GiantTreeTaigaHills = 29;
-constexpr BiomeId WoodedMountains = 30;    // wooded_hills (extreme_hills_with_trees)
-constexpr BiomeId Savanna = 31;
-constexpr BiomeId SavannaPlateau = 32;
-constexpr BiomeId Badlands = 33;
-constexpr BiomeId WoodedBadlandsPlateau = 34;
-constexpr BiomeId BadlandsPlateau = 35;
 
-// 其他基础生物群系 (36-43)
-constexpr BiomeId WoodedHills = 36;        // 也称作 wooded_hills
-constexpr BiomeId DesertHills = 28;        // 注意：MC 中是 28，但与 BadlandsPlateau 有冲突，这里保持兼容
-constexpr BiomeId TaigaHills = 19;         // 同上
-constexpr BiomeId MountainEdge = 20;       // MC 中已弃用，这里保留兼容性
+// 海滩 (16)
+constexpr BiomeId Beach = 16;
+
+// 山地变体和丘陵 (17-20)
+constexpr BiomeId DesertHills = 17;
+constexpr BiomeId WoodedHills = 18;        // 也称作 wooded_hills
+constexpr BiomeId TaigaHills = 19;
+constexpr BiomeId MountainEdge = 20;       // MC 中已弃用，但 ID 保留
+
+// 丛林 (21-23)
+constexpr BiomeId Jungle = 21;
+constexpr BiomeId JungleHills = 22;
+constexpr BiomeId JungleEdge = 23;
+
+// 深海和石岸 (24-25)
+constexpr BiomeId DeepOcean = 24;
+constexpr BiomeId StoneShore = 25;
+
+// 雪地海滩 (26)
+constexpr BiomeId SnowyBeach = 26;
+
+// 桦木森林 (27-28)
+constexpr BiomeId BirchForest = 27;
+constexpr BiomeId BirchForestHills = 28;
+
+// 黑森林 (29)
+constexpr BiomeId DarkForest = 29;
+
+// 雪地针叶林 (30-31)
+constexpr BiomeId SnowyTaiga = 30;
+constexpr BiomeId SnowyTaigaHills = 31;
+
+// 大型针叶林 (32-33)
+constexpr BiomeId GiantTreeTaiga = 32;
+constexpr BiomeId GiantTreeTaigaHills = 33;
+
+// 热带草原 (34-36)
+constexpr BiomeId WoodedMountains = 34;    // extreme_hills_with_trees
+constexpr BiomeId Savanna = 35;
+constexpr BiomeId SavannaPlateau = 36;
+
+// 恶地 (37-39)
+constexpr BiomeId Badlands = 37;
+constexpr BiomeId WoodedBadlandsPlateau = 38;
+constexpr BiomeId BadlandsPlateau = 39;
+
+// 末地生物群系 (40-43)
 constexpr BiomeId SmallEndIslands = 40;
 constexpr BiomeId EndMidlands = 41;
 constexpr BiomeId EndHighlands = 42;
 constexpr BiomeId EndBarrens = 43;
+
+// 海洋温度变体 (44-50)
+constexpr BiomeId WarmOcean = 44;
 constexpr BiomeId LukewarmOcean = 45;
 constexpr BiomeId ColdOcean = 46;
 constexpr BiomeId DeepWarmOcean = 47;
@@ -228,18 +257,16 @@ constexpr BiomeId DeepLukewarmOcean = 48;
 constexpr BiomeId DeepColdOcean = 49;
 constexpr BiomeId DeepFrozenOcean = 50;
 
-// 下界生物群系 (51-55，MC 1.16 新增)
+// 下界生物群系 (51-54，MC 1.16 新增)
 constexpr BiomeId SoulSandValley = 51;
 constexpr BiomeId CrimsonForest = 52;
 constexpr BiomeId WarpedForest = 53;
 constexpr BiomeId BasaltDeltas = 54;
-// 55 保留
 
-// 其他基础生物群系 (56-59 已被末地生物群系使用，见上方)
-// TheVoid (60)
-// 61-127 保留
+// TheVoid (55)
+// 56-127 保留
 
-// 变体生物群系 (129-167，稀有变体)
+// 变体生物群系（129-169，稀有变体）
 constexpr BiomeId SunflowerPlains = 129;
 constexpr BiomeId DesertLakes = 130;
 constexpr BiomeId GravellyMountains = 131;

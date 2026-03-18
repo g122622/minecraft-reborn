@@ -52,6 +52,8 @@ bool BiomeRegistry::hasBiome(BiomeId id) const
 void BiomeRegistry::registerDefaultBiomes()
 {
     // 注册所有默认生物群系
+
+    // === 基础生物群系 (0-13) ===
     registerBiome(BiomeFactory::createOcean());
     registerBiome(BiomeFactory::createPlains());
     registerBiome(BiomeFactory::createDesert());
@@ -64,27 +66,98 @@ void BiomeRegistry::registerDefaultBiomes()
     registerBiome(BiomeFactory::createFrozenRiver());
     registerBiome(BiomeFactory::createSnowyPlains());
     registerBiome(BiomeFactory::createSnowyMountains());
+
+    // === 蘑菇岛 (14-15) ===
+    registerBiome(BiomeFactory::createMushroomFields());
+    registerBiome(BiomeFactory::createMushroomFieldShore());
+
+    // === 海滩 (16) ===
     registerBiome(BiomeFactory::createBeach());
-    registerBiome(BiomeFactory::createJungle());
-    registerBiome(BiomeFactory::createSavanna());
-    registerBiome(BiomeFactory::createBadlands());
-    registerBiome(BiomeFactory::createDeepOcean());
-    registerBiome(BiomeFactory::createDeepFrozenOcean());
+
+    // === 山地变体和丘陵 (17-20) ===
+    registerBiome(BiomeFactory::createDesertHills());
     registerBiome(BiomeFactory::createWoodedHills());
+    registerBiome(BiomeFactory::createTaigaHills());
     registerBiome(BiomeFactory::createMountainEdge());
+
+    // === 丛林 (21-23) ===
+    registerBiome(BiomeFactory::createJungle());
+    registerBiome(BiomeFactory::createJungleHills());
+    registerBiome(BiomeFactory::createJungleEdge());
+
+    // === 深海和石岸 (24-25) ===
+    registerBiome(BiomeFactory::createDeepOcean());
     registerBiome(BiomeFactory::createStoneShore());
+
+    // === 雪地海滩 (26) ===
     registerBiome(BiomeFactory::createSnowyBeach());
+
+    // === 桦木森林 (27-28) ===
     registerBiome(BiomeFactory::createBirchForest());
+    registerBiome(BiomeFactory::createBirchForestHills());
+
+    // === 黑森林 (29) ===
     registerBiome(BiomeFactory::createDarkForest());
+
+    // === 雪地针叶林 (30-31) ===
     registerBiome(BiomeFactory::createSnowyTaiga());
+    registerBiome(BiomeFactory::createSnowyTaigaHills());
+
+    // === 大型针叶林 (32-33) ===
     registerBiome(BiomeFactory::createGiantTreeTaiga());
+    registerBiome(BiomeFactory::createGiantTreeTaigaHillsBiome());
+
+    // === 热带草原 (34-36) ===
     registerBiome(BiomeFactory::createWoodedMountains());
+    registerBiome(BiomeFactory::createSavanna());
     registerBiome(BiomeFactory::createSavannaPlateau());
-    registerBiome(BiomeFactory::createBadlandsPlateau());
+
+    // === 恶地 (37-39) ===
+    registerBiome(BiomeFactory::createBadlands());
     registerBiome(BiomeFactory::createWoodedBadlandsPlateau());
-    registerBiome(BiomeFactory::createErodedBadlands());
-    registerBiome(BiomeFactory::createShatteredSavanna());
+    registerBiome(BiomeFactory::createBadlandsPlateau());
+
+    // === 海洋温度变体 (44-50) ===
+    registerBiome(BiomeFactory::createWarmOcean());
+    registerBiome(BiomeFactory::createLukewarmOcean());
+    registerBiome(BiomeFactory::createColdOcean());
+    registerBiome(BiomeFactory::createDeepWarmOcean());
+    registerBiome(BiomeFactory::createDeepLukewarmOcean());
+    registerBiome(BiomeFactory::createDeepColdOcean());
+    registerBiome(BiomeFactory::createDeepFrozenOcean());
+
+    // === 特殊地形变体 ===
     registerBiome(BiomeFactory::createIceSpikes());
+
+    // === 丛林变体 (168-169) ===
+    registerBiome(BiomeFactory::createBambooJungle());
+    registerBiome(BiomeFactory::createBambooJungleHills());
+
+    // === 森林变体 ===
+    registerBiome(BiomeFactory::createFlowerForest());
+    registerBiome(BiomeFactory::createTallBirchForest());
+    registerBiome(BiomeFactory::createTallBirchHills());
+    registerBiome(BiomeFactory::createDarkForestHills());
+
+    // === 巨型针叶林变体 (160-161) ===
+    registerBiome(BiomeFactory::createGiantSpruceTaiga());
+    registerBiome(BiomeFactory::createGiantSpruceTaigaHills());
+
+    // === 稀有变体生物群系 (129-167) ===
+    registerBiome(BiomeFactory::createSunflowerPlains());
+    registerBiome(BiomeFactory::createDesertLakes());
+    registerBiome(BiomeFactory::createGravellyMountains());
+    registerBiome(BiomeFactory::createTaigaMountains());
+    registerBiome(BiomeFactory::createSwampHills());
+    registerBiome(BiomeFactory::createModifiedJungle());
+    registerBiome(BiomeFactory::createModifiedJungleEdge());
+    registerBiome(BiomeFactory::createSnowyTaigaMountains());
+    registerBiome(BiomeFactory::createModifiedGravellyMountains());
+    registerBiome(BiomeFactory::createShatteredSavanna());
+    registerBiome(BiomeFactory::createShatteredSavannaPlateau());
+    registerBiome(BiomeFactory::createErodedBadlands());
+    registerBiome(BiomeFactory::createModifiedWoodedBadlandsPlateau());
+    registerBiome(BiomeFactory::createModifiedBadlandsPlateau());
 }
 
 // ============================================================================
@@ -602,6 +675,545 @@ Biome createDeepFrozenOcean()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    return biome;
+}
+
+// ============================================================================
+// 高优先级生物群系（阶段1）
+// ============================================================================
+
+Biome createWarmOcean()
+{
+    // MC: depth=-1.0F, scale=0.1F
+    // 温暖海洋，温度高，沙子底部
+    Biome biome(Biomes::WarmOcean, "warm_ocean");
+    biome.setDepth(-1.0f);
+    biome.setScale(0.1f);
+    biome.setTemperature(0.8f);
+    biome.setHumidity(0.5f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    return biome;
+}
+
+Biome createLukewarmOcean()
+{
+    // MC: depth=-1.0F, scale=0.1F
+    Biome biome(Biomes::LukewarmOcean, "lukewarm_ocean");
+    biome.setDepth(-1.0f);
+    biome.setScale(0.1f);
+    biome.setTemperature(0.6f);
+    biome.setHumidity(0.5f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    return biome;
+}
+
+Biome createColdOcean()
+{
+    // MC: depth=-1.0F, scale=0.1F
+    Biome biome(Biomes::ColdOcean, "cold_ocean");
+    biome.setDepth(-1.0f);
+    biome.setScale(0.1f);
+    biome.setTemperature(0.3f);
+    biome.setHumidity(0.5f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    return biome;
+}
+
+Biome createDeepWarmOcean()
+{
+    // MC: depth=-1.8F, scale=0.1F
+    Biome biome(Biomes::DeepWarmOcean, "deep_warm_ocean");
+    biome.setDepth(-1.8f);
+    biome.setScale(0.1f);
+    biome.setTemperature(0.8f);
+    biome.setHumidity(0.5f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    return biome;
+}
+
+Biome createDeepLukewarmOcean()
+{
+    // MC: depth=-1.8F, scale=0.1F
+    Biome biome(Biomes::DeepLukewarmOcean, "deep_lukewarm_ocean");
+    biome.setDepth(-1.8f);
+    biome.setScale(0.1f);
+    biome.setTemperature(0.6f);
+    biome.setHumidity(0.5f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    return biome;
+}
+
+Biome createDeepColdOcean()
+{
+    // MC: depth=-1.8F, scale=0.1F
+    Biome biome(Biomes::DeepColdOcean, "deep_cold_ocean");
+    biome.setDepth(-1.8f);
+    biome.setScale(0.1f);
+    biome.setTemperature(0.3f);
+    biome.setHumidity(0.5f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    return biome;
+}
+
+Biome createJungleHills()
+{
+    // MC: depth=0.45F, scale=0.3F
+    Biome biome(Biomes::JungleHills, "jungle_hills");
+    biome.setDepth(0.45f);
+    biome.setScale(0.3f);
+    biome.setTemperature(0.95f);
+    biome.setHumidity(0.9f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createJungle());
+    return biome;
+}
+
+Biome createJungleEdge()
+{
+    // MC: depth=0.1F, scale=0.2F
+    Biome biome(Biomes::JungleEdge, "jungle_edge");
+    biome.setDepth(0.1f);
+    biome.setScale(0.2f);
+    biome.setTemperature(0.95f);
+    biome.setHumidity(0.8f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createJungle());
+    return biome;
+}
+
+Biome createBambooJungle()
+{
+    // MC: depth=0.1F, scale=0.2F
+    // 暂不生成竹子，使用丛林生成设置
+    Biome biome(Biomes::BambooJungle, "bamboo_jungle");
+    biome.setDepth(0.1f);
+    biome.setScale(0.2f);
+    biome.setTemperature(0.95f);
+    biome.setHumidity(0.9f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createJungle());
+    return biome;
+}
+
+Biome createBambooJungleHills()
+{
+    // MC: depth=0.45F, scale=0.3F
+    Biome biome(Biomes::BambooJungleHills, "bamboo_jungle_hills");
+    biome.setDepth(0.45f);
+    biome.setScale(0.3f);
+    biome.setTemperature(0.95f);
+    biome.setHumidity(0.9f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createJungle());
+    return biome;
+}
+
+Biome createBirchForestHills()
+{
+    // MC: depth=0.45F, scale=0.3F
+    Biome biome(Biomes::BirchForestHills, "birch_forest_hills");
+    biome.setDepth(0.45f);
+    biome.setScale(0.3f);
+    biome.setTemperature(0.6f);
+    biome.setHumidity(0.6f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createForest());
+    return biome;
+}
+
+Biome createFlowerForest()
+{
+    // MC: depth=0.1F, scale=0.2F
+    Biome biome(Biomes::FlowerForest, "flower_forest");
+    biome.setDepth(0.1f);
+    biome.setScale(0.2f);
+    biome.setTemperature(0.7f);
+    biome.setHumidity(0.8f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createForest());
+    return biome;
+}
+
+Biome createTallBirchForest()
+{
+    // MC: depth=0.1F, scale=0.2F
+    // 高桦木
+    Biome biome(Biomes::TallBirchForest, "tall_birch_forest");
+    biome.setDepth(0.1f);
+    biome.setScale(0.2f);
+    biome.setTemperature(0.6f);
+    biome.setHumidity(0.6f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createForest());
+    return biome;
+}
+
+Biome createTallBirchHills()
+{
+    // MC: depth=0.45F, scale=0.3F
+    Biome biome(Biomes::TallBirchHills, "tall_birch_hills");
+    biome.setDepth(0.45f);
+    biome.setScale(0.3f);
+    biome.setTemperature(0.6f);
+    biome.setHumidity(0.6f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createForest());
+    return biome;
+}
+
+Biome createDarkForestHills()
+{
+    // MC: depth=0.45F, scale=0.3F
+    Biome biome(Biomes::DarkForestHills, "dark_forest_hills");
+    biome.setDepth(0.45f);
+    biome.setScale(0.3f);
+    biome.setTemperature(0.7f);
+    biome.setHumidity(0.8f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createForest());
+    return biome;
+}
+
+Biome createMushroomFields()
+{
+    // MC: depth=0.2F, scale=0.3F
+    // 蘑菇岛
+    Biome biome(Biomes::MushroomFields, "mushroom_fields");
+    biome.setDepth(0.2f);
+    biome.setScale(0.3f);
+    biome.setTemperature(0.9f);
+    biome.setHumidity(1.0f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::MYCELIUM));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    return biome;
+}
+
+Biome createMushroomFieldShore()
+{
+    // MC: depth=0.0F, scale=0.025F
+    // 蘑菇岛海岸
+    Biome biome(Biomes::MushroomFieldShore, "mushroom_field_shore");
+    biome.setDepth(0.0f);
+    biome.setScale(0.025f);
+    biome.setTemperature(0.9f);
+    biome.setHumidity(1.0f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::MYCELIUM));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    return biome;
+}
+
+Biome createDesertHills()
+{
+    // MC: depth=0.225F, scale=0.25F
+    Biome biome(Biomes::DesertHills, "desert_hills");
+    biome.setDepth(0.225f);
+    biome.setScale(0.25f);
+    biome.setTemperature(2.0f);
+    biome.setHumidity(0.0f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setGenerationSettings(BiomeGenerationSettings::createDesert());
+    return biome;
+}
+
+Biome createTaigaHills()
+{
+    // MC: depth=0.3F, scale=0.25F
+    Biome biome(Biomes::TaigaHills, "taiga_hills");
+    biome.setDepth(0.3f);
+    biome.setScale(0.25f);
+    biome.setTemperature(-0.5f);
+    biome.setHumidity(0.4f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
+    return biome;
+}
+
+Biome createGiantSpruceTaiga()
+{
+    // MC: depth=0.2F, scale=0.2F
+    Biome biome(Biomes::GiantSpruceTaiga, "giant_spruce_taiga");
+    biome.setDepth(0.2f);
+    biome.setScale(0.2f);
+    biome.setTemperature(0.25f);
+    biome.setHumidity(0.8f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
+    return biome;
+}
+
+Biome createGiantSpruceTaigaHills()
+{
+    // MC: depth=0.2F, scale=0.2F
+    Biome biome(Biomes::GiantSpruceTaigaHills, "giant_spruce_taiga_hills");
+    biome.setDepth(0.2f);
+    biome.setScale(0.2f);
+    biome.setTemperature(0.25f);
+    biome.setHumidity(0.8f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
+    return biome;
+}
+
+// ============================================================================
+// 中优先级生物群系（阶段2）
+// ============================================================================
+
+Biome createSunflowerPlains()
+{
+    // MC: depth=0.125F, scale=0.05F
+    Biome biome(Biomes::SunflowerPlains, "sunflower_plains");
+    biome.setDepth(0.125f);
+    biome.setScale(0.05f);
+    biome.setTemperature(0.8f);
+    biome.setHumidity(0.4f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createPlains());
+    return biome;
+}
+
+Biome createDesertLakes()
+{
+    // MC: depth=0.225F, scale=0.25F
+    Biome biome(Biomes::DesertLakes, "desert_lakes");
+    biome.setDepth(0.225f);
+    biome.setScale(0.25f);
+    biome.setTemperature(2.0f);
+    biome.setHumidity(0.0f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setGenerationSettings(BiomeGenerationSettings::createDesert());
+    return biome;
+}
+
+Biome createGravellyMountains()
+{
+    // MC: depth=1.0F, scale=0.5F
+    Biome biome(Biomes::GravellyMountains, "gravelly_mountains");
+    biome.setDepth(1.0f);
+    biome.setScale(0.5f);
+    biome.setTemperature(0.2f);
+    biome.setHumidity(0.3f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::STONE));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::STONE));
+    biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
+    return biome;
+}
+
+Biome createTaigaMountains()
+{
+    // MC: depth=0.3F, scale=0.25F
+    Biome biome(Biomes::TaigaMountains, "taiga_mountains");
+    biome.setDepth(0.3f);
+    biome.setScale(0.25f);
+    biome.setTemperature(-0.5f);
+    biome.setHumidity(0.4f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
+    return biome;
+}
+
+Biome createSwampHills()
+{
+    // MC: depth=-0.1F, scale=0.3F
+    Biome biome(Biomes::SwampHills, "swamp_hills");
+    biome.setDepth(-0.1f);
+    biome.setScale(0.3f);
+    biome.setTemperature(0.8f);
+    biome.setHumidity(0.9f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    return biome;
+}
+
+Biome createModifiedJungle()
+{
+    // MC: depth=0.1F, scale=0.2F
+    Biome biome(Biomes::ModifiedJungle, "modified_jungle");
+    biome.setDepth(0.1f);
+    biome.setScale(0.2f);
+    biome.setTemperature(0.95f);
+    biome.setHumidity(0.9f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createJungle());
+    return biome;
+}
+
+Biome createModifiedJungleEdge()
+{
+    // MC: depth=0.1F, scale=0.2F
+    Biome biome(Biomes::ModifiedJungleEdge, "modified_jungle_edge");
+    biome.setDepth(0.1f);
+    biome.setScale(0.2f);
+    biome.setTemperature(0.95f);
+    biome.setHumidity(0.8f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createJungle());
+    return biome;
+}
+
+Biome createSnowyTaigaMountains()
+{
+    // MC: depth=0.3F, scale=0.25F
+    Biome biome(Biomes::SnowyTaigaMountains, "snowy_taiga_mountains");
+    biome.setDepth(0.3f);
+    biome.setScale(0.25f);
+    biome.setTemperature(-0.5f);
+    biome.setHumidity(0.4f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::SNOW));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
+    return biome;
+}
+
+Biome createModifiedGravellyMountains()
+{
+    // MC: depth=1.0F, scale=0.5F
+    Biome biome(Biomes::ModifiedGravellyMountains, "modified_gravelly_mountains");
+    biome.setDepth(1.0f);
+    biome.setScale(0.5f);
+    biome.setTemperature(0.2f);
+    biome.setHumidity(0.3f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::STONE));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::STONE));
+    biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
+    return biome;
+}
+
+Biome createShatteredSavannaPlateau()
+{
+    // MC: depth=1.05F, scale=0.0125F
+    Biome biome(Biomes::ShatteredSavannaPlateau, "shattered_savanna_plateau");
+    biome.setDepth(1.05f);
+    biome.setScale(0.0125f);
+    biome.setTemperature(1.0f);
+    biome.setHumidity(0.0f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createSavanna());
+    return biome;
+}
+
+Biome createModifiedWoodedBadlandsPlateau()
+{
+    // MC: depth=1.5F, scale=0.025F
+    Biome biome(Biomes::ModifiedWoodedBadlandsPlateau, "modified_wooded_badlands_plateau");
+    biome.setDepth(1.5f);
+    biome.setScale(0.025f);
+    biome.setTemperature(2.0f);
+    biome.setHumidity(0.0f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::RED_SANDSTONE));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::COBBLESTONE));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::RED_SANDSTONE));
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    return biome;
+}
+
+Biome createModifiedBadlandsPlateau()
+{
+    // MC: depth=1.5F, scale=0.025F
+    Biome biome(Biomes::ModifiedBadlandsPlateau, "modified_badlands_plateau");
+    biome.setDepth(1.5f);
+    biome.setScale(0.025f);
+    biome.setTemperature(2.0f);
+    biome.setHumidity(0.0f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::RED_SANDSTONE));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::COBBLESTONE));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::RED_SANDSTONE));
+    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    return biome;
+}
+
+Biome createGiantTreeTaigaHillsBiome()
+{
+    // MC: depth=0.3F, scale=0.25F
+    // 注意：这是 GiantTreeTaiga 的丘陵变体，与已有的 GiantTreeTaigaHills 类似
+    Biome biome(Biomes::GiantTreeTaigaHills, "giant_tree_taiga_hills");
+    biome.setDepth(0.3f);
+    biome.setScale(0.25f);
+    biome.setTemperature(0.3f);
+    biome.setHumidity(0.8f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createForest());
+    return biome;
+}
+
+Biome createSnowyTaigaHills()
+{
+    // MC: depth=0.3F, scale=0.25F
+    Biome biome(Biomes::SnowyTaigaHills, "snowy_taiga_hills");
+    biome.setDepth(0.3f);
+    biome.setScale(0.25f);
+    biome.setTemperature(-0.5f);
+    biome.setHumidity(0.4f);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::SNOW));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
     return biome;
 }
 

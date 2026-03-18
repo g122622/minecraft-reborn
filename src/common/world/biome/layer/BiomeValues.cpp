@@ -43,9 +43,9 @@ const std::unordered_map<i32, BiomeCategory>& getBiomeCategoryMap() {
         {BiomeValues::SnowyBeach, BiomeCategory::Beach},               // 26
 
         // Desert (MC: 2, 17, 130)
-        // 注意：17 在 MC 1.16.5 中是 JungleHills，但 DesertHills 也是沙漠类
+        // DesertHills (17) 在 MC 中属于沙漠类
         {BiomeValues::Desert, BiomeCategory::Desert},                  // 2
-        {BiomeValues::JungleHills, BiomeCategory::Desert},             // 17 (MC 用这个表示沙漠类)
+        {BiomeValues::DesertHills, BiomeCategory::Desert},             // 17
         {BiomeValues::DesertLakes, BiomeCategory::Desert},             // 130
 
         // ExtremeHills/Mountains (MC: 131, 162, 20, 3, 34)
@@ -75,7 +75,7 @@ const std::unordered_map<i32, BiomeCategory>& getBiomeCategoryMap() {
         {BiomeValues::BambooJungle, BiomeCategory::Jungle},            // 168
         {BiomeValues::BambooJungleHills, BiomeCategory::Jungle},       // 169
         {BiomeValues::Jungle, BiomeCategory::Jungle},                  // 21
-        // JungleHills (17) 已经映射到 Desert，MC 也是这样的
+        {BiomeValues::JungleHills, BiomeCategory::Jungle},             // 22
         {BiomeValues::JungleEdge, BiomeCategory::Jungle},              // 23
         {BiomeValues::ModifiedJungle, BiomeCategory::Jungle},          // 149
         {BiomeValues::ModifiedJungleEdge, BiomeCategory::Jungle},      // 151

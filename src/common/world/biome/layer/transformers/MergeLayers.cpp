@@ -146,19 +146,19 @@ i32 HillsLayer::apply(IAreaContext& ctx, const IArea& biomeArea, const IArea& ri
         // MC 1.16.5 的山丘映射逻辑
         switch (biomeValue) {
             case BiomeValues::Desert:  // 2
-                result = BiomeValues::JungleHills;  // 17 (WoodedHills 在 MC 中)
+                result = BiomeValues::DesertHills;  // 17
                 break;
             case BiomeValues::Forest:  // 4
-                result = BiomeValues::JungleHills;  // 18 (WoodedHills 在 MC 中)
+                result = BiomeValues::WoodedHills;  // 18
                 break;
             case BiomeValues::BirchForest:  // 27
                 result = BiomeValues::BirchForestHills;  // 28
                 break;
             case BiomeValues::DarkForest:  // 29
-                result = BiomeValues::Plains;  // 1
+                result = BiomeValues::Plains;  // 1 (MC 奇怪的设计)
                 break;
             case BiomeValues::Taiga:  // 5
-                result = BiomeValues::TaigaHills;  // 19 (或 WoodedHills)
+                result = BiomeValues::TaigaHills;  // 19
                 break;
             case BiomeValues::GiantTreeTaiga:  // 32
                 result = BiomeValues::GiantTreeTaigaHills;  // 33
@@ -167,7 +167,7 @@ i32 HillsLayer::apply(IAreaContext& ctx, const IArea& biomeArea, const IArea& ri
                 result = BiomeValues::SnowyTaigaHills;  // 31
                 break;
             case BiomeValues::Plains:  // 1
-                result = ctx.nextInt(3) == 0 ? BiomeValues::JungleHills : BiomeValues::Forest;  // 18 或 4
+                result = ctx.nextInt(3) == 0 ? BiomeValues::WoodedHills : BiomeValues::Forest;  // 18 或 4
                 break;
             case BiomeValues::SnowyPlains:  // 12
                 result = BiomeValues::SnowyMountains;  // 13

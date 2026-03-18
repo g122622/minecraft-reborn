@@ -163,6 +163,222 @@ TEST_F(BiomeRegistryTest, CreateOcean) {
 }
 
 // ============================================================================
+// 新增生物群系测试（阶段1）
+// ============================================================================
+
+TEST_F(BiomeRegistryTest, CreateWarmOcean) {
+    Biome biome = BiomeFactory::createWarmOcean();
+    EXPECT_EQ(biome.id(), Biomes::WarmOcean);
+    EXPECT_EQ(biome.name(), "warm_ocean");
+    EXPECT_FLOAT_EQ(biome.depth(), -1.0f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.1f);
+    EXPECT_FLOAT_EQ(biome.temperature(), 0.8f);
+}
+
+TEST_F(BiomeRegistryTest, CreateLukewarmOcean) {
+    Biome biome = BiomeFactory::createLukewarmOcean();
+    EXPECT_EQ(biome.id(), Biomes::LukewarmOcean);
+    EXPECT_EQ(biome.name(), "lukewarm_ocean");
+    EXPECT_FLOAT_EQ(biome.depth(), -1.0f);
+    EXPECT_FLOAT_EQ(biome.temperature(), 0.6f);
+}
+
+TEST_F(BiomeRegistryTest, CreateColdOcean) {
+    Biome biome = BiomeFactory::createColdOcean();
+    EXPECT_EQ(biome.id(), Biomes::ColdOcean);
+    EXPECT_EQ(biome.name(), "cold_ocean");
+    EXPECT_FLOAT_EQ(biome.depth(), -1.0f);
+    EXPECT_FLOAT_EQ(biome.temperature(), 0.3f);
+}
+
+TEST_F(BiomeRegistryTest, CreateDeepWarmOcean) {
+    Biome biome = BiomeFactory::createDeepWarmOcean();
+    EXPECT_EQ(biome.id(), Biomes::DeepWarmOcean);
+    EXPECT_EQ(biome.name(), "deep_warm_ocean");
+    EXPECT_FLOAT_EQ(biome.depth(), -1.8f);
+}
+
+TEST_F(BiomeRegistryTest, CreateDeepLukewarmOcean) {
+    Biome biome = BiomeFactory::createDeepLukewarmOcean();
+    EXPECT_EQ(biome.id(), Biomes::DeepLukewarmOcean);
+    EXPECT_EQ(biome.name(), "deep_lukewarm_ocean");
+    EXPECT_FLOAT_EQ(biome.depth(), -1.8f);
+}
+
+TEST_F(BiomeRegistryTest, CreateDeepColdOcean) {
+    Biome biome = BiomeFactory::createDeepColdOcean();
+    EXPECT_EQ(biome.id(), Biomes::DeepColdOcean);
+    EXPECT_EQ(biome.name(), "deep_cold_ocean");
+    EXPECT_FLOAT_EQ(biome.depth(), -1.8f);
+}
+
+TEST_F(BiomeRegistryTest, CreateJungleHills) {
+    Biome biome = BiomeFactory::createJungleHills();
+    EXPECT_EQ(biome.id(), Biomes::JungleHills);
+    EXPECT_EQ(biome.name(), "jungle_hills");
+    EXPECT_FLOAT_EQ(biome.depth(), 0.45f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.3f);
+}
+
+TEST_F(BiomeRegistryTest, CreateJungleEdge) {
+    Biome biome = BiomeFactory::createJungleEdge();
+    EXPECT_EQ(biome.id(), Biomes::JungleEdge);
+    EXPECT_EQ(biome.name(), "jungle_edge");
+    EXPECT_FLOAT_EQ(biome.depth(), 0.1f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.2f);
+}
+
+TEST_F(BiomeRegistryTest, CreateBambooJungle) {
+    Biome biome = BiomeFactory::createBambooJungle();
+    EXPECT_EQ(biome.id(), Biomes::BambooJungle);
+    EXPECT_EQ(biome.name(), "bamboo_jungle");
+    EXPECT_FLOAT_EQ(biome.depth(), 0.1f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.2f);
+}
+
+TEST_F(BiomeRegistryTest, CreateBambooJungleHills) {
+    Biome biome = BiomeFactory::createBambooJungleHills();
+    EXPECT_EQ(biome.id(), Biomes::BambooJungleHills);
+    EXPECT_EQ(biome.name(), "bamboo_jungle_hills");
+    EXPECT_FLOAT_EQ(biome.depth(), 0.45f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.3f);
+}
+
+TEST_F(BiomeRegistryTest, CreateBirchForestHills) {
+    Biome biome = BiomeFactory::createBirchForestHills();
+    EXPECT_EQ(biome.id(), Biomes::BirchForestHills);
+    EXPECT_EQ(biome.name(), "birch_forest_hills");
+    EXPECT_FLOAT_EQ(biome.depth(), 0.45f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.3f);
+}
+
+TEST_F(BiomeRegistryTest, CreateFlowerForest) {
+    Biome biome = BiomeFactory::createFlowerForest();
+    EXPECT_EQ(biome.id(), Biomes::FlowerForest);
+    EXPECT_EQ(biome.name(), "flower_forest");
+    EXPECT_FLOAT_EQ(biome.depth(), 0.1f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.2f);
+}
+
+TEST_F(BiomeRegistryTest, CreateTallBirchForest) {
+    Biome biome = BiomeFactory::createTallBirchForest();
+    EXPECT_EQ(biome.id(), Biomes::TallBirchForest);
+    EXPECT_EQ(biome.name(), "tall_birch_forest");
+    EXPECT_FLOAT_EQ(biome.depth(), 0.1f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.2f);
+}
+
+TEST_F(BiomeRegistryTest, CreateDarkForestHills) {
+    Biome biome = BiomeFactory::createDarkForestHills();
+    EXPECT_EQ(biome.id(), Biomes::DarkForestHills);
+    EXPECT_EQ(biome.name(), "dark_forest_hills");
+    EXPECT_FLOAT_EQ(biome.depth(), 0.45f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.3f);
+}
+
+TEST_F(BiomeRegistryTest, CreateMushroomFields) {
+    Biome biome = BiomeFactory::createMushroomFields();
+    EXPECT_EQ(biome.id(), Biomes::MushroomFields);
+    EXPECT_EQ(biome.name(), "mushroom_fields");
+    EXPECT_FLOAT_EQ(biome.depth(), 0.2f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.3f);
+    EXPECT_FLOAT_EQ(biome.temperature(), 0.9f);
+    EXPECT_FLOAT_EQ(biome.humidity(), 1.0f);
+}
+
+TEST_F(BiomeRegistryTest, CreateMushroomFieldShore) {
+    Biome biome = BiomeFactory::createMushroomFieldShore();
+    EXPECT_EQ(biome.id(), Biomes::MushroomFieldShore);
+    EXPECT_EQ(biome.name(), "mushroom_field_shore");
+    EXPECT_FLOAT_EQ(biome.depth(), 0.0f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.025f);
+}
+
+TEST_F(BiomeRegistryTest, CreateDesertHills) {
+    Biome biome = BiomeFactory::createDesertHills();
+    EXPECT_EQ(biome.id(), Biomes::DesertHills);
+    EXPECT_EQ(biome.name(), "desert_hills");
+    EXPECT_FLOAT_EQ(biome.depth(), 0.225f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.25f);
+}
+
+TEST_F(BiomeRegistryTest, CreateTaigaHills) {
+    Biome biome = BiomeFactory::createTaigaHills();
+    EXPECT_EQ(biome.id(), Biomes::TaigaHills);
+    EXPECT_EQ(biome.name(), "taiga_hills");
+    EXPECT_FLOAT_EQ(biome.depth(), 0.3f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.25f);
+}
+
+TEST_F(BiomeRegistryTest, CreateGiantSpruceTaiga) {
+    Biome biome = BiomeFactory::createGiantSpruceTaiga();
+    EXPECT_EQ(biome.id(), Biomes::GiantSpruceTaiga);
+    EXPECT_EQ(biome.name(), "giant_spruce_taiga");
+    EXPECT_FLOAT_EQ(biome.depth(), 0.2f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.2f);
+}
+
+TEST_F(BiomeRegistryTest, CreateGiantSpruceTaigaHills) {
+    Biome biome = BiomeFactory::createGiantSpruceTaigaHills();
+    EXPECT_EQ(biome.id(), Biomes::GiantSpruceTaigaHills);
+    EXPECT_EQ(biome.name(), "giant_spruce_taiga_hills");
+    EXPECT_FLOAT_EQ(biome.depth(), 0.2f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.2f);
+}
+
+// ============================================================================
+// 新增生物群系测试（阶段2 - 稀有变体）
+// ============================================================================
+
+TEST_F(BiomeRegistryTest, CreateSunflowerPlains) {
+    Biome biome = BiomeFactory::createSunflowerPlains();
+    EXPECT_EQ(biome.id(), Biomes::SunflowerPlains);
+    EXPECT_EQ(biome.name(), "sunflower_plains");
+    EXPECT_FLOAT_EQ(biome.depth(), 0.125f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.05f);
+}
+
+TEST_F(BiomeRegistryTest, CreateDesertLakes) {
+    Biome biome = BiomeFactory::createDesertLakes();
+    EXPECT_EQ(biome.id(), Biomes::DesertLakes);
+    EXPECT_EQ(biome.name(), "desert_lakes");
+    EXPECT_FLOAT_EQ(biome.depth(), 0.225f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.25f);
+}
+
+TEST_F(BiomeRegistryTest, CreateGravellyMountains) {
+    Biome biome = BiomeFactory::createGravellyMountains();
+    EXPECT_EQ(biome.id(), Biomes::GravellyMountains);
+    EXPECT_EQ(biome.name(), "gravelly_mountains");
+    EXPECT_FLOAT_EQ(biome.depth(), 1.0f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.5f);
+}
+
+TEST_F(BiomeRegistryTest, CreateSwampHills) {
+    Biome biome = BiomeFactory::createSwampHills();
+    EXPECT_EQ(biome.id(), Biomes::SwampHills);
+    EXPECT_EQ(biome.name(), "swamp_hills");
+    EXPECT_FLOAT_EQ(biome.depth(), -0.1f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.3f);
+}
+
+TEST_F(BiomeRegistryTest, CreateModifiedJungle) {
+    Biome biome = BiomeFactory::createModifiedJungle();
+    EXPECT_EQ(biome.id(), Biomes::ModifiedJungle);
+    EXPECT_EQ(biome.name(), "modified_jungle");
+    EXPECT_FLOAT_EQ(biome.depth(), 0.1f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.2f);
+}
+
+TEST_F(BiomeRegistryTest, CreateShatteredSavannaPlateau) {
+    Biome biome = BiomeFactory::createShatteredSavannaPlateau();
+    EXPECT_EQ(biome.id(), Biomes::ShatteredSavannaPlateau);
+    EXPECT_EQ(biome.name(), "shattered_savanna_plateau");
+    EXPECT_FLOAT_EQ(biome.depth(), 1.05f);
+    EXPECT_FLOAT_EQ(biome.scale(), 0.0125f);
+}
+
+// ============================================================================
 // Layer 系统测试
 // ============================================================================
 

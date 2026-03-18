@@ -229,6 +229,212 @@ Biome createIceSpikes();
  */
 Biome createDeepFrozenOcean();
 
+// ============================================================================
+// 高优先级生物群系（阶段1）
+// ============================================================================
+
+/**
+ * @brief 创建温暖海洋生物群系
+ * @note 温暖海洋，温度高，沙子底部
+ */
+Biome createWarmOcean();
+
+/**
+ * @brief 创建微温海洋生物群系
+ */
+Biome createLukewarmOcean();
+
+/**
+ * @brief 创建寒冷海洋生物群系
+ */
+Biome createColdOcean();
+
+/**
+ * @brief 创建深海温暖海洋生物群系
+ */
+Biome createDeepWarmOcean();
+
+/**
+ * @brief 创建深海微温海洋生物群系
+ */
+Biome createDeepLukewarmOcean();
+
+/**
+ * @brief 创建深海寒冷海洋生物群系
+ */
+Biome createDeepColdOcean();
+
+/**
+ * @brief 创建丛林丘陵生物群系
+ * @note depth=0.45, scale=0.3
+ */
+Biome createJungleHills();
+
+/**
+ * @brief 创建丛林边缘生物群系
+ * @note depth=0.1, scale=0.2
+ */
+Biome createJungleEdge();
+
+/**
+ * @brief 创建竹林生物群系
+ * @note depth=0.1, scale=0.2 (暂不生成竹子)
+ */
+Biome createBambooJungle();
+
+/**
+ * @brief 创建竹林丘陵生物群系
+ * @note depth=0.45, scale=0.3
+ */
+Biome createBambooJungleHills();
+
+/**
+ * @brief 创建桦木森林丘陵生物群系
+ * @note depth=0.45, scale=0.3
+ */
+Biome createBirchForestHills();
+
+/**
+ * @brief 创建繁花森林生物群系
+ * @note depth=0.1, scale=0.2
+ */
+Biome createFlowerForest();
+
+/**
+ * @brief 创建高大桦木森林生物群系
+ * @note depth=0.1, scale=0.2 (高桦木)
+ */
+Biome createTallBirchForest();
+
+/**
+ * @brief 创建高大桦木丘陵生物群系
+ * @note depth=0.45, scale=0.3
+ */
+Biome createTallBirchHills();
+
+/**
+ * @brief 创建黑森林丘陵生物群系
+ * @note depth=0.45, scale=0.3
+ */
+Biome createDarkForestHills();
+
+/**
+ * @brief 创建蘑菇岛生物群系
+ * @note depth=0.2, scale=0.3
+ */
+Biome createMushroomFields();
+
+/**
+ * @brief 创建蘑菇岛海岸生物群系
+ * @note depth=0.0, scale=0.025
+ */
+Biome createMushroomFieldShore();
+
+/**
+ * @brief 创建冰刺之地生物群系
+ * @note depth=0.4375, scale=0.05
+ */
+Biome createIceSpikes();
+
+/**
+ * @brief 创建沙漠丘陵生物群系
+ * @note depth=0.225, scale=0.25
+ */
+Biome createDesertHills();
+
+/**
+ * @brief 创建针叶林丘陵生物群系
+ * @note depth=0.3, scale=0.25
+ */
+Biome createTaigaHills();
+
+/**
+ * @brief 创建巨型云杉针叶林生物群系
+ * @note depth=0.2, scale=0.2
+ */
+Biome createGiantSpruceTaiga();
+
+/**
+ * @brief 创建巨型云杉针叶林丘陵生物群系
+ * @note depth=0.2, scale=0.2
+ */
+Biome createGiantSpruceTaigaHills();
+
+// ============================================================================
+// 中优先级生物群系（阶段2）
+// ============================================================================
+
+/**
+ * @brief 创建向日葵平原生物群系
+ */
+Biome createSunflowerPlains();
+
+/**
+ * @brief 创建沙漠湖泊生物群系
+ */
+Biome createDesertLakes();
+
+/**
+ * @brief 创建砾石山地生物群系
+ */
+Biome createGravellyMountains();
+
+/**
+ * @brief 创建针叶林山地生物群系
+ */
+Biome createTaigaMountains();
+
+/**
+ * @brief 创建沼泽丘陵生物群系
+ */
+Biome createSwampHills();
+
+/**
+ * @brief 创建变异丛林生物群系
+ */
+Biome createModifiedJungle();
+
+/**
+ * @brief 创建变异丛林边缘生物群系
+ */
+Biome createModifiedJungleEdge();
+
+/**
+ * @brief 创建积雪针叶林山地生物群系
+ */
+Biome createSnowyTaigaMountains();
+
+/**
+ * @brief 创建变异砾石山地生物群系
+ */
+Biome createModifiedGravellyMountains();
+
+/**
+ * @brief 创建破碎热带草原高原生物群系
+ */
+Biome createShatteredSavannaPlateau();
+
+/**
+ * @brief 创建变异繁茂恶地高原生物群系
+ */
+Biome createModifiedWoodedBadlandsPlateau();
+
+/**
+ * @brief 创建变异恶地高原生物群系
+ */
+Biome createModifiedBadlandsPlateau();
+
+/**
+ * @brief 创建巨型针叶林丘陵生物群系
+ * @note 已有 GiantTreeTaiga，这里是其丘陵变体
+ */
+Biome createGiantTreeTaigaHillsBiome();
+
+/**
+ * @brief 创建积雪针叶林丘陵生物群系
+ */
+Biome createSnowyTaigaHills();
+
 } // namespace BiomeFactory
 
 } // namespace mc
