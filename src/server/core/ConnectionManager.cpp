@@ -70,14 +70,37 @@ void ConnectionManager::disconnectPlayer(PlayerId playerId, const String& reason
 }
 
 void ConnectionManager::disconnectAll(const String& reason) {
-    auto playerIds = m_playerManager.getPlayerIds();
-    for (PlayerId playerId : playerIds) {
-        disconnectPlayer(playerId, reason);
+    // 先收集所有需要断开的连接，避免在遍历时修改
+    std::vector<std::pair<PlayerId, String>> toDisconnect;
+    m_playerManager.forEachPlayer([&](ServerPlayerData& player) {
+        toDisconnect.emplace_back(player.playerId, player.username);
+    });
+
+    for (const auto& [playerId, username] : toDisconnect) {
+        auto* player = m_playerManager.getPlayer(playerId);
+        if (!player) continue;
+
+        auto conn = player->getConnection();
+        if (conn) {
+            conn->disconnect(reason);
+        }
+
+        if (reason.empty()) {
+            spdlog::info("Player {} ({}) disconnected", username, playerId);
+        } else {
+            spdlog::info("Player {} ({}) disconnected: {}", username, playerId, reason);
+        }
+    }
+
+    // 清理所有玩家
+    for (const auto& [playerId, _] : toDisconnect) {
+        m_playerManager.removePlayer(playerId);
     }
 }
 
 size_t ConnectionManager::cleanupDisconnectedPlayers() {
     std::vector<PlayerId> toRemove;
+    toRemove.reserve(m_playerManager.playerCount());
 
     m_playerManager.forEachPlayer([&](ServerPlayerData& player) {
         if (!player.hasConnection()) {

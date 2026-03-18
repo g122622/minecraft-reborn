@@ -87,7 +87,7 @@ public:
     /**
      * @brief 检查日光周期是否启用
      */
-    [[nodiscard]] bool daylightCycleEnabled() const { return m_daylightCycleEnabled; }
+    [[nodiscard]] bool daylightCycleEnabled() const { return m_gameTime.daylightCycleEnabled(); }
 
     /**
      * @brief 启用/禁用日光周期
@@ -112,7 +112,6 @@ public:
 
 private:
     time::GameTime m_gameTime;
-    bool m_daylightCycleEnabled = true;
 };
 
 } // namespace mc::server::core

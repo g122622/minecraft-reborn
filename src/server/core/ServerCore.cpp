@@ -13,23 +13,8 @@
 namespace mc::server {
 
 ServerCore::ServerCore()
-    : m_playerManager(std::make_unique<core::PlayerManager>())
-    , m_connectionManager(std::make_unique<core::ConnectionManager>(*m_playerManager))
-    , m_timeManager(std::make_unique<core::TimeManager>())
-    , m_teleportManager(std::make_unique<core::TeleportManager>(*m_playerManager))
-    , m_keepAliveManager(std::make_unique<core::KeepAliveManager>(*m_playerManager, m_config))
-    , m_positionTracker(std::make_unique<core::PositionTracker>(*m_playerManager, m_config))
-    , m_packetHandler(std::make_unique<core::PacketHandler>(
-          *m_playerManager,
-          *m_connectionManager,
-          *m_teleportManager,
-          *m_keepAliveManager,
-          *m_positionTracker,
-          *m_timeManager,
-          m_config))
+    : ServerCore(ServerCoreConfig{})
 {
-    m_playerManager->setConfig(m_config);
-    m_weatherManager.initialize(m_config.seed);
 }
 
 ServerCore::ServerCore(const ServerCoreConfig& config)
@@ -204,10 +189,6 @@ void ServerCore::updatePlayerPosition(PlayerId playerId, f64 x, f64 y, f64 z, f3
 // 心跳管理
 // ============================================================================
 
-// ============================================================================
-// 心跳管理
-// ============================================================================
-
 void ServerCore::updateKeepAlive(PlayerId playerId, u64 timestamp) {
     m_keepAliveManager->updateKeepAlive(playerId, timestamp);
 }
@@ -263,14 +244,13 @@ void ServerCore::tick() {
     }
 
     // 清理断开连接的玩家（每 CLEANUP_INTERVAL_TICKS tick 执行一次）
-    if (m_currentCleanupTick % CLEANUP_INTERVAL_TICKS == 0) {
+    if (m_tickCounter % CLEANUP_INTERVAL_TICKS == 0) {
         MC_TRACE_EVENT("server.player", "CleanupDisconnected");
         cleanupDisconnectedPlayers();
     }
-    m_currentCleanupTick++;
 
     // 检查心跳超时（每 KEEPALIVE_CHECK_INTERVAL_TICKS tick 执行一次）
-    if (m_currentKeepAliveCheckTick % KEEPALIVE_CHECK_INTERVAL_TICKS == 0) {
+    if (m_tickCounter % KEEPALIVE_CHECK_INTERVAL_TICKS == 0) {
         MC_TRACE_EVENT("server.network", "CheckKeepAliveTimeout");
         u64 currentTickMs = currentTick() * TICK_DURATION_MS;
         auto timedOutPlayers = m_keepAliveManager->getTimedOutPlayers(currentTickMs);
@@ -279,7 +259,7 @@ void ServerCore::tick() {
             disconnectPlayer(playerId, "Connection timed out");
         }
     }
-    m_currentKeepAliveCheckTick++;
+    m_tickCounter++;
 }
 
 } // namespace mc::server

@@ -342,8 +342,7 @@ private:
     WeatherManager m_weatherManager;
 
     // Tick 计数器（用于间隔执行清理和心跳检查）
-    u64 m_currentCleanupTick = 0;
-    u64 m_currentKeepAliveCheckTick = 0;
+    u64 m_tickCounter = 0;
 };
 
 // ============================================================================

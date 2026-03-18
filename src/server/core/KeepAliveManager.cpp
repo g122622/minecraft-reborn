@@ -21,6 +21,7 @@ bool KeepAliveManager::needsKeepAlive(PlayerId playerId, u64 currentTickMs) cons
 
 std::vector<PlayerId> KeepAliveManager::getPlayersNeedingKeepAlive(u64 currentTickMs) const {
     std::vector<PlayerId> result;
+    result.reserve(m_playerManager.playerCount());
     m_playerManager.forEachPlayer([&](const ServerPlayerData& player) {
         u64 lastSent = player.lastKeepAliveSent;
         if ((currentTickMs - lastSent) >= static_cast<u64>(m_keepAliveInterval)) {
@@ -75,6 +76,7 @@ bool KeepAliveManager::isTimedOut(PlayerId playerId, u64 currentTickMs) const {
 
 std::vector<PlayerId> KeepAliveManager::getTimedOutPlayers(u64 currentTickMs) const {
     std::vector<PlayerId> result;
+    result.reserve(m_playerManager.playerCount());
     m_playerManager.forEachPlayer([&](const ServerPlayerData& player) {
         u64 lastReceived = player.lastKeepAliveReceived;
         if (lastReceived > 0 && (currentTickMs - lastReceived) >= static_cast<u64>(m_keepAliveTimeout)) {

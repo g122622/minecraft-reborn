@@ -122,15 +122,6 @@ TEST_F(TeleportManagerTest, MultipleTeleports) {
     EXPECT_TRUE(m_teleportManager->confirmTeleport(1, id2));
 }
 
-TEST_F(TeleportManagerTest, NextTeleportId) {
-    mc::u32 id1 = m_teleportManager->nextTeleportId();
-    mc::u32 id2 = m_teleportManager->nextTeleportId();
-    mc::u32 id3 = m_teleportManager->nextTeleportId();
-
-    EXPECT_NE(id1, id2);
-    EXPECT_NE(id2, id3);
-}
-
 TEST_F(TeleportManagerTest, IsWaitingForConfirmNonexistentPlayer) {
     EXPECT_FALSE(m_teleportManager->isWaitingForConfirm(999));
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/core/Types.hpp"
+#include "common/core/Constants.hpp"
 #include "common/network/connection/IServerConnection.hpp"
 #include "common/network/sync/ChunkSync.hpp"
 #include "common/entity/inventory/ContainerTypes.hpp"
@@ -122,14 +123,14 @@ struct ServerPlayerData {
      * @brief 获取区块坐标 X
      */
     [[nodiscard]] ChunkCoord chunkX() const {
-        return static_cast<ChunkCoord>(std::floor(x / 16.0f));
+        return static_cast<ChunkCoord>(std::floor(x / static_cast<f32>(mc::world::CHUNK_WIDTH)));
     }
 
     /**
      * @brief 获取区块坐标 Z
      */
     [[nodiscard]] ChunkCoord chunkZ() const {
-        return static_cast<ChunkCoord>(std::floor(z / 16.0f));
+        return static_cast<ChunkCoord>(std::floor(z / static_cast<f32>(mc::world::CHUNK_WIDTH)));
     }
 
     /**

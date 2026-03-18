@@ -4,19 +4,13 @@ namespace mc::server::core {
 
 TimeManager::TimeManager(i64 initialGameTime, i64 initialDayTime)
     : m_gameTime()
-    , m_daylightCycleEnabled(true)
 {
     m_gameTime.setGameTime(initialGameTime);
     m_gameTime.setDayTime(initialDayTime);
 }
 
 void TimeManager::tick() {
-    if (m_daylightCycleEnabled) {
-        m_gameTime.tick();
-    } else {
-        // Only increment gameTime, not dayTime
-        m_gameTime.setGameTime(m_gameTime.gameTime() + 1);
-    }
+    m_gameTime.tick();
 }
 
 i64 TimeManager::gameTime() const {
@@ -44,7 +38,6 @@ i64 TimeManager::dayCount() const {
 }
 
 void TimeManager::setDaylightCycleEnabled(bool enabled) {
-    m_daylightCycleEnabled = enabled;
     m_gameTime.setDaylightCycleEnabled(enabled);
 }
 

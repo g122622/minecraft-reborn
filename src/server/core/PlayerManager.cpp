@@ -14,19 +14,22 @@ ServerPlayerData* PlayerManager::addPlayer(PlayerId playerId,
                                             network::ConnectionPtr connection) {
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    // 检查是否已存在
-    if (m_players.find(playerId) != m_players.end()) {
+    // 使用 try_emplace 避免双重查找
+    auto [it, inserted] = m_players.try_emplace(playerId);
+    if (!inserted) {
         spdlog::warn("PlayerManager: Player {} already exists", playerId);
         return nullptr;
     }
 
     // 检查是否已满
-    if (static_cast<i32>(m_players.size()) >= m_maxPlayers) {
+    if (static_cast<i32>(m_players.size()) > m_maxPlayers) {
+        // 回滚插入
+        m_players.erase(it);
         spdlog::warn("PlayerManager: Server is full ({} players)", m_maxPlayers);
         return nullptr;
     }
 
-    auto& player = m_players[playerId];
+    auto& player = it->second;
     player.playerId = playerId;
     player.username = username;
     player.connection = connection;
@@ -87,20 +90,16 @@ void PlayerManager::removePlayerBySessionId(u32 sessionId) {
 
 ServerPlayerData* PlayerManager::findBySessionId(u32 sessionId) {
     std::lock_guard<std::mutex> lock(m_mutex);
-
     auto it = m_sessionToPlayer.find(sessionId);
     if (it == m_sessionToPlayer.end()) return nullptr;
-
     auto playerIt = m_players.find(it->second);
     return playerIt != m_players.end() ? &playerIt->second : nullptr;
 }
 
 const ServerPlayerData* PlayerManager::findBySessionId(u32 sessionId) const {
     std::lock_guard<std::mutex> lock(m_mutex);
-
     auto it = m_sessionToPlayer.find(sessionId);
     if (it == m_sessionToPlayer.end()) return nullptr;
-
     auto playerIt = m_players.find(it->second);
     return playerIt != m_players.end() ? &playerIt->second : nullptr;
 }
