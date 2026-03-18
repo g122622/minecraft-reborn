@@ -6,7 +6,7 @@
 #include "../../common/world/biome/Biome.hpp"
 #include "../../common/world/WorldConstants.hpp"
 #include "../renderer/MeshTypes.hpp"
-#include "../../common/network/ChunkSync.hpp"
+#include "../../common/network/sync/ChunkSync.hpp"
 #include "../../common/physics/PhysicsEngine.hpp"
 #include "../renderer/Camera.hpp"
 #include "../renderer/mesh/MeshWorkerPool.hpp"

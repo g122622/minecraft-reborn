@@ -4,9 +4,9 @@
 #include "common/core/Result.hpp"
 #include "common/entity/Player.hpp"
 #include "common/item/ItemStack.hpp"
-#include "common/network/InventoryPackets.hpp"
-#include "common/network/ProtocolPackets.hpp"
-#include "common/network/LocalConnection.hpp"
+#include "common/network/packet/InventoryPackets.hpp"
+#include "common/network/packet/ProtocolPackets.hpp"
+#include "common/network/connection/LocalConnection.hpp"
 #include <asio.hpp>
 #include <functional>
 #include <memory>

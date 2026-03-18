@@ -1,7 +1,7 @@
 #include "TeleportManager.hpp"
 #include "PlayerManager.hpp"
 #include "ConnectionManager.hpp"
-#include "common/network/ProtocolPackets.hpp"
+#include "common/network/packet/ProtocolPackets.hpp"
 #include <spdlog/spdlog.h>
 
 namespace mc::server::core {

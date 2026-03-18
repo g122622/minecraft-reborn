@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../core/Types.hpp"
-#include "../core/Result.hpp"
+#include "../../core/Types.hpp"
+#include "../../core/Result.hpp"
 #include "PacketSerializer.hpp"
-#include "../item/ItemStack.hpp"
-#include "../entity/inventory/ContainerTypes.hpp"
+#include "../../item/ItemStack.hpp"
+#include "../../entity/inventory/ContainerTypes.hpp"
 #include <vector>
 #include <memory>
 

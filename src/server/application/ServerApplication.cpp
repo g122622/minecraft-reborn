@@ -1,7 +1,7 @@
 #include "ServerApplication.hpp"
 #include "CoreCommandBridge.hpp"
 #include "minecraft-reborn/version.h"
-#include "common/network/ProtocolPackets.hpp"
+#include "common/network/packet/ProtocolPackets.hpp"
 #include "common/entity/VanillaEntities.hpp"
 #include "common/perfetto/PerfettoManager.hpp"
 #include "common/perfetto/TraceEvents.hpp"

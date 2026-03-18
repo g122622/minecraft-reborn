@@ -2,7 +2,7 @@
 
 #include "Entity.hpp"
 #include "inventory/PlayerInventory.hpp"
-#include "../network/ProtocolPackets.hpp"
+#include "../network/packet/ProtocolPackets.hpp"
 #include <array>
 
 namespace mc {

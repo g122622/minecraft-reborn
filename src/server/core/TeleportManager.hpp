@@ -1,7 +1,7 @@
 #pragma once
 
 #include "common/core/Types.hpp"
-#include "common/network/Packet.hpp"
+#include "common/network/packet/Packet.hpp"
 #include <vector>
 #include <atomic>
 

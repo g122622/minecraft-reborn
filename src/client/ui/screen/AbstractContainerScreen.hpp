@@ -3,7 +3,7 @@
 #include "screen/IScreen.hpp"
 #include "entity/inventory/AbstractContainerMenu.hpp"
 #include "entity/inventory/ContainerTypes.hpp"
-#include "network/InventoryPackets.hpp"
+#include "network/packet/InventoryPackets.hpp"
 #include "core/Types.hpp"
 #include <memory>
 #include <functional>

@@ -1,7 +1,7 @@
 #include "NetworkClient.hpp"
-#include "common/network/Packet.hpp"
-#include "common/network/EntityPackets.hpp"
-#include "common/network/GameStateChangePacket.hpp"
+#include "common/network/packet/Packet.hpp"
+#include "common/network/packet/EntityPackets.hpp"
+#include "common/network/packet/GameStateChangePacket.hpp"
 #include <chrono>
 #include <spdlog/spdlog.h>
 

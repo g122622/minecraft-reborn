@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../world/chunk/ChunkData.hpp"
-#include "../world/chunk/ChunkPos.hpp"
-#include "ProtocolPackets.hpp"
-#include "../core/Result.hpp"
+#include "../../world/chunk/ChunkData.hpp"
+#include "../../world/chunk/ChunkPos.hpp"
+#include "../packet/ProtocolPackets.hpp"
+#include "../../core/Result.hpp"
 #include <unordered_set>
 #include <unordered_map>
 #include <memory>
@@ -56,14 +56,23 @@ struct ChunkView {
     // 获取所有在视距内的区块坐标
     [[nodiscard]] std::vector<ChunkPos> getChunksInView() const {
         std::vector<ChunkPos> chunks;
-        chunks.reserve(static_cast<size_t>(viewDistance * 2 + 1) * (viewDistance * 2 + 1));
+        getChunksInView(chunks);
+        return chunks;
+    }
+
+    /**
+     * @brief 获取所有在视距内的区块坐标（输出参数版本，避免分配）
+     * @param out 输出向量（会被清空并填充）
+     */
+    void getChunksInView(std::vector<ChunkPos>& out) const {
+        out.clear();
+        out.reserve(static_cast<size_t>(viewDistance * 2 + 1) * (viewDistance * 2 + 1));
 
         for (ChunkCoord x = centerX - viewDistance; x <= centerX + viewDistance; ++x) {
             for (ChunkCoord z = centerZ - viewDistance; z <= centerZ + viewDistance; ++z) {
-                chunks.emplace_back(x, z);
+                out.emplace_back(x, z);
             }
         }
-        return chunks;
     }
 
     // 计算需要加载的新区块和需要卸载的旧区块
@@ -141,7 +150,30 @@ public:
     void markChunkUnloaded(PlayerId playerId, ChunkCoord x, ChunkCoord z);
 
     // 获取区块订阅者（哪些玩家需要这个区块）
-    [[nodiscard]] std::vector<PlayerId> getChunkSubscribers(ChunkCoord x, ChunkCoord z) const;
+    [[nodiscard]] std::vector<PlayerId> getChunkSubscribers(ChunkCoord x, ChunkCoord z) const {
+        std::vector<PlayerId> subscribers;
+        getChunkSubscribers(x, z, subscribers);
+        return subscribers;
+    }
+
+    /**
+     * @brief 获取区块订阅者（输出参数版本，避免分配）
+     * @param x 区块X坐标
+     * @param z 区块Z坐标
+     * @param out 输出向量（会被清空并填充）
+     */
+    void getChunkSubscribers(ChunkCoord x, ChunkCoord z, std::vector<PlayerId>& out) const {
+        out.clear();
+
+        ChunkId chunkId(x, z, 0);
+        auto it = m_chunkSubscribers.find(chunkId);
+        if (it != m_chunkSubscribers.end()) {
+            out.reserve(it->second.size());
+            for (PlayerId playerId : it->second) {
+                out.push_back(playerId);
+            }
+        }
+    }
 
     // 全局设置
     void setDefaultViewDistance(i32 distance) { m_defaultViewDistance = distance; }

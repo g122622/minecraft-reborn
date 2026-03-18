@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common/network/IServerConnection.hpp"
+#include "common/network/connection/IServerConnection.hpp"
 #include "TcpSession.hpp"
 #include <memory>
 

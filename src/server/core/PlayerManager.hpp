@@ -2,8 +2,8 @@
 
 #include "ServerCoreConfig.hpp"
 #include "ServerPlayerData.hpp"
-#include "common/network/IServerConnection.hpp"
-#include "common/network/ChunkSync.hpp"
+#include "common/network/connection/IServerConnection.hpp"
+#include "common/network/sync/ChunkSync.hpp"
 #include <memory>
 #include <unordered_map>
 #include <mutex>

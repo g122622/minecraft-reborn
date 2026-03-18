@@ -1,7 +1,7 @@
 #pragma once
 
-#include "common/network/IServerConnection.hpp"
-#include "common/network/LocalConnection.hpp"
+#include "IServerConnection.hpp"
+#include "LocalConnection.hpp"
 
 namespace mc::network {
 
@@ -49,7 +49,6 @@ public:
 
 private:
     LocalEndpoint* m_endpoint;
-    bool m_connected;
     static inline u64 s_nextId = 0;
     u64 m_id;
 };

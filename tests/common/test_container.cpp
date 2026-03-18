@@ -3,7 +3,7 @@
 #include "../src/common/entity/inventory/PlayerInventory.hpp"
 #include "../src/common/item/ItemRegistry.hpp"
 #include "../src/common/item/Items.hpp"
-#include "../src/common/network/InventoryPackets.hpp"
+#include "../src/common/network/packet/InventoryPackets.hpp"
 
 using namespace mc;
 

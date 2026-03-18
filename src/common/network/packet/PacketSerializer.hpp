@@ -1,15 +1,31 @@
 #pragma once
 
-#include "../core/Types.hpp"
-#include "../core/Result.hpp"
+#include "../../core/Types.hpp"
+#include "../../core/Result.hpp"
 #include <vector>
 #include <string>
 #include <cstring>
 #include <type_traits>
+#include <array>
 
 namespace mc::network {
 
+// ============================================================================
+// 常量定义
+// ============================================================================
+
+/// 字符串最大长度 (u16 范围)
+constexpr u16 MAX_STRING_LENGTH = 65535;
+
+// ============================================================================
 // 网络字节序转换
+// ============================================================================
+
+/**
+ * @brief 网络字节序转换工具类
+ *
+ * 提供主机字节序与网络字节序（大端序）之间的转换。
+ */
 class NetworkEndian {
 public:
     static u16 hostToNetwork16(u16 value);
@@ -39,7 +55,10 @@ public:
     }
 };
 
+// ============================================================================
 // VarInt/VarLong 编码结果
+// ============================================================================
+
 struct VarIntResult {
     i32 value;
     size_t bytesRead;
@@ -137,6 +156,25 @@ public:
     [[nodiscard]] Result<bool> readBool();
     [[nodiscard]] Result<String> readString();
     [[nodiscard]] Result<std::vector<u8>> readBytes(size_t size);
+
+    /**
+     * @brief 直接读取字节到目标缓冲区（零拷贝）
+     * @param dest 目标缓冲区指针
+     * @param size 要读取的字节数
+     * @return 成功返回空，失败返回错误
+     */
+    [[nodiscard]] Result<void> readBytesInto(u8* dest, size_t size);
+
+    /**
+     * @brief 直接读取字节到固定大小数组（零拷贝）
+     * @tparam N 数组大小
+     * @param dest 目标数组
+     * @return 成功返回空，失败返回错误
+     */
+    template<size_t N>
+    [[nodiscard]] Result<void> readBytesInto(std::array<u8, N>& dest) {
+        return readBytesInto(dest.data(), N);
+    }
 
     // VarInt/VarLong 读取
     [[nodiscard]] Result<i32> readVarInt();

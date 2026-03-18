@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 #include "server/core/ServerCore.hpp"
 #include "server/core/TimeManager.hpp"
-#include "common/network/LocalServerConnection.hpp"
-#include "common/network/LocalConnection.hpp"
+#include "common/network/connection/LocalServerConnection.hpp"
+#include "common/network/connection/LocalConnection.hpp"
 #include <algorithm>
 #include <thread>
 

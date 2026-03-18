@@ -2,8 +2,8 @@
 #include "server/core/TeleportManager.hpp"
 #include "server/core/PlayerManager.hpp"
 #include "server/core/ConnectionManager.hpp"
-#include "common/network/LocalServerConnection.hpp"
-#include "common/network/LocalConnection.hpp"
+#include "common/network/connection/LocalServerConnection.hpp"
+#include "common/network/connection/LocalConnection.hpp"
 #include "common/core/Types.hpp"
 
 using namespace mc::server::core;

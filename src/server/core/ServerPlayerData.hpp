@@ -1,8 +1,8 @@
 #pragma once
 
 #include "common/core/Types.hpp"
-#include "common/network/IServerConnection.hpp"
-#include "common/network/ChunkSync.hpp"
+#include "common/network/connection/IServerConnection.hpp"
+#include "common/network/sync/ChunkSync.hpp"
 #include "common/entity/inventory/ContainerTypes.hpp"
 #include <memory>
 #include <unordered_set>

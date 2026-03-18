@@ -5,8 +5,8 @@
 #include "KeepAliveManager.hpp"
 #include "PositionTracker.hpp"
 #include "TimeManager.hpp"
-#include "common/network/PacketSerializer.hpp"
-#include "common/network/ProtocolPackets.hpp"
+#include "common/network/packet/PacketSerializer.hpp"
+#include "common/network/packet/ProtocolPackets.hpp"
 #include "common/util/TimeUtils.hpp"
 #include <spdlog/spdlog.h>
 

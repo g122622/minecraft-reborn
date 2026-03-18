@@ -139,12 +139,12 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/server/command/commands/GiveCommand.cpp
         ${CMAKE_SOURCE_DIR}/src/server/command/commands/ClearCommand.cpp
         ${CMAKE_SOURCE_DIR}/src/server/command/commands/WeatherCommand.cpp
-        ${CMAKE_SOURCE_DIR}/src/common/network/LocalConnection.cpp
-        ${CMAKE_SOURCE_DIR}/src/common/network/LocalServerConnection.cpp
-        ${CMAKE_SOURCE_DIR}/src/common/network/ChunkSync.cpp
-        ${CMAKE_SOURCE_DIR}/src/common/network/PacketSerializer.cpp
-        ${CMAKE_SOURCE_DIR}/src/common/network/Packet.cpp
-        ${CMAKE_SOURCE_DIR}/src/common/network/EntityPackets.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/network/connection/LocalConnection.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/network/connection/LocalServerConnection.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/network/sync/ChunkSync.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/network/packet/PacketSerializer.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/network/packet/Packet.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/network/packet/EntityPackets.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkData.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkDistanceGraph.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkLoadTicketManager.cpp

@@ -1,5 +1,5 @@
 #include "entity/inventory/CraftingInventory.hpp"
-#include "network/PacketSerializer.hpp"
+#include "network/packet/PacketSerializer.hpp"
 
 namespace mc {
 

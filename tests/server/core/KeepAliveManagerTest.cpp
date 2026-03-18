@@ -2,8 +2,8 @@
 #include "server/core/KeepAliveManager.hpp"
 #include "server/core/PlayerManager.hpp"
 #include "server/core/ServerCoreConfig.hpp"
-#include "common/network/LocalServerConnection.hpp"
-#include "common/network/LocalConnection.hpp"
+#include "common/network/connection/LocalServerConnection.hpp"
+#include "common/network/connection/LocalConnection.hpp"
 
 using namespace mc::server::core;
 using namespace mc::network;

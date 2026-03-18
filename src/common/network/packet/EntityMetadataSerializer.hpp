@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../entity/EntityDataManager.hpp"
-#include "../core/Types.hpp"
+#include "../../entity/EntityDataManager.hpp"
+#include "../../core/Types.hpp"
 #include <vector>
 
 namespace mc::network {

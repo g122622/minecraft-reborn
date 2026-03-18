@@ -1,8 +1,8 @@
 #pragma once
 
 #include "ServerPlayerData.hpp"
-#include "common/network/Packet.hpp"
-#include "common/network/PacketSerializer.hpp"
+#include "common/network/packet/Packet.hpp"
+#include "common/network/packet/PacketSerializer.hpp"
 #include <vector>
 
 namespace mc::server::core {

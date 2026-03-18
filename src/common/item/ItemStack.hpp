@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../core/Types.hpp"
-#include "../network/PacketSerializer.hpp"
+#include "../network/packet/PacketSerializer.hpp"
 #include "../core/Result.hpp"
 #include <memory>
 #include <optional>

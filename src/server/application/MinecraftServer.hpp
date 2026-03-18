@@ -2,7 +2,7 @@
 
 #include "common/core/Types.hpp"
 #include "common/command/CommandSource.hpp"
-#include "common/network/ProtocolPackets.hpp"
+#include "common/network/packet/ProtocolPackets.hpp"
 #include <memory>
 #include <string>
 #include <vector>

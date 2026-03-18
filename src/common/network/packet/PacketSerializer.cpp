@@ -122,10 +122,10 @@ void PacketSerializer::writeBool(bool value) {
 
 void PacketSerializer::writeString(const String& value) {
     // 字符串格式: 长度(u16) + 数据
-    if (value.size() > 65535) {
+    if (value.size() > MAX_STRING_LENGTH) {
         // 截断过长的字符串
-        writeU16(65535);
-        writeBytes(reinterpret_cast<const u8*>(value.data()), 65535);
+        writeU16(MAX_STRING_LENGTH);
+        writeBytes(reinterpret_cast<const u8*>(value.data()), MAX_STRING_LENGTH);
     } else {
         writeU16(static_cast<u16>(value.size()));
         writeBytes(reinterpret_cast<const u8*>(value.data()), value.size());
@@ -133,7 +133,14 @@ void PacketSerializer::writeString(const String& value) {
 }
 
 void PacketSerializer::writeStringView(StringView value) {
-    writeString(String(value));
+    // 直接写入，避免创建临时String对象
+    if (value.size() > MAX_STRING_LENGTH) {
+        writeU16(MAX_STRING_LENGTH);
+        writeBytes(reinterpret_cast<const u8*>(value.data()), MAX_STRING_LENGTH);
+    } else {
+        writeU16(static_cast<u16>(value.size()));
+        writeBytes(reinterpret_cast<const u8*>(value.data()), value.size());
+    }
 }
 
 void PacketSerializer::writeBytes(const u8* data, size_t size) {
@@ -534,6 +541,15 @@ Result<std::vector<u8>> PacketDeserializer::readBytes(size_t size) {
     std::vector<u8> data(m_data + m_readPos, m_data + m_readPos + size);
     m_readPos += size;
     return data;
+}
+
+Result<void> PacketDeserializer::readBytesInto(u8* dest, size_t size) {
+    if (m_readPos + size > m_size) {
+        return Error(ErrorCode::OutOfBounds, "Not enough data to read bytes");
+    }
+    std::memcpy(dest, m_data + m_readPos, size);
+    m_readPos += size;
+    return {};
 }
 
 // ============================================================================

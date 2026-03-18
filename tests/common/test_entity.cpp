@@ -3,7 +3,7 @@
 #include "common/entity/Entity.hpp"
 #include "common/entity/Player.hpp"
 #include "common/entity/PlayerManager.hpp"
-#include "common/network/PacketSerializer.hpp"
+#include "common/network/packet/PacketSerializer.hpp"
 
 using namespace mc;
 

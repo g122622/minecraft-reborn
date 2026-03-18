@@ -1,9 +1,9 @@
-#include "network/ContainerPacketHandler.hpp"
-#include "entity/Player.hpp"
-#include "entity/inventory/PlayerInventory.hpp"
-#include "entity/inventory/Slot.hpp"
-#include "entity/inventory/AbstractContainerMenu.hpp"
-#include "entity/inventory/ContainerTypes.hpp"
+#include "ContainerPacketHandler.hpp"
+#include "../../entity/Player.hpp"
+#include "../../entity/inventory/PlayerInventory.hpp"
+#include "../../entity/inventory/Slot.hpp"
+#include "../../entity/inventory/AbstractContainerMenu.hpp"
+#include "../../entity/inventory/ContainerTypes.hpp"
 
 namespace mc {
 

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Packet.hpp"
-#include "../core/Types.hpp"
-#include "../math/Vector3.hpp"
+#include "../../core/Types.hpp"
+#include "../../math/Vector3.hpp"
 #include <vector>
 #include <array>
 

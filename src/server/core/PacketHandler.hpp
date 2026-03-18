@@ -1,8 +1,8 @@
 #pragma once
 
 #include "common/core/Result.hpp"
-#include "common/network/Packet.hpp"
-#include "common/network/IServerConnection.hpp"
+#include "common/network/packet/Packet.hpp"
+#include "common/network/connection/IServerConnection.hpp"
 #include "ServerCoreConfig.hpp"
 #include <functional>
 

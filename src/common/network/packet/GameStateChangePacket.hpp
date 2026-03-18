@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Packet.hpp"
-#include "../core/Types.hpp"
+#include "../../core/Types.hpp"
 
 namespace mc::network {
 

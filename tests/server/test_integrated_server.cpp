@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "server/application/IntegratedServer.hpp"
-#include "common/network/LocalConnection.hpp"
+#include "common/network/connection/LocalConnection.hpp"
 #include <thread>
 #include <chrono>
 #include <vector>

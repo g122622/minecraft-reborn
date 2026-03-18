@@ -27,17 +27,21 @@ add_library(mc_common STATIC
     math/random/UniformIntDistribution.cpp
     math/random/UniformRealDistribution.cpp
 
-    # Network
-    network/Packet.cpp
-    network/PacketSerializer.cpp
-    network/ChunkSync.cpp
-    network/LocalConnection.cpp
-    network/LocalServerConnection.cpp
-    network/InventoryPackets.cpp
-    network/ContainerPacketHandler.cpp
-    network/EntityPackets.cpp
-    network/EntityMetadataSerializer.cpp
-    network/GameStateChangePacket.cpp
+    # Network - Connection
+    network/connection/LocalConnection.cpp
+    network/connection/LocalServerConnection.cpp
+
+    # Network - Packet
+    network/packet/Packet.cpp
+    network/packet/PacketSerializer.cpp
+    network/packet/InventoryPackets.cpp
+    network/packet/ContainerPacketHandler.cpp
+    network/packet/EntityPackets.cpp
+    network/packet/EntityMetadataSerializer.cpp
+    network/packet/GameStateChangePacket.cpp
+
+    # Network - Sync
+    network/sync/ChunkSync.cpp
 
     # Entity
     entity/Entity.cpp

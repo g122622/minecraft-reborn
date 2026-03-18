@@ -2,9 +2,9 @@
 
 #include "common/core/Types.hpp"
 #include "common/core/Result.hpp"
-#include "common/network/IServerConnection.hpp"
-#include "common/network/ChunkSync.hpp"
-#include "common/network/Packet.hpp"
+#include "common/network/connection/IServerConnection.hpp"
+#include "common/network/sync/ChunkSync.hpp"
+#include "common/network/packet/Packet.hpp"
 #include "common/world/time/GameTime.hpp"
 #include "server/core/ServerCoreConfig.hpp"
 #include "server/core/ServerPlayerData.hpp"

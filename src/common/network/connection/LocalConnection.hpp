@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../core/Types.hpp"
+#include "../../core/Types.hpp"
 #include <queue>
 #include <vector>
 #include <mutex>

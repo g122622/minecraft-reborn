@@ -1,5 +1,5 @@
 #include "ChunkSync.hpp"
-#include "../world/block/Block.hpp"
+#include "../../world/block/Block.hpp"
 #include <spdlog/spdlog.h>
 #include <cmath>
 #include <algorithm>
@@ -53,6 +53,9 @@ Result<std::vector<u8>> ChunkSerializer::serializeChunk(const ChunkData& chunk) 
 
 std::vector<u8> ChunkSerializer::serializeSection(const ChunkSection& section) {
     std::vector<u8> data;
+    // 预分配空间: 2字节blockCount + 4096*4字节方块数据 + 2048字节天空光照 + 2048字节方块光照
+    constexpr size_t SECTION_DATA_SIZE = 2 + ChunkSection::VOLUME * 4 + NibbleArray::BYTE_SIZE * 2;
+    data.reserve(SECTION_DATA_SIZE);
 
     // 写入非空方块数量
     u16 blockCount = section.getBlockCount();
@@ -305,9 +308,13 @@ void ChunkView::calculateChunkDiff(
     chunksToLoad.clear();
     chunksToUnload.clear();
 
-    // 获取当前视距内的区块
-    auto viewChunks = getChunksInView();
+    // 获取当前视距内的区块（使用输出参数避免分配）
+    std::vector<ChunkPos> viewChunks;
+    getChunksInView(viewChunks);
+
+    // 构建视距内区块ID集合
     std::unordered_set<ChunkId> viewChunkIds;
+    viewChunkIds.reserve(viewChunks.size());
     for (const auto& pos : viewChunks) {
         viewChunkIds.insert(ChunkId(pos.x, pos.z, 0));
     }
@@ -455,20 +462,6 @@ void ChunkSyncManager::markChunkUnloaded(PlayerId playerId, ChunkCoord x, ChunkC
             m_chunkSubscribers.erase(it);
         }
     }
-}
-
-std::vector<PlayerId> ChunkSyncManager::getChunkSubscribers(ChunkCoord x, ChunkCoord z) const {
-    std::vector<PlayerId> subscribers;
-
-    ChunkId chunkId(x, z, 0);
-    auto it = m_chunkSubscribers.find(chunkId);
-    if (it != m_chunkSubscribers.end()) {
-        for (PlayerId playerId : it->second) {
-            subscribers.push_back(playerId);
-        }
-    }
-
-    return subscribers;
 }
 
 } // namespace mc::network

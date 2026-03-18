@@ -1,7 +1,7 @@
 #include "ClientWorld.hpp"
 #include "../renderer/trident/chunk/ChunkMesher.hpp"
 #include "../../common/world/WorldConstants.hpp"
-#include "../../common/network/ChunkSync.hpp"
+#include "../../common/network/sync/ChunkSync.hpp"
 #include "../../common/core/Constants.hpp"
 #include "../../common/world/biome/BiomeRegistry.hpp"
 #include <spdlog/spdlog.h>

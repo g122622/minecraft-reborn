@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 #include "server/core/ConnectionManager.hpp"
 #include "server/core/PlayerManager.hpp"
-#include "common/network/LocalServerConnection.hpp"
-#include "common/network/LocalConnection.hpp"
-#include "common/network/Packet.hpp"
+#include "common/network/connection/LocalServerConnection.hpp"
+#include "common/network/connection/LocalConnection.hpp"
+#include "common/network/packet/Packet.hpp"
 #include "common/core/Types.hpp"
 
 using namespace mc::server::core;

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "network/RecipePackets.hpp"
-#include "network/InventoryPackets.hpp"
-#include "item/crafting/RecipeManager.hpp"
+#include "RecipePackets.hpp"
+#include "InventoryPackets.hpp"
+#include "../../item/crafting/RecipeManager.hpp"
 #include <functional>
 #include <memory>
 

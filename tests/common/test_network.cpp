@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
-#include "common/network/Packet.hpp"
-#include "common/network/PacketSerializer.hpp"
-#include "common/network/ProtocolPackets.hpp"
+#include "common/network/packet/Packet.hpp"
+#include "common/network/packet/PacketSerializer.hpp"
+#include "common/network/packet/ProtocolPackets.hpp"
 
 using namespace mc::network;
 using namespace mc;

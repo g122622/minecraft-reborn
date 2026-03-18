@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include "item/crafting/RecipeLoader.hpp"
 #include "item/crafting/RecipeManager.hpp"
-#include "network/RecipePackets.hpp"
+#include "network/packet/RecipePackets.hpp"
 #include "resource/ResourceLocation.hpp"
 #include <nlohmann/json.hpp>
 

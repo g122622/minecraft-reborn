@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include "server/world/ServerWorld.hpp"
-#include "common/network/ProtocolPackets.hpp"
+#include "common/network/packet/ProtocolPackets.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
 #include <thread>
 #include <atomic>

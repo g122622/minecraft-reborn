@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include "common/network/LocalServerConnection.hpp"
-#include "common/network/LocalConnection.hpp"
+#include "common/network/connection/LocalServerConnection.hpp"
+#include "common/network/connection/LocalConnection.hpp"
 
 using namespace mc::network;
 

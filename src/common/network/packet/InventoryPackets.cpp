@@ -1,5 +1,5 @@
 #include "InventoryPackets.hpp"
-#include "../entity/inventory/PlayerInventory.hpp"
+#include "../../entity/inventory/PlayerInventory.hpp"
 
 namespace mc {
 

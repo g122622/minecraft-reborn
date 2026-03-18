@@ -1,7 +1,7 @@
 #pragma once
 
 #include "common/core/Types.hpp"
-#include "common/network/ChunkSync.hpp"
+#include "common/network/sync/ChunkSync.hpp"
 #include "ServerCoreConfig.hpp"
 #include <vector>
 
