@@ -102,6 +102,26 @@ public:
     static void setLightingEnabled(bool enabled) { s_lightingEnabled = enabled; }
     static bool isLightingEnabled() { return s_lightingEnabled; }
 
+    /**
+     * @brief 采样指定坐标的合成光照（天空光/方块光取最大值）
+     *
+     * 用于区块网格构建阶段的光照查询。
+     * 当采样位置越过当前区块边界时，会尝试从邻居区块读取。
+     *
+     * @param chunk 当前区块
+     * @param x 区块局部 X（可越界，用于采样邻接面）
+     * @param y 世界 Y
+     * @param z 区块局部 Z（可越界，用于采样邻接面）
+     * @param neighborChunks 周围区块，顺序: -X, +X, -Z, +Z, -Y, +Y
+     */
+    [[nodiscard]] static u8 sampleCombinedLight(
+        const ChunkData& chunk,
+        i32 x,
+        i32 y,
+        i32 z,
+        const ChunkData* neighborChunks[6] = nullptr
+    );
+
 private:
     // 检查方块是否应该渲染
     static bool shouldRenderBlock(const BlockState* state);
@@ -112,20 +132,32 @@ private:
         const BlockState* neighbor
     );
 
-    // 获取方块光照
-    static u8 getBlockLight(
-        const ChunkData& chunk,
-        i32 x, i32 y, i32 z,
-        const ChunkData* neighborChunks[6]
-    );
-
     // 添加单个面的顶点（使用 BlockAppearance）
     static void addFaceFromAppearance(
         MeshData& mesh,
         Face face,
         f32 x, f32 y, f32 z,
-        u8 light,
+        u8 skyLight,
+        u8 blockLight,
         const BlockAppearance* appearance
+    );
+
+    // 获取天空光照
+    [[nodiscard]] static u8 sampleSkyLight(
+        const ChunkData& chunk,
+        i32 x,
+        i32 y,
+        i32 z,
+        const ChunkData* neighborChunks[6]
+    );
+
+    // 获取方块光照
+    [[nodiscard]] static u8 sampleBlockLight(
+        const ChunkData& chunk,
+        i32 x,
+        i32 y,
+        i32 z,
+        const ChunkData* neighborChunks[6]
     );
 
     // 贪婪网格合并

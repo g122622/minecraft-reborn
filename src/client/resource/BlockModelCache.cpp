@@ -142,7 +142,7 @@ void BlockModelCache::buildStateCache()
 
     // 遍历所有方块状态
     Block::forEachBlockState([this, &successCount, &failCount](const BlockState& state) {
-        u32 stateId = state.blockId(); // 这里应该用实际的 stateId，但 BlockState 没有暴露
+        u32 stateId = state.stateId();
 
         // 获取方块资源位置
         const ResourceLocation& blockLoc = state.blockLocation();
@@ -179,9 +179,6 @@ void BlockModelCache::buildStateCache()
         const BlockAppearance* appearance = m_resourceManager->getBlockAppearance(blockLoc, props);
 
         if (appearance) {
-            // 我们需要获取实际的 stateId，暂时用 blockId + 一些偏移
-            // 实际上 BlockState 有 m_stateId，但没有公开接口
-            // 让我们使用 blockId 作为临时方案
             m_stateCache[stateId] = appearance;
             ++successCount;
         } else {

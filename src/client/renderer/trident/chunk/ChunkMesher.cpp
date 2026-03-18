@@ -86,26 +86,119 @@ bool ChunkMesher::shouldRenderFace(const BlockState* /*block*/, const BlockState
     return false;
 }
 
-u8 ChunkMesher::getBlockLight(
+u8 ChunkMesher::sampleCombinedLight(
     const ChunkData& chunk,
     i32 x, i32 y, i32 z,
     const ChunkData* neighborChunks[6]
 ) {
-    // 获取方块光照 (天空光照和方块光照的最大值)
-    (void)neighborChunks; // 暂时不使用邻居区块
+    return std::max(
+        sampleSkyLight(chunk, x, y, z, neighborChunks),
+        sampleBlockLight(chunk, x, y, z, neighborChunks)
+    );
+}
 
-    // 使用 ChunkData 的光照访问方法，它会处理段索引和局部Y坐标
-    u8 skyLight = chunk.getSkyLight(x, y, z);
-    u8 blockLight = chunk.getBlockLight(x, y, z);
+u8 ChunkMesher::sampleSkyLight(
+    const ChunkData& chunk,
+    i32 x, i32 y, i32 z,
+    const ChunkData* neighborChunks[6]
+) {
+    constexpr i32 SIZE = ChunkSection::SIZE;
 
-    return std::max(skyLight, blockLight);
+    // 垂直越界：上方视为天空，下方视为无光
+    if (y >= world::MAX_BUILD_HEIGHT) {
+        return 15;
+    }
+    if (y < world::MIN_BUILD_HEIGHT) {
+        return 0;
+    }
+
+    // 解析采样来源区块（当前区块或 X/Z 邻居）
+    const ChunkData* sampleChunk = &chunk;
+    i32 localX = x;
+    i32 localZ = z;
+
+    if (localX < 0) {
+        localX += SIZE;
+        sampleChunk = neighborChunks ? neighborChunks[0] : nullptr;
+    } else if (localX >= SIZE) {
+        localX -= SIZE;
+        sampleChunk = neighborChunks ? neighborChunks[1] : nullptr;
+    }
+
+    if (localZ < 0) {
+        localZ += SIZE;
+        // 面采样一次只会跨一个轴；若出现双轴越界则安全降级为天空
+        if (sampleChunk != &chunk) {
+            return 15;
+        }
+        sampleChunk = neighborChunks ? neighborChunks[2] : nullptr;
+    } else if (localZ >= SIZE) {
+        localZ -= SIZE;
+        if (sampleChunk != &chunk) {
+            return 15;
+        }
+        sampleChunk = neighborChunks ? neighborChunks[3] : nullptr;
+    }
+
+    // 邻区块尚未就绪时，按天空处理，避免边界黑边
+    if (!sampleChunk) {
+        return 15;
+    }
+
+    return sampleChunk->getSkyLight(localX, y, localZ);
+}
+
+u8 ChunkMesher::sampleBlockLight(
+    const ChunkData& chunk,
+    i32 x, i32 y, i32 z,
+    const ChunkData* neighborChunks[6]
+) {
+    constexpr i32 SIZE = ChunkSection::SIZE;
+
+    // 垂直越界：上下都视为无方块光照
+    if (y >= world::MAX_BUILD_HEIGHT || y < world::MIN_BUILD_HEIGHT) {
+        return 0;
+    }
+
+    const ChunkData* sampleChunk = &chunk;
+    i32 localX = x;
+    i32 localZ = z;
+
+    if (localX < 0) {
+        localX += SIZE;
+        sampleChunk = neighborChunks ? neighborChunks[0] : nullptr;
+    } else if (localX >= SIZE) {
+        localX -= SIZE;
+        sampleChunk = neighborChunks ? neighborChunks[1] : nullptr;
+    }
+
+    if (localZ < 0) {
+        localZ += SIZE;
+        if (sampleChunk != &chunk) {
+            return 0;
+        }
+        sampleChunk = neighborChunks ? neighborChunks[2] : nullptr;
+    } else if (localZ >= SIZE) {
+        localZ -= SIZE;
+        if (sampleChunk != &chunk) {
+            return 0;
+        }
+        sampleChunk = neighborChunks ? neighborChunks[3] : nullptr;
+    }
+
+    if (!sampleChunk) {
+        return 0;
+    }
+
+    return sampleChunk->getBlockLight(localX, y, localZ);
 }
 
 void ChunkMesher::addFaceFromAppearance(
     MeshData& mesh,
     Face face,
     f32 x, f32 y, f32 z,
-    u8 light,
+    u8 skyLight,
+    u8 blockLight,
     const BlockAppearance* appearance
 ) {
     if (!appearance) {
@@ -159,9 +252,8 @@ void ChunkMesher::addFaceFromAppearance(
         { tex.u0, tex.v0 }  // 左上
     };
 
-    // `Vertex::light` 使用 `VK_FORMAT_R8_UNORM` 传入着色器，
-    // 需要把 MC 的光照等级 [0, 15] 映射到 [0, 255]。
-    const u8 packedLight = static_cast<u8>(std::min<u32>(255, static_cast<u32>(light) * 17u));
+    // 打包双通道光照：高4位=天空光，低4位=方块光
+    const u8 packedLight = static_cast<u8>(((skyLight & 0x0F) << 4) | (blockLight & 0x0F));
 
     for (size_t i = 0; i < 4; ++i) {
         faceVerts[i] = Vertex(
@@ -283,16 +375,23 @@ void ChunkMesher::simpleMeshSection(
 
                     // 决定是否渲染该面
                     if (shouldRenderFace(block, neighbor)) {
-                        u8 light = 15; // 默认光照
+                        u8 skyLight = 15;   // 默认天空光
+                        u8 blockLight = 0;  // 默认方块光
                         if (s_lightingEnabled) {
-                            light = getBlockLight(chunk, x, baseY + y, z, neighborChunks);
+                            const i32 sampleX = x + dir[0];
+                            const i32 sampleY = baseY + y + dir[1];
+                            const i32 sampleZ = z + dir[2];
+                            skyLight = sampleSkyLight(chunk, sampleX, sampleY, sampleZ, neighborChunks);
+                            blockLight = sampleBlockLight(chunk, sampleX, sampleY, sampleZ, neighborChunks);
                         }
 
                         addFaceFromAppearance(outMesh, face,
                                 static_cast<f32>(x),
                                 static_cast<f32>(baseY + y),
                                 static_cast<f32>(z),
-                                light, appearance);
+                                skyLight,
+                                blockLight,
+                                appearance);
                     }
                 }
             }

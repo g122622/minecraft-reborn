@@ -2,6 +2,8 @@
 #include "DescriptorManager.hpp"
 #include "../TridentContext.hpp"
 #include <spdlog/spdlog.h>
+#include <algorithm>
+#include <cmath>
 #include <cstring>
 
 namespace mc::client::renderer::trident {
@@ -137,16 +139,19 @@ void UniformManager::updateCamera(
 void UniformManager::updateLighting(i64 dayTime, i64 gameTime, f32 partialTick) {
     if (!m_initialized || !m_lightingBufferMapped) return;
 
-    // 计算太阳方向
-    f32 sunAngle = static_cast<f32>(dayTime) / 24000.0f * 2.0f * 3.14159f;
-    f32 sunHeight = std::cos(sunAngle);
-    f32 sunHoriz = std::sin(sunAngle);
+    // 计算太阳方向（与 MC 时间语义对齐）
+    // dayTime: 0=日出, 6000=正午, 12000=日落, 18000=午夜
+    // 因此太阳高度应采用 sin 映射：
+    // sin(0)=0, sin(pi/2)=1, sin(pi)≈0, sin(3pi/2)=-1
+    const f32 sunAngle = static_cast<f32>(dayTime % 24000LL) / 24000.0f * 2.0f * 3.14159265f;
+    const f32 sunHeight = std::sin(sunAngle);
+    const f32 sunHoriz = std::cos(sunAngle);
 
     LightingUBO ubo{};
     ubo.sunDirection = glm::normalize(glm::vec3(sunHoriz, sunHeight, 0.0f));
-    ubo.sunIntensity = sunHeight > 0 ? sunHeight : 0;
+    ubo.sunIntensity = std::max(sunHeight, 0.0f);
     ubo.moonDirection = -ubo.sunDirection;
-    ubo.moonIntensity = sunHeight < 0 ? -sunHeight : 0;
+    ubo.moonIntensity = std::max(-sunHeight, 0.0f);
     ubo.dayTime = static_cast<f32>(dayTime);
     ubo.gameTime = static_cast<f32>(gameTime) + partialTick;
 

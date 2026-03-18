@@ -381,6 +381,37 @@ TEST_F(ChunkMesherTest, SettingsTest) {
     ChunkMesher::setLightingEnabled(originalLighting);
 }
 
+TEST_F(ChunkMesherTest, SampleCombinedLightUsesFaceAdjacentVoxel) {
+    // 模拟不透明方块内部（0光）与上方空气（15光）的典型地表场景
+    testChunk->setSkyLight(8, 64, 8, 0);
+    testChunk->setBlockLight(8, 64, 8, 0);
+    testChunk->setSkyLight(8, 65, 8, 15);
+    testChunk->setBlockLight(8, 65, 8, 0);
+
+    const u8 centerLight = ChunkMesher::sampleCombinedLight(*testChunk, 8, 64, 8, nullptr);
+    const u8 topFaceLight = ChunkMesher::sampleCombinedLight(*testChunk, 8, 65, 8, nullptr);
+
+    EXPECT_EQ(centerLight, 0u);
+    EXPECT_EQ(topFaceLight, 15u);
+}
+
+TEST_F(ChunkMesherTest, SampleCombinedLightReadsNeighborChunkAtBorder) {
+    auto eastNeighbor = std::make_unique<ChunkData>(1, 0);
+
+    // 当前区块边界位置设为暗，邻居边界位置设为亮，验证跨区块采样
+    testChunk->setSkyLight(15, 64, 8, 0);
+    eastNeighbor->setSkyLight(0, 64, 8, 9);
+
+    const ChunkData* neighbors[6] = {nullptr, eastNeighbor.get(), nullptr, nullptr, nullptr, nullptr};
+
+    const u8 neighborLight = ChunkMesher::sampleCombinedLight(*testChunk, 16, 64, 8, neighbors);
+    EXPECT_EQ(neighborLight, 9u);
+
+    const ChunkData* noNeighbors[6] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
+    const u8 fallbackLight = ChunkMesher::sampleCombinedLight(*testChunk, 16, 64, 8, noNeighbors);
+    EXPECT_EQ(fallbackLight, 15u);
+}
+
 TEST_F(ChunkMesherTest, ModelCacheIsNullByDefault) {
     // 默认情况下 BlockModelCache 应该是 nullptr
     EXPECT_EQ(ChunkMesher::modelCache(), nullptr);

@@ -378,7 +378,12 @@ void VanillaBlocks::registerLogBlocks() {
     // 橡木树叶 - ID 17
     OAK_LEAVES = &registry.registerBlock<SimpleBlock>(
         ResourceLocation("minecraft:oak_leaves"),
-        BlockProperties(Material::LEAVES).hardness(0.2f).flammable().notSolid()
+        BlockProperties(Material::LEAVES)
+            .hardness(0.2f)
+            .flammable()
+            .notSolid()
+            .opacity(1)
+            .propagatesSkylightDown()
     );
 }
 
@@ -710,9 +715,10 @@ void VanillaBlocks::registerTreeVariants() {
     // 木头属性：完全不透明
     BlockProperties logProps = BlockProperties(Material::WOOD).hardness(2.0f).resistance(2.0f).flammable();
 
-    // 树叶属性：透明度2，传播天空光（光线穿过树叶衰减2级）
+    // 树叶属性：参考 Java 1.16.5 LeavesBlock#getOpacity() = 1
+    // 光线穿过树叶每层衰减 1 级，避免树荫过黑。
     BlockProperties leavesProps = BlockProperties(Material::LEAVES)
-        .hardness(0.2f).flammable().notSolid().opacity(2).propagatesSkylightDown();
+        .hardness(0.2f).flammable().notSolid().opacity(1).propagatesSkylightDown();
 
     // 云杉原木和树叶
     SPRUCE_LOG = &registry.registerBlock<RotatedPillarBlock>(

@@ -7,15 +7,16 @@ layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec2 inTexCoord;
 layout(location = 3) in vec4 inColor;
-layout(location = 4) in float inLight;
+layout(location = 4) in uint inLight;
 
 // 输出到片段着色器
 layout(location = 0) out vec3 fragNormal;
 layout(location = 1) out vec2 fragTexCoord;
 layout(location = 2) out vec4 fragColor;
-layout(location = 3) out float fragLight;
+layout(location = 3) out float fragSkyLight;
 layout(location = 4) out vec3 fragWorldPos;
 layout(location = 5) out float fragViewDistance;
+layout(location = 6) out float fragBlockLight;
 
 // 推送常量 - 模型矩阵
 layout(push_constant) uniform PushConstants {
@@ -43,7 +44,8 @@ void main() {
     fragNormal = inNormal;
     fragTexCoord = inTexCoord;
     fragColor = inColor;
-    fragLight = inLight;
+    fragSkyLight = float((inLight >> 4) & 0xFu) / 15.0;
+    fragBlockLight = float(inLight & 0xFu) / 15.0;
 
     // 输出世界坐标和视图距离（用于雾效果）
     fragWorldPos = worldPos;

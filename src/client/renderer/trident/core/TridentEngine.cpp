@@ -1050,7 +1050,7 @@ Result<void> TridentEngine::initializeChunkRenderer() {
     attrs[1] = {1, 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<u32>(offsetof(Vertex, nx))};
     attrs[2] = {2, 0, VK_FORMAT_R32G32_SFLOAT,    static_cast<u32>(offsetof(Vertex, u))};
     attrs[3] = {3, 0, VK_FORMAT_R8G8B8A8_UNORM,   static_cast<u32>(offsetof(Vertex, color))};
-    attrs[4] = {4, 0, VK_FORMAT_R8_UNORM,         static_cast<u32>(offsetof(Vertex, light))};
+    attrs[4] = {4, 0, VK_FORMAT_R8_UINT,          static_cast<u32>(offsetof(Vertex, light))};
     pipelineConfig.vertexAttributes.assign(attrs.begin(), attrs.end());
 
     pipelineConfig.descriptorSetLayouts = {
