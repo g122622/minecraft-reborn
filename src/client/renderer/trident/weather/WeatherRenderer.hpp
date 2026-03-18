@@ -245,6 +245,10 @@ private:
     f32 m_partialTick = 0.0f;
     glm::vec3 m_cameraPos = glm::vec3(0.0f);
 
+    // 当前渲染参数
+    glm::mat4 m_currentProjection = glm::mat4(1.0f);
+    glm::mat4 m_currentView = glm::mat4(1.0f);
+
     // 顶点数据
     std::vector<WeatherVertex> m_rainVertices;
     std::vector<WeatherVertex> m_snowVertices;

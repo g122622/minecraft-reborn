@@ -1429,8 +1429,6 @@ void IntegratedServer::sendInitialWeatherState() {
     // 更新上次发送的值
     m_lastSentRainStrength = rainStrength;
     m_lastSentThunderStrength = thunderStrength;
-
-    spdlog::debug("Sent initial weather state: rain={}, thunder={}", rainStrength, thunderStrength);
 }
 
 void IntegratedServer::openCraftingTableMenu() {
