@@ -160,8 +160,8 @@ public:
      * @param other 源属性映射表
      */
     void copyFrom(const AttributeMap& other) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        std::lock_guard<std::mutex> otherLock(other.m_mutex);
+        // 使用 scoped_lock 避免死锁（C++17 死锁避免算法）
+        std::scoped_lock lock(m_mutex, other.m_mutex);
 
         for (const auto& [name, instance] : other.m_instances) {
             auto it = m_instances.find(name);

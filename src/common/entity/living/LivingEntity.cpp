@@ -1,6 +1,7 @@
 #include "LivingEntity.hpp"
 #include "../../core/Constants.hpp"
 #include "../../math/MathUtils.hpp"
+#include "../../physics/PhysicsConstants.hpp"
 #include "../../physics/PhysicsEngine.hpp"
 #include <cmath>
 
@@ -17,11 +18,12 @@ namespace {
     entity::DataParameter<i32> POTION_EFFECTS_PARAM{12};
     entity::DataParameter<i32> ARROW_COUNT_PARAM{13};
 
-    // 移动相关常量
-    constexpr f32 GRAVITY = 0.08f;           // MC重力
-    constexpr f32 DRAG_AIR = 0.98f;          // 空气阻力
-    constexpr f32 DRAG_GROUND = 0.91f;       // 地面摩擦
-    constexpr f32 MOTION_THRESHOLD = 0.003f; // 速度阈值
+    // 使用统一物理常量，避免重复定义
+    // 参考 physics::PhysicsConstants.hpp
+    using physics::GRAVITY;
+    using physics::DRAG_AIR;
+    using physics::DRAG_GROUND;
+    using physics::MOTION_THRESHOLD;
 }
 
 // ============================================================================

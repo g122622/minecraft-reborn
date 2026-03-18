@@ -2,6 +2,7 @@
 #include "../world/IWorld.hpp"
 #include "../physics/PhysicsEngine.hpp"
 #include "../math/random/Random.hpp"
+#include "../math/MathUtils.hpp"
 #include "../world/block/Block.hpp"
 #include <algorithm>
 #include <sstream>
@@ -172,9 +173,8 @@ void Entity::rotate(f32 deltaYaw, f32 deltaPitch) {
     // 限制俯仰角范围
     m_pitch = std::clamp(m_pitch, -90.0f, 90.0f);
 
-    // 规范化偏航角到 0-360
-    while (m_yaw < 0.0f) m_yaw += 360.0f;
-    while (m_yaw >= 360.0f) m_yaw -= 360.0f;
+    // 规范化偏航角到 [0, 360) 范围
+    m_yaw = math::wrapDegreesPositive(m_yaw);
 }
 
 /**

@@ -1,6 +1,7 @@
 #include "ItemEntity.hpp"
 #include "Player.hpp"
 #include "../math/random/Random.hpp"
+#include "../physics/PhysicsConstants.hpp"
 #include "../world/entity/EntityManager.hpp"
 #include <cmath>
 #include <chrono>
@@ -233,20 +234,12 @@ void ItemEntity::updatePhysics() {
 }
 
 void ItemEntity::applyNormalPhysics() {
-    // 重力
-    constexpr f32 GRAVITY = 0.04f;  // 物品重力比实体小
+    // 使用统一物理常量
+    m_velocity.y -= physics::ITEM_GRAVITY;
+    m_velocity.y *= physics::ITEM_DRAG;
 
-    // 空气阻力
-    constexpr f32 DRAG = 0.98f;
-
-    // 水平阻力
-    constexpr f32 HORIZONTAL_DRAG = 0.98f;
-
-    m_velocity.y -= GRAVITY;
-    m_velocity.y *= DRAG;
-
-    m_velocity.x *= HORIZONTAL_DRAG;
-    m_velocity.z *= HORIZONTAL_DRAG;
+    m_velocity.x *= physics::ITEM_HORIZONTAL_DRAG;
+    m_velocity.z *= physics::ITEM_HORIZONTAL_DRAG;
 
     // 速度阈值
     constexpr f32 VELOCITY_THRESHOLD = 0.001f;
