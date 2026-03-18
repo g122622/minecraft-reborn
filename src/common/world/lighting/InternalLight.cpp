@@ -31,20 +31,26 @@ i32 calculateDefaultSkyDarkening(i64 dayTime) {
 }
 
 i32 calculateSkyDarkeningFromAngle(f32 celestialAngle) {
+    // 参考 MC 1.16.5 World.calculateSkylightSubtracted
+    // celestialAngle: 0.0 = 日出, 0.25 = 正午, 0.5 = 日落, 0.75 = 午夜
     // 天空减暗范围: 0 (正午) 到 11 (午夜)
-    // 使用余弦函数计算
 
-    // 将角度转换为太阳高度
-    // celestialAngle = 0.0 时日出，0.25 时正午，0.5 时日落，0.75 时午夜
+    // 计算太阳高度
+    // 使用 sin 而不是 cos：
+    // - 正午 (0.25): sin(π/2) = 1 (太阳最高)
+    // - 午夜 (0.75): sin(3π/2) = -1 (太阳最低)
     f32 sunAngle = celestialAngle * 2.0f * 3.14159265f;
+    f32 sunHeight = std::sin(sunAngle);  // [-1, 1]
 
-    // 计算天空减暗
-    // 正午时为0，午夜时最大
-    f32 factor = 1.0f - std::cos(sunAngle);
-    factor = (factor + 1.0f) / 2.0f;  // 归一化到0-1
+    // 将太阳高度映射到亮度因子 [0, 1]
+    // sunHeight = 1 → brightness = 1 (最亮)
+    // sunHeight = -1 → brightness = 0 (最暗)
+    f32 brightness = (sunHeight + 1.0f) / 2.0f;
 
-    // 映射到0-11
-    i32 darkening = static_cast<i32>(factor * 11.0f);
+    // 天空减暗 = (1 - 亮度) * 11
+    // 正午 → darkening = 0
+    // 午夜 → darkening = 11
+    i32 darkening = static_cast<i32>((1.0f - brightness) * 11.0f);
     return std::clamp(darkening, 0, 11);
 }
 
@@ -96,9 +102,15 @@ f32 getCelestialAngle(i64 dayTime) {
     // celestialAngle = 0.5 时日落
     // celestialAngle = 0.75 时午夜
 
-    // 调整时间偏移（MC中0是日出而非午夜）
-    i64 adjustedTime = (dayTime + 6000) % 24000;
-    return static_cast<f32>(adjustedTime) / 24000.0f;
+    // MC中 dayTime:
+    // 0 = 日出
+    // 6000 = 正午
+    // 12000 = 日落
+    // 18000 = 午夜
+
+    // 直接计算，不需要偏移
+    i64 timeOfDay = dayTime % 24000;
+    return static_cast<f32>(timeOfDay) / 24000.0f;
 }
 
 f32 getSunAngle(f32 celestialAngle) {

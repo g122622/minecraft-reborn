@@ -103,9 +103,12 @@ public:
     [[nodiscard]] bool isSectionEnabled(i64 sectionPos) const;
 
     /**
-     * @brief 检查位置是否在世界之上（天空可见）
+     * @brief 检查区块段是否在世界之上（天空可见）
+     *
+     * @param sectionPos 区块段位置编码
+     * @return 如果区块段在表面之上返回true
      */
-    [[nodiscard]] bool isAboveWorld(i64 worldPos) const;
+    [[nodiscard]] bool isAboveWorld(i64 sectionPos) const;
 
     /**
      * @brief 检查位置是否在表面区块段顶部

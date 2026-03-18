@@ -13,14 +13,9 @@ constexpr Direction LightEngineUtils::ALL_DIRECTIONS[6];
 constexpr Direction LightEngineUtils::HORIZONTAL_DIRECTIONS[4];
 
 i64 LightEngineUtils::worldToSectionPos(i64 worldPos) {
-    i32 x = static_cast<i32>((worldPos >> 38) & 0xFFFFFFF);
-    i32 y = static_cast<i32>(worldPos & 0xFFF);
-    i32 z = static_cast<i32>((worldPos >> 12) & 0xFFFFFFF);
-
-    // 符号扩展
-    x = (x << 4) >> 4;
-    z = (z << 4) >> 4;
-
+    // 使用unpackPos解码坐标，然后转换为SectionPos
+    i32 x, y, z;
+    unpackPos(worldPos, x, y, z);
     return SectionPos(x >> 4, y >> 4, z >> 4).toLong();
 }
 

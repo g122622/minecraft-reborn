@@ -46,15 +46,23 @@ public:
     /**
      * @brief 世界位置编码
      *
-     * 编码格式: X(28位) | Z(28位) | Y(12位)
-     * 支持 X/Z: -134,217,728 到 +134,217,727
+     * 编码格式: X(26位) | Z(26位) | Y(12位)
+     * 参考 MC 1.16.5 BlockPos.pack()
+     * 支持 X/Z: ±30,000,000 (约 ±2^25)
      * 支持 Y: -2048 到 +2047
      */
     [[nodiscard]] static constexpr i64 packPos(i32 x, i32 y, i32 z) {
-        u64 ux = static_cast<u64>(static_cast<i64>(x) & 0xFFFFFFFLL);
-        u64 uz = static_cast<u64>(static_cast<i64>(z) & 0xFFFFFFFLL);
-        u64 uy = static_cast<u64>(y) & 0xFFF;
-        return (ux << 38) | (uz << 12) | uy;
+        // 26位掩码
+        constexpr i64 XZ_MASK = (1LL << 26) - 1;
+        constexpr i64 Y_MASK = (1LL << 12) - 1;
+        // 位移量
+        constexpr i32 Y_BITS = 12;
+        constexpr i32 Z_OFFSET = Y_BITS;           // 12
+        constexpr i32 X_OFFSET = Y_BITS + 26;       // 38
+
+        return ((static_cast<i64>(x) & XZ_MASK) << X_OFFSET) |
+               ((static_cast<i64>(y) & Y_MASK)) |
+               ((static_cast<i64>(z) & XZ_MASK) << Z_OFFSET);
     }
 
     /**
@@ -66,15 +74,24 @@ public:
 
     /**
      * @brief 世界位置解码
+     *
+     * 参考 MC 1.16.5 BlockPos.unpackX/Y/Z()
      */
     [[nodiscard]] static constexpr void unpackPos(i64 packed, i32& x, i32& y, i32& z) {
-        x = static_cast<i32>((packed >> 38) & 0xFFFFFFF);
-        y = static_cast<i32>(packed & 0xFFF);
-        z = static_cast<i32>((packed >> 12) & 0xFFFFFFF);
+        // 26位掩码
+        constexpr i64 XZ_MASK = (1LL << 26) - 1;
+        constexpr i64 Y_MASK = (1LL << 12) - 1;
+        constexpr i32 Y_BITS = 12;
 
-        // 符号扩展
-        x = (x << 4) >> 4;
-        z = (z << 4) >> 4;
+        // 解码并自动符号扩展（使用算术右移）
+        // X: 取高26位，通过左移0位后右移38位实现符号扩展
+        x = static_cast<i32>(packed >> (Y_BITS + 26));
+        // Y: 取低12位，通过左移52位后右移52位实现符号扩展
+        y = static_cast<i32>((packed << (64 - Y_BITS)) >> (64 - Y_BITS));
+        // Z: 取中间26位，需要提取后符号扩展
+        z = static_cast<i32>((packed >> Y_BITS) & XZ_MASK);
+        // Z需要手动符号扩展（26位到32位）
+        z = (z << 6) >> 6;
     }
 
     /**
@@ -111,10 +128,11 @@ public:
      * @param z 输出：局部Z坐标 (0-15)
      */
     [[nodiscard]] static constexpr void extractNibbleIndices(i64 packed, i32& x, i32& localY, i32& z) {
+        // X在高位，偏移38位；Z在中间，偏移12位；Y在低位
         x = static_cast<i32>((packed >> 38) & 0xF);
         i32 y = static_cast<i32>(packed & 0xFFF);
         localY = y & 0xF;
-        z = static_cast<i32>((packed >> 26) & 0xF);
+        z = static_cast<i32>((packed >> 12) & 0xF);
     }
 
     // ========================================================================

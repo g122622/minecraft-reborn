@@ -31,17 +31,19 @@ void SkyLightEngine::checkLight(const BlockPos& pos) {
         scheduleUpdate(packedPos);
     } else {
         // 向上查找有效的区块段
-        i64 currentPos = packedPos;
-        i64 currentSectionPos = sectionPos;
+        // 参考 MC: BlockPos.atSectionBottomY 将Y对齐到区块段底部
+        i32 x, y, z;
+        LightEngineUtils::unpackPos(packedPos, x, y, z);
+        // 对齐到区块段底部 (清除Y的低4位)
+        i64 currentPos = LightEngineUtils::packPos(x, y & ~0xF, z);
+        i64 currentSectionPos = LightEngineUtils::worldToSectionPos(currentPos);
 
         while (!m_storage.hasSection(currentSectionPos) &&
-               !m_storage.isAboveWorld(currentPos)) {
-            currentPos = LightEngineUtils::offsetPos(currentPos, Direction::Up);
-            currentSectionPos = LightEngineUtils::worldToSectionPos(currentPos);
-            // 注意：这里需要移动16格
-            i32 x, y, z;
-            LightEngineUtils::unpackPos(currentPos, x, y, z);
-            currentPos = LightEngineUtils::packPos(x, y + 16, z);
+               !m_storage.isAboveWorld(currentSectionPos)) {
+            // 向上移动一个区块段 (16格)
+            i32 currentY = static_cast<i32>(currentPos & 0xFFF);
+            currentPos = LightEngineUtils::packPos(x, currentY + 16, z);
+            currentSectionPos = SectionPos::fromLong(currentSectionPos).offset(Direction::Up).toLong();
         }
 
         if (m_storage.hasSection(currentSectionPos)) {
@@ -159,13 +161,19 @@ i32 SkyLightEngine::computeLevel(i64 pos, i64 excludedSource, i32 level) {
             }
         } else if (dir != Direction::Down) {
             // 向上查找有效的区块段
-            i64 searchPos = neighborPos;
+            // 参考 MC: BlockPos.atSectionBottomY 将Y对齐到区块段底部
+            i32 nx, ny, nz;
+            LightEngineUtils::unpackPos(neighborPos, nx, ny, nz);
+            // 对齐到区块段底部
+            i64 searchPos = LightEngineUtils::packPos(nx, ny & ~0xF, nz);
             i64 searchSectionPos = neighborSectionPos;
 
             while (!m_storage.hasSection(searchSectionPos) &&
-                   !m_storage.isAboveWorld(searchPos)) {
+                   !m_storage.isAboveWorld(searchSectionPos)) {
+                // 向上移动一个区块段 (16格)
+                i32 searchY = static_cast<i32>(searchPos & 0xFFF);
+                searchPos = LightEngineUtils::packPos(nx, searchY + 16, nz);
                 searchSectionPos = SectionPos::fromLong(searchSectionPos).offset(Direction::Up).toLong();
-                // 向上移动16格
             }
 
             const NibbleArray* searchArray = m_storage.getArray(searchSectionPos, true);

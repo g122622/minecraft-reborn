@@ -194,12 +194,12 @@ bool SkyLightStorage::isSectionEnabled(i64 sectionPos) const {
     return m_enabledColumns.count(columnPos) > 0;
 }
 
-bool SkyLightStorage::isAboveWorld(i64 worldPos) const {
-    i64 columnPos = SectionPos::fromLong(worldToSectionPos(worldPos)).toColumnLong();
+bool SkyLightStorage::isAboveWorld(i64 sectionPos) const {
+    i64 columnPos = SectionPos::fromLong(sectionPos).toColumnLong();
     i32 surfaceHeight = m_cachedLightData.getSurfaceHeight(columnPos);
+    i32 sectionY = SectionPos::fromLong(sectionPos).y;
 
-    return surfaceHeight == m_cachedLightData.minY() ||
-           (worldPos & 0xFFF) >= surfaceHeight * 16;
+    return surfaceHeight == m_cachedLightData.minY() || sectionY >= surfaceHeight;
 }
 
 bool SkyLightStorage::isAtSurfaceTop(i64 worldPos) const {
