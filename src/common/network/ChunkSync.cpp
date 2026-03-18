@@ -3,6 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <cmath>
 #include <algorithm>
+#include <cstring>
 
 namespace mc::network {
 
@@ -68,15 +69,24 @@ std::vector<u8> ChunkSerializer::serializeSection(const ChunkSection& section) {
         data.push_back(static_cast<u8>((stateId >> 24) & 0xFF));
     }
 
-    // 写入光照数据（简化版：全亮）
-    // 天空光照：每方块4位，共2048字节
-    for (i32 i = 0; i < 2048; ++i) {
-        data.push_back(0xFF); // 全亮
+    // 写入天空光照数据（从NibbleArray获取实际数据）
+    const NibbleArray& skyLight = section.skyLightNibble();
+    const std::vector<u8>& skyData = skyLight.data();
+    if (skyData.empty()) {
+        // 如果为空，填充默认值15（全亮）
+        data.insert(data.end(), NibbleArray::BYTE_SIZE, 0xFF);
+    } else {
+        data.insert(data.end(), skyData.begin(), skyData.end());
     }
 
-    // 方块光照：每方块4位，共2048字节
-    for (i32 i = 0; i < 2048; ++i) {
-        data.push_back(0x00); // 无光照
+    // 写入方块光照数据（从NibbleArray获取实际数据）
+    const NibbleArray& blockLight = section.blockLightNibble();
+    const std::vector<u8>& blockData = blockLight.data();
+    if (blockData.empty()) {
+        // 如果为空，填充默认值0（无光照）
+        data.insert(data.end(), NibbleArray::BYTE_SIZE, 0x00);
+    } else {
+        data.insert(data.end(), blockData.begin(), blockData.end());
     }
 
     return data;
@@ -188,6 +198,24 @@ Result<std::unique_ptr<ChunkData>> ChunkSerializer::deserializeChunk(
 
         // 更新 blockCount
         section->setBlockCount(static_cast<u16>(sectionBlocks));
+
+        // 读取光照数据
+        // 天空光照: 2048字节 (每方块4位)
+        // 方块光照: 2048字节 (每方块4位)
+        constexpr size_t LIGHT_DATA_SIZE = NibbleArray::BYTE_SIZE * 2;  // 4096字节
+
+        if (offset + LIGHT_DATA_SIZE <= sectionData.size()) {
+            // 读取天空光照
+            NibbleArray& skyLight = section->skyLightNibble();
+            skyLight.data().resize(NibbleArray::BYTE_SIZE);
+            std::memcpy(skyLight.data().data(), sectionData.data() + offset, NibbleArray::BYTE_SIZE);
+            offset += NibbleArray::BYTE_SIZE;
+
+            // 读取方块光照
+            NibbleArray& blockLight = section->blockLightNibble();
+            blockLight.data().resize(NibbleArray::BYTE_SIZE);
+            std::memcpy(blockLight.data().data(), sectionData.data() + offset, NibbleArray::BYTE_SIZE);
+        }
     }
 
     chunk->setFullyGenerated(true);
@@ -199,8 +227,10 @@ Result<std::unique_ptr<ChunkData>> ChunkSerializer::deserializeChunk(
 Result<std::unique_ptr<ChunkSection>> ChunkSerializer::deserializeChunkSection(
     const u8* data, size_t size
 ) {
-    if (size < 2) {
-        return Error(ErrorCode::InvalidData, "Section data too small");
+    // 最小大小: 2字节blockCount + 4096*4字节方块数据 + 2048字节天空光照 + 2048字节方块光照
+    constexpr size_t MIN_SIZE = 2 + ChunkSection::VOLUME * 4 + NibbleArray::BYTE_SIZE * 2;
+    if (size < MIN_SIZE) {
+        return Error(ErrorCode::InvalidData, "Section data too small for light data");
     }
 
     auto section = std::make_unique<ChunkSection>();
@@ -210,7 +240,7 @@ Result<std::unique_ptr<ChunkSection>> ChunkSerializer::deserializeChunkSection(
 
     // 读取方块数据 (u32状态ID格式)
     size_t offset = 2;
-    for (i32 j = 0; j < ChunkSection::VOLUME && offset + 3 < size; ++j) {
+    for (i32 j = 0; j < ChunkSection::VOLUME; ++j) {
         u32 stateId = static_cast<u32>(data[offset]) |
                      (static_cast<u32>(data[offset + 1]) << 8) |
                      (static_cast<u32>(data[offset + 2]) << 16) |
@@ -218,6 +248,17 @@ Result<std::unique_ptr<ChunkSection>> ChunkSerializer::deserializeChunkSection(
         section->setBlockStateIdFast(j, stateId);
         offset += 4;
     }
+
+    // 读取天空光照
+    NibbleArray& skyLight = section->skyLightNibble();
+    skyLight.data().resize(NibbleArray::BYTE_SIZE);
+    std::memcpy(skyLight.data().data(), data + offset, NibbleArray::BYTE_SIZE);
+    offset += NibbleArray::BYTE_SIZE;
+
+    // 读取方块光照
+    NibbleArray& blockLight = section->blockLightNibble();
+    blockLight.data().resize(NibbleArray::BYTE_SIZE);
+    std::memcpy(blockLight.data().data(), data + offset, NibbleArray::BYTE_SIZE);
 
     section->setBlockCount(blockCount);
 

@@ -94,14 +94,9 @@ u8 ChunkMesher::getBlockLight(
     // 获取方块光照 (天空光照和方块光照的最大值)
     (void)neighborChunks; // 暂时不使用邻居区块
 
-    const ChunkSection* section = chunk.getSection(y / world::CHUNK_SECTION_HEIGHT);
-    if (!section) {
-        return 15; // 默认全亮
-    }
-
-    i32 localY = y % world::CHUNK_SECTION_HEIGHT;
-    u8 skyLight = section->getSkyLight(x, localY, z);
-    u8 blockLight = section->getBlockLight(x, localY, z);
+    // 使用 ChunkData 的光照访问方法，它会处理段索引和局部Y坐标
+    u8 skyLight = chunk.getSkyLight(x, y, z);
+    u8 blockLight = chunk.getBlockLight(x, y, z);
 
     return std::max(skyLight, blockLight);
 }

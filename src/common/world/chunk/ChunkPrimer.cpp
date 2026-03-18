@@ -1,6 +1,7 @@
 #include "ChunkPrimer.hpp"
 #include "../block/BlockRegistry.hpp"
 #include "../WorldConstants.hpp"
+#include <spdlog/spdlog.h>
 
 namespace mc {
 

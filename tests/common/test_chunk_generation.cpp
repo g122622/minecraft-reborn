@@ -30,7 +30,7 @@ TEST(ChunkStatus, BasicProperties) {
 
     EXPECT_EQ(ChunkStatus::FULL.name(), "full");
     EXPECT_EQ(ChunkStatus::FULL.ordinal(), 8);
-    EXPECT_EQ(ChunkStatus::FULL.parent(), &ChunkStatus::HEIGHTMAPS);
+    EXPECT_EQ(ChunkStatus::FULL.parent(), &ChunkStatus::LIGHT);
 }
 
 TEST(ChunkStatus, Ordering) {
@@ -75,8 +75,8 @@ TEST(ChunkStatus, GetAll) {
     EXPECT_EQ(all[3], ChunkStatus::SURFACE);
     EXPECT_EQ(all[4], ChunkStatus::CARVERS);
     EXPECT_EQ(all[5], ChunkStatus::FEATURES);
-    EXPECT_EQ(all[6], ChunkStatus::LIGHT);
-    EXPECT_EQ(all[7], ChunkStatus::HEIGHTMAPS);
+    EXPECT_EQ(all[6], ChunkStatus::HEIGHTMAPS);
+    EXPECT_EQ(all[7], ChunkStatus::LIGHT);
     EXPECT_EQ(all[8], ChunkStatus::FULL);
 }
 

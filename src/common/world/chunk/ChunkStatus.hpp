@@ -163,8 +163,8 @@ constexpr i32 NOISE_ORDINAL = 2;
 constexpr i32 SURFACE_ORDINAL = 3;
 constexpr i32 CARVERS_ORDINAL = 4;
 constexpr i32 FEATURES_ORDINAL = 5;
-constexpr i32 LIGHT_ORDINAL = 6;
-constexpr i32 HEIGHTMAPS_ORDINAL = 7;
+constexpr i32 HEIGHTMAPS_ORDINAL = 6;
+constexpr i32 LIGHT_ORDINAL = 7;
 constexpr i32 FULL_ORDINAL = 8;
 
 // 总阶段数

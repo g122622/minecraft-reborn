@@ -13,9 +13,9 @@ const ChunkStatus ChunkStatus::NOISE("noise", ChunkStatuses::NOISE_ORDINAL, &BIO
 const ChunkStatus ChunkStatus::SURFACE("surface", ChunkStatuses::SURFACE_ORDINAL, &NOISE, 0);
 const ChunkStatus ChunkStatus::CARVERS("carvers", ChunkStatuses::CARVERS_ORDINAL, &SURFACE, 0);
 const ChunkStatus ChunkStatus::FEATURES("features", ChunkStatuses::FEATURES_ORDINAL, &CARVERS, 8);
-const ChunkStatus ChunkStatus::LIGHT("light", ChunkStatuses::LIGHT_ORDINAL, &FEATURES, 0);
-const ChunkStatus ChunkStatus::HEIGHTMAPS("heightmaps", ChunkStatuses::HEIGHTMAPS_ORDINAL, &LIGHT, 0);
-const ChunkStatus ChunkStatus::FULL("full", ChunkStatuses::FULL_ORDINAL, &HEIGHTMAPS, 0);
+const ChunkStatus ChunkStatus::HEIGHTMAPS("heightmaps", ChunkStatuses::HEIGHTMAPS_ORDINAL, &FEATURES, 0);
+const ChunkStatus ChunkStatus::LIGHT("light", ChunkStatuses::LIGHT_ORDINAL, &HEIGHTMAPS, 0);
+const ChunkStatus ChunkStatus::FULL("full", ChunkStatuses::FULL_ORDINAL, &LIGHT, 0);
 
 // ============================================================================
 // 构造函数
@@ -42,8 +42,8 @@ const std::vector<ChunkStatus>& ChunkStatus::getAll()
         SURFACE,
         CARVERS,
         FEATURES,
-        LIGHT,
         HEIGHTMAPS,
+        LIGHT,
         FULL
     };
     return allStatuses;

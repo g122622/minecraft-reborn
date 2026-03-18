@@ -1146,3 +1146,149 @@ TEST_F(ChunkSerializerExtendedTest, ChunkSizeCalculation) {
     ASSERT_TRUE(result.success());
     EXPECT_EQ(result.value().size(), oneSectionSize);
 }
+
+// ============================================================================
+// 光照数据序列化测试
+// ============================================================================
+
+class ChunkSerializerLightTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        VanillaBlocks::initialize();
+    }
+};
+
+TEST_F(ChunkSerializerLightTest, SerializeDeserializeLightData) {
+    // 创建一个区块并设置光照数据
+    ChunkData original(0, 0);
+    auto section = original.createSection(4);  // Y=64-79
+    ASSERT_NE(section, nullptr);
+
+    // 设置一些方块
+    u32 stoneStateId = VanillaBlocks::STONE->defaultState().stateId();
+    section->setBlockStateId(5, 5, 5, stoneStateId);
+    section->setBlockStateId(10, 10, 10, stoneStateId);
+
+    // 设置天空光照
+    section->setSkyLight(0, 0, 0, 15);
+    section->setSkyLight(5, 5, 5, 10);
+    section->setSkyLight(10, 10, 10, 5);
+
+    // 设置方块光照
+    section->setBlockLight(0, 0, 0, 0);
+    section->setBlockLight(5, 5, 5, 8);
+    section->setBlockLight(10, 10, 10, 12);
+
+    // 序列化
+    auto serializeResult = ChunkSerializer::serializeChunk(original);
+    ASSERT_TRUE(serializeResult.success());
+
+    // 反序列化
+    auto deserializeResult = ChunkSerializer::deserializeChunk(0, 0, serializeResult.value());
+    ASSERT_TRUE(deserializeResult.success());
+
+    auto& restored = deserializeResult.value();
+    ASSERT_TRUE(restored->hasSection(4));
+
+    const ChunkSection* restoredSection = restored->getSection(4);
+    ASSERT_NE(restoredSection, nullptr);
+
+    // 验证天空光照
+    EXPECT_EQ(restoredSection->getSkyLight(0, 0, 0), 15);
+    EXPECT_EQ(restoredSection->getSkyLight(5, 5, 5), 10);
+    EXPECT_EQ(restoredSection->getSkyLight(10, 10, 10), 5);
+
+    // 验证方块光照
+    EXPECT_EQ(restoredSection->getBlockLight(0, 0, 0), 0);
+    EXPECT_EQ(restoredSection->getBlockLight(5, 5, 5), 8);
+    EXPECT_EQ(restoredSection->getBlockLight(10, 10, 10), 12);
+}
+
+TEST_F(ChunkSerializerLightTest, LightDataNibbleArrayFormat) {
+    // 测试 NibbleArray 的打包和解包
+    ChunkData original(0, 0);
+    auto section = original.createSection(0);
+    ASSERT_NE(section, nullptr);
+
+    // 设置一些方块使区块段非空（否则不会被序列化）
+    u32 stoneStateId = VanillaBlocks::STONE->defaultState().stateId();
+    section->setBlockStateId(0, 0, 0, stoneStateId);
+
+    // 设置多种光照值
+    for (int i = 0; i < 16; ++i) {
+        section->setSkyLight(i, 0, 0, static_cast<u8>(i));
+        section->setBlockLight(0, i, 0, static_cast<u8>(15 - i));
+    }
+
+    // 序列化和反序列化
+    auto serializeResult = ChunkSerializer::serializeChunk(original);
+    ASSERT_TRUE(serializeResult.success());
+
+    auto deserializeResult = ChunkSerializer::deserializeChunk(0, 0, serializeResult.value());
+    ASSERT_TRUE(deserializeResult.success());
+
+    auto& restored = deserializeResult.value();
+    const ChunkSection* restoredSection = restored->getSection(0);
+    ASSERT_NE(restoredSection, nullptr);
+
+    // 验证所有光照值
+    for (int i = 0; i < 16; ++i) {
+        EXPECT_EQ(restoredSection->getSkyLight(i, 0, 0), static_cast<u8>(i))
+            << "Sky light mismatch at i=" << i;
+        EXPECT_EQ(restoredSection->getBlockLight(0, i, 0), static_cast<u8>(15 - i))
+            << "Block light mismatch at i=" << i;
+    }
+}
+
+TEST_F(ChunkSerializerLightTest, MultipleSectionsLightData) {
+    // 测试多个区块段的光照数据
+    ChunkData original(0, 0);
+
+    for (int sectionY = 0; sectionY < 16; ++sectionY) {
+        auto section = original.createSection(sectionY);
+        ASSERT_NE(section, nullptr);
+
+        // 设置不同段的光照
+        section->setSkyLight(0, 0, 0, static_cast<u8>(sectionY));
+        section->setBlockLight(0, 0, 0, static_cast<u8>(15 - sectionY));
+
+        // 设置一些方块使其非空
+        u32 stoneStateId = VanillaBlocks::STONE->defaultState().stateId();
+        section->setBlockStateId(0, 0, 0, stoneStateId);
+    }
+
+    // 序列化和反序列化
+    auto serializeResult = ChunkSerializer::serializeChunk(original);
+    ASSERT_TRUE(serializeResult.success());
+
+    auto deserializeResult = ChunkSerializer::deserializeChunk(0, 0, serializeResult.value());
+    ASSERT_TRUE(deserializeResult.success());
+
+    auto& restored = deserializeResult.value();
+
+    // 验证每个段的光照数据
+    for (int sectionY = 0; sectionY < 16; ++sectionY) {
+        EXPECT_TRUE(restored->hasSection(sectionY));
+        const ChunkSection* section = restored->getSection(sectionY);
+        ASSERT_NE(section, nullptr);
+
+        EXPECT_EQ(section->getSkyLight(0, 0, 0), static_cast<u8>(sectionY))
+            << "Sky light mismatch in section " << sectionY;
+        EXPECT_EQ(section->getBlockLight(0, 0, 0), static_cast<u8>(15 - sectionY))
+            << "Block light mismatch in section " << sectionY;
+    }
+}
+
+TEST_F(ChunkSerializerLightTest, LightDataSectionSizeCalculation) {
+    // 测试区块段大小计算是否包含光照数据
+    ChunkSection section;
+
+    // 设置一些方块
+    u32 stoneStateId = VanillaBlocks::STONE->defaultState().stateId();
+    section.setBlockStateId(0, 0, 0, stoneStateId);
+
+    size_t size = ChunkSerializer::calculateSectionSize(section);
+
+    // 新格式: 2(计数) + 4096*4(方块) + 2048(天空光照) + 2048(方块光照) = 18434 字节
+    EXPECT_EQ(size, 2 + ChunkSection::VOLUME * 4 + 2048 + 2048);
+}
