@@ -35,8 +35,8 @@ FluidState FlowingFluid::getStillState(bool falling) {
 void FlowingFluid::tick(IWorld& world, const BlockPos& pos, FluidState& state) {
     // 非源头才需要计算正确状态
     if (!isSource(state)) {
-        FluidState correctState = calculateCorrectFlowingState(
-            world, pos, world.getBlockState(pos.x, pos.y, pos.z));
+        const BlockState* currentBlock = world.getBlockState(pos.x, pos.y, pos.z);
+        FluidState correctState = calculateCorrectFlowingState(world, pos, currentBlock);
 
         if (correctState.isEmpty()) {
             // 应该消失
@@ -116,6 +116,8 @@ void FlowingFluid::flowAround(IWorld& world, const BlockPos& pos, const FluidSta
         return;
     }
 
+    const BlockState* currentBlock = world.getBlockState(pos.x, pos.y, pos.z);
+
     // 1. 优先向下流动
     BlockPos below = pos.down();
     const BlockState* belowBlock = world.getBlockState(below.x, below.y, below.z);
@@ -136,7 +138,7 @@ void FlowingFluid::flowAround(IWorld& world, const BlockPos& pos, const FluidSta
     i32 newLevel = isSource(state) ? getSpreadDistance(world) : state.getLevel() + getLevelDecrease(world);
 
     if (newLevel > 0 && newLevel <= 8) {
-        auto flowDirections = getFlowDirections(world, pos, world.getBlockState(pos.x, pos.y, pos.z));
+        auto flowDirections = getFlowDirections(world, pos, currentBlock);
 
         for (const auto& [dir, fluidState] : flowDirections) {
             BlockPos targetPos = pos.offset(Directions::toBlockFace(dir));

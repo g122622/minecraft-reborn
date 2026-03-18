@@ -15,7 +15,8 @@ const BlockState* WaterFluid::getBlockState(const FluidState& state) const {
     // - 源头(level=8, isSource=true) -> 方块level=0
     // - 流动(level=1-7) -> 方块level=8-level
     // - 下落(level=8, falling=true) -> 方块level=8
-    return nullptr;  // TODO: 实际实现
+    (void)state;
+    return nullptr;
 }
 
 void WaterFluid::beforeReplacingBlock(IWorld& world, const BlockPos& pos,
@@ -24,16 +25,6 @@ void WaterFluid::beforeReplacingBlock(IWorld& world, const BlockPos& pos,
     (void)world;
     (void)pos;
     (void)state;
-}
-
-i32 WaterSourceFluid::getLevelDecrease(IWorld& world) const {
-    (void)world;
-    return 1;
-}
-
-i32 WaterSourceFluid::getSpreadDistance(IWorld& world) const {
-    (void)world;
-    return 8;
 }
 
 // ============================================================================
@@ -51,23 +42,12 @@ WaterSourceFluid::WaterSourceFluid() {
     setDefaultState(stateContainer().baseState());
 }
 
-const BlockState* WaterSourceFluid::getBlockState(const FluidState& state) const {
-    // TODO: 返回水源头方块状态
-    (void)state;
-    return nullptr;
-}
-
-void WaterSourceFluid::beforeReplacingBlock(IWorld& world, const BlockPos& pos,
-                                             const BlockState* state) {
-    // 水替换方块前无特殊处理
-    (void)world;
-    (void)pos;
-    (void)state;
-}
-
 FlowingFluid& WaterSourceFluid::getFlowing() {
-    return *static_cast<FlowingFluid*>(FluidRegistry::instance().getFluid(
-        ResourceLocation("minecraft:flowing_water")));
+    if (m_flowingCache == nullptr) {
+        m_flowingCache = static_cast<FlowingFluid*>(
+            FluidRegistry::instance().getFluid(ResourceLocation("minecraft:flowing_water")));
+    }
+    return *m_flowingCache;
 }
 
 // ============================================================================
@@ -92,33 +72,12 @@ i32 WaterFlowingFluid::getLevel(const FluidState& state) const {
     return opt.has_value() ? opt.value() : 8;
 }
 
-i32 WaterFlowingFluid::getLevelDecrease(IWorld& world) const {
-    (void)world;
-    return 1;
-}
-
-i32 WaterFlowingFluid::getSpreadDistance(IWorld& world) const {
-    (void)world;
-    return 8;
-}
-
-const BlockState* WaterFlowingFluid::getBlockState(const FluidState& state) const {
-    // TODO: 返回对应的流动水方块状态
-    (void)state;
-    return nullptr;
-}
-
-void WaterFlowingFluid::beforeReplacingBlock(IWorld& world, const BlockPos& pos,
-                                              const BlockState* state) {
-    // 水替换方块前无特殊处理
-    (void)world;
-    (void)pos;
-    (void)state;
-}
-
 FlowingFluid& WaterFlowingFluid::getStill() {
-    return *static_cast<FlowingFluid*>(FluidRegistry::instance().getFluid(
-        ResourceLocation("minecraft:water")));
+    if (m_stillCache == nullptr) {
+        m_stillCache = static_cast<FlowingFluid*>(
+            FluidRegistry::instance().getFluid(ResourceLocation("minecraft:water")));
+    }
+    return *m_stillCache;
 }
 
 } // namespace fluid

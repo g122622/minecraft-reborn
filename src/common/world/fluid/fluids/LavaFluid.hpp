@@ -78,7 +78,7 @@ protected:
  *
  * 源头岩浆方块，level=8，没有LEVEL属性。
  */
-class LavaSourceFluid : public FlowingFluid {
+class LavaSourceFluid : public LavaFluid {
 public:
     LavaSourceFluid();
 
@@ -92,22 +92,11 @@ public:
         return 8;
     }
 
-    [[nodiscard]] i32 getTickDelay() const override { return 30; }
-    [[nodiscard]] i32 getLevelDecrease(IWorld& world) const override;
-    [[nodiscard]] i32 getSpreadDistance(IWorld& world) const override;
-    [[nodiscard]] bool canSourcesMultiply() const override { return false; }
-    [[nodiscard]] const BlockState* getBlockState(const FluidState& state) const override;
-    [[nodiscard]] f32 getExplosionResistance() const override { return 100.0f; }
     [[nodiscard]] FlowingFluid& getFlowing() override;
     [[nodiscard]] FlowingFluid& getStill() override { return *this; }
 
-    void randomTick(IWorld& world, const BlockPos& pos,
-                    const FluidState& state, IRandom& random) override;
-    [[nodiscard]] bool ticksRandomly() const override { return true; }
-
-protected:
-    void beforeReplacingBlock(IWorld& world, const BlockPos& pos,
-                              const BlockState* state) override;
+private:
+    mutable FlowingFluid* m_flowingCache = nullptr;
 };
 
 /**
@@ -115,7 +104,7 @@ protected:
  *
  * 流动岩浆方块，有LEVEL属性(1-8)和FALLING属性。
  */
-class LavaFlowingFluid : public FlowingFluid {
+class LavaFlowingFluid : public LavaFluid {
 public:
     LavaFlowingFluid();
 
@@ -126,22 +115,11 @@ public:
 
     [[nodiscard]] i32 getLevel(const FluidState& state) const override;
 
-    [[nodiscard]] i32 getTickDelay() const override { return 30; }
-    [[nodiscard]] i32 getLevelDecrease(IWorld& world) const override;
-    [[nodiscard]] i32 getSpreadDistance(IWorld& world) const override;
-    [[nodiscard]] bool canSourcesMultiply() const override { return false; }
-    [[nodiscard]] const BlockState* getBlockState(const FluidState& state) const override;
-    [[nodiscard]] f32 getExplosionResistance() const override { return 100.0f; }
     [[nodiscard]] FlowingFluid& getFlowing() override { return *this; }
     [[nodiscard]] FlowingFluid& getStill() override;
 
-    void randomTick(IWorld& world, const BlockPos& pos,
-                    const FluidState& state, IRandom& random) override;
-    [[nodiscard]] bool ticksRandomly() const override { return true; }
-
-protected:
-    void beforeReplacingBlock(IWorld& world, const BlockPos& pos,
-                              const BlockState* state) override;
+private:
+    mutable FlowingFluid* m_stillCache = nullptr;
 };
 
 } // namespace fluid

@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "common/network/ChunkSync.hpp"
+#include "common/network/sync/ChunkSync.hpp"
 #include "common/world/biome/Biome.hpp"
 #include "common/world/chunk/ChunkData.hpp"
 #include "common/world/block/VanillaBlocks.hpp"

@@ -35,9 +35,9 @@ public:
 
     [[nodiscard]] bool canSourcesMultiply() const override { return true; }
 
-    [[nodiscard]] const BlockState* getBlockState(const FluidState& state) const override;
-
     [[nodiscard]] f32 getExplosionResistance() const override { return 100.0f; }
+
+    [[nodiscard]] const BlockState* getBlockState(const FluidState& state) const override;
 
 protected:
     void beforeReplacingBlock(IWorld& world, const BlockPos& pos,
@@ -49,7 +49,7 @@ protected:
  *
  * 源头水方块，level=8，没有LEVEL属性。
  */
-class WaterSourceFluid : public FlowingFluid {
+class WaterSourceFluid : public WaterFluid {
 public:
     WaterSourceFluid();
 
@@ -63,18 +63,11 @@ public:
         return 8;
     }
 
-    [[nodiscard]] i32 getTickDelay() const override { return 5; }
-    [[nodiscard]] i32 getLevelDecrease(IWorld& world) const override;
-    [[nodiscard]] i32 getSpreadDistance(IWorld& world) const override;
-    [[nodiscard]] bool canSourcesMultiply() const override { return true; }
-    [[nodiscard]] const BlockState* getBlockState(const FluidState& state) const override;
-    [[nodiscard]] f32 getExplosionResistance() const override { return 100.0f; }
     [[nodiscard]] FlowingFluid& getFlowing() override;
     [[nodiscard]] FlowingFluid& getStill() override { return *this; }
 
-protected:
-    void beforeReplacingBlock(IWorld& world, const BlockPos& pos,
-                              const BlockState* state) override;
+private:
+    mutable FlowingFluid* m_flowingCache = nullptr;
 };
 
 /**
@@ -82,7 +75,7 @@ protected:
  *
  * 流动水方块，有LEVEL属性(1-8)和FALLING属性。
  */
-class WaterFlowingFluid : public FlowingFluid {
+class WaterFlowingFluid : public WaterFluid {
 public:
     WaterFlowingFluid();
 
@@ -93,18 +86,11 @@ public:
 
     [[nodiscard]] i32 getLevel(const FluidState& state) const override;
 
-    [[nodiscard]] i32 getTickDelay() const override { return 5; }
-    [[nodiscard]] i32 getLevelDecrease(IWorld& world) const override;
-    [[nodiscard]] i32 getSpreadDistance(IWorld& world) const override;
-    [[nodiscard]] bool canSourcesMultiply() const override { return true; }
-    [[nodiscard]] const BlockState* getBlockState(const FluidState& state) const override;
-    [[nodiscard]] f32 getExplosionResistance() const override { return 100.0f; }
     [[nodiscard]] FlowingFluid& getFlowing() override { return *this; }
     [[nodiscard]] FlowingFluid& getStill() override;
 
-protected:
-    void beforeReplacingBlock(IWorld& world, const BlockPos& pos,
-                              const BlockState* state) override;
+private:
+    mutable FlowingFluid* m_stillCache = nullptr;
 };
 
 } // namespace fluid
