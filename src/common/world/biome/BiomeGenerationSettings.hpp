@@ -80,6 +80,30 @@ public:
     static BiomeGenerationSettings createDesert();
 
     /**
+     * @brief 创建沼泽生物群系的生成设置
+     * @return 沼泽设置
+     */
+    static BiomeGenerationSettings createSwamp();
+
+    /**
+     * @brief 创建冰刺平原生物群系的生成设置
+     * @return 冰刺平原设置
+     */
+    static BiomeGenerationSettings createIceSpikes();
+
+    /**
+     * @brief 创建恶地生物群系的生成设置
+     * @return 恶地设置
+     */
+    static BiomeGenerationSettings createBadlands();
+
+    /**
+     * @brief 创建繁花森林生物群系的生成设置
+     * @return 繁花森林设置
+     */
+    static BiomeGenerationSettings createFlowerForest();
+
+    /**
      * @brief 创建山地生物群系的生成设置
      * @return 山地设置
      */

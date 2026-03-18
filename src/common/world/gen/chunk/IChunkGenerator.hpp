@@ -173,9 +173,23 @@ public:
     [[nodiscard]] const BlockState* getBlock(i32 x, i32 y, i32 z) const;
 
     /**
+     * @brief 获取世界坐标处的方块（BlockPos 版本）
+     */
+    [[nodiscard]] const BlockState* getBlock(const BlockPos& pos) const {
+        return getBlock(pos.x, pos.y, pos.z);
+    }
+
+    /**
      * @brief 设置世界坐标处的方块
      */
     void setBlock(i32 x, i32 y, i32 z, const BlockState* state);
+
+    /**
+     * @brief 设置世界坐标处的方块（BlockPos 版本）
+     */
+    void setBlock(const BlockPos& pos, const BlockState* state) {
+        setBlock(pos.x, pos.y, pos.z, state);
+    }
 
     /**
      * @brief 获取世界坐标处的生物群系

@@ -373,7 +373,7 @@ Biome createBadlands()
     biome.setSurfaceBlock(getBlockState(VanillaBlocks::RED_SANDSTONE)); // RED_SAND substitute
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::COBBLESTONE)); // Terracotta substitute
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::RED_SANDSTONE));
-    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    biome.setGenerationSettings(BiomeGenerationSettings::createBadlands());
     return biome;
 }
 
@@ -478,7 +478,7 @@ Biome createSwamp()
     biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
-    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    biome.setGenerationSettings(BiomeGenerationSettings::createSwamp());
     return biome;
 }
 
@@ -659,7 +659,7 @@ Biome createIceSpikes()
     biome.setSurfaceBlock(getBlockState(VanillaBlocks::SNOW));
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
-    biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    biome.setGenerationSettings(BiomeGenerationSettings::createIceSpikes());
     return biome;
 }
 
@@ -860,7 +860,7 @@ Biome createFlowerForest()
     biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
-    biome.setGenerationSettings(BiomeGenerationSettings::createForest());
+    biome.setGenerationSettings(BiomeGenerationSettings::createFlowerForest());
     return biome;
 }
 

@@ -193,6 +193,13 @@ add_library(mc_common STATIC
     world/gen/feature/tree/trunk/StraightTrunkPlacer.cpp
     world/gen/feature/tree/foliage/FoliagePlacer.cpp
     world/gen/feature/tree/foliage/BlobFoliagePlacer.cpp
+    # World - Generation - Feature - Vegetation
+    world/gen/feature/vegetation/FlowerFeature.cpp
+    world/gen/feature/vegetation/GrassFeature.cpp
+    world/gen/feature/vegetation/BigMushroomFeature.cpp
+    world/gen/feature/vegetation/CactusFeature.cpp
+    world/gen/feature/vegetation/SugarCaneFeature.cpp
+    world/gen/feature/vegetation/IceSpikeFeature.cpp
 
     # World - Generation - Placement
     world/gen/placement/Placement.cpp

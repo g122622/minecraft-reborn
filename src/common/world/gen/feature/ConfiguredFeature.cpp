@@ -1,6 +1,7 @@
 #include "ConfiguredFeature.hpp"
 #include "ore/OreFeature.hpp"
 #include "tree/TreeFeature.hpp"
+#include "vegetation/VegetationFeatures.hpp"
 #include "../chunk/IChunkGenerator.hpp"
 #include "../../chunk/ChunkPrimer.hpp"
 #include "../../biome/Biome.hpp"
@@ -47,10 +48,61 @@ void FeatureRegistry::initialize() {
         }
     }
 
+    // 注册植被特征（VEGETAL_DECORATION 阶段）
+    VegetationFeatureManager::initialize();
+
+    // 注册花卉特征
+    auto flowerFeatures = VegetationFeatureManager::getFlowerFeaturesAndClear();
+    for (auto& feature : flowerFeatures) {
+        if (feature) {
+            registerFeature(std::move(feature), DecorationStage::VegetalDecoration);
+        }
+    }
+
+    // 注册草丛特征
+    auto grassFeatures = VegetationFeatureManager::getGrassFeaturesAndClear();
+    for (auto& feature : grassFeatures) {
+        if (feature) {
+            registerFeature(std::move(feature), DecorationStage::VegetalDecoration);
+        }
+    }
+
+    // 注册巨型蘑菇特征
+    auto bigMushroomFeatures = VegetationFeatureManager::getBigMushroomFeaturesAndClear();
+    for (auto& feature : bigMushroomFeatures) {
+        if (feature) {
+            registerFeature(std::move(feature), DecorationStage::VegetalDecoration);
+        }
+    }
+
+    // 注册仙人掌特征
+    auto cactusFeatures = VegetationFeatureManager::getCactusFeaturesAndClear();
+    for (auto& feature : cactusFeatures) {
+        if (feature) {
+            registerFeature(std::move(feature), DecorationStage::VegetalDecoration);
+        }
+    }
+
+    // 注册甘蔗特征
+    auto sugarCaneFeatures = VegetationFeatureManager::getSugarCaneFeaturesAndClear();
+    for (auto& feature : sugarCaneFeatures) {
+        if (feature) {
+            registerFeature(std::move(feature), DecorationStage::VegetalDecoration);
+        }
+    }
+
+    // 注册冰刺特征
+    auto iceSpikeFeatures = VegetationFeatureManager::getIceSpikeFeaturesAndClear();
+    for (auto& feature : iceSpikeFeatures) {
+        if (feature) {
+            registerFeature(std::move(feature), DecorationStage::SurfaceStructures);
+        }
+    }
+
     spdlog::info("[FeatureRegistry] Initialized features:");
     for (size_t i = 0; i < m_featuresByStage.size(); ++i) {
         if (!m_featuresByStage[i].empty()) {
-            // spdlog::info("  Stage {}: {} features", i, m_featuresByStage[i].size());
+            spdlog::info("  Stage {}: {} features", i, m_featuresByStage[i].size());
         }
     }
 }

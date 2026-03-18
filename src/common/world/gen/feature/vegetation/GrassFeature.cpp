@@ -1,0 +1,323 @@
+#include "GrassFeature.hpp"
+#include "../../../chunk/ChunkPrimer.hpp"
+#include "../../../block/VanillaBlocks.hpp"
+#include "../../chunk/IChunkGenerator.hpp"
+#include "../../../../math/random/Random.hpp"
+
+namespace mc {
+
+// ============================================================================
+// GrassFeatureConfig 实现
+// ============================================================================
+
+const BlockState* GrassFeatureConfig::getRandomState(math::Random& random) const {
+    if (states.empty()) {
+        return nullptr;
+    }
+    return states[random.nextInt(static_cast<i32>(states.size()))];
+}
+
+// ============================================================================
+// GrassFeature 实现
+// ============================================================================
+
+bool GrassFeature::place(
+    WorldGenRegion& world,
+    math::Random& random,
+    const BlockPos& pos,
+    const GrassFeatureConfig& config)
+{
+    if (config.states.empty()) {
+        return false;
+    }
+
+    i32 placedCount = 0;
+    BlockPos basePos = pos;
+
+    // 如果需要投影到地面，从高度图获取Y坐标
+    if (config.project) {
+        // 向下寻找第一个非空气方块
+        for (i32 y = 255; y >= 1; --y) {
+            BlockPos checkPos(pos.x, y, pos.z);
+            const BlockState* state = world.getBlock(checkPos);
+            if (state && !state->isAir()) {
+                basePos = BlockPos(pos.x, y + 1, pos.z);
+                break;
+            }
+        }
+    }
+
+    for (i32 i = 0; i < config.tries; ++i) {
+        // 在指定范围内随机选择位置
+        i32 dx = random.nextInt(config.xSpread + 1) - random.nextInt(config.xSpread + 1);
+        i32 dy = random.nextInt(config.ySpread + 1) - random.nextInt(config.ySpread + 1);
+        i32 dz = random.nextInt(config.zSpread + 1) - random.nextInt(config.zSpread + 1);
+
+        BlockPos placePos(basePos.x + dx, basePos.y + dy, basePos.z + dz);
+
+        // 检查是否可以放置
+        if (canPlaceAt(world, placePos, config)) {
+            const BlockState* state = config.getRandomState(random);
+            if (state) {
+                world.setBlock(placePos, state);
+                ++placedCount;
+            }
+        }
+    }
+
+    return placedCount > 0;
+}
+
+bool GrassFeature::canPlaceAt(
+    WorldGenRegion& world,
+    const BlockPos& pos,
+    const GrassFeatureConfig& config) const
+{
+    const BlockState* state = world.getBlock(pos);
+
+    // 检查位置是否为空或可替换
+    if (state) {
+        if (!state->isAir() && !config.canReplace) {
+            return false;
+        }
+        // TODO: 检查材料是否可替换
+        if (!state->isAir() && !config.canReplace) {
+            return false;
+        }
+    }
+
+    // 检查下方方块
+    BlockPos belowPos(pos.x, pos.y - 1, pos.z);
+    if (!isValidGround(world, belowPos)) {
+        return false;
+    }
+
+    // 检查是否需要水
+    if (config.requiresWater) {
+        bool hasWater = false;
+        for (i32 dx = -4; dx <= 4; ++dx) {
+            for (i32 dz = -4; dz <= 4; ++dz) {
+                BlockPos waterPos(belowPos.x + dx, belowPos.y, belowPos.z + dz);
+                const BlockState* waterState = world.getBlock(waterPos);
+                if (waterState && waterState->blockId() == VanillaBlocks::WATER->blockId()) {
+                    hasWater = true;
+                    break;
+                }
+            }
+            if (hasWater) break;
+        }
+        if (!hasWater) return false;
+    }
+
+    return true;
+}
+
+bool GrassFeature::isValidGround(WorldGenRegion& world, const BlockPos& pos) const
+{
+    const BlockState* state = world.getBlock(pos);
+    if (!state) return false;
+
+    u32 blockId = state->blockId();
+
+    // 草丛可以生长在草方块、泥土、砂土、灰化土、菌丝上
+    return blockId == VanillaBlocks::GRASS_BLOCK->blockId() ||
+           blockId == VanillaBlocks::DIRT->blockId() ||
+           blockId == VanillaBlocks::COARSE_DIRT->blockId() ||
+           blockId == VanillaBlocks::PODZOL->blockId() ||
+           blockId == VanillaBlocks::MYCELIUM->blockId();
+    // TODO: 添加 FARMLAND 支持后启用
+}
+
+// ============================================================================
+// ConfiguredGrassFeature 实现
+// ============================================================================
+
+ConfiguredGrassFeature::ConfiguredGrassFeature(
+    std::unique_ptr<GrassFeatureConfig> config,
+    const char* featureName)
+    : m_config(std::move(config))
+    , m_name(featureName)
+{
+}
+
+bool ConfiguredGrassFeature::place(
+    WorldGenRegion& region,
+    ChunkPrimer& chunk,
+    IChunkGenerator& generator,
+    math::Random& random,
+    const BlockPos& pos)
+{
+    (void)chunk;
+    (void)generator;
+    return m_feature.place(region, random, pos, *m_config);
+}
+
+// ============================================================================
+// GrassFeatures 实现
+// ============================================================================
+
+std::vector<std::unique_ptr<ConfiguredGrassFeature>> GrassFeatures::s_features;
+
+void GrassFeatures::initialize()
+{
+    s_features.clear();
+
+    s_features.push_back(createPlainsGrass());
+    s_features.push_back(createForestGrass());
+    s_features.push_back(createJungleGrass());
+    s_features.push_back(createSwampGrass());
+    s_features.push_back(createSavannaGrass());
+    s_features.push_back(createTaigaGrass());
+    s_features.push_back(createBadlandsDeadBush());
+}
+
+const std::vector<std::unique_ptr<ConfiguredGrassFeature>>& GrassFeatures::getAllFeatures()
+{
+    return s_features;
+}
+
+std::vector<std::unique_ptr<ConfiguredGrassFeature>> GrassFeatures::getAllFeaturesAndClear()
+{
+    std::vector<std::unique_ptr<ConfiguredGrassFeature>> result;
+    for (auto& feature : s_features) {
+        result.push_back(std::move(feature));
+    }
+    s_features.clear();
+    return result;
+}
+
+std::unique_ptr<ConfiguredGrassFeature> GrassFeatures::createPlainsGrass()
+{
+    auto config = std::make_unique<GrassFeatureConfig>();
+    config->tries = 32;
+    config->xSpread = 7;
+    config->ySpread = 3;
+    config->zSpread = 7;
+
+    // 平原：高草和矮草混合
+    if (VanillaBlocks::SHORT_GRASS) {
+        config->addState(&VanillaBlocks::SHORT_GRASS->defaultState());
+    }
+    // 矮草更常见（添加两次）
+    if (VanillaBlocks::SHORT_GRASS) {
+        config->addState(&VanillaBlocks::SHORT_GRASS->defaultState());
+    }
+
+    return std::make_unique<ConfiguredGrassFeature>(std::move(config), "plains_grass");
+}
+
+std::unique_ptr<ConfiguredGrassFeature> GrassFeatures::createForestGrass()
+{
+    auto config = std::make_unique<GrassFeatureConfig>();
+    config->tries = 48;
+    config->xSpread = 7;
+    config->ySpread = 3;
+    config->zSpread = 7;
+
+    // 森林：高草、矮草、蕨类
+    if (VanillaBlocks::SHORT_GRASS) {
+        config->addState(&VanillaBlocks::SHORT_GRASS->defaultState());
+    }
+    if (VanillaBlocks::TALL_GRASS) {
+        config->addState(&VanillaBlocks::TALL_GRASS->defaultState());
+    }
+    if (VanillaBlocks::FERN) {
+        config->addState(&VanillaBlocks::FERN->defaultState());
+    }
+
+    return std::make_unique<ConfiguredGrassFeature>(std::move(config), "forest_grass");
+}
+
+std::unique_ptr<ConfiguredGrassFeature> GrassFeatures::createJungleGrass()
+{
+    auto config = std::make_unique<GrassFeatureConfig>();
+    config->tries = 64;
+    config->xSpread = 7;
+    config->ySpread = 3;
+    config->zSpread = 7;
+
+    // 丛林：大量高草和蕨类
+    if (VanillaBlocks::TALL_GRASS) {
+        config->addState(&VanillaBlocks::TALL_GRASS->defaultState());
+    }
+    if (VanillaBlocks::FERN) {
+        config->addState(&VanillaBlocks::FERN->defaultState());
+        config->addState(&VanillaBlocks::FERN->defaultState()); // 蕨类更常见
+    }
+
+    return std::make_unique<ConfiguredGrassFeature>(std::move(config), "jungle_grass");
+}
+
+std::unique_ptr<ConfiguredGrassFeature> GrassFeatures::createSwampGrass()
+{
+    auto config = std::make_unique<GrassFeatureConfig>();
+    config->tries = 32;
+    config->xSpread = 7;
+    config->ySpread = 3;
+    config->zSpread = 7;
+
+    // 沼泽：高草
+    if (VanillaBlocks::TALL_GRASS) {
+        config->addState(&VanillaBlocks::TALL_GRASS->defaultState());
+    }
+
+    return std::make_unique<ConfiguredGrassFeature>(std::move(config), "swamp_grass");
+}
+
+std::unique_ptr<ConfiguredGrassFeature> GrassFeatures::createSavannaGrass()
+{
+    auto config = std::make_unique<GrassFeatureConfig>();
+    config->tries = 64;
+    config->xSpread = 7;
+    config->ySpread = 3;
+    config->zSpread = 7;
+
+    // 稀树草原：高草为主
+    if (VanillaBlocks::TALL_GRASS) {
+        config->addState(&VanillaBlocks::TALL_GRASS->defaultState());
+        config->addState(&VanillaBlocks::TALL_GRASS->defaultState());
+    }
+    if (VanillaBlocks::SHORT_GRASS) {
+        config->addState(&VanillaBlocks::SHORT_GRASS->defaultState());
+    }
+
+    return std::make_unique<ConfiguredGrassFeature>(std::move(config), "savanna_grass");
+}
+
+std::unique_ptr<ConfiguredGrassFeature> GrassFeatures::createTaigaGrass()
+{
+    auto config = std::make_unique<GrassFeatureConfig>();
+    config->tries = 32;
+    config->xSpread = 7;
+    config->ySpread = 3;
+    config->zSpread = 7;
+
+    // 针叶林：蕨类为主
+    if (VanillaBlocks::FERN) {
+        config->addState(&VanillaBlocks::FERN->defaultState());
+        config->addState(&VanillaBlocks::FERN->defaultState());
+    }
+    if (VanillaBlocks::SHORT_GRASS) {
+        config->addState(&VanillaBlocks::SHORT_GRASS->defaultState());
+    }
+
+    return std::make_unique<ConfiguredGrassFeature>(std::move(config), "taiga_grass");
+}
+
+std::unique_ptr<ConfiguredGrassFeature> GrassFeatures::createBadlandsDeadBush()
+{
+    auto config = std::make_unique<GrassFeatureConfig>();
+    config->tries = 16;
+    config->xSpread = 7;
+    config->ySpread = 3;
+    config->zSpread = 7;
+
+    // 恶地：枯萎灌木
+    if (VanillaBlocks::DEAD_BUSH) {
+        config->addState(&VanillaBlocks::DEAD_BUSH->defaultState());
+    }
+
+    return std::make_unique<ConfiguredGrassFeature>(std::move(config), "badlands_dead_bush");
+}
+
+} // namespace mc

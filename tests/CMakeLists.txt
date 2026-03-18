@@ -98,6 +98,8 @@ add_executable(mc_tests
     # 生物群系层测试
     common/world/biome/layer/BiomeLayerTest.cpp
     common/world/biome/layer/MergeLayersTest.cpp
+    # 植被特征集成测试
+    common/world/gen/test_vegetation_features.cpp
     # 光照系统测试
     lighting/LightingTest.cpp
 )

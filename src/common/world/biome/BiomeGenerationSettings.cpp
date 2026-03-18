@@ -1,5 +1,6 @@
 #include "BiomeGenerationSettings.hpp"
 #include "../gen/feature/ConfiguredFeature.hpp"
+#include "../gen/feature/FeatureIds.hpp"
 #include "../gen/chunk/IChunkGenerator.hpp"
 #include "../chunk/ChunkPrimer.hpp"
 #include "../../math/random/Random.hpp"
@@ -56,85 +57,183 @@ BiomeGenerationSettings BiomeGenerationSettings::createDefault() {
     BiomeGenerationSettings settings;
 
     // 添加矿石（UNDERGROUND_ORES 阶段）
-    // 矿石特征ID通过 FeatureRegistry 注册的顺序确定
-    // 0: coal_ore, 1: iron_ore, 2: gold_ore, 3: redstone_ore, 4: diamond_ore
-    // 5: lapis_ore, 6: emerald_ore, 7: copper_ore
-    settings.addFeature(DecorationStage::UndergroundOres, 0);  // 煤矿
-    settings.addFeature(DecorationStage::UndergroundOres, 1);  // 铁矿
-    settings.addFeature(DecorationStage::UndergroundOres, 2);  // 金矿
-    settings.addFeature(DecorationStage::UndergroundOres, 3);  // 红石
-    settings.addFeature(DecorationStage::UndergroundOres, 4);  // 钻石
-    settings.addFeature(DecorationStage::UndergroundOres, 5);  // 青金石
-    settings.addFeature(DecorationStage::UndergroundOres, 7);  // 铜矿
+    // 使用 FeatureIds 中定义的常量
+    settings.addFeature(DecorationStage::UndergroundOres, OreFeatureIds::CoalOre);
+    settings.addFeature(DecorationStage::UndergroundOres, OreFeatureIds::IronOre);
+    settings.addFeature(DecorationStage::UndergroundOres, OreFeatureIds::GoldOre);
+    settings.addFeature(DecorationStage::UndergroundOres, OreFeatureIds::RedstoneOre);
+    settings.addFeature(DecorationStage::UndergroundOres, OreFeatureIds::DiamondOre);
+    settings.addFeature(DecorationStage::UndergroundOres, OreFeatureIds::LapisOre);
+    settings.addFeature(DecorationStage::UndergroundOres, OreFeatureIds::CopperOre);
 
     return settings;
 }
 
 BiomeGenerationSettings BiomeGenerationSettings::createPlains() {
-    // 平原：基础矿石 + 稀疏的树木
+    // 平原：基础矿石 + 稀疏的树木 + 花卉 + 草丛
     BiomeGenerationSettings settings = createDefault();
 
-    // 添加稀疏橡树（VEGETAL_DECORATION 阶段）
-    // 树木特征ID在 VegetalDecoration 阶段内重新从0开始编号
-    // 0: oak_tree, 1: birch_tree, 2: spruce_tree, 3: jungle_tree, 4: sparse_oak_tree
-    settings.addFeature(DecorationStage::VegetalDecoration, 4);  // 稀疏橡树
+    // 添加稀疏橡树
+    settings.addFeature(DecorationStage::VegetalDecoration, TreeFeatureIds::SparseOakTree);
+
+    // 添加平原花卉
+    settings.addFeature(DecorationStage::VegetalDecoration, FlowerFeatureIds::PlainsFlowers);
+
+    // 添加平原草丛
+    settings.addFeature(DecorationStage::VegetalDecoration, GrassFeatureIds::PlainsGrass);
 
     return settings;
 }
 
 BiomeGenerationSettings BiomeGenerationSettings::createForest() {
-    // 森林：基础矿石 + 密集的树木
+    // 森林：基础矿石 + 密集的树木 + 森林花卉 + 森林草丛
     BiomeGenerationSettings settings = createDefault();
 
-    // 添加树木（VEGETAL_DECORATION 阶段）
-    // 树木特征ID在 VegetalDecoration 阶段内重新从0开始编号
-    // 0: oak_tree, 1: birch_tree, 2: spruce_tree, 3: jungle_tree, 4: sparse_oak_tree
-    settings.addFeature(DecorationStage::VegetalDecoration, 0);   // 橡树
-    settings.addFeature(DecorationStage::VegetalDecoration, 0);   // 橡树（多添加几次增加密度）
-    settings.addFeature(DecorationStage::VegetalDecoration, 1);   // 白桦
+    // 添加树木（多添加几次增加密度）
+    settings.addFeature(DecorationStage::VegetalDecoration, TreeFeatureIds::OakTree);
+    settings.addFeature(DecorationStage::VegetalDecoration, TreeFeatureIds::OakTree);
+    settings.addFeature(DecorationStage::VegetalDecoration, TreeFeatureIds::BirchTree);
+
+    // 添加森林花卉
+    settings.addFeature(DecorationStage::VegetalDecoration, FlowerFeatureIds::ForestFlowers);
+
+    // 添加森林草丛
+    settings.addFeature(DecorationStage::VegetalDecoration, GrassFeatureIds::ForestGrass);
 
     return settings;
 }
 
 BiomeGenerationSettings BiomeGenerationSettings::createTaiga() {
+    // 针叶林：基础矿石 + 云杉树 + 针叶林草丛
     BiomeGenerationSettings settings = createDefault();
-    settings.addFeature(DecorationStage::VegetalDecoration, 2);  // 云杉
+
+    // 添加云杉树
+    settings.addFeature(DecorationStage::VegetalDecoration, TreeFeatureIds::SpruceTree);
+    settings.addFeature(DecorationStage::VegetalDecoration, TreeFeatureIds::SpruceTree);
+
+    // 添加针叶林草丛（蕨类）
+    settings.addFeature(DecorationStage::VegetalDecoration, GrassFeatureIds::TaigaGrass);
+
     return settings;
 }
 
 BiomeGenerationSettings BiomeGenerationSettings::createJungle() {
+    // 丛林：基础矿石 + 丛林树 + 丛林草丛
     BiomeGenerationSettings settings = createDefault();
-    settings.addFeature(DecorationStage::VegetalDecoration, 3);  // 丛林树
+
+    // 添加丛林树
+    settings.addFeature(DecorationStage::VegetalDecoration, TreeFeatureIds::JungleTree);
+    settings.addFeature(DecorationStage::VegetalDecoration, TreeFeatureIds::JungleTree);
+
+    // 添加丛林草丛
+    settings.addFeature(DecorationStage::VegetalDecoration, GrassFeatureIds::JungleGrass);
+
     return settings;
 }
 
 BiomeGenerationSettings BiomeGenerationSettings::createSavanna() {
+    // 稀树草原：基础矿石 + 稀疏橡树 + 稀树草原草丛
     BiomeGenerationSettings settings = createDefault();
-    settings.addFeature(DecorationStage::VegetalDecoration, 4);  // 稀疏橡树代替未实现的相思树
+
+    // 添加稀疏橡树（代替未实现的相思树）
+    settings.addFeature(DecorationStage::VegetalDecoration, TreeFeatureIds::SparseOakTree);
+
+    // 添加稀树草原草丛
+    settings.addFeature(DecorationStage::VegetalDecoration, GrassFeatureIds::SavannaGrass);
+
     return settings;
 }
 
 BiomeGenerationSettings BiomeGenerationSettings::createDesert() {
-    // 沙漠：只有矿石，没有树木
+    // 沙漠：矿石 + 仙人掌 + 枯萎灌木
     BiomeGenerationSettings settings = createDefault();
 
-    // 沙漠没有树木
-    // TODO: 添加枯萎灌木特征
+    // 添加沙漠仙人掌
+    settings.addFeature(DecorationStage::VegetalDecoration, CactusFeatureIds::DesertCactus);
+
+    // 添加枯萎灌木（使用恶地枯萎灌木ID）
+    settings.addFeature(DecorationStage::VegetalDecoration, GrassFeatureIds::BadlandsDeadBush);
+
+    return settings;
+}
+
+BiomeGenerationSettings BiomeGenerationSettings::createSwamp() {
+    // 沼泽：矿石 + 橡树 + 沼泽花卉 + 沼泽草丛 + 甘蔗 + 巨型蘑菇
+    BiomeGenerationSettings settings = createDefault();
+
+    // 添加稀疏橡树
+    settings.addFeature(DecorationStage::VegetalDecoration, TreeFeatureIds::SparseOakTree);
+
+    // 添加沼泽花卉（兰花）
+    settings.addFeature(DecorationStage::VegetalDecoration, FlowerFeatureIds::SwampFlowers);
+
+    // 添加沼泽草丛
+    settings.addFeature(DecorationStage::VegetalDecoration, GrassFeatureIds::SwampGrass);
+
+    // 添加密集甘蔗
+    settings.addFeature(DecorationStage::VegetalDecoration, SugarCaneFeatureIds::Dense);
+
+    // 添加巨型蘑菇
+    settings.addFeature(DecorationStage::VegetalDecoration, MushroomFeatureIds::BrownMushroom);
+    settings.addFeature(DecorationStage::VegetalDecoration, MushroomFeatureIds::RedMushroom);
+
+    return settings;
+}
+
+BiomeGenerationSettings BiomeGenerationSettings::createIceSpikes() {
+    // 冰刺平原：矿石 + 冰刺结构
+    BiomeGenerationSettings settings = createDefault();
+
+    // 添加冰刺和冰丘（SurfaceStructures 阶段）
+    settings.addFeature(DecorationStage::SurfaceStructures, IceSpikeFeatureIds::Spike);
+    settings.addFeature(DecorationStage::SurfaceStructures, IceSpikeFeatureIds::Iceberg);
+
+    return settings;
+}
+
+BiomeGenerationSettings BiomeGenerationSettings::createBadlands() {
+    // 恶地：矿石 + 恶地仙人掌 + 枯萎灌木
+    BiomeGenerationSettings settings = createDefault();
+
+    // 添加恶地仙人掌（比沙漠仙人掌更高）
+    settings.addFeature(DecorationStage::VegetalDecoration, CactusFeatureIds::BadlandsCactus);
+
+    // 添加枯萎灌木
+    settings.addFeature(DecorationStage::VegetalDecoration, GrassFeatureIds::BadlandsDeadBush);
+
+    return settings;
+}
+
+BiomeGenerationSettings BiomeGenerationSettings::createFlowerForest() {
+    // 繁花森林：矿石 + 密集树木 + 繁花森林花卉 + 森林草丛
+    BiomeGenerationSettings settings = createDefault();
+
+    // 添加树木
+    settings.addFeature(DecorationStage::VegetalDecoration, TreeFeatureIds::OakTree);
+    settings.addFeature(DecorationStage::VegetalDecoration, TreeFeatureIds::BirchTree);
+
+    // 添加繁花森林花卉（最丰富的花卉）
+    settings.addFeature(DecorationStage::VegetalDecoration, FlowerFeatureIds::FlowerForestFlowers);
+    settings.addFeature(DecorationStage::VegetalDecoration, FlowerFeatureIds::FlowerForestFlowers);
+
+    // 添加森林草丛
+    settings.addFeature(DecorationStage::VegetalDecoration, GrassFeatureIds::ForestGrass);
 
     return settings;
 }
 
 BiomeGenerationSettings BiomeGenerationSettings::createMountains() {
-    // 山地：基础矿石 + 绿宝石 + 云杉树
+    // 山地：矿石 + 绿宝石 + 云杉树 + 针叶林草丛
     BiomeGenerationSettings settings = createDefault();
 
-    // 添加绿宝石矿石（在 UndergroundOres 阶段）
-    // 矿石特征ID：0:coal, 1:iron, 2:gold, 3:redstone, 4:diamond, 5:lapis, 6:emerald, 7:copper
-    settings.addFeature(DecorationStage::UndergroundOres, 6);  // 绿宝石
+    // 添加绿宝石矿石
+    settings.addFeature(DecorationStage::UndergroundOres, OreFeatureIds::EmeraldOre);
 
-    // 添加云杉树（VEGETAL_DECORATION 阶段）
-    // 0: oak_tree, 1: birch_tree, 2: spruce_tree, 3: jungle_tree, 4: sparse_oak_tree
-    settings.addFeature(DecorationStage::VegetalDecoration, 2);  // 云杉
+    // 添加云杉树
+    settings.addFeature(DecorationStage::VegetalDecoration, TreeFeatureIds::SpruceTree);
+
+    // 添加针叶林草丛
+    settings.addFeature(DecorationStage::VegetalDecoration, GrassFeatureIds::TaigaGrass);
 
     return settings;
 }
@@ -143,14 +242,14 @@ BiomeGenerationSettings BiomeGenerationSettings::createOcean() {
     // 海洋：只有矿石，没有植被
     BiomeGenerationSettings settings;
 
-    // 添加矿石
-    settings.addFeature(DecorationStage::UndergroundOres, 0);  // 煤矿
-    settings.addFeature(DecorationStage::UndergroundOres, 1);  // 铁矿
-    settings.addFeature(DecorationStage::UndergroundOres, 2);  // 金矿
-    settings.addFeature(DecorationStage::UndergroundOres, 3);  // 红石
-    settings.addFeature(DecorationStage::UndergroundOres, 4);  // 钻石
-    settings.addFeature(DecorationStage::UndergroundOres, 5);  // 青金石
-    settings.addFeature(DecorationStage::UndergroundOres, 7);  // 铜矿
+    // 添加矿石（不包含绿宝石，因为绿宝石只在山地生成）
+    settings.addFeature(DecorationStage::UndergroundOres, OreFeatureIds::CoalOre);
+    settings.addFeature(DecorationStage::UndergroundOres, OreFeatureIds::IronOre);
+    settings.addFeature(DecorationStage::UndergroundOres, OreFeatureIds::GoldOre);
+    settings.addFeature(DecorationStage::UndergroundOres, OreFeatureIds::RedstoneOre);
+    settings.addFeature(DecorationStage::UndergroundOres, OreFeatureIds::DiamondOre);
+    settings.addFeature(DecorationStage::UndergroundOres, OreFeatureIds::LapisOre);
+    settings.addFeature(DecorationStage::UndergroundOres, OreFeatureIds::CopperOre);
 
     return settings;
 }

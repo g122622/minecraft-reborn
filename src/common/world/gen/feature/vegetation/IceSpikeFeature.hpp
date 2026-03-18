@@ -1,0 +1,134 @@
+#pragma once
+
+#include "../Feature.hpp"
+#include "../ConfiguredFeature.hpp"
+
+namespace mc {
+
+/**
+ * @brief 冰刺特征配置
+ *
+ * 参考 MC NoFeatureConfig（冰刺特征不需要额外配置）
+ */
+struct IceSpikeFeatureConfig : public IFeatureConfig {
+    /// 冰刺类型：true = 尖塔型，false = 冰丘型
+    bool isSpike = true;
+
+    /// 最大高度
+    i32 maxHeight = 30;
+
+    /// 基础半径
+    i32 baseRadius = 2;
+
+    IceSpikeFeatureConfig() = default;
+
+    explicit IceSpikeFeatureConfig(bool spike, i32 maxH = 30, i32 baseR = 2)
+        : isSpike(spike)
+        , maxHeight(maxH)
+        , baseRadius(baseR)
+    {}
+};
+
+/**
+ * @brief 冰刺特征
+ *
+ * 在冰刺平原生成冰刺结构。
+ * 参考 MC IceSpikeFeature
+ */
+class IceSpikeFeature {
+public:
+    /**
+     * @brief 放置冰刺特征
+     * @param world 世界区域
+     * @param random 随机数生成器
+     * @param pos 起始位置
+     * @param config 冰刺配置
+     * @return 是否成功放置
+     */
+    bool place(
+        WorldGenRegion& world,
+        math::Random& random,
+        const BlockPos& pos,
+        const IceSpikeFeatureConfig& config);
+
+private:
+    /**
+     * @brief 检查冰刺是否可以放置在指定位置
+     */
+    [[nodiscard]] bool canPlaceAt(
+        WorldGenRegion& world,
+        const BlockPos& pos) const;
+
+    /**
+     * @brief 生成尖塔型冰刺
+     */
+    void generateSpike(
+        WorldGenRegion& world,
+        math::Random& random,
+        const BlockPos& basePos,
+        i32 height,
+        i32 baseRadius);
+
+    /**
+     * @brief 生成冰丘型结构
+     */
+    void generateIceberg(
+        WorldGenRegion& world,
+        math::Random& random,
+        const BlockPos& basePos,
+        i32 height,
+        i32 baseRadius);
+};
+
+/**
+ * @brief 配置化冰刺特征
+ */
+class ConfiguredIceSpikeFeature : public ConfiguredFeatureBase {
+public:
+    ConfiguredIceSpikeFeature(
+        std::unique_ptr<IceSpikeFeatureConfig> config,
+        const char* featureName);
+
+    bool place(
+        WorldGenRegion& region,
+        ChunkPrimer& chunk,
+        IChunkGenerator& generator,
+        math::Random& random,
+        const BlockPos& pos) override;
+
+    [[nodiscard]] const char* name() const override { return m_name.c_str(); }
+    [[nodiscard]] DecorationStage stage() const override { return DecorationStage::SurfaceStructures; }
+    [[nodiscard]] const IceSpikeFeatureConfig& getConfig() const { return *m_config; }
+
+private:
+    std::unique_ptr<IceSpikeFeatureConfig> m_config;
+    std::string m_name;
+    IceSpikeFeature m_feature;
+};
+
+/**
+ * @brief 预定义冰刺配置
+ *
+ * 注意：调用 getAllFeaturesAndClear() 后，所有权转移给调用者。
+ */
+struct IceSpikeFeatures {
+    /// 初始化所有冰刺特征
+    static void initialize();
+
+    /// 获取所有冰刺特征
+    [[nodiscard]] static const std::vector<std::unique_ptr<ConfiguredIceSpikeFeature>>& getAllFeatures();
+
+    /// 获取所有冰刺特征并清空（转移所有权）
+    [[nodiscard]] static std::vector<std::unique_ptr<ConfiguredIceSpikeFeature>> getAllFeaturesAndClear();
+
+    /// 创建尖塔型冰刺
+    static std::unique_ptr<ConfiguredIceSpikeFeature> createSpike();
+
+    /// 创建冰丘
+    static std::unique_ptr<ConfiguredIceSpikeFeature> createIceberg();
+
+private:
+    static std::vector<std::unique_ptr<ConfiguredIceSpikeFeature>> s_features;
+};
+
+} // namespace mc
