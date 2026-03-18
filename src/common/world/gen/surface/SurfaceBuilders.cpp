@@ -14,45 +14,46 @@ namespace mc {
 SurfaceBuilderConfig SurfaceBuilderConfig::grass()
 {
     return SurfaceBuilderConfig(
-        VanillaBlocks::GRASS_BLOCK ? &VanillaBlocks::GRASS_BLOCK->defaultState() : nullptr,
-        VanillaBlocks::DIRT ? &VanillaBlocks::DIRT->defaultState() : nullptr,
-        VanillaBlocks::GRAVEL ? &VanillaBlocks::GRAVEL->defaultState() : nullptr
+        VanillaBlocks::getState(VanillaBlocks::GRASS_BLOCK),
+        VanillaBlocks::getState(VanillaBlocks::DIRT),
+        VanillaBlocks::getState(VanillaBlocks::GRAVEL)
     );
 }
 
 SurfaceBuilderConfig SurfaceBuilderConfig::sand()
 {
     return SurfaceBuilderConfig(
-        VanillaBlocks::SAND ? &VanillaBlocks::SAND->defaultState() : nullptr,
-        VanillaBlocks::SAND ? &VanillaBlocks::SAND->defaultState() : nullptr,
-        VanillaBlocks::SAND ? &VanillaBlocks::SAND->defaultState() : nullptr
+        VanillaBlocks::getState(VanillaBlocks::SAND),
+        VanillaBlocks::getState(VanillaBlocks::SAND),
+        VanillaBlocks::getState(VanillaBlocks::SAND)
     );
 }
 
 SurfaceBuilderConfig SurfaceBuilderConfig::stone()
 {
     return SurfaceBuilderConfig(
-        VanillaBlocks::STONE ? &VanillaBlocks::STONE->defaultState() : nullptr,
-        VanillaBlocks::STONE ? &VanillaBlocks::STONE->defaultState() : nullptr,
-        VanillaBlocks::STONE ? &VanillaBlocks::STONE->defaultState() : nullptr
+        VanillaBlocks::getState(VanillaBlocks::STONE),
+        VanillaBlocks::getState(VanillaBlocks::STONE),
+        VanillaBlocks::getState(VanillaBlocks::STONE)
     );
 }
 
 SurfaceBuilderConfig SurfaceBuilderConfig::gravel()
 {
     return SurfaceBuilderConfig(
-        VanillaBlocks::GRAVEL ? &VanillaBlocks::GRAVEL->defaultState() : nullptr,
-        VanillaBlocks::GRAVEL ? &VanillaBlocks::GRAVEL->defaultState() : nullptr,
-        VanillaBlocks::GRAVEL ? &VanillaBlocks::GRAVEL->defaultState() : nullptr
+        VanillaBlocks::getState(VanillaBlocks::GRAVEL),
+        VanillaBlocks::getState(VanillaBlocks::GRAVEL),
+        VanillaBlocks::getState(VanillaBlocks::GRAVEL)
     );
 }
 
 SurfaceBuilderConfig SurfaceBuilderConfig::redSand()
 {
+    // RED_SAND not defined yet, use RED_SANDSTONE
     return SurfaceBuilderConfig(
-        VanillaBlocks::RED_SANDSTONE ? &VanillaBlocks::RED_SANDSTONE->defaultState() : nullptr, // RED_SAND not defined yet, use RED_SANDSTONE
-        VanillaBlocks::RED_SANDSTONE ? &VanillaBlocks::RED_SANDSTONE->defaultState() : nullptr,
-        VanillaBlocks::RED_SANDSTONE ? &VanillaBlocks::RED_SANDSTONE->defaultState() : nullptr
+        VanillaBlocks::getState(VanillaBlocks::RED_SANDSTONE),
+        VanillaBlocks::getState(VanillaBlocks::RED_SANDSTONE),
+        VanillaBlocks::getState(VanillaBlocks::RED_SANDSTONE)
     );
 }
 
@@ -149,8 +150,8 @@ void MountainSurfaceBuilder::buildSurface(
 
     const BlockState* topState = config.topBlock;
     const BlockState* underState = config.underBlock;
-    const BlockState* snowState = VanillaBlocks::SNOW ? &VanillaBlocks::SNOW->defaultState() : nullptr;
-    const BlockState* stoneState = VanillaBlocks::STONE ? &VanillaBlocks::STONE->defaultState() : nullptr;
+    const BlockState* snowState = VanillaBlocks::getState(VanillaBlocks::SNOW);
+    const BlockState* stoneState = VanillaBlocks::getState(VanillaBlocks::STONE);
 
     if (!topState || !underState || !defaultBlock) {
         return;
@@ -215,7 +216,7 @@ void DesertSurfaceBuilder::buildSurface(
     (void)seaLevel;
 
     const BlockState* sandState = config.topBlock;
-    const BlockState* sandstoneState = VanillaBlocks::STONE ? &VanillaBlocks::STONE->defaultState() : nullptr;  // 用 Stone 代替 Sandstone
+    const BlockState* sandstoneState = VanillaBlocks::getState(VanillaBlocks::STONE);  // 用 Stone 代替 Sandstone
 
     if (!sandState || !defaultBlock) {
         return;
@@ -270,7 +271,7 @@ void SwampSurfaceBuilder::buildSurface(
 
     const BlockState* topState = config.topBlock;
     const BlockState* underState = config.underBlock;
-    const BlockState* clayState = VanillaBlocks::COBBLESTONE ? &VanillaBlocks::COBBLESTONE->defaultState() : nullptr; // Use COBBLESTONE as Terracotta substitute
+    const BlockState* clayState = VanillaBlocks::getState(VanillaBlocks::COBBLESTONE); // Use COBBLESTONE as Terracotta substitute
 
     if (!topState || !underState || !defaultBlock) {
         return;
@@ -335,7 +336,7 @@ void FrozenOceanSurfaceBuilder::buildSurface(
 
     const BlockState* topState = config.topBlock;
     const BlockState* underState = config.underBlock;
-    const BlockState* iceState = VanillaBlocks::ICE ? &VanillaBlocks::ICE->defaultState() : nullptr;
+    const BlockState* iceState = VanillaBlocks::getState(VanillaBlocks::ICE);
 
     if (!topState || !underState || !defaultBlock) {
         return;
@@ -389,8 +390,8 @@ void BadlandsSurfaceBuilder::buildSurface(
     (void)defaultFluid;
     (void)seaLevel;
 
-    const BlockState* terracottaState = VanillaBlocks::COBBLESTONE ? &VanillaBlocks::COBBLESTONE->defaultState() : nullptr; // Terracotta substitute
-    const BlockState* redSandState = VanillaBlocks::RED_SANDSTONE ? &VanillaBlocks::RED_SANDSTONE->defaultState() : nullptr;
+    const BlockState* terracottaState = VanillaBlocks::getState(VanillaBlocks::COBBLESTONE); // Terracotta substitute
+    const BlockState* redSandState = VanillaBlocks::getState(VanillaBlocks::RED_SANDSTONE);
     const BlockState* topState = config.topBlock;
 
     if (!topState || !defaultBlock) {
@@ -459,7 +460,7 @@ void BeachSurfaceBuilder::buildSurface(
     (void)defaultFluid;
 
     const BlockState* sandState = config.topBlock;
-    const BlockState* sandstoneState = VanillaBlocks::STONE ? &VanillaBlocks::STONE->defaultState() : nullptr;  // 用 Stone 代替 Sandstone
+    const BlockState* sandstoneState = VanillaBlocks::getState(VanillaBlocks::STONE);  // 用 Stone 代替 Sandstone
     const BlockState* topState = config.underBlock;
 
     if (!sandState || !defaultBlock) {

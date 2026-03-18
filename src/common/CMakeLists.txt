@@ -196,6 +196,7 @@ add_library(mc_common STATIC
 
     # World - Generation - Placement
     world/gen/placement/Placement.cpp
+    world/gen/placement/PlacementUtils.cpp
 
     # World - Generation - Spawn
     world/gen/spawn/WorldGenSpawner.cpp

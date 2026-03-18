@@ -1,7 +1,7 @@
 #define _USE_MATH_DEFINES
 #include "OreFeature.hpp"
 #include "../Feature.hpp"
-#include "../../placement/Placement.hpp"
+#include "../../placement/PlacementUtils.hpp"
 #include "../../chunk/IChunkGenerator.hpp"
 #include "../../../biome/Biome.hpp"
 #include "../../../block/BlockRegistry.hpp"
@@ -15,33 +15,6 @@ namespace mc {
 namespace {
 
 std::mutex g_oreFeaturesMutex;
-
-std::unique_ptr<ConfiguredPlacement> appendBiomePlacement(
-    std::unique_ptr<ConfiguredPlacement> root,
-    std::vector<u32> allowedBiomes)
-{
-    if (!root || allowedBiomes.empty()) {
-        return root;
-    }
-
-    auto biomeConfigured = std::make_unique<ConfiguredPlacement>(
-        std::make_unique<BiomePlacement>(),
-        std::make_unique<BiomePlacementConfig>(std::move(allowedBiomes)));
-
-    ConfiguredPlacement* current = root.get();
-    while (current->next() != nullptr) {
-        current = current->next();
-    }
-    current->setNext(std::move(biomeConfigured));
-    return root;
-}
-
-/**
- * @brief 辅助函数：获取方块的默认状态（安全处理空指针）
- */
-const BlockState* getBlockState(Block* block) {
-    return block ? &block->defaultState() : nullptr;
-}
 
 } // namespace
 
@@ -350,7 +323,7 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createCoalOre() {
     // 煤矿：Y 0-127，每区块20个，矿脉大小17
     auto config = std::make_unique<OreFeatureConfig>(
         createOreTarget(OreTargetType::NaturalStone),
-        getBlockState(VanillaBlocks::COAL_ORE),
+        VanillaBlocks::getState(VanillaBlocks::COAL_ORE),
         17);
 
     // 创建链式放置：Count -> Square -> HeightRange
@@ -382,7 +355,7 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createIronOre() {
     // 铁矿：Y 0-63，每区块20个，矿脉大小9
     auto config = std::make_unique<OreFeatureConfig>(
         createOreTarget(OreTargetType::NaturalStone),
-        getBlockState(VanillaBlocks::IRON_ORE),
+        VanillaBlocks::getState(VanillaBlocks::IRON_ORE),
         9);
 
     auto heightPlacement = std::make_unique<HeightRangePlacement>();
@@ -411,7 +384,7 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createGoldOre() {
     // 金矿：Y 0-31，每区块2个，矿脉大小9
     auto config = std::make_unique<OreFeatureConfig>(
         createOreTarget(OreTargetType::NaturalStone),
-        getBlockState(VanillaBlocks::GOLD_ORE),
+        VanillaBlocks::getState(VanillaBlocks::GOLD_ORE),
         9);
 
     auto heightPlacement = std::make_unique<HeightRangePlacement>();
@@ -440,7 +413,7 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createRedstoneOre() {
     // 红石：Y 0-15，每区块8个，矿脉大小8
     auto config = std::make_unique<OreFeatureConfig>(
         createOreTarget(OreTargetType::NaturalStone),
-        getBlockState(VanillaBlocks::REDSTONE_ORE),
+        VanillaBlocks::getState(VanillaBlocks::REDSTONE_ORE),
         8);
 
     auto heightPlacement = std::make_unique<HeightRangePlacement>();
@@ -469,7 +442,7 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createDiamondOre() {
     // 钻石：Y 0-15，每区块1个，矿脉大小8
     auto config = std::make_unique<OreFeatureConfig>(
         createOreTarget(OreTargetType::NaturalStone),
-        getBlockState(VanillaBlocks::DIAMOND_ORE),
+        VanillaBlocks::getState(VanillaBlocks::DIAMOND_ORE),
         8);
 
     auto heightPlacement = std::make_unique<HeightRangePlacement>();
@@ -498,7 +471,7 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createLapisOre() {
     // 青金石：Y 0-30，每区块1个，矿脉大小7
     auto config = std::make_unique<OreFeatureConfig>(
         createOreTarget(OreTargetType::NaturalStone),
-        getBlockState(VanillaBlocks::LAPIS_ORE),
+        VanillaBlocks::getState(VanillaBlocks::LAPIS_ORE),
         7);
 
     auto heightPlacement = std::make_unique<HeightRangePlacement>();
@@ -527,7 +500,7 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createEmeraldOre() {
     // 绿宝石：Y 4-31，每区块1个，矿脉大小1（山地生物群系特有）
     auto config = std::make_unique<OreFeatureConfig>(
         createOreTarget(OreTargetType::NaturalStone),
-        getBlockState(VanillaBlocks::EMERALD_ORE),
+        VanillaBlocks::getState(VanillaBlocks::EMERALD_ORE),
         1);
 
     auto heightPlacement = std::make_unique<HeightRangePlacement>();
@@ -549,7 +522,7 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createEmeraldOre() {
     squareConfigured->setNext(std::move(heightConfigured));
     countConfigured->setNext(std::move(squareConfigured));
 
-    auto placement = appendBiomePlacement(
+    auto placement = PlacementUtils::appendBiomePlacement(
         std::move(countConfigured),
         {Biomes::Mountains, Biomes::WoodedMountains, Biomes::MountainEdge, Biomes::StoneShore});
 
@@ -560,7 +533,7 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createCopperOre() {
     // 铜矿：Y 0-96，每区块6个，矿脉大小10（1.17+新增）
     auto config = std::make_unique<OreFeatureConfig>(
         createOreTarget(OreTargetType::NaturalStone),
-        getBlockState(VanillaBlocks::COPPER_ORE),
+        VanillaBlocks::getState(VanillaBlocks::COPPER_ORE),
         10);
 
     auto heightPlacement = std::make_unique<HeightRangePlacement>();
@@ -589,7 +562,7 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createNetherQuartzOre() {
     // 下界石英：Y 10-117，每区块16个，矿脉大小14
     auto config = std::make_unique<OreFeatureConfig>(
         createOreTarget(OreTargetType::Netherrack),
-        getBlockState(VanillaBlocks::NETHER_QUARTZ_ORE),
+        VanillaBlocks::getState(VanillaBlocks::NETHER_QUARTZ_ORE),
         14);
 
     auto countPlacement = std::make_unique<CountPlacement>();
@@ -606,7 +579,7 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createNetherGoldOre() {
     // 下界金矿：Y 10-117，每区块10个，矿脉大小10
     auto config = std::make_unique<OreFeatureConfig>(
         createOreTarget(OreTargetType::Netherrack),
-        getBlockState(VanillaBlocks::NETHER_GOLD_ORE),
+        VanillaBlocks::getState(VanillaBlocks::NETHER_GOLD_ORE),
         10);
 
     auto countPlacement = std::make_unique<CountPlacement>();
@@ -623,7 +596,7 @@ std::unique_ptr<ConfiguredOreFeature> OreFeatures::createAncientDebris() {
     // 远古残骸：Y 8-22，每区块2个，矿脉大小3
     auto config = std::make_unique<OreFeatureConfig>(
         createOreTarget(OreTargetType::Netherrack),
-        getBlockState(VanillaBlocks::ANCIENT_DEBRIS),
+        VanillaBlocks::getState(VanillaBlocks::ANCIENT_DEBRIS),
         3);
 
     auto countPlacement = std::make_unique<CountPlacement>();

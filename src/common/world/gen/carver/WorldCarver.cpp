@@ -192,19 +192,19 @@ bool WorldCarver<Config>::carveEllipsoid(
 
                 // 设置为空气或熔岩
                 if (y < 11) {
-                    const BlockState* lava = VanillaBlocks::LAVA ? &VanillaBlocks::LAVA->defaultState() : nullptr;
+                    const BlockState* lava = VanillaBlocks::getState(VanillaBlocks::LAVA);
                     if (lava) {
                         chunk.setBlock(lx, y, lz, lava);
                     }
                 } else {
-                    const BlockState* air = VanillaBlocks::AIR ? &VanillaBlocks::AIR->defaultState() : nullptr;
+                    const BlockState* air = VanillaBlocks::getState(VanillaBlocks::AIR);
                     if (air) {
                         chunk.setBlock(lx, y, lz, air);
                     }
 
                     // 如果上方有草地，替换为泥土
                     if (hasGrassAbove && y < 255) {
-                        const BlockState* dirt = VanillaBlocks::DIRT ? &VanillaBlocks::DIRT->defaultState() : nullptr;
+                        const BlockState* dirt = VanillaBlocks::getState(VanillaBlocks::DIRT);
                         if (dirt) {
                             chunk.setBlock(lx, y + 1, lz, dirt);
                         }

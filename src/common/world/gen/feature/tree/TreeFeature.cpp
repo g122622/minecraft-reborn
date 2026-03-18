@@ -6,7 +6,7 @@
 #include "../../../block/BlockRegistry.hpp"
 #include "../../../block/VanillaBlocks.hpp"
 #include "../../../../core/Types.hpp"
-#include "../../placement/Placement.hpp"
+#include "../../placement/PlacementUtils.hpp"
 #include <mutex>
 #include <spdlog/spdlog.h>
 
@@ -15,70 +15,6 @@ namespace mc {
 namespace {
 
 std::mutex g_treeFeaturesMutex;
-
-std::unique_ptr<ConfiguredPlacement> appendBiomePlacement(
-    std::unique_ptr<ConfiguredPlacement> root,
-    std::vector<u32> allowedBiomes)
-{
-    if (!root || allowedBiomes.empty()) {
-        return root;
-    }
-
-    auto biomeConfigured = std::make_unique<ConfiguredPlacement>(
-        std::make_unique<BiomePlacement>(),
-        std::make_unique<BiomePlacementConfig>(std::move(allowedBiomes)));
-
-    ConfiguredPlacement* current = root.get();
-    while (current->next() != nullptr) {
-        current = current->next();
-    }
-    current->setNext(std::move(biomeConfigured));
-    return root;
-}
-
-std::unique_ptr<ConfiguredPlacement> createCountedSurfacePlacement(i32 count, i32 maxWaterDepth = 0) {
-    auto surfacePlacement = std::make_unique<SurfacePlacement>();
-    auto surfaceConfig = std::make_unique<SurfacePlacementConfig>(maxWaterDepth, false);
-
-    auto squarePlacement = std::make_unique<SquarePlacement>();
-    auto squareConfig = std::make_unique<EmptyPlacementConfig>();
-
-    auto countPlacement = std::make_unique<CountPlacement>();
-    auto countConfig = std::make_unique<CountPlacementConfig>(count);
-
-    auto surfaceConfigured = std::make_unique<ConfiguredPlacement>(
-        std::move(surfacePlacement), std::move(surfaceConfig));
-    auto squareConfigured = std::make_unique<ConfiguredPlacement>(
-        std::move(squarePlacement), std::move(squareConfig));
-    auto countConfigured = std::make_unique<ConfiguredPlacement>(
-        std::move(countPlacement), std::move(countConfig));
-
-    squareConfigured->setNext(std::move(surfaceConfigured));
-    countConfigured->setNext(std::move(squareConfigured));
-    return countConfigured;
-}
-
-std::unique_ptr<ConfiguredPlacement> createChanceSurfacePlacement(f32 chance, i32 maxWaterDepth = 0) {
-    auto surfacePlacement = std::make_unique<SurfacePlacement>();
-    auto surfaceConfig = std::make_unique<SurfacePlacementConfig>(maxWaterDepth, false);
-
-    auto squarePlacement = std::make_unique<SquarePlacement>();
-    auto squareConfig = std::make_unique<EmptyPlacementConfig>();
-
-    auto chancePlacement = std::make_unique<ChancePlacement>();
-    auto chanceConfig = std::make_unique<ChancePlacementConfig>(chance);
-
-    auto surfaceConfigured = std::make_unique<ConfiguredPlacement>(
-        std::move(surfacePlacement), std::move(surfaceConfig));
-    auto squareConfigured = std::make_unique<ConfiguredPlacement>(
-        std::move(squarePlacement), std::move(squareConfig));
-    auto chanceConfigured = std::make_unique<ConfiguredPlacement>(
-        std::move(chancePlacement), std::move(chanceConfig));
-
-    squareConfigured->setNext(std::move(surfaceConfigured));
-    chanceConfigured->setNext(std::move(squareConfigured));
-    return chanceConfigured;
-}
 
 } // namespace
 
@@ -365,8 +301,8 @@ std::unique_ptr<ConfiguredTreeFeature> TreeFeatures::createOakTree() {
     // 橡树配置
     auto config = std::make_unique<TreeFeatureConfig>(oakConfig());
 
-    auto placement = appendBiomePlacement(
-        createCountedSurfacePlacement(4),
+    auto placement = PlacementUtils::appendBiomePlacement(
+        PlacementUtils::createCountedSurfacePlacement(4),
         {Biomes::Forest, Biomes::WoodedHills, Biomes::DarkForest});
 
     return std::make_unique<ConfiguredTreeFeature>(
@@ -377,8 +313,8 @@ std::unique_ptr<ConfiguredTreeFeature> TreeFeatures::createBirchTree() {
     // 白桦配置
     auto config = std::make_unique<TreeFeatureConfig>(birchConfig());
 
-    auto placement = appendBiomePlacement(
-        createCountedSurfacePlacement(3),
+    auto placement = PlacementUtils::appendBiomePlacement(
+        PlacementUtils::createCountedSurfacePlacement(3),
         {Biomes::BirchForest, Biomes::Forest});
 
     return std::make_unique<ConfiguredTreeFeature>(
@@ -389,8 +325,8 @@ std::unique_ptr<ConfiguredTreeFeature> TreeFeatures::createSpruceTree() {
     // 云杉配置
     auto config = std::make_unique<TreeFeatureConfig>(spruceConfig());
 
-    auto placement = appendBiomePlacement(
-        createCountedSurfacePlacement(3),
+    auto placement = PlacementUtils::appendBiomePlacement(
+        PlacementUtils::createCountedSurfacePlacement(3),
         {Biomes::Taiga, Biomes::SnowyTaiga, Biomes::GiantTreeTaiga,
          Biomes::Mountains, Biomes::WoodedMountains, Biomes::MountainEdge, Biomes::StoneShore});
 
@@ -402,8 +338,8 @@ std::unique_ptr<ConfiguredTreeFeature> TreeFeatures::createJungleTree() {
     // 丛林木配置
     auto config = std::make_unique<TreeFeatureConfig>(jungleConfig());
 
-    auto placement = appendBiomePlacement(
-        createCountedSurfacePlacement(6),
+    auto placement = PlacementUtils::appendBiomePlacement(
+        PlacementUtils::createCountedSurfacePlacement(6),
         {Biomes::Jungle});
 
     return std::make_unique<ConfiguredTreeFeature>(
@@ -414,8 +350,8 @@ std::unique_ptr<ConfiguredTreeFeature> TreeFeatures::createSparseOakTree() {
     // 稀疏橡树（用于平原）
     auto config = std::make_unique<TreeFeatureConfig>(oakConfig());
 
-    auto placement = appendBiomePlacement(
-        createChanceSurfacePlacement(0.1f),
+    auto placement = PlacementUtils::appendBiomePlacement(
+        PlacementUtils::createChanceSurfacePlacement(0.1f),
         {Biomes::Plains, Biomes::Savanna, Biomes::SavannaPlateau, Biomes::ShatteredSavanna});
 
     return std::make_unique<ConfiguredTreeFeature>(
@@ -424,8 +360,8 @@ std::unique_ptr<ConfiguredTreeFeature> TreeFeatures::createSparseOakTree() {
 
 TreeFeatureConfig TreeFeatures::oakConfig() {
     TreeFeatureConfig config;
-    config.trunkBlock = VanillaBlocks::OAK_LOG ? &VanillaBlocks::OAK_LOG->defaultState() : nullptr;
-    config.foliageBlock = VanillaBlocks::OAK_LEAVES ? &VanillaBlocks::OAK_LEAVES->defaultState() : nullptr;
+    config.trunkBlock = VanillaBlocks::getState(VanillaBlocks::OAK_LOG);
+    config.foliageBlock = VanillaBlocks::getState(VanillaBlocks::OAK_LEAVES);
     config.trunkPlacer = std::make_unique<StraightTrunkPlacer>(4, 2, 0);
     config.foliagePlacer = std::make_unique<BlobFoliagePlacer>(
         FeatureSpread::spread(2, 1),
@@ -438,8 +374,8 @@ TreeFeatureConfig TreeFeatures::oakConfig() {
 
 TreeFeatureConfig TreeFeatures::birchConfig() {
     TreeFeatureConfig config;
-    config.trunkBlock = VanillaBlocks::BIRCH_LOG ? &VanillaBlocks::BIRCH_LOG->defaultState() : nullptr;
-    config.foliageBlock = VanillaBlocks::BIRCH_LEAVES ? &VanillaBlocks::BIRCH_LEAVES->defaultState() : nullptr;
+    config.trunkBlock = VanillaBlocks::getState(VanillaBlocks::BIRCH_LOG);
+    config.foliageBlock = VanillaBlocks::getState(VanillaBlocks::BIRCH_LEAVES);
     config.trunkPlacer = std::make_unique<StraightTrunkPlacer>(5, 2, 0);
     config.foliagePlacer = std::make_unique<BlobFoliagePlacer>(
         FeatureSpread::spread(2, 1),
@@ -452,8 +388,8 @@ TreeFeatureConfig TreeFeatures::birchConfig() {
 
 TreeFeatureConfig TreeFeatures::spruceConfig() {
     TreeFeatureConfig config;
-    config.trunkBlock = VanillaBlocks::SPRUCE_LOG ? &VanillaBlocks::SPRUCE_LOG->defaultState() : nullptr;
-    config.foliageBlock = VanillaBlocks::SPRUCE_LEAVES ? &VanillaBlocks::SPRUCE_LEAVES->defaultState() : nullptr;
+    config.trunkBlock = VanillaBlocks::getState(VanillaBlocks::SPRUCE_LOG);
+    config.foliageBlock = VanillaBlocks::getState(VanillaBlocks::SPRUCE_LEAVES);
     config.trunkPlacer = std::make_unique<StraightTrunkPlacer>(5, 2, 1);
     config.foliagePlacer = std::make_unique<BlobFoliagePlacer>(
         FeatureSpread::spread(2, 1),
@@ -466,8 +402,8 @@ TreeFeatureConfig TreeFeatures::spruceConfig() {
 
 TreeFeatureConfig TreeFeatures::jungleConfig() {
     TreeFeatureConfig config;
-    config.trunkBlock = VanillaBlocks::JUNGLE_LOG ? &VanillaBlocks::JUNGLE_LOG->defaultState() : nullptr;
-    config.foliageBlock = VanillaBlocks::JUNGLE_LEAVES ? &VanillaBlocks::JUNGLE_LEAVES->defaultState() : nullptr;
+    config.trunkBlock = VanillaBlocks::getState(VanillaBlocks::JUNGLE_LOG);
+    config.foliageBlock = VanillaBlocks::getState(VanillaBlocks::JUNGLE_LEAVES);
     config.trunkPlacer = std::make_unique<StraightTrunkPlacer>(4, 8, 0);
     config.foliagePlacer = std::make_unique<BlobFoliagePlacer>(
         FeatureSpread::spread(2, 1),

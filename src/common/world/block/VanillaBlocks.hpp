@@ -344,6 +344,23 @@ public:
     static Block* COBWEB;             // 蜘蛛网
     static Block* SUGAR_CANE;         // 甘蔗
 
+    // ========================================================================
+    // 辅助函数
+    // ========================================================================
+
+    /**
+     * @brief 安全获取方块默认状态
+     *
+     * 用于在初始化阶段可能尚未注册方块时安全获取默认状态。
+     * 如果方块为空指针，返回 nullptr。
+     *
+     * @param block 方块指针（可能为 nullptr）
+     * @return 方块默认状态指针，如果方块为空则返回 nullptr
+     */
+    [[nodiscard]] static const BlockState* getState(Block* block) {
+        return block ? &block->defaultState() : nullptr;
+    }
+
 private:
     static bool s_initialized;
 
