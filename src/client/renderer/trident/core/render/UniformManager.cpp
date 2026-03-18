@@ -130,7 +130,7 @@ void UniformManager::updateCamera(
 
     void* data = m_cameraBufferMapped[frameIndex];
     if (data) {
-        memcpy(data, &ubo, sizeof(CameraUBO));
+        std::memcpy(data, &ubo, sizeof(CameraUBO));
     }
 }
 
@@ -150,7 +150,7 @@ void UniformManager::updateLighting(i64 dayTime, i64 gameTime, f32 partialTick) 
     ubo.dayTime = static_cast<f32>(dayTime);
     ubo.gameTime = static_cast<f32>(gameTime) + partialTick;
 
-    memcpy(m_lightingBufferMapped, &ubo, sizeof(LightingUBO));
+    std::memcpy(m_lightingBufferMapped, &ubo, sizeof(LightingUBO));
 }
 
 VkBuffer UniformManager::cameraBuffer(u32 frameIndex) const {

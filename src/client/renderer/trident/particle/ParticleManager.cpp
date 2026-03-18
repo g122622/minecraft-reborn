@@ -402,7 +402,7 @@ Result<void> ParticleManager::createVertexBuffer() {
 
     void* data;
     vkMapMemory(m_device, stagingBufferMemory, 0, indexBufferSize, 0, &data);
-    memcpy(data, indices.data(), indexBufferSize);
+    std::memcpy(data, indices.data(), indexBufferSize);
     vkUnmapMemory(m_device, stagingBufferMemory);
 
     result = createBuffer(
@@ -579,7 +579,7 @@ Result<void> ParticleManager::createTexture() {
 
     void* data;
     vkMapMemory(m_device, stagingBufferMemory, 0, imageSize, 0, &data);
-    memcpy(data, textureData.data(), imageSize);
+    std::memcpy(data, textureData.data(), imageSize);
     vkUnmapMemory(m_device, stagingBufferMemory);
 
     // 创建图像
@@ -940,7 +940,7 @@ void ParticleManager::updateUniformBuffer(u32 frameIndex) {
     ubo.cameraPos = m_cameraPos;
     ubo.partialTick = m_partialTick;
 
-    memcpy(m_uniformBuffersMapped[frameIndex], &ubo, sizeof(ubo));
+    std::memcpy(m_uniformBuffersMapped[frameIndex], &ubo, sizeof(ubo));
 }
 
 void ParticleManager::updateVertexBuffer() {
@@ -951,7 +951,7 @@ void ParticleManager::updateVertexBuffer() {
     void* data;
     VkDeviceSize size = m_vertexData.size() * sizeof(ParticleVertex);
     vkMapMemory(m_device, m_vertexBufferMemory, 0, size, 0, &data);
-    memcpy(data, m_vertexData.data(), size);
+    std::memcpy(data, m_vertexData.data(), size);
     vkUnmapMemory(m_device, m_vertexBufferMemory);
 }
 

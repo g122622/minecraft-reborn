@@ -317,12 +317,12 @@ void WeatherRenderer::render(VkCommandBuffer cmd,
 
         // 复制雨顶点
         if (!m_rainVertices.empty()) {
-            memcpy(data, m_rainVertices.data(), m_rainVertices.size() * sizeof(WeatherVertex));
+            std::memcpy(data, m_rainVertices.data(), m_rainVertices.size() * sizeof(WeatherVertex));
         }
 
         // 复制雪顶点
         if (!m_snowVertices.empty()) {
-            memcpy(static_cast<u8*>(data) + m_rainVertices.size() * sizeof(WeatherVertex),
+            std::memcpy(static_cast<u8*>(data) + m_rainVertices.size() * sizeof(WeatherVertex),
                    m_snowVertices.data(), m_snowVertices.size() * sizeof(WeatherVertex));
         }
 
@@ -931,7 +931,7 @@ void WeatherRenderer::updateUniformBuffer(u32 frameIndex) {
     ubo.rainStrength = m_rainStrength;
     ubo.thunderStrength = m_thunderStrength;
 
-    memcpy(m_uniformBuffersMapped[frameIndex], &ubo, sizeof(ubo));
+    std::memcpy(m_uniformBuffersMapped[frameIndex], &ubo, sizeof(ubo));
 }
 
 std::vector<u8> WeatherRenderer::generateRainTexture(u32 width, u32 height) {
@@ -1140,7 +1140,7 @@ Result<void> WeatherRenderer::createTextureFromData(const std::vector<u8>& data,
 
     void* mappedData;
     vkMapMemory(m_device, stagingBufferMemory, 0, imageSize, 0, &mappedData);
-    memcpy(mappedData, data.data(), imageSize);
+    std::memcpy(mappedData, data.data(), imageSize);
     vkUnmapMemory(m_device, stagingBufferMemory);
 
     // 创建图像
