@@ -236,11 +236,16 @@ TEST(NoiseSettings, NoiseSizeCalculations) {
 }
 
 TEST(DimensionSettings, OverworldDefaults) {
+    VanillaBlocks::initialize();
     DimensionSettings settings = DimensionSettings::overworld();
 
     EXPECT_EQ(settings.seaLevel, 63);
-    EXPECT_EQ(settings.defaultBlock, BlockId::Stone);
-    EXPECT_EQ(settings.defaultFluid, BlockId::Water);
+    // 验证默认方块已设置（石头）
+    ASSERT_NE(settings.defaultBlock, nullptr);
+    EXPECT_TRUE(settings.defaultBlock->is(VanillaBlocks::STONE));
+    // 验证默认流体已设置（水）
+    ASSERT_NE(settings.defaultFluid, nullptr);
+    EXPECT_TRUE(settings.defaultFluid->is(VanillaBlocks::WATER));
 }
 
 // ============================================================================
@@ -390,33 +395,42 @@ TEST(ChunkHolder, PlayerTracking) {
 // ============================================================================
 
 TEST(Biome, PlainsDefaults) {
+    VanillaBlocks::initialize();
     Biome plains = BiomeFactory::createPlains();
 
     EXPECT_EQ(plains.id(), Biomes::Plains);
     EXPECT_EQ(plains.name(), "plains");
     EXPECT_FLOAT_EQ(plains.depth(), 0.125f);
     EXPECT_FLOAT_EQ(plains.scale(), 0.05f);
-    EXPECT_EQ(plains.surfaceBlock(), BlockId::Grass);
-    EXPECT_EQ(plains.subSurfaceBlock(), BlockId::Dirt);
+    ASSERT_NE(plains.surfaceBlock(), nullptr);
+    EXPECT_TRUE(plains.surfaceBlock()->is(VanillaBlocks::GRASS_BLOCK));
+    ASSERT_NE(plains.subSurfaceBlock(), nullptr);
+    EXPECT_TRUE(plains.subSurfaceBlock()->is(VanillaBlocks::DIRT));
 }
 
 TEST(Biome, DesertDefaults) {
+    VanillaBlocks::initialize();
     Biome desert = BiomeFactory::createDesert();
 
     EXPECT_EQ(desert.id(), Biomes::Desert);
     EXPECT_FLOAT_EQ(desert.temperature(), 2.0f);
     EXPECT_FLOAT_EQ(desert.humidity(), 0.0f);
-    EXPECT_EQ(desert.surfaceBlock(), BlockId::Sand);
-    EXPECT_EQ(desert.subSurfaceBlock(), BlockId::Sand);
+    ASSERT_NE(desert.surfaceBlock(), nullptr);
+    EXPECT_TRUE(desert.surfaceBlock()->is(VanillaBlocks::SAND));
+    ASSERT_NE(desert.subSurfaceBlock(), nullptr);
+    EXPECT_TRUE(desert.subSurfaceBlock()->is(VanillaBlocks::SAND));
 }
 
 TEST(Biome, MountainsDefaults) {
+    VanillaBlocks::initialize();
     Biome mountains = BiomeFactory::createMountains();
 
     EXPECT_EQ(mountains.id(), Biomes::Mountains);
     EXPECT_FLOAT_EQ(mountains.depth(), 1.0f);
-    EXPECT_EQ(mountains.surfaceBlock(), BlockId::Stone);
-    EXPECT_EQ(mountains.subSurfaceBlock(), BlockId::Stone);
+    ASSERT_NE(mountains.surfaceBlock(), nullptr);
+    EXPECT_TRUE(mountains.surfaceBlock()->is(VanillaBlocks::STONE));
+    ASSERT_NE(mountains.subSurfaceBlock(), nullptr);
+    EXPECT_TRUE(mountains.subSurfaceBlock()->is(VanillaBlocks::STONE));
 }
 
 // ============================================================================

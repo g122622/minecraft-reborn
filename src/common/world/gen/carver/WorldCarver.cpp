@@ -1,5 +1,6 @@
 #include "WorldCarver.hpp"
 #include "../../block/BlockRegistry.hpp"
+#include "../../block/VanillaBlocks.hpp"
 #include "../../../math/random/Random.hpp"
 #include <cmath>
 #include <algorithm>
@@ -38,29 +39,31 @@ void CarvingMask::setCarved(BlockCoord x, i32 y, BlockCoord z) {
 // ============================================================================
 
 template<typename Config>
-bool WorldCarver<Config>::isCarvable(BlockId blockId) {
+bool WorldCarver<Config>::isCarvable(const BlockState& state) {
     // 参考 MC WorldCarver.carvableBlocks
-    // 可雕刻的方块类型
-    switch (blockId) {
-        case BlockId::Stone:
-        case BlockId::Granite:
-        case BlockId::Diorite:
-        case BlockId::Andesite:
-        case BlockId::Dirt:
-        case BlockId::Grass:
-        case BlockId::Sand:
-        case BlockId::Gravel:
-        case BlockId::Terracotta:
-        case BlockId::RedSand:
-        case BlockId::Snow:
-        case BlockId::Netherrack:
-        case BlockId::EndStone:
-        case BlockId::Sandstone:
-        case BlockId::RedSandstone:
-            return true;
-        default:
-            return false;
+    // 可雕刻的方块类型 - 使用方块材质判断
+    // 石头变种
+    if (state.is(VanillaBlocks::STONE) ||
+        state.is(VanillaBlocks::GRANITE) ||
+        state.is(VanillaBlocks::DIORITE) ||
+        state.is(VanillaBlocks::ANDESITE) ||
+        // 泥土类
+        state.is(VanillaBlocks::DIRT) ||
+        state.is(VanillaBlocks::GRASS_BLOCK) ||
+        // 沙子类
+        state.is(VanillaBlocks::SAND) ||
+        state.is(VanillaBlocks::GRAVEL) ||
+        // 其他
+        state.is(VanillaBlocks::COBBLESTONE) || // Terracotta substitute
+        state.is(VanillaBlocks::RED_SANDSTONE) || // Red sand substitute
+        state.is(VanillaBlocks::SNOW) ||
+        state.is(VanillaBlocks::NETHERRACK) ||
+        state.is(VanillaBlocks::END_STONE) ||
+        state.is(VanillaBlocks::SANDSTONE) ||
+        state.is(VanillaBlocks::RED_SANDSTONE)) {
+        return true;
     }
+    return false;
 }
 
 template<typename Config>
@@ -69,19 +72,18 @@ bool WorldCarver<Config>::canCarveBlock(const BlockState* state, const BlockStat
         return false;
     }
 
-    BlockId blockId = static_cast<BlockId>(state->blockId());
-
     // 检查是否可雕刻
-    if (isCarvable(blockId)) {
+    if (isCarvable(*state)) {
         return true;
     }
 
     // 沙子和沙砾可以在特定条件下雕刻
     // 参考 MC: (state.isIn(Blocks.SAND) || state.isIn(Blocks.GRAVEL)) && !aboveState.getFluidState().isTagged(FluidTags.WATER)
-    if ((blockId == BlockId::Sand || blockId == BlockId::Gravel) && aboveState) {
+    bool isSandOrGravel = state->is(VanillaBlocks::SAND) || state->is(VanillaBlocks::GRAVEL);
+    if (isSandOrGravel && aboveState) {
         // 简化处理：上方不是水就可以雕刻
-        BlockId aboveId = static_cast<BlockId>(aboveState->blockId());
-        return aboveId != BlockId::Water;
+        bool isWater = aboveState->is(VanillaBlocks::WATER);
+        return !isWater;
     }
 
     return false;
@@ -186,27 +188,23 @@ bool WorldCarver<Config>::carveEllipsoid(
                 carvingMask.setCarved(lx, y, lz);
 
                 // 检查上方是否有草地/菌丝，需要替换为泥土
-                bool hasGrassAbove = false;
-                BlockId blockId = static_cast<BlockId>(state->blockId());
-                if (blockId == BlockId::Grass) {
-                    hasGrassAbove = true;
-                }
+                bool hasGrassAbove = state->is(VanillaBlocks::GRASS_BLOCK);
 
                 // 设置为空气或熔岩
                 if (y < 11) {
-                    const BlockState* lava = BlockRegistry::instance().get(BlockId::Lava);
+                    const BlockState* lava = VanillaBlocks::LAVA ? &VanillaBlocks::LAVA->defaultState() : nullptr;
                     if (lava) {
                         chunk.setBlock(lx, y, lz, lava);
                     }
                 } else {
-                    const BlockState* air = BlockRegistry::instance().get(BlockId::Air);
+                    const BlockState* air = VanillaBlocks::AIR ? &VanillaBlocks::AIR->defaultState() : nullptr;
                     if (air) {
                         chunk.setBlock(lx, y, lz, air);
                     }
 
                     // 如果上方有草地，替换为泥土
                     if (hasGrassAbove && y < 255) {
-                        const BlockState* dirt = BlockRegistry::instance().get(BlockId::Dirt);
+                        const BlockState* dirt = VanillaBlocks::DIRT ? &VanillaBlocks::DIRT->defaultState() : nullptr;
                         if (dirt) {
                             chunk.setBlock(lx, y + 1, lz, dirt);
                         }
@@ -260,9 +258,8 @@ bool WorldCarver<Config>::checkAreaForFluid(
 
                 const BlockState* state = chunk.getBlock(lx, y, lz);
                 if (state) {
-                    BlockId blockId = static_cast<BlockId>(state->blockId());
                     // 检查是否是水或熔岩
-                    if (blockId == BlockId::Water || blockId == BlockId::Lava) {
+                    if (state->is(VanillaBlocks::WATER) || state->is(VanillaBlocks::LAVA)) {
                         return true;
                     }
                 }

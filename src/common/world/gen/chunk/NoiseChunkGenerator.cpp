@@ -1,6 +1,7 @@
 #include "NoiseChunkGenerator.hpp"
 #include "../spawn/WorldGenSpawner.hpp"
 #include "../../block/BlockRegistry.hpp"
+#include "../../block/VanillaBlocks.hpp"
 #include "../../biome/BiomeRegistry.hpp"
 #include "../../biome/BiomeGenerationSettings.hpp"
 #include "../../biome/layer/LayerUtil.hpp"
@@ -267,18 +268,15 @@ void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chu
                                 const f32 finalDensity = density + terrainBias;
 
                                 // 确定方块
-                                const BlockId block = getBlockForDensity(finalDensity, worldY);
+                                const BlockState* blockState = getBlockForDensity(finalDensity, worldY);
 
-                                if (block != BlockId::Air) {
-                                    const BlockState* state = BlockRegistry::instance().get(block);
-                                    if (state) {
-                                        chunk.setBlock(localBlockX, worldY, localBlockZ, state);
+                                if (blockState) {
+                                    chunk.setBlock(localBlockX, worldY, localBlockZ, blockState);
 
-                                        // 更新高度图
-                                        chunk.updateHeightmap(HeightmapType::WorldSurfaceWG, localBlockX, worldY, localBlockZ, state);
-                                        if (state->isSolid()) {
-                                            chunk.updateHeightmap(HeightmapType::OceanFloorWG, localBlockX, worldY, localBlockZ, state);
-                                        }
+                                    // 更新高度图
+                                    chunk.updateHeightmap(HeightmapType::WorldSurfaceWG, localBlockX, worldY, localBlockZ, blockState);
+                                    if (blockState->isSolid()) {
+                                        chunk.updateHeightmap(HeightmapType::OceanFloorWG, localBlockX, worldY, localBlockZ, blockState);
                                     }
                                 }
                             }
@@ -526,14 +524,14 @@ void NoiseChunkGenerator::calculateBiomeDepthAndScale(i32 noiseX, i32 noiseZ,
     outScale = totalScale / totalWeight;
 }
 
-BlockId NoiseChunkGenerator::getBlockForDensity(f32 density, i32 y) const
+const BlockState* NoiseChunkGenerator::getBlockForDensity(f32 density, i32 y) const
 {
     if (density > 0.0f) {
         return m_settings.defaultBlock;
     } else if (y < m_settings.seaLevel) {
         return m_settings.defaultFluid;
     } else {
-        return BlockId::Air;
+        return nullptr;  // 空气
     }
 }
 
@@ -582,13 +580,13 @@ void NoiseChunkGenerator::buildSurface(WorldGenRegion& /*region*/, ChunkPrimer& 
     // === 阶段 2: 生成基岩 ===
     {
         MC_TRACE_EVENT("world.chunk_gen", "BuildSurface_Bedrock");
-        for (i32 localX = 0; localX < 16; ++localX) {
-            for (i32 localZ = 0; localZ < 16; ++localZ) {
-                for (i32 y = 0; y < 5; ++y) {
-                    if (y <= surfaceRng.nextInt(5)) {
-                        const BlockState* bedrock = BlockRegistry::instance().get(BlockId::Bedrock);
-                        if (bedrock) {
-                            chunk.setBlock(localX, y, localZ, bedrock);
+        const BlockState* bedrockState = VanillaBlocks::BEDROCK ? &VanillaBlocks::BEDROCK->defaultState() : nullptr;
+        if (bedrockState) {
+            for (i32 localX = 0; localX < 16; ++localX) {
+                for (i32 localZ = 0; localZ < 16; ++localZ) {
+                    for (i32 y = 0; y < 5; ++y) {
+                        if (y <= surfaceRng.nextInt(5)) {
+                            chunk.setBlock(localX, y, localZ, bedrockState);
                         }
                     }
                 }
@@ -621,10 +619,8 @@ void NoiseChunkGenerator::buildSurfaceForColumn(ChunkPrimer& chunk, i32 x, i32 z
             continue;
         }
 
-        const BlockId blockId = static_cast<BlockId>(state->blockId());
-
         // 只处理默认方块（石头）
-        if (blockId != m_settings.defaultBlock) {
+        if (!m_settings.defaultBlock || state->blockId() != m_settings.defaultBlock->blockId()) {
             continue;
         }
 
@@ -637,13 +633,13 @@ void NoiseChunkGenerator::buildSurfaceForColumn(ChunkPrimer& chunk, i32 x, i32 z
             // 地表层
             if (isUnderwater && y < seaLevel - surfaceDepth) {
                 // 水下使用不同的方块
-                const BlockState* underWater = BlockRegistry::instance().get(biomeDef.underWaterBlock());
+                const BlockState* underWater = biomeDef.underWaterBlock();
                 if (underWater) {
                     chunk.setBlock(x, y, z, underWater);
                 }
             } else {
                 // 地表
-                const BlockState* surface = BlockRegistry::instance().get(biomeDef.surfaceBlock());
+                const BlockState* surface = biomeDef.surfaceBlock();
                 if (surface) {
                     chunk.setBlock(x, y, z, surface);
                 }
@@ -652,7 +648,7 @@ void NoiseChunkGenerator::buildSurfaceForColumn(ChunkPrimer& chunk, i32 x, i32 z
             processedTopSurfaceRun = true;
         } else if (currentDepth < surfaceDepth + 4) {
             // 次地表层
-            const BlockState* subSurface = BlockRegistry::instance().get(biomeDef.subSurfaceBlock());
+            const BlockState* subSurface = biomeDef.subSurfaceBlock();
             if (subSurface) {
                 chunk.setBlock(x, y, z, subSurface);
             }

@@ -10,6 +10,7 @@
 #include "common/world/biome/layer/transformers/BiomeLayers.hpp"
 #include "common/world/biome/layer/transformers/SourceLayers.hpp"
 #include "common/world/biome/layer/transformers/ZoomLayers.hpp"
+#include "common/world/block/VanillaBlocks.hpp"
 
 using namespace mc;
 
@@ -20,6 +21,7 @@ using namespace mc;
 class BiomeTest : public ::testing::Test {
 protected:
     void SetUp() override {
+        VanillaBlocks::initialize();
         BiomeRegistry::instance().initialize();
     }
 };
@@ -51,16 +53,16 @@ TEST_F(BiomeTest, SettersAndGetters) {
     EXPECT_FLOAT_EQ(biome.temperature(), 2.0f);
     EXPECT_EQ(biome.climate().precipitation, BiomeClimate::Precipitation::None);
 
-    // 设置方块
-    biome.setSurfaceBlock(BlockId::Sand);
-    biome.setSubSurfaceBlock(BlockId::Sand);
-    biome.setUnderWaterBlock(BlockId::Gravel);
-    biome.setBedrockBlock(BlockId::Bedrock);
+    // 设置方块 - 使用 VanillaBlocks
+    biome.setSurfaceBlock(&VanillaBlocks::SAND->defaultState());
+    biome.setSubSurfaceBlock(&VanillaBlocks::SAND->defaultState());
+    biome.setUnderWaterBlock(&VanillaBlocks::GRAVEL->defaultState());
+    biome.setBedrockBlock(&VanillaBlocks::BEDROCK->defaultState());
 
-    EXPECT_EQ(biome.surfaceBlock(), BlockId::Sand);
-    EXPECT_EQ(biome.subSurfaceBlock(), BlockId::Sand);
-    EXPECT_EQ(biome.underWaterBlock(), BlockId::Gravel);
-    EXPECT_EQ(biome.bedrockBlock(), BlockId::Bedrock);
+    EXPECT_TRUE(biome.surfaceBlock()->is(VanillaBlocks::SAND));
+    EXPECT_TRUE(biome.subSurfaceBlock()->is(VanillaBlocks::SAND));
+    EXPECT_TRUE(biome.underWaterBlock()->is(VanillaBlocks::GRAVEL));
+    EXPECT_TRUE(biome.bedrockBlock()->is(VanillaBlocks::BEDROCK));
 }
 
 TEST_F(BiomeTest, ClimateDefaults) {
@@ -77,6 +79,7 @@ TEST_F(BiomeTest, ClimateDefaults) {
 class BiomeRegistryTest : public ::testing::Test {
 protected:
     void SetUp() override {
+        VanillaBlocks::initialize();
         BiomeRegistry::instance().initialize();
     }
 };
@@ -123,8 +126,10 @@ TEST_F(BiomeRegistryTest, CreatePlains) {
     EXPECT_EQ(plains.name(), "plains");
     EXPECT_FLOAT_EQ(plains.depth(), 0.125f);
     EXPECT_FLOAT_EQ(plains.scale(), 0.05f);
-    EXPECT_EQ(plains.surfaceBlock(), BlockId::Grass);
-    EXPECT_EQ(plains.subSurfaceBlock(), BlockId::Dirt);
+    ASSERT_NE(plains.surfaceBlock(), nullptr);
+    ASSERT_NE(plains.subSurfaceBlock(), nullptr);
+    EXPECT_TRUE(plains.surfaceBlock()->is(VanillaBlocks::GRASS_BLOCK));
+    EXPECT_TRUE(plains.subSurfaceBlock()->is(VanillaBlocks::DIRT));
 }
 
 TEST_F(BiomeRegistryTest, CreateDesert) {
@@ -133,8 +138,10 @@ TEST_F(BiomeRegistryTest, CreateDesert) {
     EXPECT_EQ(desert.name(), "desert");
     EXPECT_FLOAT_EQ(desert.temperature(), 2.0f);
     EXPECT_FLOAT_EQ(desert.humidity(), 0.0f);
-    EXPECT_EQ(desert.surfaceBlock(), BlockId::Sand);
-    EXPECT_EQ(desert.subSurfaceBlock(), BlockId::Sand);
+    ASSERT_NE(desert.surfaceBlock(), nullptr);
+    ASSERT_NE(desert.subSurfaceBlock(), nullptr);
+    EXPECT_TRUE(desert.surfaceBlock()->is(VanillaBlocks::SAND));
+    EXPECT_TRUE(desert.subSurfaceBlock()->is(VanillaBlocks::SAND));
 }
 
 TEST_F(BiomeRegistryTest, CreateMountains) {
@@ -142,8 +149,10 @@ TEST_F(BiomeRegistryTest, CreateMountains) {
     EXPECT_EQ(mountains.id(), Biomes::Mountains);
     EXPECT_EQ(mountains.name(), "mountains");
     EXPECT_FLOAT_EQ(mountains.depth(), 1.0f);
-    EXPECT_EQ(mountains.surfaceBlock(), BlockId::Stone);
-    EXPECT_EQ(mountains.subSurfaceBlock(), BlockId::Stone);
+    ASSERT_NE(mountains.surfaceBlock(), nullptr);
+    ASSERT_NE(mountains.subSurfaceBlock(), nullptr);
+    EXPECT_TRUE(mountains.surfaceBlock()->is(VanillaBlocks::STONE));
+    EXPECT_TRUE(mountains.subSurfaceBlock()->is(VanillaBlocks::STONE));
 }
 
 TEST_F(BiomeRegistryTest, CreateOcean) {
@@ -160,6 +169,7 @@ TEST_F(BiomeRegistryTest, CreateOcean) {
 class LayerTest : public ::testing::Test {
 protected:
     void SetUp() override {
+        VanillaBlocks::initialize();
         BiomeRegistry::instance().initialize();
     }
 };
@@ -514,6 +524,7 @@ TEST_F(LayerStackTest, Consistency) {
 class LayerBiomeProviderTest : public ::testing::Test {
 protected:
     void SetUp() override {
+        VanillaBlocks::initialize();
         BiomeRegistry::instance().initialize();
         provider = std::make_unique<LayerBiomeProvider>(12345);
     }

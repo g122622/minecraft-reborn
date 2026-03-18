@@ -109,6 +109,15 @@ public:
     [[nodiscard]] u8 lightLevel() const { return m_lightLevel; }
 
     /**
+     * @brief 检查此状态是否属于指定方块
+     * @param block 方块指针
+     * @return 如果此状态的方块与给定方块相同则返回true
+     */
+    [[nodiscard]] bool is(const Block* block) const {
+        return block != nullptr && &owner() == block;
+    }
+
+    /**
      * @brief 获取光照透明度 (0-15)
      *
      * 参考: net.minecraft.block.AbstractBlock.AbstractBlockState#getOpacity

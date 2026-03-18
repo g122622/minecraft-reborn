@@ -153,10 +153,10 @@ public:
 
     /**
      * @brief 检查方块是否可以被雕刻
-     * @param blockId 方块ID
+     * @param state 方块状态
      * @return 是否可雕刻
      */
-    [[nodiscard]] static bool isCarvable(BlockId blockId);
+    [[nodiscard]] static bool isCarvable(const BlockState& state);
 
     /**
      * @brief 检查是否可以雕刻该方块（考虑上方方块）

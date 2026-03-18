@@ -75,6 +75,14 @@ public:
     static Block* EMERALD_ORE;
     static Block* LAPIS_ORE;
     static Block* REDSTONE_ORE;
+    static Block* COPPER_ORE;           // 铜矿 (1.17+)
+
+    // ========================================================================
+    // 下界矿石
+    // ========================================================================
+    static Block* NETHER_QUARTZ_ORE;    // 下界石英矿
+    static Block* NETHER_GOLD_ORE;      // 下界金矿
+    static Block* ANCIENT_DEBRIS;       // 远古残骸
 
     // ========================================================================
     // 矿物方块
@@ -175,6 +183,48 @@ public:
     static Block* DARK_OAK_SAPLING;
 
     // ========================================================================
+    // 石砖系列
+    // ========================================================================
+    static Block* STONE_BRICKS;
+    static Block* MOSSY_STONE_BRICKS;
+    static Block* CRACKED_STONE_BRICKS;
+    static Block* CHISELED_STONE_BRICKS;
+
+    // ========================================================================
+    // 石英系列
+    // ========================================================================
+    static Block* QUARTZ_BLOCK;
+    static Block* CHISELED_QUARTZ_BLOCK;
+    static Block* QUARTZ_PILLAR;
+    static Block* QUARTZ_ORE;
+
+    // ========================================================================
+    // 海晶系列
+    // ========================================================================
+    static Block* PRISMARINE;
+    static Block* PRISMARINE_BRICKS;
+    static Block* DARK_PRISMARINE;
+    static Block* SEA_LANTERN;
+
+    // ========================================================================
+    // 紫珀系列
+    // ========================================================================
+    static Block* PURPUR_BLOCK;
+    static Block* PURPUR_PILLAR;
+
+    // ========================================================================
+    // 末地系列
+    // ========================================================================
+    static Block* END_STONE_BRICKS;
+    static Block* END_ROD;
+
+    // ========================================================================
+    // 骨块与干草块
+    // ========================================================================
+    static Block* BONE_BLOCK;
+    static Block* HAY_BLOCK;
+
+    // ========================================================================
     // 其他方块
     // ========================================================================
     static Block* SNOW;
@@ -186,6 +236,87 @@ public:
     static Block* OBSIDIAN;
 
     // ========================================================================
+    // 染色玻璃 (16色)
+    // ========================================================================
+    static Block* WHITE_STAINED_GLASS;
+    static Block* ORANGE_STAINED_GLASS;
+    static Block* MAGENTA_STAINED_GLASS;
+    static Block* LIGHT_BLUE_STAINED_GLASS;
+    static Block* YELLOW_STAINED_GLASS;
+    static Block* LIME_STAINED_GLASS;
+    static Block* PINK_STAINED_GLASS;
+    static Block* GRAY_STAINED_GLASS;
+    static Block* LIGHT_GRAY_STAINED_GLASS;
+    static Block* CYAN_STAINED_GLASS;
+    static Block* PURPLE_STAINED_GLASS;
+    static Block* BLUE_STAINED_GLASS;
+    static Block* BROWN_STAINED_GLASS;
+    static Block* GREEN_STAINED_GLASS;
+    static Block* RED_STAINED_GLASS;
+    static Block* BLACK_STAINED_GLASS;
+
+    // ========================================================================
+    // 混凝土 (16色)
+    // ========================================================================
+    static Block* WHITE_CONCRETE;
+    static Block* ORANGE_CONCRETE;
+    static Block* MAGENTA_CONCRETE;
+    static Block* LIGHT_BLUE_CONCRETE;
+    static Block* YELLOW_CONCRETE;
+    static Block* LIME_CONCRETE;
+    static Block* PINK_CONCRETE;
+    static Block* GRAY_CONCRETE;
+    static Block* LIGHT_GRAY_CONCRETE;
+    static Block* CYAN_CONCRETE;
+    static Block* PURPLE_CONCRETE;
+    static Block* BLUE_CONCRETE;
+    static Block* BROWN_CONCRETE;
+    static Block* GREEN_CONCRETE;
+    static Block* RED_CONCRETE;
+    static Block* BLACK_CONCRETE;
+
+    // ========================================================================
+    // 混凝土粉末 (16色)
+    // ========================================================================
+    static Block* WHITE_CONCRETE_POWDER;
+    static Block* ORANGE_CONCRETE_POWDER;
+    static Block* MAGENTA_CONCRETE_POWDER;
+    static Block* LIGHT_BLUE_CONCRETE_POWDER;
+    static Block* YELLOW_CONCRETE_POWDER;
+    static Block* LIME_CONCRETE_POWDER;
+    static Block* PINK_CONCRETE_POWDER;
+    static Block* GRAY_CONCRETE_POWDER;
+    static Block* LIGHT_GRAY_CONCRETE_POWDER;
+    static Block* CYAN_CONCRETE_POWDER;
+    static Block* PURPLE_CONCRETE_POWDER;
+    static Block* BLUE_CONCRETE_POWDER;
+    static Block* BROWN_CONCRETE_POWDER;
+    static Block* GREEN_CONCRETE_POWDER;
+    static Block* RED_CONCRETE_POWDER;
+    static Block* BLACK_CONCRETE_POWDER;
+
+    // ========================================================================
+    // 陶瓦 (16色)
+    // ========================================================================
+    static Block* WHITE_TERRACOTTA;
+    static Block* ORANGE_TERRACOTTA;
+    static Block* MAGENTA_TERRACOTTA;
+    static Block* LIGHT_BLUE_TERRACOTTA;
+    static Block* YELLOW_TERRACOTTA;
+    static Block* LIME_TERRACOTTA;
+    static Block* PINK_TERRACOTTA;
+    static Block* GRAY_TERRACOTTA;
+    static Block* LIGHT_GRAY_TERRACOTTA;
+    static Block* CYAN_TERRACOTTA;
+    static Block* PURPLE_TERRACOTTA;
+    static Block* BLUE_TERRACOTTA;
+    static Block* BROWN_TERRACOTTA;
+    static Block* GREEN_TERRACOTTA;
+    static Block* RED_TERRACOTTA;
+    static Block* BLACK_TERRACOTTA;
+    static Block* TERRACOTTA;  // 普通陶瓦
+
+    // ========================================================================
     // 下界方块
     // ========================================================================
     static Block* SOUL_SAND;
@@ -195,6 +326,23 @@ public:
     static Block* BLACKSTONE;
     static Block* POLISHED_BLACKSTONE;
     static Block* CRYING_OBSIDIAN;
+    static Block* MAGMA;              // 岩浆块 (发光)
+    static Block* NETHER_WART_BLOCK;  // 地狱疣块
+
+    // ========================================================================
+    // 自然方块扩展
+    // ========================================================================
+    static Block* CLAY;               // 粘土
+    static Block* MYCELIUM;           // 菌丝
+    static Block* GRASS_PATH;         // 草径
+    static Block* PACKED_ICE;         // 浮冰
+    static Block* SLIME_BLOCK;        // 粘液块
+    static Block* CACTUS;             // 仙人掌
+    static Block* DEAD_BUSH;          // 枯萎灌木
+    static Block* LILY_PAD;           // 睡莲
+    static Block* VINE;               // 藤蔓
+    static Block* COBWEB;             // 蜘蛛网
+    static Block* SUGAR_CANE;         // 甘蔗
 
 private:
     static bool s_initialized;
@@ -213,6 +361,15 @@ private:
     static void registerNetherBlocks();
     static void registerTreeVariants();
     static void registerVegetationBlocks();
+    static void registerColoredBlocks();  // 染色玻璃、混凝土、陶瓦等
+    static void registerStoneBricks();     // 石砖系列
+    static void registerQuartzBlocks();    // 石英系列
+    static void registerPrismarineBlocks(); // 海晶系列
+    static void registerPurpurBlocks();    // 紫珀系列
+    static void registerEndBlocks();       // 末地方块
+    static void registerBoneAndHayBlocks(); // 骨块和干草块
+    static void registerNetherExtensionBlocks(); // 下界扩展方块（岩浆块等）
+    static void registerNaturalBlocks();    // 自然扩展方块
 };
 
 } // namespace mc

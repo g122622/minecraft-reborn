@@ -28,22 +28,19 @@ void TrunkPlacer::placeBlock(
     WorldGenRegion& world,
     const BlockPos& pos,
     std::set<BlockPos>& trunkBlocks,
-    BlockId trunkBlock
+    const BlockState* trunkBlock
 ) {
     // 检查是否在有效范围内
     if (pos.y < 0 || pos.y >= 256) {
         return;
     }
 
-    // 获取方块注册表
-    auto& registry = BlockRegistry::instance();
-    const BlockState* state = registry.get(trunkBlock);
-    if (state == nullptr) {
+    if (trunkBlock == nullptr) {
         return;
     }
 
     // 设置方块
-    world.setBlock(pos.x, pos.y, pos.z, state);
+    world.setBlock(pos.x, pos.y, pos.z, trunkBlock);
 
     // 记录树干方块位置
     trunkBlocks.insert(pos);
@@ -57,23 +54,17 @@ bool TrunkPlacer::canPlaceAt(WorldGenRegion& world, const BlockPos& pos) {
 
     // 获取当前位置的方块
     const BlockState* state = world.getBlock(pos.x, pos.y, pos.z);
-    if (state == nullptr) {
+    if (state == nullptr || state->isAir()) {
         return true;  // 空气或其他可替换方块
     }
 
-    // 检查是否是空气或树叶
-    u32 blockId = state->blockId();
-    if (blockId == static_cast<u32>(BlockId::Air)) {
-        return true;
-    }
-
     // 检查是否是树叶
-    if (blockId == static_cast<u32>(BlockId::OakLeaves) ||
-        blockId == static_cast<u32>(BlockId::SpruceLeaves) ||
-        blockId == static_cast<u32>(BlockId::BirchLeaves) ||
-        blockId == static_cast<u32>(BlockId::JungleLeaves) ||
-        blockId == static_cast<u32>(BlockId::AcaciaLeaves) ||
-        blockId == static_cast<u32>(BlockId::DarkOakLeaves)) {
+    if (state->is(VanillaBlocks::OAK_LEAVES) ||
+        state->is(VanillaBlocks::SPRUCE_LEAVES) ||
+        state->is(VanillaBlocks::BIRCH_LEAVES) ||
+        state->is(VanillaBlocks::JUNGLE_LEAVES) ||
+        state->is(VanillaBlocks::ACACIA_LEAVES) ||
+        state->is(VanillaBlocks::DARK_OAK_LEAVES)) {
         return true;
     }
 
@@ -93,14 +84,10 @@ void TrunkPlacer::placeDirtUnder(WorldGenRegion& world, const BlockPos& pos) {
         return;
     }
 
-    u32 blockId = state->blockId();
-
     // 如果不是草方块或泥土，放置泥土
-    if (blockId != static_cast<u32>(BlockId::Grass) && blockId != static_cast<u32>(BlockId::Dirt)) {
-        auto& registry = BlockRegistry::instance();
-        const BlockState* dirt = registry.get(BlockId::Dirt);
-        if (dirt != nullptr) {
-            world.setBlock(belowPos.x, belowPos.y, belowPos.z, dirt);
+    if (!state->is(VanillaBlocks::GRASS_BLOCK) && !state->is(VanillaBlocks::DIRT)) {
+        if (VanillaBlocks::DIRT) {
+            world.setBlock(belowPos.x, belowPos.y, belowPos.z, &VanillaBlocks::DIRT->defaultState());
         }
     }
 }

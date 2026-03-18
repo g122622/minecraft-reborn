@@ -205,98 +205,16 @@ enum class BlockShape : u8 {
     Custom = 3
 };
 
-/**
- * @brief 方块ID枚举
- *
- * 预定义的方块ID，用于地形生成等场景。
- * 实际方块通过 BlockRegistry 动态注册。
- */
-enum class BlockId : u32 {
-    Air = 0,
-    Stone = 1,
-    Grass = 2,
-    Dirt = 3,
-    Cobblestone = 4,
-    OakPlanks = 5,
-    OakSapling = 6,
-    Bedrock = 7,
-    Water = 8,
-    Lava = 9,
-    Sand = 10,
-    Gravel = 11,
-    GoldOre = 12,
-    IronOre = 13,
-    CoalOre = 14,
-    OakLog = 15,
-    OakLeaves = 16,
-    Sponge = 17,
-    Glass = 18,
-    Netherrack = 19,
-    SoulSand = 20,
-    Glowstone = 21,
-    EndStone = 22,
-    Terracotta = 23,
-    RedSand = 24,
-    Snow = 25,
-    Ice = 26,
-    // 更多石头变种
-    Granite = 27,
-    Diorite = 28,
-    Andesite = 29,
-    // 矿石
-    DiamondOre = 30,
-    RedstoneOre = 31,
-    LapisOre = 32,
-    EmeraldOre = 33,
-    CopperOre = 34,
-    // 下界矿石
-    NetherQuartzOre = 35,
-    NetherGoldOre = 36,
-    AncientDebris = 37,
-    // 下界方块
-    Basalt = 38,
-    // 砂岩
-    Sandstone = 39,
-    RedSandstone = 40,
-    // 泥土变种
-    CoarseDirt = 41,
-    Podzol = 42,
-    // 树木变种原木
-    SpruceLog = 43,
-    BirchLog = 44,
-    JungleLog = 45,
-    AcaciaLog = 46,
-    DarkOakLog = 47,
-    // 树叶变种
-    SpruceLeaves = 48,
-    BirchLeaves = 49,
-    JungleLeaves = 50,
-    AcaciaLeaves = 51,
-    DarkOakLeaves = 52,
-    // 植被方块
-    ShortGrass = 53,
-    TallGrass = 54,
-    Fern = 55,
-    Dandelion = 56,         // 蒲公英
-    Poppy = 57,             // 虞美人
-    BlueOrchid = 58,        // 兰花
-    Allium = 59,            // 绒球葱
-    AzureBluet = 60,        // 蓝花美耳草
-    RedTulip = 61,
-    OrangeTulip = 62,
-    WhiteTulip = 63,
-    PinkTulip = 64,
-    OxeyeDaisy = 65,        // 滨菊
-    BrownMushroom = 66,     // 棕色蘑菇
-    RedMushroom = 67,       // 红色蘑菇
-    // 树苗
-    SpruceSapling = 68,
-    BirchSapling = 69,
-    JungleSapling = 70,
-    AcaciaSapling = 71,
-    DarkOakSapling = 72,
-    // 可扩展...
-    Unknown = 0xFFFFFFFF
-};
+// ============================================================================
+// 方块ID类型
+// ============================================================================
+//
+// 方块ID现在通过 BlockRegistry 动态分配，不再使用固定枚举。
+// 使用 Block* 指针或 ResourceLocation 来引用方块。
+// 参考 MC 1.16.5 的 Registry.register() 模式。
+//
+// 地形生成等场景应使用 VanillaBlocks::STONE 等静态指针，
+// 或通过 BlockRegistry::getBlock(ResourceLocation) 获取方块。
+// ============================================================================
 
 } // namespace mc

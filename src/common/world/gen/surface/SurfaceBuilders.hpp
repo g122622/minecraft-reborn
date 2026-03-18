@@ -178,13 +178,6 @@ public:
         const SurfaceBuilderConfig& config) override;
 
     [[nodiscard]] const char* name() const override { return "badlands"; }
-
-    /**
-     * @brief 获取彩色陶瓦层
-     * @param y 高度
-     * @return 陶瓦方块ID
-     */
-    [[nodiscard]] BlockId getTerracottaLayer(i32 y) const;
 };
 
 /**

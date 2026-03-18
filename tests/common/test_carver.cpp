@@ -87,19 +87,19 @@ protected:
 
 TEST_F(WorldCarverTest, IsCarvable) {
     // 可雕刻的方块
-    EXPECT_TRUE(WorldCarver<ProbabilityConfig>::isCarvable(BlockId::Stone));
-    EXPECT_TRUE(WorldCarver<ProbabilityConfig>::isCarvable(BlockId::Dirt));
-    EXPECT_TRUE(WorldCarver<ProbabilityConfig>::isCarvable(BlockId::Grass));
-    EXPECT_TRUE(WorldCarver<ProbabilityConfig>::isCarvable(BlockId::Sand));
-    EXPECT_TRUE(WorldCarver<ProbabilityConfig>::isCarvable(BlockId::Granite));
-    EXPECT_TRUE(WorldCarver<ProbabilityConfig>::isCarvable(BlockId::Diorite));
-    EXPECT_TRUE(WorldCarver<ProbabilityConfig>::isCarvable(BlockId::Andesite));
+    EXPECT_TRUE(WorldCarver<ProbabilityConfig>::isCarvable(VanillaBlocks::STONE->defaultState()));
+    EXPECT_TRUE(WorldCarver<ProbabilityConfig>::isCarvable(VanillaBlocks::DIRT->defaultState()));
+    EXPECT_TRUE(WorldCarver<ProbabilityConfig>::isCarvable(VanillaBlocks::GRASS_BLOCK->defaultState()));
+    EXPECT_TRUE(WorldCarver<ProbabilityConfig>::isCarvable(VanillaBlocks::SAND->defaultState()));
+    EXPECT_TRUE(WorldCarver<ProbabilityConfig>::isCarvable(VanillaBlocks::GRANITE->defaultState()));
+    EXPECT_TRUE(WorldCarver<ProbabilityConfig>::isCarvable(VanillaBlocks::DIORITE->defaultState()));
+    EXPECT_TRUE(WorldCarver<ProbabilityConfig>::isCarvable(VanillaBlocks::ANDESITE->defaultState()));
 
     // 不可雕刻的方块
-    EXPECT_FALSE(WorldCarver<ProbabilityConfig>::isCarvable(BlockId::Air));
-    EXPECT_FALSE(WorldCarver<ProbabilityConfig>::isCarvable(BlockId::Water));
-    EXPECT_FALSE(WorldCarver<ProbabilityConfig>::isCarvable(BlockId::Bedrock));
-    EXPECT_FALSE(WorldCarver<ProbabilityConfig>::isCarvable(BlockId::CoalOre));
+    EXPECT_FALSE(WorldCarver<ProbabilityConfig>::isCarvable(VanillaBlocks::AIR->defaultState()));
+    EXPECT_FALSE(WorldCarver<ProbabilityConfig>::isCarvable(VanillaBlocks::WATER->defaultState()));
+    EXPECT_FALSE(WorldCarver<ProbabilityConfig>::isCarvable(VanillaBlocks::BEDROCK->defaultState()));
+    EXPECT_FALSE(WorldCarver<ProbabilityConfig>::isCarvable(VanillaBlocks::COAL_ORE->defaultState()));
 }
 
 // ============================================================================
@@ -136,7 +136,7 @@ TEST_F(CaveCarverTest, ShouldCarveWithProbability) {
 
 TEST_F(CaveCarverTest, CarveCreatesHoles) {
     // 用石头填充区块
-    const BlockState* stone = BlockRegistry::instance().get(BlockId::Stone);
+    const BlockState* stone = &VanillaBlocks::STONE->defaultState();
     for (int y = 0; y < 64; ++y) {
         for (int x = 0; x < 16; ++x) {
             for (int z = 0; z < 16; ++z) {
@@ -174,7 +174,7 @@ TEST_F(CaveCarverTest, CarveCreatesHoles) {
 
 TEST_F(CaveCarverTest, CarveRespectsMask) {
     // 用石头填充区块
-    const BlockState* stone = BlockRegistry::instance().get(BlockId::Stone);
+    const BlockState* stone = &VanillaBlocks::STONE->defaultState();
     for (int y = 0; y < 64; ++y) {
         for (int x = 0; x < 16; ++x) {
             for (int z = 0; z < 16; ++z) {
@@ -237,7 +237,7 @@ TEST_F(CanyonCarverTest, ShouldCarveWithProbability) {
 
 TEST_F(CanyonCarverTest, CarveCreatesCanyon) {
     // 用石头填充区块
-    const BlockState* stone = BlockRegistry::instance().get(BlockId::Stone);
+    const BlockState* stone = &VanillaBlocks::STONE->defaultState();
     for (int y = 0; y < 64; ++y) {
         for (int x = 0; x < 16; ++x) {
             for (int z = 0; z < 16; ++z) {

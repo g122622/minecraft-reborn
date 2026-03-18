@@ -18,7 +18,7 @@ void BlobFoliagePlacer::placeFoliageInternal(
     i32 radius,
     i32 offset,
     std::set<BlockPos>& foliageBlocks,
-    BlockId foliageBlock
+    const BlockState* foliageBlock
 ) {
     // 从上到下生成树叶层
     // 参考 MC BlobFoliagePlacer.func_230372_a_

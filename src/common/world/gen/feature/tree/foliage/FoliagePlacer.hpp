@@ -42,7 +42,7 @@ public:
      * @param foliagePositions 树叶位置列表
      * @param trunkBlocks 树干方块集合
      * @param trunkHeight 树干顶部的偏移（从树干顶部到树叶底部的距离）
-     * @param foliageBlock 树叶方块ID
+     * @param foliageBlock 树叶方块状态
      */
     void placeFoliage(
         WorldGenRegion& world,
@@ -51,7 +51,7 @@ public:
         const std::vector<FoliagePosition>& foliagePositions,
         const std::set<BlockPos>& trunkBlocks,
         i32 trunkOffset,
-        BlockId foliageBlock
+        const BlockState* foliageBlock
     );
 
     /**
@@ -84,7 +84,7 @@ protected:
      * @param foliageBlocks 树叶方块集合
      * @param y Y坐标
      * @param trunkTop 是否是树干顶部
-     * @param foliageBlock 树叶方块ID
+     * @param foliageBlock 树叶方块状态
      */
     void placeFoliageLayer(
         WorldGenRegion& world,
@@ -94,7 +94,7 @@ protected:
         std::set<BlockPos>& foliageBlocks,
         i32 y,
         bool trunkTop,
-        BlockId foliageBlock
+        const BlockState* foliageBlock
     );
 
     /**
@@ -129,7 +129,7 @@ protected:
         i32 radius,
         i32 offset,
         std::set<BlockPos>& foliageBlocks,
-        BlockId foliageBlock
+        const BlockState* foliageBlock
     ) = 0;
 
     FeatureSpread m_radius;

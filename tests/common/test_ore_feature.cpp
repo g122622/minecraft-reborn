@@ -25,12 +25,12 @@ TEST_F(RuleTestTest, StoneRuleTest) {
     math::Random random(12345);
 
     // 石头应该匹配
-    const BlockState* stone = BlockRegistry::instance().get(BlockId::Stone);
+    const BlockState* stone = &VanillaBlocks::STONE->defaultState();
     ASSERT_NE(stone, nullptr);
     EXPECT_TRUE(rule->test(*stone, random));
 
     // 空气不应该匹配
-    const BlockState* air = BlockRegistry::instance().airState();
+    const BlockState* air = &VanillaBlocks::AIR->defaultState();
     ASSERT_NE(air, nullptr);
     EXPECT_FALSE(rule->test(*air, random));
 }
@@ -40,13 +40,13 @@ TEST_F(RuleTestTest, BlockIdRuleTest) {
     math::Random random(12345);
 
     // 下界岩应该匹配
-    const BlockState* netherrack = BlockRegistry::instance().get(BlockId::Netherrack);
+    const BlockState* netherrack = &VanillaBlocks::NETHERRACK->defaultState();
     if (netherrack) {
         EXPECT_TRUE(rule->test(*netherrack, random));
     }
 
     // 石头不应该匹配
-    const BlockState* stone = BlockRegistry::instance().get(BlockId::Stone);
+    const BlockState* stone = &VanillaBlocks::STONE->defaultState();
     ASSERT_NE(stone, nullptr);
     EXPECT_FALSE(rule->test(*stone, random));
 }
@@ -65,10 +65,10 @@ protected:
 TEST_F(OreFeatureConfigTest, CreateConfig) {
     auto config = std::make_unique<OreFeatureConfig>(
         createOreTarget(OreTargetType::NaturalStone),
-        BlockId::CoalOre,
+        &VanillaBlocks::COAL_ORE->defaultState(),
         17);
 
-    EXPECT_EQ(config->state, BlockId::CoalOre);
+    EXPECT_TRUE(config->state->is(VanillaBlocks::COAL_ORE));
     EXPECT_EQ(config->size, 17);
     EXPECT_NE(config->target, nullptr);
 }
@@ -160,17 +160,17 @@ protected:
 };
 
 TEST_F(BlockStateProviderTest, SimpleProvider) {
-    SimpleBlockStateProvider provider(BlockId::Stone);
+    SimpleBlockStateProvider provider(&VanillaBlocks::STONE->defaultState());
     math::Random random(12345);
 
     const BlockState* state = provider.getState(random, 0, 0, 0);
     ASSERT_NE(state, nullptr);
-    EXPECT_EQ(state->blockId(), static_cast<u32>(BlockId::Stone));
+    EXPECT_TRUE(state->is(VanillaBlocks::STONE));
 }
 
 TEST_F(BlockStateProviderTest, DifferentBlocks) {
-    SimpleBlockStateProvider grassProvider(BlockId::Grass);
-    SimpleBlockStateProvider dirtProvider(BlockId::Dirt);
+    SimpleBlockStateProvider grassProvider(&VanillaBlocks::GRASS_BLOCK->defaultState());
+    SimpleBlockStateProvider dirtProvider(&VanillaBlocks::DIRT->defaultState());
     math::Random random(12345);
 
     const BlockState* grass = grassProvider.getState(random, 0, 0, 0);
@@ -178,8 +178,8 @@ TEST_F(BlockStateProviderTest, DifferentBlocks) {
 
     ASSERT_NE(grass, nullptr);
     ASSERT_NE(dirt, nullptr);
-    EXPECT_EQ(grass->blockId(), static_cast<u32>(BlockId::Grass));
-    EXPECT_EQ(dirt->blockId(), static_cast<u32>(BlockId::Dirt));
+    EXPECT_TRUE(grass->is(VanillaBlocks::GRASS_BLOCK));
+    EXPECT_TRUE(dirt->is(VanillaBlocks::DIRT));
 }
 
 // ============================================================================
@@ -195,7 +195,7 @@ protected:
     }
 
     void fillWithStone() {
-        const BlockState* stone = BlockRegistry::instance().get(BlockId::Stone);
+        const BlockState* stone = &VanillaBlocks::STONE->defaultState();
         ASSERT_NE(stone, nullptr);
 
         for (int y = 0; y < 64; ++y) {
@@ -222,12 +222,12 @@ TEST_F(OreFeatureTest, PlaceSmallOre) {
     OreFeature feature;
     auto config = std::make_unique<OreFeatureConfig>(
         createOreTarget(OreTargetType::NaturalStone),
-        BlockId::CoalOre,
+        &VanillaBlocks::COAL_ORE->defaultState(),
         8);  // 小矿脉
 
     // 注意：WorldGenRegion 需要完整实现才能测试 place 方法
     // 这里只验证配置正确创建
-    EXPECT_EQ(config->state, BlockId::CoalOre);
+    EXPECT_TRUE(config->state->is(VanillaBlocks::COAL_ORE));
     EXPECT_EQ(config->size, 8);
 }
 
@@ -255,7 +255,7 @@ TEST_F(OreFeaturesTest, CreateCoalOre) {
     ASSERT_NE(feature, nullptr);
 
     const auto& config = feature->getConfig();
-    EXPECT_EQ(config.state, BlockId::CoalOre);
+    EXPECT_TRUE(config.state->is(VanillaBlocks::COAL_ORE));
     EXPECT_EQ(config.size, 17);
 }
 
@@ -264,7 +264,7 @@ TEST_F(OreFeaturesTest, CreateIronOre) {
     ASSERT_NE(feature, nullptr);
 
     const auto& config = feature->getConfig();
-    EXPECT_EQ(config.state, BlockId::IronOre);
+    EXPECT_TRUE(config.state->is(VanillaBlocks::IRON_ORE));
     EXPECT_EQ(config.size, 9);
 }
 
@@ -273,7 +273,7 @@ TEST_F(OreFeaturesTest, CreateGoldOre) {
     ASSERT_NE(feature, nullptr);
 
     const auto& config = feature->getConfig();
-    EXPECT_EQ(config.state, BlockId::GoldOre);
+    EXPECT_TRUE(config.state->is(VanillaBlocks::GOLD_ORE));
     EXPECT_EQ(config.size, 9);
 }
 
@@ -282,7 +282,7 @@ TEST_F(OreFeaturesTest, CreateDiamondOre) {
     ASSERT_NE(feature, nullptr);
 
     const auto& config = feature->getConfig();
-    EXPECT_EQ(config.state, BlockId::DiamondOre);
+    EXPECT_TRUE(config.state->is(VanillaBlocks::DIAMOND_ORE));
     EXPECT_EQ(config.size, 8);
 }
 
@@ -291,7 +291,7 @@ TEST_F(OreFeaturesTest, CreateRedstoneOre) {
     ASSERT_NE(feature, nullptr);
 
     const auto& config = feature->getConfig();
-    EXPECT_EQ(config.state, BlockId::RedstoneOre);
+    EXPECT_TRUE(config.state->is(VanillaBlocks::REDSTONE_ORE));
     EXPECT_EQ(config.size, 8);
 }
 
@@ -300,7 +300,7 @@ TEST_F(OreFeaturesTest, CreateLapisOre) {
     ASSERT_NE(feature, nullptr);
 
     const auto& config = feature->getConfig();
-    EXPECT_EQ(config.state, BlockId::LapisOre);
+    EXPECT_TRUE(config.state->is(VanillaBlocks::LAPIS_ORE));
     EXPECT_EQ(config.size, 7);
 }
 
@@ -309,7 +309,7 @@ TEST_F(OreFeaturesTest, CreateEmeraldOre) {
     ASSERT_NE(feature, nullptr);
 
     const auto& config = feature->getConfig();
-    EXPECT_EQ(config.state, BlockId::EmeraldOre);
+    EXPECT_TRUE(config.state->is(VanillaBlocks::EMERALD_ORE));
     EXPECT_EQ(config.size, 1);  // 绿宝石是单个方块
 }
 
@@ -318,7 +318,7 @@ TEST_F(OreFeaturesTest, CreateCopperOre) {
     ASSERT_NE(feature, nullptr);
 
     const auto& config = feature->getConfig();
-    EXPECT_EQ(config.state, BlockId::CopperOre);
+    EXPECT_TRUE(config.state->is(VanillaBlocks::COPPER_ORE));
     EXPECT_EQ(config.size, 10);
 }
 

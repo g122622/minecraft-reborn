@@ -63,7 +63,7 @@ public:
      * @param height 树干高度
      * @param startPos 起始位置
      * @param trunkBlocks 树干方块集合（用于后续计算树叶距离）
-     * @param trunkBlock 树干方块ID
+     * @param trunkBlock 树干方块状态
      * @return 树叶位置列表
      */
     virtual std::vector<FoliagePosition> placeTrunk(
@@ -72,7 +72,7 @@ public:
         i32 height,
         const BlockPos& startPos,
         std::set<BlockPos>& trunkBlocks,
-        BlockId trunkBlock
+        const BlockState* trunkBlock
     ) = 0;
 
     /**
@@ -93,13 +93,13 @@ protected:
      * @param world 世界区域
      * @param pos 位置
      * @param trunkBlocks 树干方块集合
-     * @param trunkBlock 树干方块ID
+     * @param trunkBlock 树干方块状态
      */
     void placeBlock(
         WorldGenRegion& world,
         const BlockPos& pos,
         std::set<BlockPos>& trunkBlocks,
-        BlockId trunkBlock
+        const BlockState* trunkBlock
     );
 
     /**

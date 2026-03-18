@@ -3,19 +3,25 @@
 #include "NoiseSettings.hpp"
 #include "../../block/Block.hpp"
 
+// 前向声明
+namespace mc {
+    class BlockState;
+}
+
 namespace mc {
 
 /**
  * @brief 维度生成设置
  *
  * 参考 MC DimensionSettings，包含维度级别的生成配置。
+ * 使用 BlockState* 替代固定 BlockId，支持动态方块注册。
  *
  * @note 参考 MC 1.16.5 DimensionSettings
  */
 struct DimensionSettings {
     NoiseSettings noise;
-    BlockId defaultBlock = BlockId::Stone;
-    BlockId defaultFluid = BlockId::Water;
+    const BlockState* defaultBlock = nullptr;   ///< 默认方块（石头等）
+    const BlockState* defaultFluid = nullptr;   ///< 默认流体（水/熔岩）
     i32 seaLevel = 63;
     i32 bedrockRoof = -10;     ///< 基岩顶部（下界用）
     i32 bedrockFloor = 0;      ///< 基岩底部
@@ -25,54 +31,22 @@ struct DimensionSettings {
     /**
      * @brief 主世界设置
      */
-    static DimensionSettings overworld() {
-        DimensionSettings settings;
-        settings.noise = NoiseSettings::overworld();
-        settings.defaultBlock = BlockId::Stone;
-        settings.defaultFluid = BlockId::Water;
-        settings.seaLevel = 63;
-        return settings;
-    }
+    static DimensionSettings overworld();
 
     /**
      * @brief 下界设置
      */
-    static DimensionSettings nether() {
-        DimensionSettings settings;
-        settings.noise = NoiseSettings::nether();
-        settings.defaultBlock = BlockId::Netherrack;
-        settings.defaultFluid = BlockId::Lava;
-        settings.seaLevel = 32;
-        settings.bedrockRoof = 127;
-        settings.bedrockFloor = 0;
-        return settings;
-    }
+    static DimensionSettings nether();
 
     /**
      * @brief 末地设置
      */
-    static DimensionSettings end() {
-        DimensionSettings settings;
-        settings.noise = NoiseSettings::end();
-        settings.defaultBlock = BlockId::EndStone;
-        settings.defaultFluid = BlockId::Air;
-        settings.seaLevel = 0;
-        return settings;
-    }
+    static DimensionSettings end();
 
     /**
      * @brief 平坦世界设置
      */
-    static DimensionSettings flat() {
-        DimensionSettings settings;
-        settings.noise.height = 4;
-        settings.noise.densityFactor = 0.0;
-        settings.noise.densityOffset = 0.0;
-        settings.defaultBlock = BlockId::Stone;
-        settings.defaultFluid = BlockId::Air;
-        settings.seaLevel = 0;
-        return settings;
-    }
+    static DimensionSettings flat();
 };
 
 } // namespace mc

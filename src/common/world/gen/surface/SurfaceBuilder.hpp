@@ -15,57 +15,48 @@ class Biome;
  * @brief 地表构建器配置
  *
  * 定义地表、次表层和水下层的方块类型。
+ * 使用 BlockState* 替代固定 BlockId，支持动态方块注册。
  * 参考 MC SurfaceBuilderConfig
  */
 struct SurfaceBuilderConfig {
     /// 表层方块（草方块、沙子等）
-    BlockId topBlock = BlockId::Grass;
+    const BlockState* topBlock = nullptr;
 
     /// 次表层方块（泥土、沙子等）
-    BlockId underBlock = BlockId::Dirt;
+    const BlockState* underBlock = nullptr;
 
     /// 水下表面方块（沙砾等）
-    BlockId underWaterBlock = BlockId::Gravel;
+    const BlockState* underWaterBlock = nullptr;
 
     SurfaceBuilderConfig() = default;
 
-    SurfaceBuilderConfig(BlockId top, BlockId under, BlockId underWater)
+    SurfaceBuilderConfig(const BlockState* top, const BlockState* under, const BlockState* underWater)
         : topBlock(top), underBlock(under), underWaterBlock(underWater) {}
 
     /**
      * @brief 创建草地配置
      */
-    static SurfaceBuilderConfig grass() {
-        return { BlockId::Grass, BlockId::Dirt, BlockId::Gravel };
-    }
+    static SurfaceBuilderConfig grass();
 
     /**
      * @brief 创建沙地配置
      */
-    static SurfaceBuilderConfig sand() {
-        return { BlockId::Sand, BlockId::Sand, BlockId::Sand };
-    }
+    static SurfaceBuilderConfig sand();
 
     /**
      * @brief 创建石头配置
      */
-    static SurfaceBuilderConfig stone() {
-        return { BlockId::Stone, BlockId::Stone, BlockId::Stone };
-    }
+    static SurfaceBuilderConfig stone();
 
     /**
      * @brief 创建沙砾配置
      */
-    static SurfaceBuilderConfig gravel() {
-        return { BlockId::Gravel, BlockId::Gravel, BlockId::Gravel };
-    }
+    static SurfaceBuilderConfig gravel();
 
     /**
      * @brief 创建红沙配置
      */
-    static SurfaceBuilderConfig redSand() {
-        return { BlockId::RedSand, BlockId::RedSand, BlockId::RedSand };
-    }
+    static SurfaceBuilderConfig redSand();
 };
 
 /**

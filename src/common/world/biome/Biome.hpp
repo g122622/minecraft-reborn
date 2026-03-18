@@ -9,6 +9,9 @@
 
 namespace mc {
 
+// 前向声明
+class BlockState;
+
 /**
  * @brief 生物群系气候设置
  *
@@ -94,10 +97,10 @@ public:
     [[nodiscard]] f32 erosion() const { return m_erosion; }
 
     // === 方块设置 ===
-    [[nodiscard]] BlockId surfaceBlock() const { return m_surfaceBlock; }
-    [[nodiscard]] BlockId subSurfaceBlock() const { return m_subSurfaceBlock; }
-    [[nodiscard]] BlockId underWaterBlock() const { return m_underWaterBlock; }
-    [[nodiscard]] BlockId bedrockBlock() const { return m_bedrockBlock; }
+    [[nodiscard]] const BlockState* surfaceBlock() const { return m_surfaceBlock; }
+    [[nodiscard]] const BlockState* subSurfaceBlock() const { return m_subSurfaceBlock; }
+    [[nodiscard]] const BlockState* underWaterBlock() const { return m_underWaterBlock; }
+    [[nodiscard]] const BlockState* bedrockBlock() const { return m_bedrockBlock; }
 
     // === 设置器 ===
     void setDepth(f32 value) { m_depth = value; }
@@ -108,10 +111,10 @@ public:
     void setHumidity(f32 value) { m_humidity = value; }
     void setContinentalness(f32 value) { m_continentalness = value; }
     void setErosion(f32 value) { m_erosion = value; }
-    void setSurfaceBlock(BlockId block) { m_surfaceBlock = block; }
-    void setSubSurfaceBlock(BlockId block) { m_subSurfaceBlock = block; }
-    void setUnderWaterBlock(BlockId block) { m_underWaterBlock = block; }
-    void setBedrockBlock(BlockId block) { m_bedrockBlock = block; }
+    void setSurfaceBlock(const BlockState* block) { m_surfaceBlock = block; }
+    void setSubSurfaceBlock(const BlockState* block) { m_subSurfaceBlock = block; }
+    void setUnderWaterBlock(const BlockState* block) { m_underWaterBlock = block; }
+    void setBedrockBlock(const BlockState* block) { m_bedrockBlock = block; }
 
     // === 生成设置 ===
     [[nodiscard]] const BiomeGenerationSettings& generationSettings() const { return m_generationSettings; }
@@ -150,11 +153,11 @@ private:
     f32 m_continentalness = 0.0f;
     f32 m_erosion = 0.0f;
 
-    // 方块设置
-    BlockId m_surfaceBlock = BlockId::Grass;
-    BlockId m_subSurfaceBlock = BlockId::Dirt;
-    BlockId m_underWaterBlock = BlockId::Gravel;
-    BlockId m_bedrockBlock = BlockId::Bedrock;
+    // 方块设置 - 使用BlockState指针，运行时从VanillaBlocks获取
+    const BlockState* m_surfaceBlock = nullptr;
+    const BlockState* m_subSurfaceBlock = nullptr;
+    const BlockState* m_underWaterBlock = nullptr;
+    const BlockState* m_bedrockBlock = nullptr;
 
     // 生成设置
     BiomeGenerationSettings m_generationSettings;

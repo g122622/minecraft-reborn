@@ -40,7 +40,7 @@ protected:
         i32 radius,
         i32 offset,
         std::set<BlockPos>& foliageBlocks,
-        BlockId foliageBlock
+        const BlockState* foliageBlock
     ) override;
 
     [[nodiscard]] bool shouldSkip(

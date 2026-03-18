@@ -57,13 +57,8 @@ public:
         auto block = std::make_unique<BlockType>(std::forward<Args>(args)...);
         block->m_blockLocation = id;
 
-        // 对预定义方块使用固定 ID，保证与 BlockId 枚举一致。
-        u32 blockId = 0;
-        if (auto fixedId = fixedBlockIdForResource(id); fixedId.has_value()) {
-            blockId = *fixedId;
-        } else {
-            blockId = allocateBlockId();
-        }
+        // 动态分配方块ID（AIR 获得 ID 0）
+        u32 blockId = allocateBlockId(id);
         block->m_blockId = blockId;
 
         // 注册所有状态
@@ -79,11 +74,9 @@ public:
         if (m_blocksById.size() <= block->m_blockId) {
             m_blocksById.resize(block->m_blockId + 1, nullptr);
         }
-        m_blocksById[block->m_blockId] = ptr;
+        m_blocksById[blockId] = ptr;
         m_blocks[id] = std::move(block);
-
-        // 保证动态分配 ID 始终从已用最大值之后开始。
-        m_nextBlockId = std::max(m_nextBlockId, blockId + 1);
+        m_numericIds[id] = blockId;
 
         return *ptr;
     }
@@ -147,12 +140,12 @@ public:
     }
 
     /**
-     * @brief 根据方块ID获取方块状态（便捷方法）
-     * @param blockId 方块ID（枚举值）
+     * @brief 根据资源位置获取方块状态（便捷方法）
+     * @param id 方块资源位置
      * @return 默认方块状态，如果不存在返回空气状态
      */
-    [[nodiscard]] const BlockState* get(BlockId blockId) const {
-        Block* block = getBlock(static_cast<u32>(blockId));
+    [[nodiscard]] const BlockState* get(const ResourceLocation& id) const {
+        Block* block = getBlock(id);
         return block ? &block->defaultState() : airState();
     }
 
@@ -160,7 +153,7 @@ public:
      * @brief 获取空气方块状态
      */
     [[nodiscard]] const BlockState* airState() const {
-        auto* air = getBlock(static_cast<u32>(BlockId::Air));
+        auto* air = getBlock(ResourceLocation("minecraft:air"));
         return air ? &air->defaultState() : nullptr;
     }
 
@@ -169,101 +162,16 @@ private:
 
     /**
      * @brief 分配方块ID
+     *
+     * 对于 minecraft:air 方块，返回 0 作为保留 ID。
      */
-    u32 allocateBlockId() {
-        while (m_nextBlockId < m_blocksById.size() && m_blocksById[m_nextBlockId] != nullptr) {
-            ++m_nextBlockId;
+    u32 allocateBlockId(const ResourceLocation& id) {
+        // AIR 方块始终获得 ID 0
+        if (id == ResourceLocation("minecraft:air")) {
+            return 0;
         }
+        // 其他方块从 1 开始
         return m_nextBlockId++;
-    }
-
-    [[nodiscard]] std::optional<u32> fixedBlockIdForResource(const ResourceLocation& id) const {
-        if (id.namespace_() != "minecraft") {
-            return std::nullopt;
-        }
-
-        const String& path = id.path();
-        // 基础方块
-        if (path == "air") return static_cast<u32>(BlockId::Air);
-        if (path == "stone") return static_cast<u32>(BlockId::Stone);
-        if (path == "grass_block") return static_cast<u32>(BlockId::Grass);
-        if (path == "dirt") return static_cast<u32>(BlockId::Dirt);
-        if (path == "cobblestone") return static_cast<u32>(BlockId::Cobblestone);
-        if (path == "oak_planks") return static_cast<u32>(BlockId::OakPlanks);
-        if (path == "bedrock") return static_cast<u32>(BlockId::Bedrock);
-        if (path == "water") return static_cast<u32>(BlockId::Water);
-        if (path == "lava") return static_cast<u32>(BlockId::Lava);
-        if (path == "sand") return static_cast<u32>(BlockId::Sand);
-        if (path == "gravel") return static_cast<u32>(BlockId::Gravel);
-        // 矿石
-        if (path == "gold_ore") return static_cast<u32>(BlockId::GoldOre);
-        if (path == "iron_ore") return static_cast<u32>(BlockId::IronOre);
-        if (path == "coal_ore") return static_cast<u32>(BlockId::CoalOre);
-        // 原木和树叶
-        if (path == "oak_log") return static_cast<u32>(BlockId::OakLog);
-        if (path == "oak_leaves") return static_cast<u32>(BlockId::OakLeaves);
-        // 其他基础方块
-        if (path == "sponge") return static_cast<u32>(BlockId::Sponge);
-        if (path == "netherrack") return static_cast<u32>(BlockId::Netherrack);
-        if (path == "soul_sand") return static_cast<u32>(BlockId::SoulSand);
-        if (path == "glowstone") return static_cast<u32>(BlockId::Glowstone);
-        if (path == "end_stone") return static_cast<u32>(BlockId::EndStone);
-        if (path == "snow") return static_cast<u32>(BlockId::Snow);
-        if (path == "ice") return static_cast<u32>(BlockId::Ice);
-        // 石头变种
-        if (path == "granite") return static_cast<u32>(BlockId::Granite);
-        if (path == "diorite") return static_cast<u32>(BlockId::Diorite);
-        if (path == "andesite") return static_cast<u32>(BlockId::Andesite);
-        // 矿石变种
-        if (path == "diamond_ore") return static_cast<u32>(BlockId::DiamondOre);
-        if (path == "redstone_ore") return static_cast<u32>(BlockId::RedstoneOre);
-        if (path == "lapis_ore") return static_cast<u32>(BlockId::LapisOre);
-        if (path == "emerald_ore") return static_cast<u32>(BlockId::EmeraldOre);
-        // 下界方块
-        if (path == "basalt") return static_cast<u32>(BlockId::Basalt);
-        // 砂岩
-        if (path == "sandstone") return static_cast<u32>(BlockId::Sandstone);
-        if (path == "red_sandstone") return static_cast<u32>(BlockId::RedSandstone);
-        // 泥土变种
-        if (path == "coarse_dirt") return static_cast<u32>(BlockId::CoarseDirt);
-        if (path == "podzol") return static_cast<u32>(BlockId::Podzol);
-        // 树木变种原木
-        if (path == "spruce_log") return static_cast<u32>(BlockId::SpruceLog);
-        if (path == "birch_log") return static_cast<u32>(BlockId::BirchLog);
-        if (path == "jungle_log") return static_cast<u32>(BlockId::JungleLog);
-        if (path == "acacia_log") return static_cast<u32>(BlockId::AcaciaLog);
-        if (path == "dark_oak_log") return static_cast<u32>(BlockId::DarkOakLog);
-        // 树叶变种
-        if (path == "spruce_leaves") return static_cast<u32>(BlockId::SpruceLeaves);
-        if (path == "birch_leaves") return static_cast<u32>(BlockId::BirchLeaves);
-        if (path == "jungle_leaves") return static_cast<u32>(BlockId::JungleLeaves);
-        if (path == "acacia_leaves") return static_cast<u32>(BlockId::AcaciaLeaves);
-        if (path == "dark_oak_leaves") return static_cast<u32>(BlockId::DarkOakLeaves);
-        // 植被方块
-        if (path == "short_grass") return static_cast<u32>(BlockId::ShortGrass);
-        if (path == "tall_grass") return static_cast<u32>(BlockId::TallGrass);
-        if (path == "fern") return static_cast<u32>(BlockId::Fern);
-        if (path == "dandelion") return static_cast<u32>(BlockId::Dandelion);
-        if (path == "poppy") return static_cast<u32>(BlockId::Poppy);
-        if (path == "blue_orchid") return static_cast<u32>(BlockId::BlueOrchid);
-        if (path == "allium") return static_cast<u32>(BlockId::Allium);
-        if (path == "azure_bluet") return static_cast<u32>(BlockId::AzureBluet);
-        if (path == "red_tulip") return static_cast<u32>(BlockId::RedTulip);
-        if (path == "orange_tulip") return static_cast<u32>(BlockId::OrangeTulip);
-        if (path == "white_tulip") return static_cast<u32>(BlockId::WhiteTulip);
-        if (path == "pink_tulip") return static_cast<u32>(BlockId::PinkTulip);
-        if (path == "oxeye_daisy") return static_cast<u32>(BlockId::OxeyeDaisy);
-        if (path == "brown_mushroom") return static_cast<u32>(BlockId::BrownMushroom);
-        if (path == "red_mushroom") return static_cast<u32>(BlockId::RedMushroom);
-        // 树苗
-        if (path == "oak_sapling") return static_cast<u32>(BlockId::OakSapling);
-        if (path == "spruce_sapling") return static_cast<u32>(BlockId::SpruceSapling);
-        if (path == "birch_sapling") return static_cast<u32>(BlockId::BirchSapling);
-        if (path == "jungle_sapling") return static_cast<u32>(BlockId::JungleSapling);
-        if (path == "acacia_sapling") return static_cast<u32>(BlockId::AcaciaSapling);
-        if (path == "dark_oak_sapling") return static_cast<u32>(BlockId::DarkOakSapling);
-
-        return std::nullopt;
     }
 
     /**
@@ -274,9 +182,10 @@ private:
     }
 
     std::unordered_map<ResourceLocation, std::unique_ptr<Block>> m_blocks;
+    std::unordered_map<ResourceLocation, u32> m_numericIds;  // 字符串ID -> 数字ID
     std::vector<Block*> m_blocksById;
     std::unordered_map<u32, BlockState*> m_statesById;
-    u32 m_nextBlockId = 0;
+    u32 m_nextBlockId = 1;  // 0保留给空气
     u32 m_nextStateId = 0;
 };
 

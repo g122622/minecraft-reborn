@@ -13,7 +13,7 @@ std::vector<FoliagePosition> StraightTrunkPlacer::placeTrunk(
     i32 height,
     const BlockPos& startPos,
     std::set<BlockPos>& trunkBlocks,
-    BlockId trunkBlock
+    const BlockState* trunkBlock
 ) {
     // 在起始位置下方放置泥土
     placeDirtUnder(world, startPos);

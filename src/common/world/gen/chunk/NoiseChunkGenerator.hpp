@@ -143,8 +143,9 @@ private:
 
     /**
      * @brief 判断密度值对应的方块
+     * @return 方块状态指针，nullptr 表示空气
      */
-    [[nodiscard]] BlockId getBlockForDensity(f32 density, i32 y) const;
+    [[nodiscard]] const BlockState* getBlockForDensity(f32 density, i32 y) const;
 
     // === 初始化方法 ===
 

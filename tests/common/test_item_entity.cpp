@@ -3,6 +3,7 @@
 #include "../src/common/world/drop/DropTables.hpp"
 #include "../src/common/item/ItemRegistry.hpp"
 #include "../src/common/item/Items.hpp"
+#include "../src/common/world/block/VanillaBlocks.hpp"
 
 using namespace mc;
 
@@ -399,6 +400,7 @@ class DropTableRegistryTest : public ::testing::Test {
 protected:
     void SetUp() override {
         Items::initialize();
+        VanillaBlocks::initialize();
         m_diamond = ItemRegistry::instance().getItem(ResourceLocation("minecraft:diamond"));
     }
 
@@ -413,14 +415,15 @@ TEST_F(DropTableRegistryTest, RegisterAndGet) {
     DropTable table;
     table.addItem(*m_diamond, 1, 1);
 
-    registry.registerBlockDrop(static_cast<BlockId>(100), table);
+    // 使用测试方块指针注册掉落表
+    registry.registerBlockDrop(VanillaBlocks::STONE, table);
 
-    const DropTable* retrieved = registry.getBlockDrop(static_cast<BlockId>(100));
+    const DropTable* retrieved = registry.getBlockDrop(VanillaBlocks::STONE);
     ASSERT_NE(retrieved, nullptr);
     EXPECT_EQ(retrieved->entries().size(), 1);
 
     // 不存在的方块
-    const DropTable* missing = registry.getBlockDrop(static_cast<BlockId>(999));
+    const DropTable* missing = registry.getBlockDrop(nullptr);
     EXPECT_EQ(missing, nullptr);
 }
 
@@ -432,10 +435,11 @@ TEST_F(DropTableRegistryTest, GenerateBlockDrops) {
     DropTable table;
     table.addItem(*m_diamond, 1, 3);
 
-    registry.registerBlockDrop(static_cast<BlockId>(101), table);
+    // 使用测试方块指针注册掉落表
+    registry.registerBlockDrop(VanillaBlocks::DIRT, table);
 
     DropContext context;
-    auto drops = registry.generateBlockDrops(static_cast<BlockId>(101), context);
+    auto drops = registry.generateBlockDrops(VanillaBlocks::DIRT, context);
 
     EXPECT_EQ(drops.size(), 1);
     EXPECT_EQ(drops[0].getItem(), m_diamond);
@@ -448,6 +452,8 @@ TEST_F(DropTableRegistryTest, InitializeVanillaDrops) {
     registry.initializeVanillaDrops();
 
     // 验证钻石矿石掉落表已注册
-    // 注意：需要确保 BlockId 对应正确
-    // Diamond Ore 的 ID 在原版中是 56
+    if (VanillaBlocks::DIAMOND_ORE) {
+        const DropTable* diamondOreTable = registry.getBlockDrop(VanillaBlocks::DIAMOND_ORE);
+        EXPECT_NE(diamondOreTable, nullptr);
+    }
 }

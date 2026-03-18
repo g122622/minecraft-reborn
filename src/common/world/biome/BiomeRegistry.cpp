@@ -1,4 +1,5 @@
 #include "BiomeRegistry.hpp"
+#include "../block/VanillaBlocks.hpp"
 #include <algorithm>
 
 namespace mc {
@@ -92,6 +93,13 @@ void BiomeRegistry::registerDefaultBiomes()
 
 namespace BiomeFactory {
 
+namespace {
+    // 辅助函数：获取方块状态
+    const BlockState* getBlockState(Block* block) {
+        return block ? &block->defaultState() : nullptr;
+    }
+}
+
 Biome createPlains()
 {
     // MC: depth=0.125F, scale=0.05F
@@ -100,9 +108,9 @@ Biome createPlains()
     biome.setScale(0.05f);
     biome.setTemperature(0.8f);
     biome.setHumidity(0.4f);
-    biome.setSurfaceBlock(BlockId::Grass);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createPlains());
     // 设置生物生成信息
     biome.setSpawnInfo(world::spawn::MobSpawnInfo::createPlains());
@@ -117,9 +125,9 @@ Biome createDesert()
     biome.setScale(0.05f);
     biome.setTemperature(2.0f);
     biome.setHumidity(0.0f);
-    biome.setSurfaceBlock(BlockId::Sand);
-    biome.setSubSurfaceBlock(BlockId::Sand);
-    biome.setUnderWaterBlock(BlockId::Sand);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::SAND));
     biome.setGenerationSettings(BiomeGenerationSettings::createDesert());
     // 沙漠生物生成信息
     biome.setSpawnInfo(world::spawn::MobSpawnInfo::createDesert());
@@ -134,9 +142,9 @@ Biome createMountains()
     biome.setScale(0.5f);
     biome.setTemperature(0.2f);
     biome.setHumidity(0.3f);
-    biome.setSurfaceBlock(BlockId::Stone);
-    biome.setSubSurfaceBlock(BlockId::Stone);
-    biome.setUnderWaterBlock(BlockId::Stone);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::STONE));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::STONE));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::STONE));
     biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
     return biome;
 }
@@ -149,9 +157,9 @@ Biome createForest()
     biome.setScale(0.2f);
     biome.setTemperature(0.7f);
     biome.setHumidity(0.8f);
-    biome.setSurfaceBlock(BlockId::Grass);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createForest());
     // 森林生物生成信息
     biome.setSpawnInfo(world::spawn::MobSpawnInfo::createForest());
@@ -166,9 +174,9 @@ Biome createOcean()
     biome.setScale(0.1f);
     biome.setTemperature(0.5f);
     biome.setHumidity(0.5f);
-    biome.setSurfaceBlock(BlockId::Gravel);
-    biome.setSubSurfaceBlock(BlockId::Gravel);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
     // 海洋生物生成信息
     biome.setSpawnInfo(world::spawn::MobSpawnInfo::createOcean());
@@ -183,9 +191,9 @@ Biome createDeepOcean()
     biome.setScale(0.1f);
     biome.setTemperature(0.5f);
     biome.setHumidity(0.5f);
-    biome.setSurfaceBlock(BlockId::Gravel);
-    biome.setSubSurfaceBlock(BlockId::Gravel);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
     return biome;
 }
@@ -198,9 +206,9 @@ Biome createTaiga()
     biome.setScale(0.2f);
     biome.setTemperature(-0.5f);
     biome.setHumidity(0.4f);
-    biome.setSurfaceBlock(BlockId::Grass);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
     return biome;
 }
@@ -214,9 +222,9 @@ Biome createSnowyTaiga()
     biome.setScale(0.2f);
     biome.setTemperature(-0.5f);
     biome.setHumidity(0.4f);
-    biome.setSurfaceBlock(BlockId::Snow);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::SNOW));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
     return biome;
 }
@@ -229,9 +237,9 @@ Biome createJungle()
     biome.setScale(0.2f);
     biome.setTemperature(0.95f);
     biome.setHumidity(0.9f);
-    biome.setSurfaceBlock(BlockId::Grass);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createJungle());
     return biome;
 }
@@ -244,9 +252,9 @@ Biome createSavanna()
     biome.setScale(0.05f);
     biome.setTemperature(1.2f);
     biome.setHumidity(0.0f);
-    biome.setSurfaceBlock(BlockId::Grass);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createSavanna());
     return biome;
 }
@@ -259,9 +267,9 @@ Biome createShatteredSavanna()
     biome.setScale(1.225f);
     biome.setTemperature(1.1f);
     biome.setHumidity(0.0f);
-    biome.setSurfaceBlock(BlockId::Grass);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createSavanna());
     return biome;
 }
@@ -274,9 +282,9 @@ Biome createSavannaPlateau()
     biome.setScale(0.0125f);
     biome.setTemperature(1.0f);
     biome.setHumidity(0.0f);
-    biome.setSurfaceBlock(BlockId::Grass);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createSavanna());
     return biome;
 }
@@ -289,9 +297,9 @@ Biome createBadlands()
     biome.setScale(0.2f);
     biome.setTemperature(2.0f);
     biome.setHumidity(0.0f);
-    biome.setSurfaceBlock(BlockId::RedSand);
-    biome.setSubSurfaceBlock(BlockId::Terracotta);
-    biome.setUnderWaterBlock(BlockId::RedSand);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::RED_SANDSTONE)); // RED_SAND substitute
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::COBBLESTONE)); // Terracotta substitute
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::RED_SANDSTONE));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
@@ -304,9 +312,9 @@ Biome createErodedBadlands()
     biome.setScale(0.2f);
     biome.setTemperature(2.0f);
     biome.setHumidity(0.0f);
-    biome.setSurfaceBlock(BlockId::RedSand);
-    biome.setSubSurfaceBlock(BlockId::Terracotta);
-    biome.setUnderWaterBlock(BlockId::RedSand);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::RED_SANDSTONE));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::COBBLESTONE));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::RED_SANDSTONE));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
@@ -319,9 +327,9 @@ Biome createBadlandsPlateau()
     biome.setScale(0.025f);
     biome.setTemperature(2.0f);
     biome.setHumidity(0.0f);
-    biome.setSurfaceBlock(BlockId::RedSand);
-    biome.setSubSurfaceBlock(BlockId::Terracotta);
-    biome.setUnderWaterBlock(BlockId::RedSand);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::RED_SANDSTONE));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::COBBLESTONE));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::RED_SANDSTONE));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
@@ -334,9 +342,9 @@ Biome createWoodedBadlandsPlateau()
     biome.setScale(0.025f);
     biome.setTemperature(2.0f);
     biome.setHumidity(0.0f);
-    biome.setSurfaceBlock(BlockId::RedSand);
-    biome.setSubSurfaceBlock(BlockId::Terracotta);
-    biome.setUnderWaterBlock(BlockId::RedSand);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::RED_SANDSTONE));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::COBBLESTONE));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::RED_SANDSTONE));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
@@ -349,9 +357,9 @@ Biome createBeach()
     biome.setScale(0.025f);
     biome.setTemperature(0.8f);
     biome.setHumidity(0.4f);
-    biome.setSurfaceBlock(BlockId::Sand);
-    biome.setSubSurfaceBlock(BlockId::Sand);
-    biome.setUnderWaterBlock(BlockId::Sand);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::SAND));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
@@ -364,9 +372,9 @@ Biome createStoneShore()
     biome.setScale(0.8f);
     biome.setTemperature(0.2f);
     biome.setHumidity(0.3f);
-    biome.setSurfaceBlock(BlockId::Stone);
-    biome.setSubSurfaceBlock(BlockId::Stone);
-    biome.setUnderWaterBlock(BlockId::Stone);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::STONE));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::STONE));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::STONE));
     biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
     return biome;
 }
@@ -379,9 +387,9 @@ Biome createSnowyBeach()
     biome.setScale(0.025f);
     biome.setTemperature(0.05f);
     biome.setHumidity(0.3f);
-    biome.setSurfaceBlock(BlockId::Sand);
-    biome.setSubSurfaceBlock(BlockId::Sand);
-    biome.setUnderWaterBlock(BlockId::Sand);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::SAND));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::SAND));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
@@ -394,9 +402,9 @@ Biome createSwamp()
     biome.setScale(0.1f);
     biome.setTemperature(0.8f);
     biome.setHumidity(0.9f);
-    biome.setSurfaceBlock(BlockId::Grass);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
@@ -409,9 +417,9 @@ Biome createRiver()
     biome.setScale(0.0f);
     biome.setTemperature(0.5f);
     biome.setHumidity(0.5f);
-    biome.setSurfaceBlock(BlockId::Gravel);
-    biome.setSubSurfaceBlock(BlockId::Gravel);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
@@ -424,9 +432,9 @@ Biome createWoodedHills()
     biome.setScale(0.3f);
     biome.setTemperature(0.7f);
     biome.setHumidity(0.8f);
-    biome.setSurfaceBlock(BlockId::Grass);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
     return biome;
 }
@@ -439,9 +447,9 @@ Biome createBirchForest()
     biome.setScale(0.2f);
     biome.setTemperature(0.6f);
     biome.setHumidity(0.6f);
-    biome.setSurfaceBlock(BlockId::Grass);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createForest());
     return biome;
 }
@@ -454,9 +462,9 @@ Biome createDarkForest()
     biome.setScale(0.2f);
     biome.setTemperature(0.7f);
     biome.setHumidity(0.8f);
-    biome.setSurfaceBlock(BlockId::Grass);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createForest());
     return biome;
 }
@@ -470,9 +478,9 @@ Biome createSnowyPlains()
     biome.setScale(0.05f);
     biome.setTemperature(-0.5f);
     biome.setHumidity(0.5f);
-    biome.setSurfaceBlock(BlockId::Snow);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::SNOW));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
@@ -485,9 +493,9 @@ Biome createGiantTreeTaiga()
     biome.setScale(0.2f);
     biome.setTemperature(0.3f);
     biome.setHumidity(0.8f);
-    biome.setSurfaceBlock(BlockId::Grass);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createForest());
     return biome;
 }
@@ -500,9 +508,9 @@ Biome createWoodedMountains()
     biome.setScale(0.3f);
     biome.setTemperature(0.2f);
     biome.setHumidity(0.3f);
-    biome.setSurfaceBlock(BlockId::Grass);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
     return biome;
 }
@@ -515,9 +523,9 @@ Biome createMountainEdge()
     biome.setScale(0.3f);
     biome.setTemperature(0.2f);
     biome.setHumidity(0.3f);
-    biome.setSurfaceBlock(BlockId::Grass);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::GRASS_BLOCK));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
     return biome;
 }
@@ -530,9 +538,9 @@ Biome createFrozenOcean()
     biome.setScale(0.1f);
     biome.setTemperature(0.0f);
     biome.setHumidity(0.5f);
-    biome.setSurfaceBlock(BlockId::Ice);
-    biome.setSubSurfaceBlock(BlockId::Gravel);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::ICE));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
     return biome;
 }
@@ -545,9 +553,9 @@ Biome createFrozenRiver()
     biome.setScale(0.0f);
     biome.setTemperature(0.0f);
     biome.setHumidity(0.5f);
-    biome.setSurfaceBlock(BlockId::Ice);
-    biome.setSubSurfaceBlock(BlockId::Gravel);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::ICE));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
@@ -560,9 +568,9 @@ Biome createSnowyMountains()
     biome.setScale(0.3f);
     biome.setTemperature(0.0f);
     biome.setHumidity(0.5f);
-    biome.setSurfaceBlock(BlockId::Snow);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::SNOW));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
     return biome;
 }
@@ -575,9 +583,9 @@ Biome createIceSpikes()
     biome.setScale(0.05f);
     biome.setTemperature(0.0f);
     biome.setHumidity(0.5f);
-    biome.setSurfaceBlock(BlockId::Snow);
-    biome.setSubSurfaceBlock(BlockId::Dirt);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::SNOW));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
     return biome;
 }
@@ -590,9 +598,9 @@ Biome createDeepFrozenOcean()
     biome.setScale(0.1f);
     biome.setTemperature(0.0f);
     biome.setHumidity(0.5f);
-    biome.setSurfaceBlock(BlockId::Ice);
-    biome.setSubSurfaceBlock(BlockId::Gravel);
-    biome.setUnderWaterBlock(BlockId::Gravel);
+    biome.setSurfaceBlock(getBlockState(VanillaBlocks::ICE));
+    biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
+    biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
     return biome;
 }

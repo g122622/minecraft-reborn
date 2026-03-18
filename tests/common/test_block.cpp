@@ -472,7 +472,8 @@ TEST(VanillaBlocksTest, Initialization) {
 
     // 检查空气方块
     EXPECT_TRUE(VanillaBlocks::AIR->isAir(VanillaBlocks::AIR->defaultState()));
-    EXPECT_EQ(VanillaBlocks::AIR->blockId(), static_cast<u32>(BlockId::Air));
+    // 空气方块的ID应该是0
+    EXPECT_EQ(VanillaBlocks::AIR->blockId(), 0u);
 
     // 检查原木有轴属性
     const auto& logState = VanillaBlocks::OAK_LOG->defaultState();
@@ -529,142 +530,148 @@ TEST(BlockStateTest, Caching) {
 }
 
 // ============================================================================
-// BlockId 映射测试 - 确保方块注册ID与BlockId枚举一致
+// 方块注册测试 - 验证动态ID分配和资源位置查找
 // ============================================================================
 
-TEST(BlockIdMappingTest, BasicBlocks) {
+TEST(BlockRegistryTest, BasicBlocksRegistration) {
     VanillaBlocks::initialize();
 
-    // 基础方块ID验证
-    EXPECT_EQ(VanillaBlocks::AIR->blockId(), static_cast<u32>(BlockId::Air));
-    EXPECT_EQ(VanillaBlocks::STONE->blockId(), static_cast<u32>(BlockId::Stone));
-    EXPECT_EQ(VanillaBlocks::GRASS_BLOCK->blockId(), static_cast<u32>(BlockId::Grass));
-    EXPECT_EQ(VanillaBlocks::DIRT->blockId(), static_cast<u32>(BlockId::Dirt));
-    EXPECT_EQ(VanillaBlocks::COBBLESTONE->blockId(), static_cast<u32>(BlockId::Cobblestone));
-    EXPECT_EQ(VanillaBlocks::OAK_PLANKS->blockId(), static_cast<u32>(BlockId::OakPlanks));
-    EXPECT_EQ(VanillaBlocks::BEDROCK->blockId(), static_cast<u32>(BlockId::Bedrock));
-    EXPECT_EQ(VanillaBlocks::WATER->blockId(), static_cast<u32>(BlockId::Water));
-    EXPECT_EQ(VanillaBlocks::LAVA->blockId(), static_cast<u32>(BlockId::Lava));
-    EXPECT_EQ(VanillaBlocks::SAND->blockId(), static_cast<u32>(BlockId::Sand));
-    EXPECT_EQ(VanillaBlocks::GRAVEL->blockId(), static_cast<u32>(BlockId::Gravel));
+    // 验证基础方块已注册且可通过资源位置查找
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:air")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:stone")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:grass_block")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:dirt")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:cobblestone")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:oak_planks")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:bedrock")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:water")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:lava")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:sand")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:gravel")), nullptr);
 }
 
-TEST(BlockIdMappingTest, OreBlocks) {
+TEST(BlockRegistryTest, OreBlocksRegistration) {
     VanillaBlocks::initialize();
 
-    EXPECT_EQ(VanillaBlocks::GOLD_ORE->blockId(), static_cast<u32>(BlockId::GoldOre));
-    EXPECT_EQ(VanillaBlocks::IRON_ORE->blockId(), static_cast<u32>(BlockId::IronOre));
-    EXPECT_EQ(VanillaBlocks::COAL_ORE->blockId(), static_cast<u32>(BlockId::CoalOre));
-    EXPECT_EQ(VanillaBlocks::DIAMOND_ORE->blockId(), static_cast<u32>(BlockId::DiamondOre));
-    EXPECT_EQ(VanillaBlocks::EMERALD_ORE->blockId(), static_cast<u32>(BlockId::EmeraldOre));
-    EXPECT_EQ(VanillaBlocks::LAPIS_ORE->blockId(), static_cast<u32>(BlockId::LapisOre));
-    EXPECT_EQ(VanillaBlocks::REDSTONE_ORE->blockId(), static_cast<u32>(BlockId::RedstoneOre));
+    // 验证矿石方块已注册
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:gold_ore")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:iron_ore")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:coal_ore")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:diamond_ore")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:emerald_ore")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:lapis_ore")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:redstone_ore")), nullptr);
 }
 
-TEST(BlockIdMappingTest, LogBlocks) {
+TEST(BlockRegistryTest, LogBlocksRegistration) {
     VanillaBlocks::initialize();
 
-    // 橡木原木和树叶
-    EXPECT_EQ(VanillaBlocks::OAK_LOG->blockId(), static_cast<u32>(BlockId::OakLog));
-    EXPECT_EQ(VanillaBlocks::OAK_LEAVES->blockId(), static_cast<u32>(BlockId::OakLeaves));
-
-    // 树木变种原木 - 这是丛林木变金块问题的关键测试
-    EXPECT_EQ(VanillaBlocks::SPRUCE_LOG->blockId(), static_cast<u32>(BlockId::SpruceLog));
-    EXPECT_EQ(VanillaBlocks::BIRCH_LOG->blockId(), static_cast<u32>(BlockId::BirchLog));
-    EXPECT_EQ(VanillaBlocks::JUNGLE_LOG->blockId(), static_cast<u32>(BlockId::JungleLog));
-    EXPECT_EQ(VanillaBlocks::ACACIA_LOG->blockId(), static_cast<u32>(BlockId::AcaciaLog));
-    EXPECT_EQ(VanillaBlocks::DARK_OAK_LOG->blockId(), static_cast<u32>(BlockId::DarkOakLog));
-
-    // 树叶变种 - 这是丛林树叶变砖头问题的关键测试
-    EXPECT_EQ(VanillaBlocks::SPRUCE_LEAVES->blockId(), static_cast<u32>(BlockId::SpruceLeaves));
-    EXPECT_EQ(VanillaBlocks::BIRCH_LEAVES->blockId(), static_cast<u32>(BlockId::BirchLeaves));
-    EXPECT_EQ(VanillaBlocks::JUNGLE_LEAVES->blockId(), static_cast<u32>(BlockId::JungleLeaves));
-    EXPECT_EQ(VanillaBlocks::ACACIA_LEAVES->blockId(), static_cast<u32>(BlockId::AcaciaLeaves));
-    EXPECT_EQ(VanillaBlocks::DARK_OAK_LEAVES->blockId(), static_cast<u32>(BlockId::DarkOakLeaves));
+    // 验证原木和树叶已注册
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:oak_log")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:oak_leaves")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:spruce_log")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:birch_log")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:jungle_log")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:acacia_log")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:dark_oak_log")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:spruce_leaves")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:birch_leaves")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:jungle_leaves")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:acacia_leaves")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:dark_oak_leaves")), nullptr);
 }
 
-TEST(BlockIdMappingTest, StoneVariants) {
+TEST(BlockRegistryTest, StoneVariantsRegistration) {
     VanillaBlocks::initialize();
 
-    EXPECT_EQ(VanillaBlocks::GRANITE->blockId(), static_cast<u32>(BlockId::Granite));
-    EXPECT_EQ(VanillaBlocks::DIORITE->blockId(), static_cast<u32>(BlockId::Diorite));
-    EXPECT_EQ(VanillaBlocks::ANDESITE->blockId(), static_cast<u32>(BlockId::Andesite));
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:granite")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:diorite")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:andesite")), nullptr);
 }
 
-TEST(BlockIdMappingTest, DirtVariants) {
+TEST(BlockRegistryTest, VegetationBlocksRegistration) {
     VanillaBlocks::initialize();
 
-    EXPECT_EQ(VanillaBlocks::COARSE_DIRT->blockId(), static_cast<u32>(BlockId::CoarseDirt));
-    EXPECT_EQ(VanillaBlocks::PODZOL->blockId(), static_cast<u32>(BlockId::Podzol));
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:short_grass")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:tall_grass")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:fern")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:dandelion")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:poppy")), nullptr);
 }
 
-TEST(BlockIdMappingTest, Sandstones) {
+TEST(BlockRegistryTest, NetherBlocksRegistration) {
     VanillaBlocks::initialize();
 
-    EXPECT_EQ(VanillaBlocks::SANDSTONE->blockId(), static_cast<u32>(BlockId::Sandstone));
-    EXPECT_EQ(VanillaBlocks::RED_SANDSTONE->blockId(), static_cast<u32>(BlockId::RedSandstone));
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:netherrack")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:soul_sand")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:basalt")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:glowstone")), nullptr);
+    EXPECT_NE(BlockRegistry::instance().getBlock(ResourceLocation("minecraft:end_stone")), nullptr);
 }
 
-TEST(BlockIdMappingTest, VegetationBlocks) {
+TEST(BlockStateComparisonTest, IsComparisonWorks) {
     VanillaBlocks::initialize();
 
-    EXPECT_EQ(VanillaBlocks::SHORT_GRASS->blockId(), static_cast<u32>(BlockId::ShortGrass));
-    EXPECT_EQ(VanillaBlocks::TALL_GRASS->blockId(), static_cast<u32>(BlockId::TallGrass));
-    EXPECT_EQ(VanillaBlocks::FERN->blockId(), static_cast<u32>(BlockId::Fern));
-    EXPECT_EQ(VanillaBlocks::DANDELION->blockId(), static_cast<u32>(BlockId::Dandelion));
-    EXPECT_EQ(VanillaBlocks::POPPY->blockId(), static_cast<u32>(BlockId::Poppy));
-    EXPECT_EQ(VanillaBlocks::BLUE_ORCHID->blockId(), static_cast<u32>(BlockId::BlueOrchid));
-    EXPECT_EQ(VanillaBlocks::ALLIUM->blockId(), static_cast<u32>(BlockId::Allium));
-    EXPECT_EQ(VanillaBlocks::AZURE_BLUET->blockId(), static_cast<u32>(BlockId::AzureBluet));
-    EXPECT_EQ(VanillaBlocks::RED_TULIP->blockId(), static_cast<u32>(BlockId::RedTulip));
-    EXPECT_EQ(VanillaBlocks::ORANGE_TULIP->blockId(), static_cast<u32>(BlockId::OrangeTulip));
-    EXPECT_EQ(VanillaBlocks::WHITE_TULIP->blockId(), static_cast<u32>(BlockId::WhiteTulip));
-    EXPECT_EQ(VanillaBlocks::PINK_TULIP->blockId(), static_cast<u32>(BlockId::PinkTulip));
-    EXPECT_EQ(VanillaBlocks::OXEYE_DAISY->blockId(), static_cast<u32>(BlockId::OxeyeDaisy));
-    EXPECT_EQ(VanillaBlocks::BROWN_MUSHROOM->blockId(), static_cast<u32>(BlockId::BrownMushroom));
-    EXPECT_EQ(VanillaBlocks::RED_MUSHROOM->blockId(), static_cast<u32>(BlockId::RedMushroom));
+    // 验证方块状态比较正确工作
+    const BlockState* stoneState = &VanillaBlocks::STONE->defaultState();
+    const BlockState* dirtState = &VanillaBlocks::DIRT->defaultState();
+
+    ASSERT_NE(stoneState, nullptr);
+    ASSERT_NE(dirtState, nullptr);
+
+    // 验证 is() 方法工作正常
+    EXPECT_TRUE(stoneState->is(VanillaBlocks::STONE));
+    EXPECT_FALSE(stoneState->is(VanillaBlocks::DIRT));
+    EXPECT_TRUE(dirtState->is(VanillaBlocks::DIRT));
+    EXPECT_FALSE(dirtState->is(VanillaBlocks::STONE));
 }
 
-TEST(BlockIdMappingTest, Saplings) {
+TEST(BlockRegistryTest, UniqueBlockIds) {
     VanillaBlocks::initialize();
 
-    EXPECT_EQ(VanillaBlocks::OAK_SAPLING->blockId(), static_cast<u32>(BlockId::OakSapling));
-    EXPECT_EQ(VanillaBlocks::SPRUCE_SAPLING->blockId(), static_cast<u32>(BlockId::SpruceSapling));
-    EXPECT_EQ(VanillaBlocks::BIRCH_SAPLING->blockId(), static_cast<u32>(BlockId::BirchSapling));
-    EXPECT_EQ(VanillaBlocks::JUNGLE_SAPLING->blockId(), static_cast<u32>(BlockId::JungleSapling));
-    EXPECT_EQ(VanillaBlocks::ACACIA_SAPLING->blockId(), static_cast<u32>(BlockId::AcaciaSapling));
-    EXPECT_EQ(VanillaBlocks::DARK_OAK_SAPLING->blockId(), static_cast<u32>(BlockId::DarkOakSapling));
-}
+    // 验证不同方块有不同的ID
+    std::set<u32> ids;
 
-TEST(BlockIdMappingTest, NetherBlocks) {
-    VanillaBlocks::initialize();
+    // 添加基础方块ID
+    ids.insert(VanillaBlocks::AIR->blockId());
+    ids.insert(VanillaBlocks::STONE->blockId());
+    ids.insert(VanillaBlocks::GRASS_BLOCK->blockId());
+    ids.insert(VanillaBlocks::DIRT->blockId());
+    ids.insert(VanillaBlocks::COBBLESTONE->blockId());
+    ids.insert(VanillaBlocks::OAK_PLANKS->blockId());
+    ids.insert(VanillaBlocks::WATER->blockId());
+    ids.insert(VanillaBlocks::LAVA->blockId());
+    ids.insert(VanillaBlocks::BEDROCK->blockId());
+    ids.insert(VanillaBlocks::SAND->blockId());
+    ids.insert(VanillaBlocks::GRAVEL->blockId());
 
-    EXPECT_EQ(VanillaBlocks::NETHERRACK->blockId(), static_cast<u32>(BlockId::Netherrack));
-    EXPECT_EQ(VanillaBlocks::SOUL_SAND->blockId(), static_cast<u32>(BlockId::SoulSand));
-    EXPECT_EQ(VanillaBlocks::BASALT->blockId(), static_cast<u32>(BlockId::Basalt));
-    EXPECT_EQ(VanillaBlocks::GLOWSTONE->blockId(), static_cast<u32>(BlockId::Glowstone));
-    EXPECT_EQ(VanillaBlocks::END_STONE->blockId(), static_cast<u32>(BlockId::EndStone));
-    EXPECT_EQ(VanillaBlocks::SNOW->blockId(), static_cast<u32>(BlockId::Snow));
-    EXPECT_EQ(VanillaBlocks::ICE->blockId(), static_cast<u32>(BlockId::Ice));
-}
+    // 验证矿石有不同ID
+    ids.insert(VanillaBlocks::GOLD_ORE->blockId());
+    ids.insert(VanillaBlocks::IRON_ORE->blockId());
+    ids.insert(VanillaBlocks::COAL_ORE->blockId());
+    ids.insert(VanillaBlocks::DIAMOND_ORE->blockId());
+    ids.insert(VanillaBlocks::EMERALD_ORE->blockId());
 
-TEST(BlockIdMappingTest, BlockRegistryGet) {
-    VanillaBlocks::initialize();
+    // 验证原木有不同ID
+    ids.insert(VanillaBlocks::OAK_LOG->blockId());
+    ids.insert(VanillaBlocks::SPRUCE_LOG->blockId());
+    ids.insert(VanillaBlocks::BIRCH_LOG->blockId());
+    ids.insert(VanillaBlocks::JUNGLE_LOG->blockId());
+    ids.insert(VanillaBlocks::ACACIA_LOG->blockId());
+    ids.insert(VanillaBlocks::DARK_OAK_LOG->blockId());
 
-    // 验证 BlockRegistry::get(BlockId) 返回正确的方块状态
-    const BlockState* jungleLogState = BlockRegistry::instance().get(BlockId::JungleLog);
-    ASSERT_NE(jungleLogState, nullptr);
-    EXPECT_EQ(jungleLogState->blockId(), static_cast<u32>(BlockId::JungleLog));
+    // 验证树叶有不同ID
+    ids.insert(VanillaBlocks::OAK_LEAVES->blockId());
+    ids.insert(VanillaBlocks::SPRUCE_LEAVES->blockId());
+    ids.insert(VanillaBlocks::BIRCH_LEAVES->blockId());
+    ids.insert(VanillaBlocks::JUNGLE_LEAVES->blockId());
+    ids.insert(VanillaBlocks::ACACIA_LEAVES->blockId());
+    ids.insert(VanillaBlocks::DARK_OAK_LEAVES->blockId());
 
-    const BlockState* jungleLeavesState = BlockRegistry::instance().get(BlockId::JungleLeaves);
-    ASSERT_NE(jungleLeavesState, nullptr);
-    EXPECT_EQ(jungleLeavesState->blockId(), static_cast<u32>(BlockId::JungleLeaves));
-
-    const BlockState* spruceLogState = BlockRegistry::instance().get(BlockId::SpruceLog);
-    ASSERT_NE(spruceLogState, nullptr);
-    EXPECT_EQ(spruceLogState->blockId(), static_cast<u32>(BlockId::SpruceLog));
-
-    const BlockState* birchLogState = BlockRegistry::instance().get(BlockId::BirchLog);
-    ASSERT_NE(birchLogState, nullptr);
-    EXPECT_EQ(birchLogState->blockId(), static_cast<u32>(BlockId::BirchLog));
+    // 确保所有ID都是唯一的 (数量等于添加的方块数)
+    // AIR + STONE + GRASS_BLOCK + DIRT + COBBLESTONE + OAK_PLANKS + WATER + LAVA + BEDROCK + SAND + GRAVEL = 11
+    // GOLD_ORE + IRON_ORE + COAL_ORE + DIAMOND_ORE + EMERALD_ORE = 5 (共 16)
+    // OAK_LOG + SPRUCE_LOG + BIRCH_LOG + JUNGLE_LOG + ACACIA_LOG + DARK_OAK_LOG = 6 (共 22)
+    // OAK_LEAVES + SPRUCE_LEAVES + BIRCH_LEAVES + JUNGLE_LEAVES + ACACIA_LEAVES + DARK_OAK_LEAVES = 6 (共 28)
+    EXPECT_EQ(ids.size(), 28u);
 }

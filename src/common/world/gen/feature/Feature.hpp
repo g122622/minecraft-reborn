@@ -63,12 +63,12 @@ public:
  */
 class SimpleBlockStateProvider : public BlockStateProvider {
 public:
-    explicit SimpleBlockStateProvider(BlockId blockId);
+    explicit SimpleBlockStateProvider(const BlockState* state);
 
     [[nodiscard]] const BlockState* getState(math::Random& random, i32 x, i32 y, i32 z) const override;
 
 private:
-    BlockId m_blockId;
+    const BlockState* m_state;
 };
 
 /**
@@ -89,8 +89,8 @@ struct OreFeatureConfig : public IFeatureConfig {
     /// 目标方块规则（哪些方块可被替换为矿石）
     std::unique_ptr<RuleTest> target;
 
-    /// 矿石方块ID
-    BlockId state;
+    /// 矿石方块状态
+    const BlockState* state = nullptr;
 
     /// 矿脉大小（方块数量）
     i32 size;
@@ -98,10 +98,10 @@ struct OreFeatureConfig : public IFeatureConfig {
     /**
      * @brief 构造矿石配置
      * @param targetRule 目标方块规则
-     * @param oreBlock 矿石方块ID
+     * @param oreState 矿石方块状态
      * @param veinSize 矿脉大小
      */
-    OreFeatureConfig(std::unique_ptr<RuleTest> targetRule, BlockId oreBlock, i32 veinSize);
+    OreFeatureConfig(std::unique_ptr<RuleTest> targetRule, const BlockState* oreState, i32 veinSize);
 
     /**
      * @brief 创建自然石头目标配置（用于主世界矿石）

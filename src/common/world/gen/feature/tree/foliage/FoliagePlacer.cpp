@@ -19,7 +19,7 @@ void FoliagePlacer::placeFoliage(
     const std::vector<FoliagePosition>& foliagePositions,
     const std::set<BlockPos>& /*trunkBlocks*/,
     i32 /*trunkOffset*/,
-    BlockId foliageBlock
+    const BlockState* foliageBlock
 ) {
     std::set<BlockPos> foliageBlocks;
 
@@ -43,7 +43,7 @@ void FoliagePlacer::placeFoliageLayer(
     std::set<BlockPos>& foliageBlocks,
     i32 y,
     bool trunkTop,
-    BlockId foliageBlock
+    const BlockState* foliageBlock
 ) {
     // 遍历半径范围内的所有方块
     i32 radiusOffset = trunkTop ? 1 : 0;
@@ -67,26 +67,22 @@ void FoliagePlacer::placeFoliageLayer(
 
             // 检查是否可以放置树叶
             const BlockState* state = world.getBlock(pos.x, pos.y, pos.z);
-            if (state == nullptr) {
-                continue;
-            }
-
-            u32 blockId = state->blockId();
-            if (blockId != static_cast<u32>(BlockId::Air) &&
-                blockId != static_cast<u32>(BlockId::OakLeaves) &&
-                blockId != static_cast<u32>(BlockId::SpruceLeaves) &&
-                blockId != static_cast<u32>(BlockId::BirchLeaves) &&
-                blockId != static_cast<u32>(BlockId::JungleLeaves) &&
-                blockId != static_cast<u32>(BlockId::AcaciaLeaves) &&
-                blockId != static_cast<u32>(BlockId::DarkOakLeaves)) {
+            if (state == nullptr || state->isAir()) {
+                // 空气可以放置
+            } else if (state->is(VanillaBlocks::OAK_LEAVES) ||
+                       state->is(VanillaBlocks::SPRUCE_LEAVES) ||
+                       state->is(VanillaBlocks::BIRCH_LEAVES) ||
+                       state->is(VanillaBlocks::JUNGLE_LEAVES) ||
+                       state->is(VanillaBlocks::ACACIA_LEAVES) ||
+                       state->is(VanillaBlocks::DARK_OAK_LEAVES)) {
+                // 树叶可以替换
+            } else {
                 continue;
             }
 
             // 放置树叶
-            auto& registry = BlockRegistry::instance();
-            const BlockState* foliageState = registry.get(foliageBlock);
-            if (foliageState != nullptr) {
-                world.setBlock(pos.x, pos.y, pos.z, foliageState);
+            if (foliageBlock != nullptr) {
+                world.setBlock(pos.x, pos.y, pos.z, foliageBlock);
                 foliageBlocks.insert(pos);
             }
         }

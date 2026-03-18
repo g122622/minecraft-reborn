@@ -1,14 +1,15 @@
 #pragma once
 
-#include "../../core/Types.hpp"
 #include "../../item/ItemStack.hpp"
 #include <vector>
 #include <memory>
 #include <functional>
+#include <unordered_map>
 
 namespace mc {
 
 // Forward declarations
+class Block;
 class BlockState;
 class Player;
 class World;
@@ -283,26 +284,26 @@ public:
 
     /**
      * @brief 注册方块掉落表
-     * @param blockId 方块ID
+     * @param block 方块指针
      * @param table 掉落表
      */
-    void registerBlockDrop(BlockId blockId, const DropTable& table);
+    void registerBlockDrop(const Block* block, const DropTable& table);
 
     /**
      * @brief 获取方块掉落表
-     * @param blockId 方块ID
+     * @param block 方块指针
      * @return 掉落表指针，不存在返回nullptr
      */
-    [[nodiscard]] const DropTable* getBlockDrop(BlockId blockId) const;
+    [[nodiscard]] const DropTable* getBlockDrop(const Block* block) const;
 
     /**
      * @brief 生成方块掉落
-     * @param blockId 方块ID
+     * @param block 方块指针
      * @param context 掉落上下文
      * @return 掉落物品列表
      */
     [[nodiscard]] std::vector<ItemStack> generateBlockDrops(
-        BlockId blockId, const DropContext& context) const;
+        const Block* block, const DropContext& context) const;
 
     /**
      * @brief 初始化原版掉落表
@@ -312,7 +313,7 @@ public:
 private:
     DropTableRegistry() = default;
 
-    std::unordered_map<BlockId, DropTable> m_blockDrops;
+    std::unordered_map<const Block*, DropTable> m_blockDrops;
     bool m_initialized = false;
 };
 

@@ -47,6 +47,12 @@ Block* VanillaBlocks::DIAMOND_BLOCK = nullptr;
 Block* VanillaBlocks::EMERALD_ORE = nullptr;
 Block* VanillaBlocks::LAPIS_ORE = nullptr;
 Block* VanillaBlocks::REDSTONE_ORE = nullptr;
+Block* VanillaBlocks::COPPER_ORE = nullptr;
+
+// 下界矿石
+Block* VanillaBlocks::NETHER_QUARTZ_ORE = nullptr;
+Block* VanillaBlocks::NETHER_GOLD_ORE = nullptr;
+Block* VanillaBlocks::ANCIENT_DEBRIS = nullptr;
 
 // 矿物方块
 Block* VanillaBlocks::GOLD_BLOCK = nullptr;
@@ -147,6 +153,124 @@ Block* VanillaBlocks::POLISHED_BASALT = nullptr;
 Block* VanillaBlocks::BLACKSTONE = nullptr;
 Block* VanillaBlocks::POLISHED_BLACKSTONE = nullptr;
 Block* VanillaBlocks::CRYING_OBSIDIAN = nullptr;
+Block* VanillaBlocks::MAGMA = nullptr;
+Block* VanillaBlocks::NETHER_WART_BLOCK = nullptr;
+
+// 自然方块扩展
+Block* VanillaBlocks::CLAY = nullptr;
+Block* VanillaBlocks::MYCELIUM = nullptr;
+Block* VanillaBlocks::GRASS_PATH = nullptr;
+Block* VanillaBlocks::PACKED_ICE = nullptr;
+Block* VanillaBlocks::SLIME_BLOCK = nullptr;
+Block* VanillaBlocks::CACTUS = nullptr;
+Block* VanillaBlocks::DEAD_BUSH = nullptr;
+Block* VanillaBlocks::LILY_PAD = nullptr;
+Block* VanillaBlocks::VINE = nullptr;
+Block* VanillaBlocks::COBWEB = nullptr;
+Block* VanillaBlocks::SUGAR_CANE = nullptr;
+
+// 石砖系列
+Block* VanillaBlocks::STONE_BRICKS = nullptr;
+Block* VanillaBlocks::MOSSY_STONE_BRICKS = nullptr;
+Block* VanillaBlocks::CRACKED_STONE_BRICKS = nullptr;
+Block* VanillaBlocks::CHISELED_STONE_BRICKS = nullptr;
+
+// 石英系列
+Block* VanillaBlocks::QUARTZ_BLOCK = nullptr;
+Block* VanillaBlocks::CHISELED_QUARTZ_BLOCK = nullptr;
+Block* VanillaBlocks::QUARTZ_PILLAR = nullptr;
+Block* VanillaBlocks::QUARTZ_ORE = nullptr;
+
+// 海晶系列
+Block* VanillaBlocks::PRISMARINE = nullptr;
+Block* VanillaBlocks::PRISMARINE_BRICKS = nullptr;
+Block* VanillaBlocks::DARK_PRISMARINE = nullptr;
+Block* VanillaBlocks::SEA_LANTERN = nullptr;
+
+// 紫珀系列
+Block* VanillaBlocks::PURPUR_BLOCK = nullptr;
+Block* VanillaBlocks::PURPUR_PILLAR = nullptr;
+
+// 末地系列
+Block* VanillaBlocks::END_STONE_BRICKS = nullptr;
+Block* VanillaBlocks::END_ROD = nullptr;
+
+// 骨块与干草块
+Block* VanillaBlocks::BONE_BLOCK = nullptr;
+Block* VanillaBlocks::HAY_BLOCK = nullptr;
+
+// 染色玻璃 (16色)
+Block* VanillaBlocks::WHITE_STAINED_GLASS = nullptr;
+Block* VanillaBlocks::ORANGE_STAINED_GLASS = nullptr;
+Block* VanillaBlocks::MAGENTA_STAINED_GLASS = nullptr;
+Block* VanillaBlocks::LIGHT_BLUE_STAINED_GLASS = nullptr;
+Block* VanillaBlocks::YELLOW_STAINED_GLASS = nullptr;
+Block* VanillaBlocks::LIME_STAINED_GLASS = nullptr;
+Block* VanillaBlocks::PINK_STAINED_GLASS = nullptr;
+Block* VanillaBlocks::GRAY_STAINED_GLASS = nullptr;
+Block* VanillaBlocks::LIGHT_GRAY_STAINED_GLASS = nullptr;
+Block* VanillaBlocks::CYAN_STAINED_GLASS = nullptr;
+Block* VanillaBlocks::PURPLE_STAINED_GLASS = nullptr;
+Block* VanillaBlocks::BLUE_STAINED_GLASS = nullptr;
+Block* VanillaBlocks::BROWN_STAINED_GLASS = nullptr;
+Block* VanillaBlocks::GREEN_STAINED_GLASS = nullptr;
+Block* VanillaBlocks::RED_STAINED_GLASS = nullptr;
+Block* VanillaBlocks::BLACK_STAINED_GLASS = nullptr;
+
+// 混凝土 (16色)
+Block* VanillaBlocks::WHITE_CONCRETE = nullptr;
+Block* VanillaBlocks::ORANGE_CONCRETE = nullptr;
+Block* VanillaBlocks::MAGENTA_CONCRETE = nullptr;
+Block* VanillaBlocks::LIGHT_BLUE_CONCRETE = nullptr;
+Block* VanillaBlocks::YELLOW_CONCRETE = nullptr;
+Block* VanillaBlocks::LIME_CONCRETE = nullptr;
+Block* VanillaBlocks::PINK_CONCRETE = nullptr;
+Block* VanillaBlocks::GRAY_CONCRETE = nullptr;
+Block* VanillaBlocks::LIGHT_GRAY_CONCRETE = nullptr;
+Block* VanillaBlocks::CYAN_CONCRETE = nullptr;
+Block* VanillaBlocks::PURPLE_CONCRETE = nullptr;
+Block* VanillaBlocks::BLUE_CONCRETE = nullptr;
+Block* VanillaBlocks::BROWN_CONCRETE = nullptr;
+Block* VanillaBlocks::GREEN_CONCRETE = nullptr;
+Block* VanillaBlocks::RED_CONCRETE = nullptr;
+Block* VanillaBlocks::BLACK_CONCRETE = nullptr;
+
+// 混凝土粉末 (16色)
+Block* VanillaBlocks::WHITE_CONCRETE_POWDER = nullptr;
+Block* VanillaBlocks::ORANGE_CONCRETE_POWDER = nullptr;
+Block* VanillaBlocks::MAGENTA_CONCRETE_POWDER = nullptr;
+Block* VanillaBlocks::LIGHT_BLUE_CONCRETE_POWDER = nullptr;
+Block* VanillaBlocks::YELLOW_CONCRETE_POWDER = nullptr;
+Block* VanillaBlocks::LIME_CONCRETE_POWDER = nullptr;
+Block* VanillaBlocks::PINK_CONCRETE_POWDER = nullptr;
+Block* VanillaBlocks::GRAY_CONCRETE_POWDER = nullptr;
+Block* VanillaBlocks::LIGHT_GRAY_CONCRETE_POWDER = nullptr;
+Block* VanillaBlocks::CYAN_CONCRETE_POWDER = nullptr;
+Block* VanillaBlocks::PURPLE_CONCRETE_POWDER = nullptr;
+Block* VanillaBlocks::BLUE_CONCRETE_POWDER = nullptr;
+Block* VanillaBlocks::BROWN_CONCRETE_POWDER = nullptr;
+Block* VanillaBlocks::GREEN_CONCRETE_POWDER = nullptr;
+Block* VanillaBlocks::RED_CONCRETE_POWDER = nullptr;
+Block* VanillaBlocks::BLACK_CONCRETE_POWDER = nullptr;
+
+// 陶瓦 (16色 + 普通)
+Block* VanillaBlocks::WHITE_TERRACOTTA = nullptr;
+Block* VanillaBlocks::ORANGE_TERRACOTTA = nullptr;
+Block* VanillaBlocks::MAGENTA_TERRACOTTA = nullptr;
+Block* VanillaBlocks::LIGHT_BLUE_TERRACOTTA = nullptr;
+Block* VanillaBlocks::YELLOW_TERRACOTTA = nullptr;
+Block* VanillaBlocks::LIME_TERRACOTTA = nullptr;
+Block* VanillaBlocks::PINK_TERRACOTTA = nullptr;
+Block* VanillaBlocks::GRAY_TERRACOTTA = nullptr;
+Block* VanillaBlocks::LIGHT_GRAY_TERRACOTTA = nullptr;
+Block* VanillaBlocks::CYAN_TERRACOTTA = nullptr;
+Block* VanillaBlocks::PURPLE_TERRACOTTA = nullptr;
+Block* VanillaBlocks::BLUE_TERRACOTTA = nullptr;
+Block* VanillaBlocks::BROWN_TERRACOTTA = nullptr;
+Block* VanillaBlocks::GREEN_TERRACOTTA = nullptr;
+Block* VanillaBlocks::RED_TERRACOTTA = nullptr;
+Block* VanillaBlocks::BLACK_TERRACOTTA = nullptr;
+Block* VanillaBlocks::TERRACOTTA = nullptr;
 
 // ============================================================================
 // 初始化
@@ -170,6 +294,15 @@ void VanillaBlocks::initialize() {
     registerNetherBlocks();
     registerTreeVariants();
     registerVegetationBlocks();
+    registerColoredBlocks();
+    registerStoneBricks();
+    registerQuartzBlocks();
+    registerPrismarineBlocks();
+    registerPurpurBlocks();
+    registerEndBlocks();
+    registerBoneAndHayBlocks();
+    registerNetherExtensionBlocks();
+    registerNaturalBlocks();
 
     s_initialized = true;
 }
@@ -360,6 +493,33 @@ void VanillaBlocks::registerOreBlocks() {
     REDSTONE_ORE = &registry.registerBlock<SimpleBlock>(
         ResourceLocation("minecraft:redstone_ore"),
         BlockProperties(Material::ROCK).hardness(3.0f).resistance(3.0f)
+    );
+
+    // 铜矿 (1.17+)
+    // 参考: new OreBlock(Properties.create(Material.ROCK).setRequiresTool().hardnessAndResistance(3.0F, 3.0F))
+    COPPER_ORE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:copper_ore"),
+        BlockProperties(Material::ROCK).hardness(3.0f).resistance(3.0f)
+    );
+
+    // 下界石英矿
+    // 参考: new OreBlock(Properties.create(Material.ROCK).hardnessAndResistance(3.0F, 3.0F))
+    NETHER_QUARTZ_ORE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:nether_quartz_ore"),
+        BlockProperties(Material::ROCK).hardness(3.0f).resistance(3.0f)
+    );
+
+    // 下界金矿
+    NETHER_GOLD_ORE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:nether_gold_ore"),
+        BlockProperties(Material::ROCK).hardness(3.0f).resistance(3.0f)
+    );
+
+    // 远古残骸
+    // 参考: new Block(Properties.create(Material.ROCK).setRequiresTool().hardnessAndResistance(50.0F, 1200.0F))
+    ANCIENT_DEBRIS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:ancient_debris"),
+        BlockProperties(Material::ROCK).hardness(50.0f).resistance(1200.0f)
     );
 }
 
@@ -838,6 +998,386 @@ void VanillaBlocks::registerVegetationBlocks() {
         ResourceLocation("minecraft:acacia_sapling"), saplingProps);
     DARK_OAK_SAPLING = &registry.registerBlock<SimpleBlock>(
         ResourceLocation("minecraft:dark_oak_sapling"), saplingProps);
+}
+
+// ============================================================================
+// 彩色方块注册（染色玻璃、混凝土、混凝土粉末、陶瓦）
+// ============================================================================
+void VanillaBlocks::registerColoredBlocks() {
+    auto& registry = BlockRegistry::instance();
+
+    // 染色玻璃属性
+    // 参考: new GlassBlock(Properties.create(Material.GLASS).hardnessAndResistance(0.3F).notSolid())
+    // 染色玻璃：透明度0，不传播天空光
+    BlockProperties stainedGlassProps = BlockProperties(Material::GLASS).hardness(0.3f).notSolid();
+
+    WHITE_STAINED_GLASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:white_stained_glass"), stainedGlassProps);
+    ORANGE_STAINED_GLASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:orange_stained_glass"), stainedGlassProps);
+    MAGENTA_STAINED_GLASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:magenta_stained_glass"), stainedGlassProps);
+    LIGHT_BLUE_STAINED_GLASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:light_blue_stained_glass"), stainedGlassProps);
+    YELLOW_STAINED_GLASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:yellow_stained_glass"), stainedGlassProps);
+    LIME_STAINED_GLASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:lime_stained_glass"), stainedGlassProps);
+    PINK_STAINED_GLASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:pink_stained_glass"), stainedGlassProps);
+    GRAY_STAINED_GLASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:gray_stained_glass"), stainedGlassProps);
+    LIGHT_GRAY_STAINED_GLASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:light_gray_stained_glass"), stainedGlassProps);
+    CYAN_STAINED_GLASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:cyan_stained_glass"), stainedGlassProps);
+    PURPLE_STAINED_GLASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:purple_stained_glass"), stainedGlassProps);
+    BLUE_STAINED_GLASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:blue_stained_glass"), stainedGlassProps);
+    BROWN_STAINED_GLASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:brown_stained_glass"), stainedGlassProps);
+    GREEN_STAINED_GLASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:green_stained_glass"), stainedGlassProps);
+    RED_STAINED_GLASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:red_stained_glass"), stainedGlassProps);
+    BLACK_STAINED_GLASS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:black_stained_glass"), stainedGlassProps);
+
+    // 混凝土属性
+    // 参考: new Block(Properties.create(Material.ROCK).hardnessAndResistance(1.8F))
+    BlockProperties concreteProps = BlockProperties(Material::ROCK).hardness(1.8f).resistance(1.8f);
+
+    WHITE_CONCRETE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:white_concrete"), concreteProps);
+    ORANGE_CONCRETE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:orange_concrete"), concreteProps);
+    MAGENTA_CONCRETE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:magenta_concrete"), concreteProps);
+    LIGHT_BLUE_CONCRETE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:light_blue_concrete"), concreteProps);
+    YELLOW_CONCRETE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:yellow_concrete"), concreteProps);
+    LIME_CONCRETE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:lime_concrete"), concreteProps);
+    PINK_CONCRETE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:pink_concrete"), concreteProps);
+    GRAY_CONCRETE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:gray_concrete"), concreteProps);
+    LIGHT_GRAY_CONCRETE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:light_gray_concrete"), concreteProps);
+    CYAN_CONCRETE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:cyan_concrete"), concreteProps);
+    PURPLE_CONCRETE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:purple_concrete"), concreteProps);
+    BLUE_CONCRETE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:blue_concrete"), concreteProps);
+    BROWN_CONCRETE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:brown_concrete"), concreteProps);
+    GREEN_CONCRETE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:green_concrete"), concreteProps);
+    RED_CONCRETE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:red_concrete"), concreteProps);
+    BLACK_CONCRETE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:black_concrete"), concreteProps);
+
+    // 混凝土粉末属性
+    // 参考: new ConcretePowderBlock(Properties.create(Material.SAND).hardnessAndResistance(0.5F))
+    BlockProperties concretePowderProps = BlockProperties(Material::SAND).hardness(0.5f);
+
+    WHITE_CONCRETE_POWDER = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:white_concrete_powder"), concretePowderProps);
+    ORANGE_CONCRETE_POWDER = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:orange_concrete_powder"), concretePowderProps);
+    MAGENTA_CONCRETE_POWDER = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:magenta_concrete_powder"), concretePowderProps);
+    LIGHT_BLUE_CONCRETE_POWDER = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:light_blue_concrete_powder"), concretePowderProps);
+    YELLOW_CONCRETE_POWDER = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:yellow_concrete_powder"), concretePowderProps);
+    LIME_CONCRETE_POWDER = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:lime_concrete_powder"), concretePowderProps);
+    PINK_CONCRETE_POWDER = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:pink_concrete_powder"), concretePowderProps);
+    GRAY_CONCRETE_POWDER = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:gray_concrete_powder"), concretePowderProps);
+    LIGHT_GRAY_CONCRETE_POWDER = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:light_gray_concrete_powder"), concretePowderProps);
+    CYAN_CONCRETE_POWDER = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:cyan_concrete_powder"), concretePowderProps);
+    PURPLE_CONCRETE_POWDER = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:purple_concrete_powder"), concretePowderProps);
+    BLUE_CONCRETE_POWDER = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:blue_concrete_powder"), concretePowderProps);
+    BROWN_CONCRETE_POWDER = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:brown_concrete_powder"), concretePowderProps);
+    GREEN_CONCRETE_POWDER = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:green_concrete_powder"), concretePowderProps);
+    RED_CONCRETE_POWDER = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:red_concrete_powder"), concretePowderProps);
+    BLACK_CONCRETE_POWDER = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:black_concrete_powder"), concretePowderProps);
+
+    // 陶瓦属性
+    // 参考: new Block(Properties.create(Material.ROCK).hardnessAndResistance(1.4F, 4.2F))
+    BlockProperties terracottaProps = BlockProperties(Material::ROCK).hardness(1.4f).resistance(4.2f);
+
+    // 普通陶瓦
+    TERRACOTTA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:terracotta"), terracottaProps);
+
+    // 染色陶瓦 (16色)
+    WHITE_TERRACOTTA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:white_terracotta"), terracottaProps);
+    ORANGE_TERRACOTTA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:orange_terracotta"), terracottaProps);
+    MAGENTA_TERRACOTTA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:magenta_terracotta"), terracottaProps);
+    LIGHT_BLUE_TERRACOTTA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:light_blue_terracotta"), terracottaProps);
+    YELLOW_TERRACOTTA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:yellow_terracotta"), terracottaProps);
+    LIME_TERRACOTTA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:lime_terracotta"), terracottaProps);
+    PINK_TERRACOTTA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:pink_terracotta"), terracottaProps);
+    GRAY_TERRACOTTA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:gray_terracotta"), terracottaProps);
+    LIGHT_GRAY_TERRACOTTA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:light_gray_terracotta"), terracottaProps);
+    CYAN_TERRACOTTA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:cyan_terracotta"), terracottaProps);
+    PURPLE_TERRACOTTA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:purple_terracotta"), terracottaProps);
+    BLUE_TERRACOTTA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:blue_terracotta"), terracottaProps);
+    BROWN_TERRACOTTA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:brown_terracotta"), terracottaProps);
+    GREEN_TERRACOTTA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:green_terracotta"), terracottaProps);
+    RED_TERRACOTTA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:red_terracotta"), terracottaProps);
+    BLACK_TERRACOTTA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:black_terracotta"), terracottaProps);
+}
+
+// ============================================================================
+// 石砖系列注册
+// ============================================================================
+void VanillaBlocks::registerStoneBricks() {
+    auto& registry = BlockRegistry::instance();
+
+    // 石砖属性
+    // 参考: new Block(Properties.create(Material.ROCK).setRequiresTool().hardnessAndResistance(1.5F, 6.0F))
+    BlockProperties stoneBrickProps = BlockProperties(Material::ROCK).hardness(1.5f).resistance(6.0f);
+
+    STONE_BRICKS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:stone_bricks"), stoneBrickProps);
+    MOSSY_STONE_BRICKS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:mossy_stone_bricks"), stoneBrickProps);
+    CRACKED_STONE_BRICKS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:cracked_stone_bricks"), stoneBrickProps);
+    CHISELED_STONE_BRICKS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:chiseled_stone_bricks"), stoneBrickProps);
+}
+
+// ============================================================================
+// 石英系列注册
+// ============================================================================
+void VanillaBlocks::registerQuartzBlocks() {
+    auto& registry = BlockRegistry::instance();
+
+    // 石英块属性
+    // 参考: new Block(Properties.create(Material.ROCK).hardnessAndResistance(0.8F))
+    BlockProperties quartzProps = BlockProperties(Material::ROCK).hardness(0.8f);
+
+    QUARTZ_BLOCK = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:quartz_block"), quartzProps);
+    CHISELED_QUARTZ_BLOCK = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:chiseled_quartz_block"), quartzProps);
+
+    // 石英柱 - 有轴属性
+    QUARTZ_PILLAR = &registry.registerBlock<RotatedPillarBlock>(
+        ResourceLocation("minecraft:quartz_pillar"), quartzProps);
+
+    // 下界石英矿
+    QUARTZ_ORE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:nether_quartz_ore"),
+        BlockProperties(Material::ROCK).hardness(3.0f).resistance(3.0f));
+}
+
+// ============================================================================
+// 海晶系列注册
+// ============================================================================
+void VanillaBlocks::registerPrismarineBlocks() {
+    auto& registry = BlockRegistry::instance();
+
+    // 海晶石属性
+    // 参考: new Block(Properties.create(Material.ROCK).setRequiresTool().hardnessAndResistance(1.5F, 6.0F))
+    BlockProperties prismarineProps = BlockProperties(Material::ROCK).hardness(1.5f).resistance(6.0f);
+
+    PRISMARINE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:prismarine"), prismarineProps);
+    PRISMARINE_BRICKS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:prismarine_bricks"), prismarineProps);
+    DARK_PRISMARINE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:dark_prismarine"), prismarineProps);
+
+    // 海晶灯 - 发光15级
+    // 参考: new Block(Properties.create(Material.GLASS).hardnessAndResistance(0.3F).setLightLevel(15))
+    SEA_LANTERN = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:sea_lantern"),
+        BlockProperties(Material::GLASS).hardness(0.3f).lightLevel(15));
+}
+
+// ============================================================================
+// 紫珀系列注册
+// ============================================================================
+void VanillaBlocks::registerPurpurBlocks() {
+    auto& registry = BlockRegistry::instance();
+
+    // 紫珀块属性
+    // 参考: new Block(Properties.create(Material.ROCK).hardnessAndResistance(1.5F, 6.0F))
+    BlockProperties purpurProps = BlockProperties(Material::ROCK).hardness(1.5f).resistance(6.0f);
+
+    PURPUR_BLOCK = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:purpur_block"), purpurProps);
+
+    // 紫珀柱 - 有轴属性
+    PURPUR_PILLAR = &registry.registerBlock<RotatedPillarBlock>(
+        ResourceLocation("minecraft:purpur_pillar"), purpurProps);
+}
+
+// ============================================================================
+// 末地方块注册
+// ============================================================================
+void VanillaBlocks::registerEndBlocks() {
+    auto& registry = BlockRegistry::instance();
+
+    // 末地石砖属性
+    // 参考: new Block(Properties.create(Material.ROCK).hardnessAndResistance(3.0F, 9.0F))
+    BlockProperties endStoneBrickProps = BlockProperties(Material::ROCK).hardness(3.0f).resistance(9.0f);
+
+    END_STONE_BRICKS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:end_stone_bricks"), endStoneBrickProps);
+
+    // 末地烛 - 发光14级
+    // 参考: new EndRodBlock(Properties.create(Material.DECORATION).hardnessAndResistance(0.0F).setLightLevel(14).noCollision())
+    END_ROD = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:end_rod"),
+        BlockProperties(Material::DECORATION).noCollision().lightLevel(14));
+}
+
+// ============================================================================
+// 骨块和干草块注册
+// ============================================================================
+void VanillaBlocks::registerBoneAndHayBlocks() {
+    auto& registry = BlockRegistry::instance();
+
+    // 骨块 - 有轴属性
+    // 参考: new RotatedPillarBlock(Properties.create(Material.ROCK).hardnessAndResistance(2.0F, 2.0F))
+    BONE_BLOCK = &registry.registerBlock<RotatedPillarBlock>(
+        ResourceLocation("minecraft:bone_block"),
+        BlockProperties(Material::ROCK).hardness(2.0f).resistance(2.0f));
+
+    // 干草块 - 有轴属性
+    // 参考: new RotatedPillarBlock(Properties.create(Material.ORGANIC).hardnessAndResistance(0.5F))
+    HAY_BLOCK = &registry.registerBlock<RotatedPillarBlock>(
+        ResourceLocation("minecraft:hay_block"),
+        BlockProperties(Material::EARTH).hardness(0.5f).flammable());
+}
+
+// ============================================================================
+// 下界扩展方块注册（岩浆块、地狱疣块等）
+// ============================================================================
+void VanillaBlocks::registerNetherExtensionBlocks() {
+    auto& registry = BlockRegistry::instance();
+
+    // 岩浆块 - 发光3级
+    // 参考: new Block(Properties.create(Material.ROCK).hardnessAndResistance(0.5F).setLightLevel(3))
+    MAGMA = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:magma"),
+        BlockProperties(Material::ROCK).hardness(0.5f).lightLevel(3));
+
+    // 地狱疣块
+    // 参考: new Block(Properties.create(Material.ORGANIC).hardnessAndResistance(1.0F))
+    NETHER_WART_BLOCK = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:nether_wart_block"),
+        BlockProperties(Material::EARTH).hardness(1.0f));
+}
+
+// ============================================================================
+// 自然扩展方块注册
+// ============================================================================
+void VanillaBlocks::registerNaturalBlocks() {
+    auto& registry = BlockRegistry::instance();
+
+    // 粘土
+    // 参考: new Block(Properties.create(Material.EARTH).hardnessAndResistance(0.6F))
+    CLAY = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:clay"),
+        BlockProperties(Material::EARTH).hardness(0.6f));
+
+    // 菌丝
+    // 参考: new SnowyDirtBlock(Properties.create(Material.EARTH).hardnessAndResistance(0.6F))
+    MYCELIUM = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:mycelium"),
+        BlockProperties(Material::EARTH).hardness(0.6f));
+
+    // 草径
+    // 参考: new Block(Properties.create(Material.EARTH).hardnessAndResistance(0.65F))
+    GRASS_PATH = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:grass_path"),
+        BlockProperties(Material::EARTH).hardness(0.65f));
+
+    // 浮冰
+    // 参考: new Block(Properties.create(Material.ICE).hardnessAndResistance(0.5F))
+    // 浮冰：透明度2，传播天空光
+    PACKED_ICE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:packed_ice"),
+        BlockProperties(Material::ICE).hardness(0.5f).opacity(2).propagatesSkylightDown());
+
+    // 粘液块
+    // 参考: new Block(Properties.create(Material.SLIME).hardnessAndResistance(0.0F).slipperiness(0.8F))
+    SLIME_BLOCK = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:slime_block"),
+        BlockProperties(Material::SLIME).hardness(0.0f));
+
+    // 仙人掌
+    // 参考: new CactusBlock(Properties.create(Material.CACTUS).hardnessAndResistance(0.4F).noCollision())
+    CACTUS = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:cactus"),
+        BlockProperties(Material::PLANT).hardness(0.4f).noCollision());
+
+    // 枯萎灌木
+    // 参考: new BushBlock(Properties.create(Material.REPLACEABLE_PLANT).zeroHardnessAndResistance().noCollision())
+    DEAD_BUSH = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:dead_bush"),
+        BlockProperties(Material::REPLACEABLE_PLANT).noCollision().notSolid());
+
+    // 睡莲
+    // 参考: new LilyPadBlock(Properties.create(Material.PLANT).hardnessAndResistance(0.0F).noCollision())
+    LILY_PAD = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:lily_pad"),
+        BlockProperties(Material::PLANT).noCollision().notSolid());
+
+    // 藤蔓
+    // 参考: new VineBlock(Properties.create(Material.REPLACEABLE_PLANT).hardnessAndResistance(0.2F).noCollision())
+    VINE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:vine"),
+        BlockProperties(Material::REPLACEABLE_PLANT).hardness(0.2f).noCollision().notSolid());
+
+    // 蜘蛛网
+    // 参考: new WebBlock(Properties.create(Material.WEB).hardnessAndResistance(4.0F))
+    COBWEB = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:cobweb"),
+        BlockProperties(Material::WEB).hardness(4.0f).noCollision());
+
+    // 甘蔗
+    // 参考: new SugarCaneBlock(Properties.create(Material.REPLACEABLE_PLANT).zeroHardnessAndResistance().noCollision())
+    SUGAR_CANE = &registry.registerBlock<SimpleBlock>(
+        ResourceLocation("minecraft:sugar_cane"),
+        BlockProperties(Material::REPLACEABLE_PLANT).noCollision().notSolid());
 }
 
 } // namespace mc

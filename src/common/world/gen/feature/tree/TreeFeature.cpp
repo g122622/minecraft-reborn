@@ -145,44 +145,37 @@ bool TreeFeature::isReplaceableAt(WorldGenRegion& world, const BlockPos& pos) {
     }
 
     const BlockState* state = world.getBlock(pos.x, pos.y, pos.z);
-    if (state == nullptr) {
-        return true;
-    }
-
-    u32 blockId = state->blockId();
-
-    // 空气、树叶、草、花等可替换
-    if (blockId == static_cast<u32>(BlockId::Air)) {
+    if (state == nullptr || state->isAir()) {
         return true;
     }
 
     // 检查是否是树叶
-    if (blockId == static_cast<u32>(BlockId::OakLeaves) ||
-        blockId == static_cast<u32>(BlockId::SpruceLeaves) ||
-        blockId == static_cast<u32>(BlockId::BirchLeaves) ||
-        blockId == static_cast<u32>(BlockId::JungleLeaves) ||
-        blockId == static_cast<u32>(BlockId::AcaciaLeaves) ||
-        blockId == static_cast<u32>(BlockId::DarkOakLeaves)) {
+    if (state->is(VanillaBlocks::OAK_LEAVES) ||
+        state->is(VanillaBlocks::SPRUCE_LEAVES) ||
+        state->is(VanillaBlocks::BIRCH_LEAVES) ||
+        state->is(VanillaBlocks::JUNGLE_LEAVES) ||
+        state->is(VanillaBlocks::ACACIA_LEAVES) ||
+        state->is(VanillaBlocks::DARK_OAK_LEAVES)) {
         return true;
     }
 
     // 检查是否是植被
-    if (blockId == static_cast<u32>(BlockId::ShortGrass) ||
-        blockId == static_cast<u32>(BlockId::TallGrass) ||
-        blockId == static_cast<u32>(BlockId::Fern) ||
-        blockId == static_cast<u32>(BlockId::Dandelion) ||
-        blockId == static_cast<u32>(BlockId::Poppy) ||
-        blockId == static_cast<u32>(BlockId::OakSapling) ||
-        blockId == static_cast<u32>(BlockId::SpruceSapling) ||
-        blockId == static_cast<u32>(BlockId::BirchSapling) ||
-        blockId == static_cast<u32>(BlockId::JungleSapling) ||
-        blockId == static_cast<u32>(BlockId::AcaciaSapling) ||
-        blockId == static_cast<u32>(BlockId::DarkOakSapling)) {
+    if (state->is(VanillaBlocks::SHORT_GRASS) ||
+        state->is(VanillaBlocks::TALL_GRASS) ||
+        state->is(VanillaBlocks::FERN) ||
+        state->is(VanillaBlocks::DANDELION) ||
+        state->is(VanillaBlocks::POPPY) ||
+        state->is(VanillaBlocks::OAK_SAPLING) ||
+        state->is(VanillaBlocks::SPRUCE_SAPLING) ||
+        state->is(VanillaBlocks::BIRCH_SAPLING) ||
+        state->is(VanillaBlocks::JUNGLE_SAPLING) ||
+        state->is(VanillaBlocks::ACACIA_SAPLING) ||
+        state->is(VanillaBlocks::DARK_OAK_SAPLING)) {
         return true;
     }
 
     // 检查是否是水
-    if (blockId == static_cast<u32>(BlockId::Water)) {
+    if (state->is(VanillaBlocks::WATER)) {
         return true;
     }
 
@@ -195,23 +188,17 @@ bool TreeFeature::isAirOrLeavesAt(WorldGenRegion& world, const BlockPos& pos) {
     }
 
     const BlockState* state = world.getBlock(pos.x, pos.y, pos.z);
-    if (state == nullptr) {
-        return true;
-    }
-
-    u32 blockId = state->blockId();
-
-    if (blockId == static_cast<u32>(BlockId::Air)) {
+    if (state == nullptr || state->isAir()) {
         return true;
     }
 
     // 检查是否是树叶
-    if (blockId == static_cast<u32>(BlockId::OakLeaves) ||
-        blockId == static_cast<u32>(BlockId::SpruceLeaves) ||
-        blockId == static_cast<u32>(BlockId::BirchLeaves) ||
-        blockId == static_cast<u32>(BlockId::JungleLeaves) ||
-        blockId == static_cast<u32>(BlockId::AcaciaLeaves) ||
-        blockId == static_cast<u32>(BlockId::DarkOakLeaves)) {
+    if (state->is(VanillaBlocks::OAK_LEAVES) ||
+        state->is(VanillaBlocks::SPRUCE_LEAVES) ||
+        state->is(VanillaBlocks::BIRCH_LEAVES) ||
+        state->is(VanillaBlocks::JUNGLE_LEAVES) ||
+        state->is(VanillaBlocks::ACACIA_LEAVES) ||
+        state->is(VanillaBlocks::DARK_OAK_LEAVES)) {
         return true;
     }
 
@@ -228,13 +215,11 @@ bool TreeFeature::isDirtOrFarmlandAt(WorldGenRegion& world, const BlockPos& pos)
         return false;
     }
 
-    u32 blockId = state->blockId();
-
     // 检查是否是泥土类方块
-    return blockId == static_cast<u32>(BlockId::Dirt) ||
-           blockId == static_cast<u32>(BlockId::Grass) ||
-           blockId == static_cast<u32>(BlockId::CoarseDirt) ||
-           blockId == static_cast<u32>(BlockId::Podzol);
+    return state->is(VanillaBlocks::DIRT) ||
+           state->is(VanillaBlocks::GRASS_BLOCK) ||
+           state->is(VanillaBlocks::COARSE_DIRT) ||
+           state->is(VanillaBlocks::PODZOL);
 }
 
 bool TreeFeature::isWaterAt(WorldGenRegion& world, const BlockPos& pos) {
@@ -247,7 +232,7 @@ bool TreeFeature::isWaterAt(WorldGenRegion& world, const BlockPos& pos) {
         return false;
     }
 
-    return state->blockId() == static_cast<u32>(BlockId::Water);
+    return state->is(VanillaBlocks::WATER);
 }
 
 i32 TreeFeature::calculateAvailableHeight(
@@ -439,8 +424,8 @@ std::unique_ptr<ConfiguredTreeFeature> TreeFeatures::createSparseOakTree() {
 
 TreeFeatureConfig TreeFeatures::oakConfig() {
     TreeFeatureConfig config;
-    config.trunkBlock = BlockId::OakLog;
-    config.foliageBlock = BlockId::OakLeaves;
+    config.trunkBlock = VanillaBlocks::OAK_LOG ? &VanillaBlocks::OAK_LOG->defaultState() : nullptr;
+    config.foliageBlock = VanillaBlocks::OAK_LEAVES ? &VanillaBlocks::OAK_LEAVES->defaultState() : nullptr;
     config.trunkPlacer = std::make_unique<StraightTrunkPlacer>(4, 2, 0);
     config.foliagePlacer = std::make_unique<BlobFoliagePlacer>(
         FeatureSpread::spread(2, 1),
@@ -453,8 +438,8 @@ TreeFeatureConfig TreeFeatures::oakConfig() {
 
 TreeFeatureConfig TreeFeatures::birchConfig() {
     TreeFeatureConfig config;
-    config.trunkBlock = BlockId::BirchLog;
-    config.foliageBlock = BlockId::BirchLeaves;
+    config.trunkBlock = VanillaBlocks::BIRCH_LOG ? &VanillaBlocks::BIRCH_LOG->defaultState() : nullptr;
+    config.foliageBlock = VanillaBlocks::BIRCH_LEAVES ? &VanillaBlocks::BIRCH_LEAVES->defaultState() : nullptr;
     config.trunkPlacer = std::make_unique<StraightTrunkPlacer>(5, 2, 0);
     config.foliagePlacer = std::make_unique<BlobFoliagePlacer>(
         FeatureSpread::spread(2, 1),
@@ -467,8 +452,8 @@ TreeFeatureConfig TreeFeatures::birchConfig() {
 
 TreeFeatureConfig TreeFeatures::spruceConfig() {
     TreeFeatureConfig config;
-    config.trunkBlock = BlockId::SpruceLog;
-    config.foliageBlock = BlockId::SpruceLeaves;
+    config.trunkBlock = VanillaBlocks::SPRUCE_LOG ? &VanillaBlocks::SPRUCE_LOG->defaultState() : nullptr;
+    config.foliageBlock = VanillaBlocks::SPRUCE_LEAVES ? &VanillaBlocks::SPRUCE_LEAVES->defaultState() : nullptr;
     config.trunkPlacer = std::make_unique<StraightTrunkPlacer>(5, 2, 1);
     config.foliagePlacer = std::make_unique<BlobFoliagePlacer>(
         FeatureSpread::spread(2, 1),
@@ -481,8 +466,8 @@ TreeFeatureConfig TreeFeatures::spruceConfig() {
 
 TreeFeatureConfig TreeFeatures::jungleConfig() {
     TreeFeatureConfig config;
-    config.trunkBlock = BlockId::JungleLog;
-    config.foliageBlock = BlockId::JungleLeaves;
+    config.trunkBlock = VanillaBlocks::JUNGLE_LOG ? &VanillaBlocks::JUNGLE_LOG->defaultState() : nullptr;
+    config.foliageBlock = VanillaBlocks::JUNGLE_LEAVES ? &VanillaBlocks::JUNGLE_LEAVES->defaultState() : nullptr;
     config.trunkPlacer = std::make_unique<StraightTrunkPlacer>(4, 8, 0);
     config.foliagePlacer = std::make_unique<BlobFoliagePlacer>(
         FeatureSpread::spread(2, 1),

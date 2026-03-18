@@ -10,17 +10,20 @@
 
 namespace mc {
 
+// 前向声明
+class BlockState;
+
 /**
  * @brief 树木特征配置
  *
  * 参考: net.minecraft.world.gen.feature.BaseTreeFeatureConfig
  */
 struct TreeFeatureConfig : public IFeatureConfig {
-    /// 树干方块ID
-    BlockId trunkBlock = BlockId::OakLog;
+    /// 树干方块状态
+    const BlockState* trunkBlock = nullptr;
 
-    /// 树叶方块ID
-    BlockId foliageBlock = BlockId::OakLeaves;
+    /// 树叶方块状态
+    const BlockState* foliageBlock = nullptr;
 
     /// 树干放置器
     std::unique_ptr<TrunkPlacer> trunkPlacer;
@@ -43,8 +46,8 @@ struct TreeFeatureConfig : public IFeatureConfig {
     TreeFeatureConfig() = default;
 
     TreeFeatureConfig(
-        BlockId trunk,
-        BlockId foliage,
+        const BlockState* trunk,
+        const BlockState* foliage,
         std::unique_ptr<TrunkPlacer> trunkPlacer_,
         std::unique_ptr<FoliagePlacer> foliagePlacer_
     ) : trunkBlock(trunk)

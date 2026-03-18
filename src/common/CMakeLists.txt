@@ -154,6 +154,9 @@ add_library(mc_common STATIC
     world/gen/chunk/IChunkGenerator.cpp
     world/gen/chunk/NoiseChunkGenerator.cpp
 
+    # World - Generation - Settings
+    world/gen/settings/DimensionSettings.cpp
+
     # World - Generation - Carvers
     world/gen/carver/WorldCarver.cpp
     world/gen/carver/CaveCarver.cpp

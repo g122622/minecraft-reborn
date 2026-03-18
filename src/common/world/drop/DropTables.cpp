@@ -2,6 +2,7 @@
 #include "../../item/Item.hpp"
 #include "../../item/ItemRegistry.hpp"
 #include "../../item/Items.hpp"
+#include "../block/VanillaBlocks.hpp"
 #include "../../math/random/Random.hpp"
 #include <algorithm>
 #include <random>
@@ -215,19 +216,22 @@ DropTableRegistry& DropTableRegistry::instance() {
     return instance;
 }
 
-void DropTableRegistry::registerBlockDrop(BlockId blockId, const DropTable& table) {
-    m_blockDrops[blockId] = table;
+void DropTableRegistry::registerBlockDrop(const Block* block, const DropTable& table) {
+    if (block) {
+        m_blockDrops[block] = table;
+    }
 }
 
-const DropTable* DropTableRegistry::getBlockDrop(BlockId blockId) const {
-    auto it = m_blockDrops.find(blockId);
+const DropTable* DropTableRegistry::getBlockDrop(const Block* block) const {
+    if (!block) return nullptr;
+    auto it = m_blockDrops.find(block);
     return it != m_blockDrops.end() ? &it->second : nullptr;
 }
 
 std::vector<ItemStack> DropTableRegistry::generateBlockDrops(
-    BlockId blockId, const DropContext& context) const {
+    const Block* block, const DropContext& context) const {
 
-    const DropTable* table = getBlockDrop(blockId);
+    const DropTable* table = getBlockDrop(block);
     if (table) {
         return table->generateDrops(context);
     }
@@ -251,53 +255,53 @@ void DropTableRegistry::initializeVanillaDrops() {
 
     // 注册矿石掉落
     // 钻石矿石
-    if (diamond) {
+    if (diamond && VanillaBlocks::DIAMOND_ORE) {
         DropTable diamondOreTable;
         DropEntry diamondEntry(*diamond, 1, 1, 1.0f);
         diamondEntry.setCondition(DropCondition::NoSilkTouch);
         diamondEntry.setFortuneBonus(1);
         diamondOreTable.addEntry(diamondEntry);
-        registerBlockDrop(static_cast<BlockId>(15), diamondOreTable);  // DIAMOND_ORE
+        registerBlockDrop(VanillaBlocks::DIAMOND_ORE, diamondOreTable);
     }
 
     // 煤矿石
-    if (coal) {
+    if (coal && VanillaBlocks::COAL_ORE) {
         DropTable coalOreTable;
         DropEntry coalEntry(*coal, 1, 1, 1.0f);
         coalEntry.setCondition(DropCondition::NoSilkTouch);
         coalEntry.setFortuneBonus(1);
         coalOreTable.addEntry(coalEntry);
-        registerBlockDrop(static_cast<BlockId>(16), coalOreTable);  // COAL_ORE
+        registerBlockDrop(VanillaBlocks::COAL_ORE, coalOreTable);
     }
 
     // 红石矿石
-    if (redstone) {
+    if (redstone && VanillaBlocks::REDSTONE_ORE) {
         DropTable redstoneOreTable;
         DropEntry redstoneEntry(*redstone, 4, 5, 1.0f);
         redstoneEntry.setCondition(DropCondition::NoSilkTouch);
         redstoneEntry.setFortuneBonus(1);
         redstoneOreTable.addEntry(redstoneEntry);
-        registerBlockDrop(static_cast<BlockId>(73), redstoneOreTable);  // REDSTONE_ORE
+        registerBlockDrop(VanillaBlocks::REDSTONE_ORE, redstoneOreTable);
     }
 
     // 青金石矿石
-    if (lapis) {
+    if (lapis && VanillaBlocks::LAPIS_ORE) {
         DropTable lapisOreTable;
         DropEntry lapisEntry(*lapis, 4, 9, 1.0f);
         lapisEntry.setCondition(DropCondition::NoSilkTouch);
         lapisEntry.setFortuneBonus(2);
         lapisOreTable.addEntry(lapisEntry);
-        registerBlockDrop(static_cast<BlockId>(21), lapisOreTable);  // LAPIS_ORE
+        registerBlockDrop(VanillaBlocks::LAPIS_ORE, lapisOreTable);
     }
 
     // 绿宝石矿石
-    if (emerald) {
+    if (emerald && VanillaBlocks::EMERALD_ORE) {
         DropTable emeraldOreTable;
         DropEntry emeraldEntry(*emerald, 1, 1, 1.0f);
         emeraldEntry.setCondition(DropCondition::NoSilkTouch);
         emeraldEntry.setFortuneBonus(1);
         emeraldOreTable.addEntry(emeraldEntry);
-        registerBlockDrop(static_cast<BlockId>(129), emeraldOreTable);  // EMERALD_ORE
+        registerBlockDrop(VanillaBlocks::EMERALD_ORE, emeraldOreTable);
     }
 
     m_initialized = true;

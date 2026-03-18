@@ -2,6 +2,7 @@
 #include "../chunk/IChunkGenerator.hpp"
 #include "../../../math/random/Random.hpp"
 #include "../../block/Block.hpp"
+#include "../../block/VanillaBlocks.hpp"
 #include <cmath>
 
 namespace mc {
@@ -205,8 +206,7 @@ std::vector<BlockPos> SurfacePlacement::getPositions(
         }
 
         // 找到固体方块，检查是否是水
-        u32 blockId = state->blockId();
-        if (blockId == static_cast<u32>(BlockId::Water)) {
+        if (state->is(VanillaBlocks::WATER)) {
             // 检查水深
             i32 waterDepth = 0;
             for (i32 wy = y; wy >= MIN_Y && waterDepth <= surfaceConfig.maxWaterDepth; --wy) {
@@ -214,7 +214,7 @@ std::vector<BlockPos> SurfacePlacement::getPositions(
                 if (waterState == nullptr || waterState->isAir()) {
                     break;
                 }
-                if (waterState->blockId() == static_cast<u32>(BlockId::Water)) {
+                if (waterState->is(VanillaBlocks::WATER)) {
                     waterDepth++;
                 } else {
                     // 找到水下的固体方块
