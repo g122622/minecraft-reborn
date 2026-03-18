@@ -2,11 +2,11 @@
 #include "../util/VulkanUtils.hpp"
 #include "../../util/ShaderPath.hpp"
 #include "../../../../common/math/MathUtils.hpp"
+#include "../../../../common/math/random/Random.hpp"
 #include "../../../../common/perfetto/TraceEvents.hpp"
 #include <spdlog/spdlog.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <cmath>
-#include <random>
 #include <array>
 #include <fstream>
 
@@ -14,8 +14,7 @@ namespace mc::client::renderer::trident::weather {
 
 namespace {
 
-// 天气纹理尺寸
-constexpr u32 WEATHER_TEXTURE_SIZE = 64;
+using namespace WeatherRenderConstants;
 
 // 天气 UBO 结构
 struct WeatherUBO {
@@ -29,12 +28,11 @@ struct WeatherUBO {
 
 // 初始化随机偏移数组（参考 MC 1.16.5）
 void initRainOffsets(f32* offsetX, f32* offsetZ, i32 size) {
-    std::mt19937 rng(42);  // 固定种子保证一致性
-    std::uniform_real_distribution<f32> dist(-0.5f, 0.5f);
+    mc::math::Random rng(42);  // 固定种子保证一致性
 
     for (i32 i = 0; i < size * size; ++i) {
-        offsetX[i] = dist(rng);
-        offsetZ[i] = dist(rng);
+        offsetX[i] = rng.nextFloat(-0.5f, 0.5f);
+        offsetZ[i] = rng.nextFloat(-0.5f, 0.5f);
     }
 }
 
@@ -283,7 +281,7 @@ void WeatherRenderer::render(VkCommandBuffer cmd,
                               const glm::mat4& view,
                               const glm::vec3& cameraPos,
                               u32 frameIndex) {
-    if (m_rainStrength <= 0.001f) {
+    if (m_rainStrength <= WeatherRenderConstants::MIN_RENDER_STRENGTH) {
         return;  // 不下雨/雪，不渲染
     }
 
@@ -364,7 +362,7 @@ void WeatherRenderer::generateWeatherGeometry() {
     m_rainVertexCount = 0;
     m_snowVertexCount = 0;
 
-    if (m_rainStrength <= 0.001f) {
+    if (m_rainStrength <= WeatherRenderConstants::MIN_RENDER_STRENGTH) {
         return;
     }
 
@@ -517,17 +515,14 @@ void WeatherRenderer::generateWeatherGeometry() {
 
 Result<void> WeatherRenderer::createVertexBuffer() {
     // 创建动态顶点缓冲区（足够大以容纳最大顶点数）
-    // 最多 (radius * 2 + 1)^2 个位置，每个位置 6 个顶点
-    constexpr size_t MAX_POSITIONS = 21 * 21;  // radius = 10
-    constexpr size_t MAX_VERTICES = MAX_POSITIONS * 6;  // 两个三角形
-    m_vertexBufferSize = sizeof(WeatherVertex) * MAX_VERTICES;
+    m_vertexBufferSize = sizeof(WeatherVertex) * MAX_RAIN_VERTICES;
 
-    auto result = createBuffer(
+    auto result = VulkanUtils::createBuffer(
+        m_device, m_physicalDevice,
         m_vertexBufferSize,
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        m_vertexBuffer,
-        m_vertexBufferMemory);
+        m_vertexBuffer, m_vertexBufferMemory);
 
     if (!result.success()) {
         return result.error();
@@ -545,7 +540,8 @@ Result<void> WeatherRenderer::createUniformBuffers() {
     VkDeviceSize bufferSize = sizeof(WeatherUBO);
 
     for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-        auto result = createBuffer(
+        auto result = VulkanUtils::createBuffer(
+            m_device, m_physicalDevice,
             bufferSize,
             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -862,16 +858,16 @@ Result<void> WeatherRenderer::createPipelines() {
 
 Result<void> WeatherRenderer::createTextures() {
     // 生成雨纹理
-    auto rainData = generateRainTexture(WEATHER_TEXTURE_SIZE, WEATHER_TEXTURE_SIZE);
-    auto result = createTextureFromData(rainData, WEATHER_TEXTURE_SIZE, WEATHER_TEXTURE_SIZE,
+    auto rainData = generateRainTexture(TEXTURE_SIZE, TEXTURE_SIZE);
+    auto result = createTextureFromData(rainData, TEXTURE_SIZE, TEXTURE_SIZE,
                                         m_rainTexture, m_rainTextureMemory, m_rainTextureView);
     if (!result.success()) {
         return result.error();
     }
 
     // 生成雪纹理
-    auto snowData = generateSnowTexture(WEATHER_TEXTURE_SIZE, WEATHER_TEXTURE_SIZE);
-    result = createTextureFromData(snowData, WEATHER_TEXTURE_SIZE, WEATHER_TEXTURE_SIZE,
+    auto snowData = generateSnowTexture(TEXTURE_SIZE, TEXTURE_SIZE);
+    result = createTextureFromData(snowData, TEXTURE_SIZE, TEXTURE_SIZE,
                                    m_snowTexture, m_snowTextureMemory, m_snowTextureView);
     if (!result.success()) {
         return result.error();
@@ -938,8 +934,7 @@ std::vector<u8> WeatherRenderer::generateRainTexture(u32 width, u32 height) {
     std::vector<u8> data(width * height * 4, 0);
 
     // 生成简单的雨滴纹理（细长条纹）
-    std::mt19937 rng(12345);
-    std::uniform_real_distribution<f32> randomDist(0.0f, 1.0f);
+    mc::math::Random rng(12345);
 
     for (u32 y = 0; y < height; ++y) {
         for (u32 x = 0; x < width; ++x) {
@@ -952,7 +947,7 @@ std::vector<u8> WeatherRenderer::generateRainTexture(u32 width, u32 height) {
             // 创建多个垂直条纹
             f32 stripe = 0.0f;
             for (int i = 0; i < 4; ++i) {
-                f32 stripeX = 0.2f + i * 0.2f + randomDist(rng) * 0.05f;
+                f32 stripeX = 0.2f + i * 0.2f + rng.nextFloat() * 0.05f;
                 f32 distance = std::abs(xNorm - stripeX);
                 if (distance < 0.02f) {
                     stripe = 1.0f - distance / 0.02f;
@@ -979,8 +974,7 @@ std::vector<u8> WeatherRenderer::generateSnowTexture(u32 width, u32 height) {
     std::vector<u8> data(width * height * 4, 0);
 
     // 生成雪花纹理（圆形斑点）
-    std::mt19937 rng(54321);
-    std::uniform_real_distribution<f32> randomDist(0.0f, 1.0f);
+    mc::math::Random rng(54321);
 
     for (u32 y = 0; y < height; ++y) {
         for (u32 x = 0; x < width; ++x) {
@@ -992,9 +986,9 @@ std::vector<u8> WeatherRenderer::generateSnowTexture(u32 width, u32 height) {
             // 创建多个圆形雪花
             f32 snow = 0.0f;
             for (int i = 0; i < 5; ++i) {
-                f32 cx = randomDist(rng);
-                f32 cy = randomDist(rng);
-                f32 radius = 0.05f + randomDist(rng) * 0.1f;
+                f32 cx = rng.nextFloat();
+                f32 cy = rng.nextFloat();
+                f32 radius = 0.05f + rng.nextFloat() * 0.1f;
 
                 f32 dx = xNorm - cx;
                 f32 dy = yNorm - cy;
@@ -1017,109 +1011,6 @@ std::vector<u8> WeatherRenderer::generateSnowTexture(u32 width, u32 height) {
     return data;
 }
 
-Result<u32> WeatherRenderer::findMemoryType(u32 typeFilter, VkMemoryPropertyFlags properties) {
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
-
-    for (u32 i = 0; i < memProperties.memoryTypeCount; ++i) {
-        if ((typeFilter & (1 << i)) &&
-            (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-            return i;
-        }
-    }
-
-    return Error(ErrorCode::OutOfMemory, "Failed to find suitable memory type");
-}
-
-Result<void> WeatherRenderer::createBuffer(VkDeviceSize size,
-                                            VkBufferUsageFlags usage,
-                                            VkMemoryPropertyFlags properties,
-                                            VkBuffer& buffer,
-                                            VkDeviceMemory& memory) {
-    VkBufferCreateInfo bufferInfo = {};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = size;
-    bufferInfo.usage = usage;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    if (vkCreateBuffer(m_device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
-        return Error(ErrorCode::OutOfMemory, "Failed to create buffer");
-    }
-
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_device, buffer, &memRequirements);
-
-    auto memoryTypeResult = findMemoryType(memRequirements.memoryTypeBits, properties);
-    if (!memoryTypeResult.success()) {
-        vkDestroyBuffer(m_device, buffer, nullptr);
-        return memoryTypeResult.error();
-    }
-
-    VkMemoryAllocateInfo allocInfo = {};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = memoryTypeResult.value();
-
-    if (vkAllocateMemory(m_device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
-        vkDestroyBuffer(m_device, buffer, nullptr);
-        return Error(ErrorCode::OutOfMemory, "Failed to allocate buffer memory");
-    }
-
-    vkBindBufferMemory(m_device, buffer, memory, 0);
-
-    return {};
-}
-
-Result<void> WeatherRenderer::createImage(u32 width, u32 height,
-                                           VkFormat format,
-                                           VkImageTiling tiling,
-                                           VkImageUsageFlags usage,
-                                           VkMemoryPropertyFlags properties,
-                                           VkImage& image,
-                                           VkDeviceMemory& memory) {
-    VkImageCreateInfo imageInfo = {};
-    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.extent.width = width;
-    imageInfo.extent.height = height;
-    imageInfo.extent.depth = 1;
-    imageInfo.mipLevels = 1;
-    imageInfo.arrayLayers = 1;
-    imageInfo.format = format;
-    imageInfo.tiling = tiling;
-    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.usage = usage;
-    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-
-    if (vkCreateImage(m_device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
-        return Error(ErrorCode::InitializationFailed, "Failed to create image");
-    }
-
-    VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(m_device, image, &memRequirements);
-
-    auto memoryTypeResult = findMemoryType(memRequirements.memoryTypeBits, properties);
-    if (!memoryTypeResult.success()) {
-        vkDestroyImage(m_device, image, nullptr);
-        return memoryTypeResult.error();
-    }
-
-    VkMemoryAllocateInfo allocInfo = {};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = memoryTypeResult.value();
-
-    if (vkAllocateMemory(m_device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
-        vkDestroyImage(m_device, image, nullptr);
-        return Error(ErrorCode::OutOfMemory, "Failed to allocate image memory");
-    }
-
-    vkBindImageMemory(m_device, image, memory, 0);
-
-    return {};
-}
-
 Result<void> WeatherRenderer::createTextureFromData(const std::vector<u8>& data,
                                                      u32 width, u32 height,
                                                      VkImage& image,
@@ -1130,10 +1021,12 @@ Result<void> WeatherRenderer::createTextureFromData(const std::vector<u8>& data,
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
 
-    auto result = createBuffer(imageSize,
-                               VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                               stagingBuffer, stagingBufferMemory);
+    auto result = VulkanUtils::createBuffer(
+        m_device, m_physicalDevice,
+        imageSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        stagingBuffer, stagingBufferMemory);
     if (!result.success()) {
         return result.error();
     }
@@ -1144,12 +1037,14 @@ Result<void> WeatherRenderer::createTextureFromData(const std::vector<u8>& data,
     vkUnmapMemory(m_device, stagingBufferMemory);
 
     // 创建图像
-    result = createImage(width, height,
-                        VK_FORMAT_R8G8B8A8_UNORM,
-                        VK_IMAGE_TILING_OPTIMAL,
-                        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                        image, memory);
+    result = VulkanUtils::createImage(
+        m_device, m_physicalDevice,
+        width, height,
+        VK_FORMAT_R8G8B8A8_UNORM,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        image, memory);
     if (!result.success()) {
         vkDestroyBuffer(m_device, stagingBuffer, nullptr);
         vkFreeMemory(m_device, stagingBufferMemory, nullptr);
@@ -1157,104 +1052,41 @@ Result<void> WeatherRenderer::createTextureFromData(const std::vector<u8>& data,
     }
 
     // 转换图像布局并复制
-    VkCommandBuffer cmd = beginSingleTimeCommands();
+    VkCommandBuffer cmd = VulkanUtils::beginSingleTimeCommands(m_device, m_commandPool);
 
-    VkImageMemoryBarrier barrier = {};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image = image;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = 1;
-    barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
-    barrier.srcAccessMask = 0;
-    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    VulkanUtils::transitionImageLayout(
+        cmd, image,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT);
 
-    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                        VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+    VulkanUtils::copyBufferToImage(cmd, stagingBuffer, image, width, height);
 
-    VkBufferImageCopy region = {};
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
-    region.imageOffset = {0, 0, 0};
-    region.imageExtent = {width, height, 1};
+    VulkanUtils::transitionImageLayout(
+        cmd, image,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
 
-    vkCmdCopyBufferToImage(cmd, stagingBuffer, image,
-                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-
-    endSingleTimeCommands(cmd);
+    VulkanUtils::endSingleTimeCommands(m_device, m_commandPool, m_graphicsQueue, cmd);
 
     // 清理 staging buffer
     vkDestroyBuffer(m_device, stagingBuffer, nullptr);
     vkFreeMemory(m_device, stagingBufferMemory, nullptr);
 
     // 创建图像视图
-    VkImageViewCreateInfo viewInfo = {};
-    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    viewInfo.image = image;
-    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    viewInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = 1;
-    viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount = 1;
-
-    if (vkCreateImageView(m_device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
-        return Error(ErrorCode::InitializationFailed, "Failed to create texture image view");
+    result = VulkanUtils::createImageView(
+        m_device, image,
+        VK_FORMAT_R8G8B8A8_UNORM,
+        VK_IMAGE_ASPECT_COLOR_BIT,
+        imageView);
+    if (!result.success()) {
+        return result.error();
     }
 
     return {};
-}
-
-VkCommandBuffer WeatherRenderer::beginSingleTimeCommands() {
-    VkCommandBufferAllocateInfo allocInfo = {};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = m_commandPool;
-    allocInfo.commandBufferCount = 1;
-
-    VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(m_device, &allocInfo, &commandBuffer);
-
-    VkCommandBufferBeginInfo beginInfo = {};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-    return commandBuffer;
-}
-
-void WeatherRenderer::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
-    vkEndCommandBuffer(commandBuffer);
-
-    VkSubmitInfo submitInfo = {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer;
-
-    vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(m_graphicsQueue);
-
-    vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
 }
 
 } // namespace mc::client::renderer::trident::weather

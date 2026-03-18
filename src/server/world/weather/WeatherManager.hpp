@@ -300,6 +300,9 @@ private:
     // 回调
     LightningSpawnCallback m_lightningCallback;
     WeatherChangeCallback m_weatherChangeCallback;
+
+    // 天气变化检测状态
+    bool m_lastRaining = false;  ///< 上一帧的降雨状态
 };
 
 } // namespace mc::server
