@@ -144,6 +144,8 @@ TEST(CloudUBOTest, FieldAssignment) {
     ubo.time = 1000.0f;
     ubo.textureScale = 0.00390625f;
     ubo.cameraY = 64.0f;
+    ubo.textureOffsetX = 100.0f;
+    ubo.textureOffsetZ = -50.0f;
 
     EXPECT_FLOAT_EQ(ubo.cloudColor.x, 1.0f);
     EXPECT_FLOAT_EQ(ubo.cloudColor.y, 0.9f);
@@ -153,6 +155,8 @@ TEST(CloudUBOTest, FieldAssignment) {
     EXPECT_FLOAT_EQ(ubo.time, 1000.0f);
     EXPECT_FLOAT_EQ(ubo.textureScale, 0.00390625f);
     EXPECT_FLOAT_EQ(ubo.cameraY, 64.0f);
+    EXPECT_FLOAT_EQ(ubo.textureOffsetX, 100.0f);
+    EXPECT_FLOAT_EQ(ubo.textureOffsetZ, -50.0f);
 }
 
 } // namespace test

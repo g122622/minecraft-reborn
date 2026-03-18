@@ -17,6 +17,8 @@
 #include "../fog/FogManager.hpp"
 #include "../cloud/CloudRenderer.hpp"
 #include "../gui/GuiRenderer.hpp"
+#include "../particle/ParticleManager.hpp"
+#include "../weather/WeatherRenderer.hpp"
 #include "../../../ui/Font.hpp"
 #include "../../../ui/DefaultAsciiFont.hpp"
 #include "../item/ItemRenderer.hpp"
@@ -220,6 +222,18 @@ void TridentEngine::destroy() {
         m_cloudRenderer.reset();
     }
 
+    // 销毁天气渲染器
+    if (m_weatherRenderer) {
+        m_weatherRenderer->destroy();
+        m_weatherRenderer.reset();
+    }
+
+    // 销毁粒子管理器
+    if (m_particleManager) {
+        m_particleManager->destroy();
+        m_particleManager.reset();
+    }
+
     m_itemRendererPtr.reset();
     m_entityRendererManager.reset();
     m_font.reset();
@@ -237,6 +251,8 @@ void TridentEngine::destroy() {
     m_entityTextureAtlasInitialized = false;
     m_fogManagerInitialized = false;
     m_cloudRendererInitialized = false;
+    m_particleManagerInitialized = false;
+    m_weatherRendererInitialized = false;
 
     m_guiRenderCallback = nullptr;
     m_entityRenderCallback = nullptr;
@@ -401,7 +417,7 @@ Result<void> TridentEngine::render() {
 
     // 3. 渲染天空
     if (m_skyRendererInitialized && m_skyRendererPtr) {
-        m_skyRendererPtr->update(m_dayTime, m_gameTime, m_partialTick);
+        m_skyRendererPtr->update(m_dayTime, m_gameTime, m_partialTick, m_rainStrength, m_thunderStrength);
 
         glm::vec3 cameraPos(0.0f);
         glm::vec3 cameraForward(0.0f, 0.0f, -1.0f);
@@ -427,12 +443,10 @@ Result<void> TridentEngine::render() {
             cameraPos = m_frameContext.camera->position();
         }
 
-        // TODO: 从游戏状态获取渲染距离和天气参数
-        // 目前使用默认值：12 区块渲染距离，无雨
         m_fogManager->update(
-            12,  // 渲染距离（区块）
-            0.0f, // 雨强度
-            0.0f, // 雷暴强度
+            12,  // 渲染距离（区块）TODO: 从设置获取
+            m_rainStrength,
+            m_thunderStrength,
             m_skyRendererPtr->fogColor(),
             cameraPos
         );
@@ -546,6 +560,40 @@ Result<void> TridentEngine::render() {
         m_entityRendererManager->setCameraDescriptorSet(cameraSet);
 
         m_entityRenderCallback(cmd, m_partialTick);
+    }
+
+    // 6.5 渲染天气效果（雨/雪）
+    if (m_weatherRendererInitialized && m_weatherRenderer && m_rainStrength > 0.01f) {
+        glm::vec3 cameraPos(0.0f);
+        if (m_frameContext.camera) {
+            cameraPos = m_frameContext.camera->position();
+        }
+
+        m_weatherRenderer->update(m_rainStrength, m_thunderStrength, m_gameTime, m_partialTick);
+        m_weatherRenderer->render(
+            cmd,
+            m_frameContext.projectionMatrix,
+            m_frameContext.viewMatrix,
+            cameraPos,
+            m_frameContext.frameIndex
+        );
+    }
+
+    // 6.6 渲染粒子
+    if (m_particleManagerInitialized && m_particleManager && m_particleManager->particleCount() > 0) {
+        glm::vec3 cameraPos(0.0f);
+        if (m_frameContext.camera) {
+            cameraPos = m_frameContext.camera->position();
+        }
+
+        m_particleManager->tick();
+        m_particleManager->render(
+            cmd,
+            m_frameContext.projectionMatrix,
+            m_frameContext.viewMatrix,
+            cameraPos,
+            m_frameContext.frameIndex
+        );
     }
 
     // 7. 渲染 GUI
@@ -788,6 +836,11 @@ void TridentEngine::updateTime(i64 dayTime, i64 gameTime, f32 partialTick) {
     }
 }
 
+void TridentEngine::updateWeather(f32 rainStrength, f32 thunderStrength) {
+    m_rainStrength = rainStrength;
+    m_thunderStrength = thunderStrength;
+}
+
 VkCommandPool TridentEngine::commandPool() const {
     return m_frameManager ? m_frameManager->commandPool() : VK_NULL_HANDLE;
 }
@@ -886,6 +939,22 @@ Result<void> TridentEngine::recreateSwapchain() {
         auto cloudResult = m_cloudRenderer->onResize(VkExtent2D{m_windowWidth, m_windowHeight});
         if (cloudResult.failed()) {
             spdlog::warn("Failed to recreate cloud renderer: {}", cloudResult.error().toString());
+        }
+    }
+
+    // 重建粒子管理器
+    if (m_particleManagerInitialized && m_particleManager) {
+        auto particleResult = m_particleManager->onResize(VkExtent2D{m_windowWidth, m_windowHeight});
+        if (particleResult.failed()) {
+            spdlog::warn("Failed to recreate particle manager: {}", particleResult.error().toString());
+        }
+    }
+
+    // 重建天气渲染器
+    if (m_weatherRendererInitialized && m_weatherRenderer) {
+        auto weatherResult = m_weatherRenderer->onResize(VkExtent2D{m_windowWidth, m_windowHeight});
+        if (weatherResult.failed()) {
+            spdlog::warn("Failed to recreate weather renderer: {}", weatherResult.error().toString());
         }
     }
 
@@ -1380,6 +1449,96 @@ cloud::CloudRenderer& TridentEngine::cloudRenderer() {
 
 const cloud::CloudRenderer& TridentEngine::cloudRenderer() const {
     return *m_cloudRenderer;
+}
+
+// ============================================================================
+// 粒子管理器
+// ============================================================================
+
+Result<void> TridentEngine::initializeParticleManager() {
+    if (m_particleManagerInitialized) {
+        return {};
+    }
+
+    spdlog::info("Initializing particle manager...");
+
+    if (!m_particleManager) {
+        m_particleManager = std::make_unique<particle::ParticleManager>();
+    }
+
+    auto result = m_particleManager->initialize(
+        device(),
+        physicalDevice(),
+        commandPool(),
+        graphicsQueue(),
+        renderPass(),
+        swapchainExtent()
+    );
+
+    if (result.failed()) {
+        m_particleManager.reset();
+        return result.error();
+    }
+
+    m_particleManagerInitialized = true;
+    spdlog::info("Particle manager initialized");
+    return {};
+}
+
+particle::ParticleManager& TridentEngine::particleManager() {
+    if (!m_particleManager) {
+        m_particleManager = std::make_unique<particle::ParticleManager>();
+    }
+    return *m_particleManager;
+}
+
+const particle::ParticleManager& TridentEngine::particleManager() const {
+    return *m_particleManager;
+}
+
+// ============================================================================
+// 天气渲染器
+// ============================================================================
+
+Result<void> TridentEngine::initializeWeatherRenderer() {
+    if (m_weatherRendererInitialized) {
+        return {};
+    }
+
+    spdlog::info("Initializing weather renderer...");
+
+    if (!m_weatherRenderer) {
+        m_weatherRenderer = std::make_unique<weather::WeatherRenderer>();
+    }
+
+    auto result = m_weatherRenderer->initialize(
+        device(),
+        physicalDevice(),
+        commandPool(),
+        graphicsQueue(),
+        renderPass(),
+        swapchainExtent()
+    );
+
+    if (result.failed()) {
+        m_weatherRenderer.reset();
+        return result.error();
+    }
+
+    m_weatherRendererInitialized = true;
+    spdlog::info("Weather renderer initialized");
+    return {};
+}
+
+weather::WeatherRenderer& TridentEngine::weatherRenderer() {
+    if (!m_weatherRenderer) {
+        m_weatherRenderer = std::make_unique<weather::WeatherRenderer>();
+    }
+    return *m_weatherRenderer;
+}
+
+const weather::WeatherRenderer& TridentEngine::weatherRenderer() const {
+    return *m_weatherRenderer;
 }
 
 Result<void> TridentEngine::updateTextureAtlas(const AtlasBuildResult& atlasResult) {

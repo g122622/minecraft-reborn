@@ -91,9 +91,14 @@ Result<void> ServerWorld::initialize() {
     // 创建光照管理器（主世界有天空光照）
     m_lightManager = std::make_unique<WorldLightManager>(this, true, true);
 
+    // 创建天气管理器
+    m_weatherManager = std::make_unique<WeatherManager>();
+    m_weatherManager->initialize(m_config.seed);
+    m_weatherManager->setWorld(this);
+
     m_initialized = true;
 
-    spdlog::info("Server world initialized with physics engine, tick manager, and light manager");
+    spdlog::info("Server world initialized with physics engine, tick manager, light manager, and weather system");
     return Result<void>::ok();
 }
 
@@ -101,6 +106,9 @@ void ServerWorld::shutdown() {
     spdlog::info("Shutting down server world...");
 
     m_initialized = false;
+
+    // 清除天气管理器
+    m_weatherManager.reset();
 
     // 清除光照管理器
     m_lightManager.reset();
@@ -540,6 +548,11 @@ void ServerWorld::tick() {
 
     // 更新游戏时间
     m_gameTime.tick();
+
+    // 更新天气
+    if (m_weatherManager) {
+        m_weatherManager->tick();
+    }
 
     // 执行计划刻（方块tick和流体tick）
     if (m_tickManager) {
@@ -1075,6 +1088,33 @@ i32 ServerWorld::getMaxBuildHeight() const {
 
 i32 ServerWorld::getSectionCount() const {
     return 16;  // 256 / 16
+}
+
+// ============================================================================
+// 天气接口 (IWorld)
+// ============================================================================
+
+bool ServerWorld::isRaining() const {
+    return m_weatherManager ? m_weatherManager->isRaining() : false;
+}
+
+bool ServerWorld::isThundering() const {
+    return m_weatherManager ? m_weatherManager->isThundering() : false;
+}
+
+f32 ServerWorld::rainStrength(f32 partialTick) const {
+    return m_weatherManager ? m_weatherManager->rainStrength(partialTick) : 0.0f;
+}
+
+f32 ServerWorld::thunderStrength(f32 partialTick) const {
+    return m_weatherManager ? m_weatherManager->thunderStrength(partialTick) : 0.0f;
+}
+
+bool ServerWorld::canRainAt(const BlockPos& pos) const {
+    if (!m_weatherManager || !m_weatherManager->isRaining()) {
+        return false;
+    }
+    return weather::WeatherUtils::canRainAt(*this, pos);
 }
 
 } // namespace mc::server

@@ -14,6 +14,7 @@
 #include "common/world/fluid/Fluid.hpp"
 #include "common/network/Packet.hpp"
 #include "common/network/ChunkSync.hpp"
+#include "common/network/GameStateChangePacket.hpp"
 #include "common/world/WorldConstants.hpp"
 #include "common/world/chunk/ChunkLoadTicket.hpp"
 #include "common/util/Direction.hpp"
@@ -429,6 +430,9 @@ void IntegratedServer::tick() {
     if (tick % 20 == 0) {
         sendTimeUpdate();
     }
+
+    // 同步天气变化到客户端
+    sendWeatherUpdate();
 }
 
 void IntegratedServer::shutdown() {
@@ -665,6 +669,9 @@ void IntegratedServer::handleLoginRequest(const u8* data, size_t size) {
     // 发送初始传送
     [[maybe_unused]] u32 teleportId = m_serverCore->teleportPlayer(m_clientPlayerId, player->x, player->y, player->z, player->yaw, player->pitch);
     sendPlayerInventory();
+
+    // 发送初始天气状态
+    sendInitialWeatherState();
 
     // 初始化玩家票据位置
     ChunkCoord spawnChunkX = static_cast<ChunkCoord>(std::floor(player->x / 16.0f));
@@ -1175,7 +1182,9 @@ void IntegratedServer::handleChatMessage(const u8* data, size_t size) {
 
     if (!packet.message().empty() && packet.message()[0] == '/') {
         auto& registry = command::CommandRegistry::getGlobal();
-        CoreCommandBridge bridge(nullptr, m_serverCore.get());
+        // 从 ServerCore 获取 world 指针
+        ServerWorld* world = m_serverCore ? m_serverCore->world() : nullptr;
+        CoreCommandBridge bridge(world, m_serverCore.get());
         command::ServerCommandSource source(
             &bridge,
             nullptr,
@@ -1322,6 +1331,104 @@ void IntegratedServer::sendTimeUpdate() {
     auto fullPacket = core::ConnectionManager::encapsulatePacket(
         network::PacketType::TimeUpdate, ser.buffer());
     sendToClient(fullPacket.data(), fullPacket.size());
+}
+
+void IntegratedServer::sendWeatherUpdate() {
+    if (!m_serverCore) return;
+    auto* player = getPlayerData();
+    if (!player || !player->loggedIn) return;
+
+    const auto& weather = m_serverCore->weatherManager();
+    f32 rainStrength = weather.rainStrength();
+    f32 thunderStrength = weather.thunderStrength();
+
+    // 检查天气强度是否变化（使用阈值避免频繁发送）
+    constexpr f32 STRENGTH_THRESHOLD = 0.001f;
+    bool rainChanged = std::abs(rainStrength - m_lastSentRainStrength) > STRENGTH_THRESHOLD;
+    bool thunderChanged = std::abs(thunderStrength - m_lastSentThunderStrength) > STRENGTH_THRESHOLD;
+
+    // 发送降雨强度变化
+    if (rainChanged) {
+        auto packet = network::GameStateChangePacket::rainStrength(rainStrength);
+        auto result = packet.serialize();
+        if (result.success()) {
+            auto fullPacket = core::ConnectionManager::encapsulatePacket(
+                network::PacketType::GameStateChange, result.value());
+            sendToClient(fullPacket.data(), fullPacket.size());
+        }
+        m_lastSentRainStrength = rainStrength;
+    }
+
+    // 发送雷暴强度变化
+    if (thunderChanged) {
+        auto packet = network::GameStateChangePacket::thunderStrength(thunderStrength);
+        auto result = packet.serialize();
+        if (result.success()) {
+            auto fullPacket = core::ConnectionManager::encapsulatePacket(
+                network::PacketType::GameStateChange, result.value());
+            sendToClient(fullPacket.data(), fullPacket.size());
+        }
+        m_lastSentThunderStrength = thunderStrength;
+    }
+
+    // 发送天气状态变化（开始下雨/雨停）
+    if (weather.hasWeatherChanged()) {
+        auto weatherType = weather.weatherType();
+        if (weatherType == weather::WeatherType::Clear) {
+            // 雨停
+            auto packet = network::GameStateChangePacket::endRain();
+            auto result = packet.serialize();
+            if (result.success()) {
+                auto fullPacket = core::ConnectionManager::encapsulatePacket(
+                    network::PacketType::GameStateChange, result.value());
+                sendToClient(fullPacket.data(), fullPacket.size());
+            }
+        } else if (weatherType == weather::WeatherType::Rain ||
+                   weatherType == weather::WeatherType::Thunder) {
+            // 开始下雨
+            auto packet = network::GameStateChangePacket::beginRain();
+            auto result = packet.serialize();
+            if (result.success()) {
+                auto fullPacket = core::ConnectionManager::encapsulatePacket(
+                    network::PacketType::GameStateChange, result.value());
+                sendToClient(fullPacket.data(), fullPacket.size());
+            }
+        }
+    }
+}
+
+void IntegratedServer::sendInitialWeatherState() {
+    if (!m_serverCore) return;
+
+    const auto& weather = m_serverCore->weatherManager();
+    f32 rainStrength = weather.rainStrength();
+    f32 thunderStrength = weather.thunderStrength();
+
+    // 发送当前降雨强度
+    {
+        auto packet = network::GameStateChangePacket::rainStrength(rainStrength);
+        auto result = packet.serialize();
+        if (result.success()) {
+            auto fullPacket = core::ConnectionManager::encapsulatePacket(
+                network::PacketType::GameStateChange, result.value());
+            sendToClient(fullPacket.data(), fullPacket.size());
+        }
+    }
+
+    // 发送当前雷暴强度
+    {
+        auto packet = network::GameStateChangePacket::thunderStrength(thunderStrength);
+        auto result = packet.serialize();
+        if (result.success()) {
+            auto fullPacket = core::ConnectionManager::encapsulatePacket(
+                network::PacketType::GameStateChange, result.value());
+            sendToClient(fullPacket.data(), fullPacket.size());
+        }
+    }
+
+    // 更新上次发送的值
+    m_lastSentRainStrength = rainStrength;
+    m_lastSentThunderStrength = thunderStrength;
 }
 
 void IntegratedServer::openCraftingTableMenu() {

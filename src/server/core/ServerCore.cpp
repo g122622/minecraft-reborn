@@ -29,6 +29,7 @@ ServerCore::ServerCore()
           m_config))
 {
     m_playerManager->setConfig(m_config);
+    m_weatherManager.initialize(m_config.seed);
 }
 
 ServerCore::ServerCore(const ServerCoreConfig& config)
@@ -49,6 +50,7 @@ ServerCore::ServerCore(const ServerCoreConfig& config)
           m_config))
 {
     m_playerManager->setConfig(m_config);
+    m_weatherManager.initialize(m_config.seed);
 }
 
 ServerCore::~ServerCore() = default;
@@ -82,6 +84,9 @@ const core::PositionTracker& ServerCore::positionTracker() const { return *m_pos
 
 core::PacketHandler& ServerCore::packetHandler() { return *m_packetHandler; }
 const core::PacketHandler& ServerCore::packetHandler() const { return *m_packetHandler; }
+
+WeatherManager& ServerCore::weatherManager() { return m_weatherManager; }
+const WeatherManager& ServerCore::weatherManager() const { return m_weatherManager; }
 
 // ============================================================================
 // 玩家管理
@@ -249,6 +254,12 @@ void ServerCore::tick() {
     {
         MC_TRACE_EVENT("server.tick", "TickTime");
         tickTime();
+    }
+
+    // 更新天气
+    {
+        MC_TRACE_EVENT("server.tick", "TickWeather");
+        m_weatherManager.tick();
     }
 
     // 清理断开连接的玩家（每 CLEANUP_INTERVAL_TICKS tick 执行一次）

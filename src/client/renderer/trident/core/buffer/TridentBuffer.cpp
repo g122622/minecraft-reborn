@@ -168,7 +168,7 @@ Result<void> TridentBuffer::upload(const void* data, u64 size, u64 offset) {
         return Error(ErrorCode::OperationFailed, "Failed to map buffer");
     }
 
-    memcpy(static_cast<u8*>(mapped) + offset, data, size);
+    std::memcpy(static_cast<u8*>(mapped) + offset, data, size);
     return {};
 }
 
@@ -321,7 +321,7 @@ Result<void> TridentStagingBuffer::upload(const void* data, u64 size, u64 offset
         return Error(ErrorCode::OperationFailed, "Failed to map staging buffer");
     }
 
-    memcpy(static_cast<u8*>(mapped) + offset, data, size);
+    std::memcpy(static_cast<u8*>(mapped) + offset, data, size);
     return {};
 }
 
@@ -534,7 +534,7 @@ Result<void> TridentVertexBuffer::upload(const void* data, u64 size, u64 offset)
         return Error(ErrorCode::OperationFailed, "Failed to map staging memory");
     }
 
-    memcpy(mapped, data, size);
+    std::memcpy(mapped, data, size);
     vkUnmapMemory(device, stagingMemory);
 
     // TODO: 需要命令缓冲区来执行复制操作
@@ -851,7 +851,7 @@ Result<void> TridentUniformBuffer::upload(const void* data, u64 size, u64 offset
         return Error(ErrorCode::OperationFailed, "Failed to map uniform buffer");
     }
 
-    memcpy(static_cast<u8*>(mapped) + offset, data, size);
+    std::memcpy(static_cast<u8*>(mapped) + offset, data, size);
     return {};
 }
 

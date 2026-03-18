@@ -24,6 +24,7 @@ add_executable(minecraft-server
     world/spawn/NaturalSpawner.cpp
     world/spawn/SpawnConditions.cpp
     world/entity/EntityTracker.cpp
+    world/weather/WeatherManager.cpp
     player/ServerPlayer.cpp
     # 命令系统
     command/ServerCommandSource.cpp
@@ -37,6 +38,7 @@ add_executable(minecraft-server
     command/commands/TeleportCommand.cpp
     command/commands/GiveCommand.cpp
     command/commands/ClearCommand.cpp
+    command/commands/WeatherCommand.cpp
     # 菜单系统
     menu/CraftingMenu.cpp
 )
