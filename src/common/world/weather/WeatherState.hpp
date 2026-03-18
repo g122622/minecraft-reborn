@@ -1,19 +1,13 @@
 #pragma once
 
 #include "../../core/Types.hpp"
+#include "../../math/MathUtils.hpp"
 #include "WeatherConstants.hpp"
 
 // 使用嵌套命名空间定义，避免嵌套包含问题
 namespace mc::weather {
 
-/**
- * @brief 线性插值
- *
- * C++17 兼容版本
- */
-[[nodiscard]] inline f32 lerp(f32 a, f32 b, f32 t) noexcept {
-    return a + t * (b - a);
-}
+// 使用 mc::math::lerp 进行线性插值
 
 /**
  * @brief 天气类型枚举
@@ -174,7 +168,7 @@ public:
      * @return 插值后的强度值
      */
     [[nodiscard]] f32 getRainStrength(f32 partialTick) const noexcept {
-        return lerp(prevRainStrength, rainStrength, partialTick);
+        return mc::math::lerp(prevRainStrength, rainStrength, partialTick);
     }
 
     /**
@@ -184,7 +178,7 @@ public:
      * @return 插值后的强度值
      */
     [[nodiscard]] f32 getThunderStrength(f32 partialTick) const noexcept {
-        return lerp(prevThunderStrength, thunderStrength, partialTick);
+        return mc::math::lerp(prevThunderStrength, thunderStrength, partialTick);
     }
 
     /**

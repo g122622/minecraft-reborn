@@ -129,12 +129,11 @@ void WeatherManager::updateStrength() {
 void WeatherManager::checkWeatherChange() {
     // 检查降雨状态变化
     bool currentlyRaining = m_state.isRaining();
-    static bool lastRaining = false;
 
-    if (currentlyRaining != lastRaining) {
+    if (currentlyRaining != m_lastRaining) {
         m_weatherChanged = true;
         if (m_weatherChangeCallback) {
-            WeatherType oldType = lastRaining ?
+            WeatherType oldType = m_lastRaining ?
                 (m_state.isThundering() ? WeatherType::Thunder : WeatherType::Rain) :
                 WeatherType::Clear;
             WeatherType newType = currentlyRaining ?
@@ -142,7 +141,7 @@ void WeatherManager::checkWeatherChange() {
                 WeatherType::Clear;
             m_weatherChangeCallback(oldType, newType);
         }
-        lastRaining = currentlyRaining;
+        m_lastRaining = currentlyRaining;
     }
 }
 

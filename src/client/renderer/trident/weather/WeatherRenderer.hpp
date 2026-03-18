@@ -12,6 +12,18 @@ class ClientWorld;
 
 namespace mc::client::renderer::trident::weather {
 
+// 天气渲染常量
+namespace WeatherRenderConstants {
+/// 最小渲染强度阈值（低于此值不渲染）
+constexpr f32 MIN_RENDER_STRENGTH = 0.001f;
+
+/// 雨顶点最大数量（每个渲染位置 6 个顶点）
+constexpr size_t MAX_RAIN_VERTICES = 21 * 21 * 6;  // radius = 10
+
+/// 天气纹理尺寸
+constexpr u32 TEXTURE_SIZE = 64;
+}  // namespace WeatherRenderConstants
+
 /**
  * @brief 天气渲染器
  *
@@ -160,30 +172,14 @@ private:
      */
     void generateWeatherGeometry();
 
-    // ========================================================================
-    // Vulkan 辅助函数
-    // ========================================================================
-
-    [[nodiscard]] Result<u32> findMemoryType(u32 typeFilter, VkMemoryPropertyFlags properties);
-    [[nodiscard]] Result<void> createBuffer(VkDeviceSize size,
-                                            VkBufferUsageFlags usage,
-                                            VkMemoryPropertyFlags properties,
-                                            VkBuffer& buffer,
-                                            VkDeviceMemory& memory);
-    [[nodiscard]] Result<void> createImage(u32 width, u32 height,
-                                           VkFormat format,
-                                           VkImageTiling tiling,
-                                           VkImageUsageFlags usage,
-                                           VkMemoryPropertyFlags properties,
-                                           VkImage& image,
-                                           VkDeviceMemory& memory);
+    /**
+     * @brief 从数据创建纹理
+     */
     [[nodiscard]] Result<void> createTextureFromData(const std::vector<u8>& data,
                                                      u32 width, u32 height,
                                                      VkImage& image,
                                                      VkDeviceMemory& memory,
                                                      VkImageView& imageView);
-    VkCommandBuffer beginSingleTimeCommands();
-    void endSingleTimeCommands(VkCommandBuffer cmd);
 
     /**
      * @brief 生成程序化雨纹理
