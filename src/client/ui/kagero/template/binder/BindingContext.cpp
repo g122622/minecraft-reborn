@@ -198,15 +198,15 @@ Value BindingContext::resolveBinding(const String& path,
             varName = path.substr(1);
         }
 
-        // 如果是当前循环变量
-        if (!loopVar.empty() && varName == loopVar) {
+        // 如果是当前循环变量且提供了非空值
+        if (!loopVar.empty() && varName == loopVar && !loopValue.isNull()) {
             if (property.empty()) {
                 return loopValue;
             }
             return loopValue.getProperty(property);
         }
 
-        // 查找循环变量表
+        // 查找循环变量表（包括当前循环变量从表中获取的情况）
         auto loopIt = m_loopVariables.find(varName);
         if (loopIt != m_loopVariables.end()) {
             if (property.empty()) {

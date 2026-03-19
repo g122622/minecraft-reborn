@@ -501,7 +501,19 @@ void TemplateCompiler::generateBindingPlansRecursive(const ast::Node* node,
         // 生成当前路径
         currentPath = TemplateCompiler::generateWidgetPath(element, parentPath);
 
+        // DEBUG: 输出元素信息
+        if (m_config.debugOutput) {
+            // Debug output
+        }
+
         // 处理绑定属性
+        // 注意：需要确保 categorizeAttributes() 已被调用
+        if (element->bindingAttrs.empty() && !element->attributes.empty()) {
+            // 如果 bindingAttrs 为空但 attributes 不为空，可能需要重新分类
+            // 这不应该发生，但作为防御性编程
+            const_cast<ast::ElementNode*>(element)->categorizeAttributes();
+        }
+
         for (const auto& attr : element->bindingAttrs) {
             BindingPlan plan;
             plan.widgetPath = currentPath;
@@ -544,6 +556,12 @@ void TemplateCompiler::generateEventPlansRecursive(const ast::Node* node,
     // 处理元素节点
     if (auto* element = dynamic_cast<const ast::ElementNode*>(node)) {
         currentPath = generateWidgetPath(element, parentPath);
+
+        // 注意：需要确保 categorizeAttributes() 已被调用
+        if (element->eventAttrs.empty() && !element->attributes.empty()) {
+            // 如果 eventAttrs 为空但 attributes 不为空，可能需要重新分类
+            const_cast<ast::ElementNode*>(element)->categorizeAttributes();
+        }
 
         // 处理事件属性
         for (const auto& attr : element->eventAttrs) {
