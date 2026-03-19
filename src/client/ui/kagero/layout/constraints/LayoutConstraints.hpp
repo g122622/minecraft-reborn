@@ -314,20 +314,15 @@ struct LayoutConstraints {
 
         switch (parentSpec.mode) {
             case MeasureMode::Exactly:
-                // 父容器指定精确尺寸
-                if (preferredWidth >= 0) {
-                    // 有期望尺寸，取期望值（但受min/max约束）
-                    i32 resolved = std::max(minWidth, std::min(maxWidth, preferredWidth));
-                    return MeasureSpec::MakeExactly(clampWidth(resolved, availableWidth));
-                }
-                // 无期望尺寸，使用父容器尺寸
-                return MeasureSpec::MakeExactly(availableWidth);
+                // 父容器指定精确尺寸，子元素必须使用该尺寸
+                // 但仍需受 min/max 约束限制
+                return MeasureSpec::MakeExactly(clampWidth(availableWidth));
 
             case MeasureMode::AtMost:
                 // 父容器指定最大尺寸
                 if (preferredWidth >= 0) {
                     i32 resolved = std::max(minWidth, std::min(maxWidth, preferredWidth));
-                    return MeasureSpec::MakeAtMost(clampWidth(resolved, availableWidth));
+                    return MeasureSpec::MakeAtMost(std::min(resolved, availableWidth));
                 }
                 return MeasureSpec::MakeAtMost(availableWidth);
 
@@ -351,16 +346,14 @@ struct LayoutConstraints {
 
         switch (parentSpec.mode) {
             case MeasureMode::Exactly:
-                if (preferredHeight >= 0) {
-                    i32 resolved = std::max(minHeight, std::min(maxHeight, preferredHeight));
-                    return MeasureSpec::MakeExactly(clampHeight(resolved, availableHeight));
-                }
-                return MeasureSpec::MakeExactly(availableHeight);
+                // 父容器指定精确尺寸，子元素必须使用该尺寸
+                // 但仍需受 min/max 约束限制
+                return MeasureSpec::MakeExactly(clampHeight(availableHeight));
 
             case MeasureMode::AtMost:
                 if (preferredHeight >= 0) {
                     i32 resolved = std::max(minHeight, std::min(maxHeight, preferredHeight));
-                    return MeasureSpec::MakeAtMost(clampHeight(resolved, availableHeight));
+                    return MeasureSpec::MakeAtMost(std::min(resolved, availableHeight));
                 }
                 return MeasureSpec::MakeAtMost(availableHeight);
 

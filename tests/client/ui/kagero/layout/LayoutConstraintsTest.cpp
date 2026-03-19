@@ -7,8 +7,12 @@
 
 #include <gtest/gtest.h>
 #include "client/ui/kagero/layout/constraints/LayoutConstraints.hpp"
+#include "client/ui/kagero/layout/core/MeasureSpec.hpp"
+#include <limits>
 
+using namespace mc::client::ui::kagero;
 using namespace mc::client::ui::kagero::layout;
+using mc::i32;
 
 class LayoutConstraintsTest : public ::testing::Test {
 protected:

@@ -50,10 +50,12 @@ std::vector<LayoutResult> FlexLayout::compute(
     for (auto& line : m_lines) {
         // 计算交叉轴尺寸（行高或行宽）
         i32 lineCrossSize = 0;
-        for (auto* child : line.items) {
+        for (size_t i = 0; i < line.items.size(); ++i) {
+            size_t idx = line.indices[i];
+            auto* child = line.items[i];
             i32 childCross = isHorizontal ?
-                m_measuredSizes[child - children.data()].height :
-                m_measuredSizes[child - children.data()].width;
+                m_measuredSizes[idx].height :
+                m_measuredSizes[idx].width;
             childCross += child->constraints().margin.vertical();
             lineCrossSize = std::max(lineCrossSize, childCross);
         }
@@ -70,10 +72,12 @@ std::vector<LayoutResult> FlexLayout::compute(
     for (auto& line : m_lines) {
         // 计算行的主轴总尺寸（含间距）
         i32 lineMainSize = 0;
-        for (auto* child : line.items) {
+        for (size_t i = 0; i < line.items.size(); ++i) {
+            size_t idx = line.indices[i];
+            auto* child = line.items[i];
             i32 childMain = isHorizontal ?
-                m_measuredSizes[child - children.data()].width :
-                m_measuredSizes[child - children.data()].height;
+                m_measuredSizes[idx].width :
+                m_measuredSizes[idx].height;
             childMain += child->constraints().margin.horizontal();
             lineMainSize += childMain;
         }
@@ -132,8 +136,9 @@ std::vector<LayoutResult> FlexLayout::compute(
         applyAlignItems(line, line.crossSize, isHorizontal);
 
         // 设置子元素位置
-        for (auto* child : line.items) {
-            size_t idx = child - children.data();
+        for (size_t i = 0; i < line.items.size(); ++i) {
+            size_t idx = line.indices[i];
+            auto* child = line.items[i];
             auto& result = m_results[idx];
 
             // 调整位置（考虑容器内边距）
@@ -192,8 +197,9 @@ Size FlexLayout::measure(
         i32 lineMainSize = 0;
         i32 lineCrossSize = 0;
 
-        for (auto* child : line.items) {
-            size_t idx = child - children.data();
+        for (size_t i = 0; i < line.items.size(); ++i) {
+            size_t idx = line.indices[i];
+            auto* child = line.items[i];
             i32 childMain = isHorizontal ? m_measuredSizes[idx].width : m_measuredSizes[idx].height;
             i32 childCross = isHorizontal ? m_measuredSizes[idx].height : m_measuredSizes[idx].width;
 
@@ -311,7 +317,7 @@ void FlexLayout::collectLines(
 
             i32 mainSize = isHorizontal ? m_measuredSizes[i].width : m_measuredSizes[i].height;
             mainSize += child->constraints().margin.horizontal();
-            line.addItem(child, mainSize);
+            line.addItem(i, child, mainSize);
         }
         m_lines.push_back(std::move(line));
         return;
@@ -343,7 +349,7 @@ void FlexLayout::collectLines(
             newSize = itemMainSize;
         }
 
-        currentLine.addItem(child, itemMainSize);
+        currentLine.addItem(i, child, itemMainSize);
         currentMainSize = newSize;
     }
 
@@ -361,15 +367,14 @@ void FlexLayout::distributeFreeSpace(
     if (freeSpace <= 0 || line.totalGrow <= 0.0f) return;
 
     // 按grow比例分配剩余空间
-    for (auto* child : line.items) {
+    for (size_t i = 0; i < line.items.size(); ++i) {
+        auto* child = line.items[i];
+        size_t idx = line.indices[i];
+
         if (child->flexItem().grow <= 0.0f) continue;
 
         f32 ratio = child->flexItem().grow / line.totalGrow;
         i32 extra = static_cast<i32>(freeSpace * ratio);
-
-        size_t idx = child - &line.items[0];  // 这个索引计算需要修正
-        // 重新计算正确的索引
-        // 注意：这里需要找到child在原始children数组中的索引
 
         if (isHorizontal) {
             m_measuredSizes[idx].width += extra;
@@ -387,13 +392,14 @@ void FlexLayout::shrinkSpace(
     if (overflow <= 0 || line.totalShrink <= 0.0f) return;
 
     // 按shrink比例缩小
-    for (auto* child : line.items) {
+    for (size_t i = 0; i < line.items.size(); ++i) {
+        auto* child = line.items[i];
+        size_t idx = line.indices[i];
+
         if (child->flexItem().shrink <= 0.0f) continue;
 
         f32 ratio = child->flexItem().shrink / line.totalShrink;
         i32 reduction = static_cast<i32>(overflow * ratio);
-
-        size_t idx = child - &line.items[0];  // 同样需要修正索引
 
         if (isHorizontal) {
             m_measuredSizes[idx].width = std::max(
@@ -418,8 +424,9 @@ void FlexLayout::applyJustifyContent(
 
     // 计算当前行的主轴总尺寸
     i32 lineMainSize = 0;
-    for (auto* child : line.items) {
-        size_t idx = child - line.items[0];  // 临时，需要修正
+    for (size_t i = 0; i < line.items.size(); ++i) {
+        size_t idx = line.indices[i];
+        auto* child = line.items[i];
         i32 main = isHorizontal ? m_measuredSizes[idx].width : m_measuredSizes[idx].height;
         main += child->constraints().margin.horizontal();
         lineMainSize += main;
@@ -469,11 +476,10 @@ void FlexLayout::applyJustifyContent(
     // 应用偏移
     i32 currentPos = offset;
     for (size_t i = 0; i < line.items.size(); ++i) {
+        size_t idx = line.indices[i];
         auto* child = line.items[i];
-        size_t idx = child - line.items[0];  // 需要修正
 
-        // 在这里，我们需要实际存储位置信息
-        // 由于索引计算的问题，我们使用一个临时映射
+        // 设置位置
         if (isHorizontal) {
             m_results[idx].bounds.x = currentPos + child->constraints().margin.left;
         } else {
@@ -494,7 +500,7 @@ void FlexLayout::applyAlignItems(
 ) {
     for (size_t i = 0; i < line.items.size(); ++i) {
         auto* child = line.items[i];
-        size_t idx = child - line.items[0];  // 需要修正
+        size_t idx = line.indices[i];
 
         Align align = child->flexItem().alignSelf;
         if (align == Align::Stretch) {
@@ -569,6 +575,30 @@ void FlexLayout::applyAlignItems(
             m_results[idx].bounds.x = crossOffset;
         }
     }
+}
+
+void FlexLayout::layoutLine(
+    FlexLine& line,
+    i32 mainAxisSize,
+    i32 crossAxisSize,
+    i32 lineOffset,
+    bool isHorizontal
+) {
+    // 此方法暂时不使用，布局逻辑已整合到compute()中
+    (void)line;
+    (void)mainAxisSize;
+    (void)crossAxisSize;
+    (void)lineOffset;
+    (void)isHorizontal;
+}
+
+void FlexLayout::positionChildren(
+    const Rect& containerBounds,
+    bool isHorizontal
+) {
+    // 此方法暂时不使用，布局逻辑已整合到compute()中
+    (void)containerBounds;
+    (void)isHorizontal;
 }
 
 i32 FlexLayout::calculateMainAxisSize(

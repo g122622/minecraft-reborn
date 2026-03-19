@@ -65,6 +65,7 @@ struct FlexConfig {
  * 在换行模式下，存储每一行的布局信息。
  */
 struct FlexLine {
+    std::vector<size_t> indices;               ///< 子元素在原始数组中的索引
     std::vector<WidgetLayoutAdaptor*> items;   ///< 该行的子元素
     i32 mainSize = 0;                           ///< 主轴尺寸
     i32 crossSize = 0;                          ///< 交叉轴尺寸
@@ -76,7 +77,8 @@ struct FlexLine {
     /**
      * @brief 添加子元素到行
      */
-    void addItem(WidgetLayoutAdaptor* item, i32 itemMainSize) {
+    void addItem(size_t idx, WidgetLayoutAdaptor* item, i32 itemMainSize) {
+        indices.push_back(idx);
         items.push_back(item);
         mainSize += itemMainSize;
         totalGrow += item->flexItem().grow;
