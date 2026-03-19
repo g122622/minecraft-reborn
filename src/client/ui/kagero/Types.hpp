@@ -9,8 +9,8 @@
 
 namespace mc::client::ui::kagero {
 
-// 引入 Colors 命名空间到当前作用域
-using mc::client::Colors;
+// 使用Colors命名空间中的颜色常量
+using namespace mc::client::Colors;
 
 /**
  * @brief 矩形区域

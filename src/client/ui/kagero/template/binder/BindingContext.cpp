@@ -1,0 +1,421 @@
+#include "BindingContext.hpp"
+#include <sstream>
+#include <algorithm>
+#include <cctype>
+
+namespace mc::client::ui::kagero::template::binder {
+
+// ========== Value实现 ==========
+
+Value Value::fromAny(const std::any& any) {
+    if (!any.has_value()) {
+        return Value();
+    }
+
+    const std::type_info& type = any.type();
+
+    if (type == typeid(bool)) {
+        return Value(std::any_cast<bool>(any));
+    }
+    if (type == typeid(i32)) {
+        return Value(std::any_cast<i32>(any));
+    }
+    if (type == typeid(i64)) {
+        return Value(static_cast<i32>(std::any_cast<i64>(any)));
+    }
+    if (type == typeid(u32)) {
+        return Value(static_cast<i32>(std::any_cast<u32>(any)));
+    }
+    if (type == typeid(f32)) {
+        return Value(std::any_cast<f32>(any));
+    }
+    if (type == typeid(f64)) {
+        return Value(static_cast<f32>(std::any_cast<f64>(any)));
+    }
+    if (type == typeid(String)) {
+        return Value(std::any_cast<String>(any));
+    }
+    if (type == typeid(const char*)) {
+        return Value(String(std::any_cast<const char*>(any)));
+    }
+
+    // 不支持的类型
+    return Value();
+}
+
+bool Value::asBool() const {
+    switch (m_type) {
+        case ValueType::Bool: return m_boolValue;
+        case ValueType::Integer: return m_intValue != 0;
+        case ValueType::Float: return m_floatValue != 0.0f;
+        case ValueType::String: return !m_stringValue.empty() && m_stringValue != "false";
+        default: return false;
+    }
+}
+
+i32 Value::asInteger() const {
+    switch (m_type) {
+        case ValueType::Bool: return m_boolValue ? 1 : 0;
+        case ValueType::Integer: return m_intValue;
+        case ValueType::Float: return static_cast<i32>(m_floatValue);
+        case ValueType::String: {
+            try {
+                return std::stoi(m_stringValue);
+            } catch (...) {
+                return 0;
+            }
+        }
+        default: return 0;
+    }
+}
+
+f32 Value::asFloat() const {
+    switch (m_type) {
+        case ValueType::Bool: return m_boolValue ? 1.0f : 0.0f;
+        case ValueType::Integer: return static_cast<f32>(m_intValue);
+        case ValueType::Float: return m_floatValue;
+        case ValueType::String: {
+            try {
+                return std::stof(m_stringValue);
+            } catch (...) {
+                return 0.0f;
+            }
+        }
+        default: return 0.0f;
+    }
+}
+
+const String& Value::asString() const {
+    static const String empty;
+    return m_type == ValueType::String ? m_stringValue : empty;
+}
+
+String Value::toString() const {
+    switch (m_type) {
+        case ValueType::Null: return "null";
+        case ValueType::Bool: return m_boolValue ? "true" : "false";
+        case ValueType::Integer: return std::to_string(m_intValue);
+        case ValueType::Float: return std::to_string(m_floatValue);
+        case ValueType::String: return m_stringValue;
+        default: return "";
+    }
+}
+
+i32 Value::toInteger() const {
+    return asInteger();
+}
+
+f32 Value::toFloat() const {
+    return asFloat();
+}
+
+bool Value::toBool() const {
+    return asBool();
+}
+
+Value Value::getProperty(const String& name) const {
+    // 对于简单值类型，不支持属性访问
+    // 扩展时可以支持对象类型
+    (void)name;
+    return Value();
+}
+
+Value Value::getElement(size_t index) const {
+    // 对于简单值类型，不支持数组访问
+    (void)index;
+    return Value();
+}
+
+bool Value::operator==(const Value& other) const {
+    if (m_type != other.m_type) {
+        // 尝试类型转换比较
+        if (isNumber() && other.isNumber()) {
+            return asFloat() == other.asFloat();
+        }
+        return false;
+    }
+
+    switch (m_type) {
+        case ValueType::Null: return true;
+        case ValueType::Bool: return m_boolValue == other.m_boolValue;
+        case ValueType::Integer: return m_intValue == other.m_intValue;
+        case ValueType::Float: return m_floatValue == other.m_floatValue;
+        case ValueType::String: return m_stringValue == other.m_stringValue;
+        default: return false;
+    }
+}
+
+// ========== BindingContext实现 ==========
+
+BindingContext::BindingContext(state::StateStore& store, event::EventBus& eventBus)
+    : m_store(store)
+    , m_eventBus(eventBus) {
+}
+
+void BindingContext::exposeCallback(const String& name, Callback callback) {
+    m_callbacks[name] = std::move(callback);
+}
+
+void BindingContext::exposeSimpleCallback(const String& name, std::function<void()> callback) {
+    m_callbacks[name] = [callback](widget::Widget*, const event::Event&) {
+        callback();
+    };
+}
+
+bool BindingContext::hasCallback(const String& name) const {
+    return m_callbacks.find(name) != m_callbacks.end();
+}
+
+bool BindingContext::invokeCallback(const String& name, widget::Widget* source,
+                                     const event::Event& event) {
+    auto it = m_callbacks.find(name);
+    if (it == m_callbacks.end()) {
+        return false;
+    }
+
+    it->second(source, event);
+    return true;
+}
+
+Value BindingContext::resolveBinding(const String& path,
+                                      const String& loopVar,
+                                      const Value& loopValue) const {
+    if (path.empty()) {
+        return Value();
+    }
+
+    // 检查是否是循环变量引用 ($varName 或 $varName.property)
+    if (path.size() > 1 && path[0] == '$') {
+        // 解析变量名和属性
+        size_t dotPos = path.find('.');
+        String varName;
+        String property;
+
+        if (dotPos != String::npos) {
+            varName = path.substr(1, dotPos - 1);
+            property = path.substr(dotPos + 1);
+        } else {
+            varName = path.substr(1);
+        }
+
+        // 如果是当前循环变量
+        if (!loopVar.empty() && varName == loopVar) {
+            if (property.empty()) {
+                return loopValue;
+            }
+            return loopValue.getProperty(property);
+        }
+
+        // 查找循环变量表
+        auto loopIt = m_loopVariables.find(varName);
+        if (loopIt != m_loopVariables.end()) {
+            if (property.empty()) {
+                return loopIt->second;
+            }
+            return loopIt->second.getProperty(property);
+        }
+
+        return Value();
+    }
+
+    // 查找暴露的变量
+    auto it = m_exposedVars.find(path);
+    if (it != m_exposedVars.end()) {
+        return it->second.readFunc();
+    }
+
+    // 尝试从StateStore获取
+    if (m_store.has(path)) {
+        // 由于StateStore使用std::any，我们需要尝试几种常见类型
+        // 这里简化处理，实际使用时需要更完善的类型支持
+        return Value(); // 暂时返回空值，后续扩展StateStore的类型支持
+    }
+
+    // 尝试路径解析（嵌套属性）
+    return resolvePath(path);
+}
+
+bool BindingContext::setBinding(const String& path, const Value& value) {
+    auto it = m_exposedVars.find(path);
+    if (it == m_exposedVars.end() || !it->second.isWritable) {
+        return false;
+    }
+
+    if (it->second.writeFunc) {
+        it->second.writeFunc(value);
+        return true;
+    }
+
+    return false;
+}
+
+bool BindingContext::hasPath(const String& path) const {
+    // 检查循环变量
+    if (path.size() > 1 && path[0] == '$') {
+        size_t dotPos = path.find('.');
+        String varName = (dotPos != String::npos) ? path.substr(1, dotPos - 1) : path.substr(1);
+        return m_loopVariables.find(varName) != m_loopVariables.end();
+    }
+
+    // 检查暴露的变量
+    if (m_exposedVars.find(path) != m_exposedVars.end()) {
+        return true;
+    }
+
+    // 检查StateStore
+    return m_store.has(path);
+}
+
+bool BindingContext::isWritable(const String& path) const {
+    auto it = m_exposedVars.find(path);
+    return it != m_exposedVars.end() && it->second.isWritable;
+}
+
+void BindingContext::notifyChange(const String& path, const Value& newValue) {
+    // 通知订阅者
+    auto it = m_subscribers.find(path);
+    if (it != m_subscribers.end()) {
+        for (const auto& [id, callback] : it->second) {
+            callback(path, newValue);
+        }
+    }
+
+    // 调用变量的更新回调
+    auto varIt = m_exposedVars.find(path);
+    if (varIt != m_exposedVars.end() && varIt->second.onUpdate) {
+        varIt->second.onUpdate(path, newValue);
+    }
+}
+
+u64 BindingContext::subscribe(const String& path, StateChangeCallback callback) {
+    u64 id = m_nextSubscriberId++;
+    m_subscribers[path].emplace_back(id, std::move(callback));
+    return id;
+}
+
+void BindingContext::unsubscribe(u64 id) {
+    for (auto& [path, subscribers] : m_subscribers) {
+        auto it = std::remove_if(subscribers.begin(), subscribers.end(),
+                                 [id](const auto& pair) { return pair.first == id; });
+        subscribers.erase(it, subscribers.end());
+    }
+}
+
+void BindingContext::setLoopVariable(const String& varName, const Value& value) {
+    m_loopVariables[varName] = value;
+}
+
+void BindingContext::clearLoopVariable(const String& varName) {
+    m_loopVariables.erase(varName);
+}
+
+Value BindingContext::getLoopVariable(const String& varName) const {
+    auto it = m_loopVariables.find(varName);
+    return it != m_loopVariables.end() ? it->second : Value();
+}
+
+bool BindingContext::hasLoopVariable(const String& varName) const {
+    return m_loopVariables.find(varName) != m_loopVariables.end();
+}
+
+void BindingContext::clear() {
+    m_exposedVars.clear();
+    m_callbacks.clear();
+    m_subscribers.clear();
+    m_loopVariables.clear();
+}
+
+Value BindingContext::resolvePath(const String& path) const {
+    // 分割路径并逐层解析
+    std::vector<String> parts = splitPath(path);
+
+    if (parts.empty()) {
+        return Value();
+    }
+
+    // 第一部分应该是暴露的变量或StateStore中的键
+    String rootKey = parts[0];
+    Value current;
+
+    // 检查暴露的变量
+    auto it = m_exposedVars.find(rootKey);
+    if (it != m_exposedVars.end()) {
+        current = it->second.readFunc();
+    } else if (m_store.has(rootKey)) {
+        // 从StateStore获取（简化处理）
+        current = Value();
+    } else {
+        return Value();
+    }
+
+    // 遍历剩余路径
+    for (size_t i = 1; i < parts.size(); ++i) {
+        const String& part = parts[i];
+
+        // 检查是否是数组索引
+        if (!part.empty() && part[0] == '[' && part.back() == ']') {
+            String indexStr = part.substr(1, part.size() - 2);
+            try {
+                size_t index = static_cast<size_t>(std::stoul(indexStr));
+                current = current.getElement(index);
+            } catch (...) {
+                return Value();
+            }
+        } else {
+            current = current.getProperty(part);
+        }
+
+        if (current.isNull()) {
+            return Value();
+        }
+    }
+
+    return current;
+}
+
+std::vector<String> BindingContext::splitPath(const String& path) const {
+    std::vector<String> parts;
+    std::string current;
+    bool inBracket = false;
+
+    for (char c : path) {
+        if (c == '.') {
+            if (!inBracket && !current.empty()) {
+                parts.push_back(current);
+                current.clear();
+            } else {
+                current += c;
+            }
+        } else if (c == '[') {
+            if (!inBracket) {
+                if (!current.empty()) {
+                    parts.push_back(current);
+                    current.clear();
+                }
+                current += c;
+                inBracket = true;
+            } else {
+                current += c;
+            }
+        } else if (c == ']') {
+            if (inBracket) {
+                current += c;
+                inBracket = false;
+                parts.push_back(current);
+                current.clear();
+            } else {
+                current += c;
+            }
+        } else {
+            current += c;
+        }
+    }
+
+    if (!current.empty()) {
+        parts.push_back(current);
+    }
+
+    return parts;
+}
+
+} // namespace mc::client::ui::kagero::template::binder

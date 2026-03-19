@@ -1,0 +1,385 @@
+#pragma once
+
+#include "../../state/StateStore.hpp"
+#include "../../state/ReactiveState.hpp"
+#include "../../event/EventBus.hpp"
+#include "../../widget/Widget.hpp"
+#include <functional>
+#include <unordered_map>
+#include <any>
+#include <typeindex>
+
+namespace mc::client::ui::kagero::template::binder {
+
+/**
+ * @brief 动态值类型
+ *
+ * 用于在运行时存储和传递任意类型的值
+ */
+class Value {
+public:
+    Value() : m_type(ValueType::Null) {}
+
+    // 基本类型构造
+    explicit Value(std::nullptr_t) : m_type(ValueType::Null) {}
+    explicit Value(bool v) : m_type(ValueType::Bool), m_boolValue(v) {}
+    explicit Value(i32 v) : m_type(ValueType::Integer), m_intValue(v) {}
+    explicit Value(f32 v) : m_type(ValueType::Float), m_floatValue(v) {}
+    explicit Value(const String& v) : m_type(ValueType::String), m_stringValue(v) {}
+    explicit Value(String&& v) : m_type(ValueType::String), m_stringValue(std::move(v)) {}
+
+    // 从std::any构造
+    static Value fromAny(const std::any& any);
+
+    // 类型检查
+    [[nodiscard]] bool isNull() const { return m_type == ValueType::Null; }
+    [[nodiscard]] bool isBool() const { return m_type == ValueType::Bool; }
+    [[nodiscard]] bool isInteger() const { return m_type == ValueType::Integer; }
+    [[nodiscard]] bool isFloat() const { return m_type == ValueType::Float; }
+    [[nodiscard]] bool isString() const { return m_type == ValueType::String; }
+    [[nodiscard]] bool isNumber() const { return isInteger() || isFloat(); }
+
+    // 值获取
+    [[nodiscard]] bool asBool() const;
+    [[nodiscard]] i32 asInteger() const;
+    [[nodiscard]] f32 asFloat() const;
+    [[nodiscard]] const String& asString() const;
+    [[nodiscard]] String toString() const;
+
+    // 类型转换
+    [[nodiscard]] i32 toInteger() const;
+    [[nodiscard]] f32 toFloat() const;
+    [[nodiscard]] bool toBool() const;
+
+    // 比较
+    bool operator==(const Value& other) const;
+    bool operator!=(const Value& other) const { return !(*this == other); }
+
+    // 获取属性（用于路径解析）
+    [[nodiscard]] Value getProperty(const String& name) const;
+
+    // 获取数组元素
+    [[nodiscard]] Value getElement(size_t index) const;
+
+    // 类型枚举
+    enum class ValueType : u8 {
+        Null,
+        Bool,
+        Integer,
+        Float,
+        String
+    };
+
+    [[nodiscard]] ValueType type() const { return m_type; }
+
+private:
+    ValueType m_type;
+    bool m_boolValue = false;
+    i32 m_intValue = 0;
+    f32 m_floatValue = 0.0f;
+    String m_stringValue;
+};
+
+/**
+ * @brief 绑定上下文
+ *
+ * 连接模板实例与C++状态管理系统的桥梁。
+ * 支持暴露变量供模板绑定，以及暴露回调供事件调用。
+ *
+ * 使用示例：
+ * @code
+ * BindingContext ctx(stateStore, eventBus);
+ *
+ * // 暴露变量
+ * ctx.expose("player.name", &playerName);
+ * ctx.expose("player.health", &playerHealth);
+ *
+ * // 暴露回调
+ * ctx.exposeCallback("onStartGame", [](Widget* w, const Event& e) {
+ *     // 处理点击
+ * });
+ *
+ * // 解析绑定路径
+ * Value name = ctx.resolveBinding("player.name");
+ * @endcode
+ */
+class BindingContext {
+public:
+    /**
+     * @brief 回调类型
+     */
+    using Callback = std::function<void(widget::Widget*, const event::Event&)>;
+
+    /**
+     * @brief 状态变化回调
+     */
+    using StateChangeCallback = std::function<void(const String& path, const Value& newValue)>;
+
+    /**
+     * @brief 构造函数
+     * @param store 状态存储
+     * @param eventBus 事件总线
+     */
+    BindingContext(state::StateStore& store, event::EventBus& eventBus);
+
+    /**
+     * @brief 析构函数
+     */
+    ~BindingContext() = default;
+
+    // 禁止拷贝
+    BindingContext(const BindingContext&) = delete;
+    BindingContext& operator=(const BindingContext&) = delete;
+
+    // 允许移动
+    BindingContext(BindingContext&&) noexcept = default;
+    BindingContext& operator=(BindingContext&&) noexcept = default;
+
+    // ========== 变量暴露 ==========
+
+    /**
+     * @brief 暴露C++变量供模板绑定（只读）
+     *
+     * @tparam T 变量类型
+     * @param path 绑定路径（如 "player.name"）
+     * @param ptr 变量指针
+     * @param onUpdate 可选的更新回调
+     */
+    template<typename T>
+    void expose(const String& path, const T* ptr, StateChangeCallback onUpdate = nullptr) {
+        ExposedVar var;
+        var.ptr = const_cast<T*>(ptr);
+        var.typeId = typeid(T).hash_code();
+        var.typeName = typeid(T).name();
+        var.readFunc = [ptr]() -> Value { return Value(*ptr); };
+        var.onUpdate = std::move(onUpdate);
+        m_exposedVars[path] = std::move(var);
+    }
+
+    /**
+     * @brief 暴露C++变量供模板绑定（可写）
+     *
+     * @tparam T 变量类型
+     * @param path 绑定路径
+     * @param ptr 变量指针
+     * @param onUpdate 可选的更新回调
+     */
+    template<typename T>
+    void exposeWritable(const String& path, T* ptr, StateChangeCallback onUpdate = nullptr) {
+        ExposedVar var;
+        var.ptr = ptr;
+        var.typeId = typeid(T).hash_code();
+        var.typeName = typeid(T).name();
+        var.isWritable = true;
+        var.readFunc = [ptr]() -> Value { return Value(*ptr); };
+        var.writeFunc = [ptr](const Value& v) { *ptr = static_cast<T>(v.toFloat()); };
+        var.onUpdate = std::move(onUpdate);
+        m_exposedVars[path] = std::move(var);
+    }
+
+    /**
+     * @brief 暴露Reactive状态
+     *
+     * @tparam T 状态类型
+     * @param path 绑定路径
+     * @param reactive 响应式状态引用
+     */
+    template<typename T>
+    void exposeReactive(const String& path, state::Reactive<T>& reactive) {
+        // 暴露读取
+        ExposedVar var;
+        var.ptr = &reactive;
+        var.typeId = typeid(T).hash_code();
+        var.typeName = typeid(T).name();
+        var.isWritable = true;
+        var.readFunc = [&reactive]() -> Value { return Value(reactive.get()); };
+        var.writeFunc = [&reactive](const Value& v) {
+            reactive.set(static_cast<T>(v.toFloat()));
+        };
+        m_exposedVars[path] = std::move(var);
+
+        // 订阅变化
+        reactive.observe([this, path](const T& oldValue, const T& newValue) {
+            (void)oldValue;
+            notifyChange(path, Value(newValue));
+        });
+    }
+
+    // ========== 回调暴露 ==========
+
+    /**
+     * @brief 暴露C++回调供模板事件调用
+     *
+     * @param name 回调名称（如 "onStartGame"）
+     * @param callback 回调函数
+     */
+    void exposeCallback(const String& name, Callback callback);
+
+    /**
+     * @brief 暴露简单回调（无参数）
+     *
+     * @param name 回调名称
+     * @param callback 回调函数
+     */
+    void exposeSimpleCallback(const String& name, std::function<void()> callback);
+
+    /**
+     * @brief 检查回调是否存在
+     */
+    [[nodiscard]] bool hasCallback(const String& name) const;
+
+    /**
+     * @brief 调用回调
+     *
+     * @param name 回调名称
+     * @param source 事件源Widget
+     * @param event 事件对象
+     * @return 是否成功调用
+     */
+    bool invokeCallback(const String& name, widget::Widget* source, const event::Event& event);
+
+    // ========== 绑定解析 ==========
+
+    /**
+     * @brief 解析绑定路径获取值
+     *
+     * @param path 绑定路径（如 "player.name" 或 "$slot.item"）
+     * @param loopVar 当前循环变量名（如 "slot"）
+     * @param loopValue 当前循环变量值
+     * @return 解析后的值
+     */
+    [[nodiscard]] Value resolveBinding(const String& path,
+                                        const String& loopVar = "",
+                                        const Value& loopValue = Value()) const;
+
+    /**
+     * @brief 设置绑定路径的值
+     *
+     * @param path 绑定路径
+     * @param value 新值
+     * @return 是否成功设置
+     */
+    bool setBinding(const String& path, const Value& value);
+
+    /**
+     * @brief 检查路径是否存在
+     */
+    [[nodiscard]] bool hasPath(const String& path) const;
+
+    /**
+     * @brief 检查路径是否可写
+     */
+    [[nodiscard]] bool isWritable(const String& path) const;
+
+    // ========== 状态变更通知 ==========
+
+    /**
+     * @brief 通知状态变更
+     *
+     * 当C++状态变更时调用，触发所有订阅该路径的回调
+     *
+     * @param path 变更的路径
+     * @param newValue 新值
+     */
+    void notifyChange(const String& path, const Value& newValue);
+
+    /**
+     * @brief 订阅路径变更
+     *
+     * @param path 路径
+     * @param callback 变更回调
+     * @return 订阅ID
+     */
+    u64 subscribe(const String& path, StateChangeCallback callback);
+
+    /**
+     * @brief 取消订阅
+     */
+    void unsubscribe(u64 id);
+
+    // ========== 循环变量 ==========
+
+    /**
+     * @brief 设置循环变量
+     *
+     * 在循环渲染时设置当前循环变量的值
+     *
+     * @param varName 变量名（如 "slot"）
+     * @param value 变量值
+     */
+    void setLoopVariable(const String& varName, const Value& value);
+
+    /**
+     * @brief 清除循环变量
+     */
+    void clearLoopVariable(const String& varName);
+
+    /**
+     * @brief 获取循环变量
+     */
+    [[nodiscard]] Value getLoopVariable(const String& varName) const;
+
+    /**
+     * @brief 检查循环变量是否存在
+     */
+    [[nodiscard]] bool hasLoopVariable(const String& varName) const;
+
+    // ========== 工具方法 ==========
+
+    /**
+     * @brief 获取状态存储
+     */
+    [[nodiscard]] state::StateStore& store() { return m_store; }
+    [[nodiscard]] const state::StateStore& store() const { return m_store; }
+
+    /**
+     * @brief 获取事件总线
+     */
+    [[nodiscard]] event::EventBus& eventBus() { return m_eventBus; }
+    [[nodiscard]] const event::EventBus& eventBus() const { return m_eventBus; }
+
+    /**
+     * @brief 清除所有暴露的变量和回调
+     */
+    void clear();
+
+private:
+    /**
+     * @brief 暴露的变量信息
+     */
+    struct ExposedVar {
+        void* ptr = nullptr;                        ///< 变量指针
+        size_t typeId = 0;                          ///< 类型ID
+        const char* typeName = "";                  ///< 类型名称
+        bool isWritable = false;                    ///< 是否可写
+        std::function<Value()> readFunc;            ///< 读取函数
+        std::function<void(const Value&)> writeFunc;///< 写入函数
+        StateChangeCallback onUpdate;               ///< 更新回调
+    };
+
+    /**
+     * @brief 从路径中解析属性访问
+     *
+     * 支持:
+     * - "path.to.value" 格式
+     * - "array[index]" 格式
+     */
+    [[nodiscard]] Value resolvePath(const String& path) const;
+
+    /**
+     * @brief 分割路径
+     */
+    [[nodiscard]] std::vector<String> splitPath(const String& path) const;
+
+    state::StateStore& m_store;
+    event::EventBus& m_eventBus;
+
+    std::unordered_map<String, ExposedVar> m_exposedVars;
+    std::unordered_map<String, Callback> m_callbacks;
+    std::unordered_map<String, std::vector<std::pair<u64, StateChangeCallback>>> m_subscribers;
+    std::unordered_map<String, Value> m_loopVariables;
+
+    u64 m_nextSubscriberId = 1;
+};
+
+} // namespace mc::client::ui::kagero::template::binder

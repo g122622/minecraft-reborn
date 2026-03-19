@@ -105,6 +105,8 @@ add_executable(mc_tests
     lighting/LightUpdateTest.cpp
     # 环境光遮蔽测试
     client/renderer/AmbientOcclusionCalculatorTest.cpp
+    # Kagero UI模板系统测试
+    ui/kagero/template/template_test.cpp
 )
 
 # 添加服务端源文件
@@ -267,6 +269,16 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/common/resource/compat/v1_12/ResourceMapperV112.cpp
         ${CMAKE_SOURCE_DIR}/src/common/resource/compat/v1_13/ResourceMapperV113.cpp
         ${CMAKE_SOURCE_DIR}/src/common/resource/loader/ResourceLoader.cpp
+        # Kagero UI模板系统
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/parser/Ast.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/parser/AstVisitor.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/parser/Lexer.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/parser/Parser.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/binder/BindingContext.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/compiler/TemplateCompiler.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/runtime/TemplateInstance.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/bindings/BuiltinWidgets.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/bindings/BuiltinEvents.cpp
 )
 
 target_link_libraries(mc_tests

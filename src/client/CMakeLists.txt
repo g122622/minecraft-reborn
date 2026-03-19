@@ -79,6 +79,16 @@ add_executable(minecraft-client
     ui/screen/CraftingScreen.cpp
     ui/chat/ChatHistory.cpp
     ui/chat/ChatScreen.cpp
+    # UI Kagero模板系统
+    ui/kagero/template/parser/Ast.cpp
+    ui/kagero/template/parser/AstVisitor.cpp
+    ui/kagero/template/parser/Lexer.cpp
+    ui/kagero/template/parser/Parser.cpp
+    ui/kagero/template/binder/BindingContext.cpp
+    ui/kagero/template/compiler/TemplateCompiler.cpp
+    ui/kagero/template/runtime/TemplateInstance.cpp
+    ui/kagero/template/bindings/BuiltinWidgets.cpp
+    ui/kagero/template/bindings/BuiltinEvents.cpp
     # 客户端实体管理
     world/entity/ClientEntity.cpp
     world/entity/ClientEntityManager.cpp
