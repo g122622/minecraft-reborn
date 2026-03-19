@@ -2,6 +2,7 @@
 
 #include "EntityType.hpp"
 #include "EntityRegistry.hpp"
+#include "EntitySpawnPlacementRegistry.hpp"
 #include "animal/PigEntity.hpp"
 #include "animal/CowEntity.hpp"
 #include "animal/SheepEntity.hpp"
@@ -118,6 +119,10 @@ private:
 
         // ========== 玩家 ==========
         // 玩家实体类型由 Player 类自行管理
+
+        // ========== 初始化生成放置规则 ==========
+        // 这必须在实体注册完成后调用
+        world::spawn::EntitySpawnPlacementRegistry::initializeDefaults();
 
         spdlog::info("Registered {} entity types", registry.size());
     }

@@ -134,8 +134,8 @@ TEST_F(WorldGenSpawnerTest, SpawnEntryCustomValues) {
 TEST_F(WorldGenSpawnerTest, SpawnEntryWithCosts) {
     world::spawn::SpawnCosts costs(0.5, 1.0);
     world::spawn::SpawnEntry entry("minecraft:zombie", 80, 3, 6, costs);
-    EXPECT_EQ(entry.costs.entityCost, 0.5);
-    EXPECT_EQ(entry.costs.maxCost, 1.0);
+    EXPECT_EQ(entry.costs.energyBudget, 0.5);
+    EXPECT_EQ(entry.costs.charge, 1.0);
 }
 
 // ========== Biome 集成测试 ==========

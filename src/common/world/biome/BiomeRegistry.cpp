@@ -219,6 +219,7 @@ Biome createMountains()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::STONE));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::STONE));
     biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createMountains());
     return biome;
 }
 
@@ -268,6 +269,7 @@ Biome createDeepOcean()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createOcean());
     return biome;
 }
 
@@ -283,6 +285,7 @@ Biome createTaiga()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createTaiga());
     return biome;
 }
 
@@ -299,6 +302,7 @@ Biome createSnowyTaiga()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createSnowy());
     return biome;
 }
 
@@ -314,6 +318,7 @@ Biome createJungle()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createJungle());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createJungle());
     return biome;
 }
 
@@ -329,6 +334,7 @@ Biome createSavanna()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createSavanna());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createSavanna());
     return biome;
 }
 
@@ -344,6 +350,7 @@ Biome createShatteredSavanna()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createSavanna());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createSavanna());
     return biome;
 }
 
@@ -359,6 +366,7 @@ Biome createSavannaPlateau()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createSavanna());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createSavanna());
     return biome;
 }
 
@@ -479,6 +487,7 @@ Biome createSwamp()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createSwamp());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createSwamp());
     return biome;
 }
 
@@ -494,6 +503,7 @@ Biome createRiver()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createPlains());
     return biome;
 }
 
@@ -509,6 +519,7 @@ Biome createWoodedHills()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createForest());
     return biome;
 }
 
@@ -524,6 +535,7 @@ Biome createBirchForest()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createForest());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createForest());
     return biome;
 }
 
@@ -539,6 +551,7 @@ Biome createDarkForest()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createForest());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createForest());
     return biome;
 }
 
@@ -555,6 +568,7 @@ Biome createSnowyPlains()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createSnowy());
     return biome;
 }
 
@@ -570,6 +584,7 @@ Biome createGiantTreeTaiga()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createForest());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createTaiga());
     return biome;
 }
 
@@ -585,6 +600,7 @@ Biome createWoodedMountains()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createMountains());
     return biome;
 }
 
@@ -600,6 +616,7 @@ Biome createMountainEdge()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createMountains());
     return biome;
 }
 
@@ -615,6 +632,7 @@ Biome createFrozenOcean()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createOcean());
     return biome;
 }
 
@@ -630,6 +648,7 @@ Biome createFrozenRiver()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createSnowy());
     return biome;
 }
 
@@ -645,6 +664,7 @@ Biome createSnowyMountains()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createSnowy());
     return biome;
 }
 
@@ -660,6 +680,7 @@ Biome createIceSpikes()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createIceSpikes());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createSnowy());
     return biome;
 }
 
@@ -675,6 +696,7 @@ Biome createDeepFrozenOcean()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createOcean());
     return biome;
 }
 
@@ -695,6 +717,7 @@ Biome createWarmOcean()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::SAND));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::SAND));
     biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createOcean());
     return biome;
 }
 
@@ -710,6 +733,7 @@ Biome createLukewarmOcean()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createOcean());
     return biome;
 }
 
@@ -725,6 +749,7 @@ Biome createColdOcean()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createOcean());
     return biome;
 }
 
@@ -740,6 +765,7 @@ Biome createDeepWarmOcean()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::SAND));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::SAND));
     biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createOcean());
     return biome;
 }
 
@@ -755,6 +781,7 @@ Biome createDeepLukewarmOcean()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createOcean());
     return biome;
 }
 
@@ -770,6 +797,7 @@ Biome createDeepColdOcean()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createOcean());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createOcean());
     return biome;
 }
 
@@ -785,6 +813,7 @@ Biome createJungleHills()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createJungle());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createJungle());
     return biome;
 }
 
@@ -800,6 +829,7 @@ Biome createJungleEdge()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createJungle());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createJungle());
     return biome;
 }
 
@@ -816,6 +846,7 @@ Biome createBambooJungle()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createJungle());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createJungle());
     return biome;
 }
 
@@ -831,6 +862,7 @@ Biome createBambooJungleHills()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createJungle());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createJungle());
     return biome;
 }
 
@@ -846,6 +878,7 @@ Biome createBirchForestHills()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createForest());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createForest());
     return biome;
 }
 
@@ -861,6 +894,7 @@ Biome createFlowerForest()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createFlowerForest());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createForest());
     return biome;
 }
 
@@ -877,6 +911,7 @@ Biome createTallBirchForest()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createForest());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createForest());
     return biome;
 }
 
@@ -892,6 +927,7 @@ Biome createTallBirchHills()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createForest());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createForest());
     return biome;
 }
 
@@ -907,6 +943,7 @@ Biome createDarkForestHills()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createForest());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createForest());
     return biome;
 }
 
@@ -923,6 +960,7 @@ Biome createMushroomFields()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createEmpty()); // 蘑菇岛没有普通生物
     return biome;
 }
 
@@ -939,6 +977,7 @@ Biome createMushroomFieldShore()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createEmpty());
     return biome;
 }
 
@@ -954,6 +993,7 @@ Biome createDesertHills()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::SAND));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::SAND));
     biome.setGenerationSettings(BiomeGenerationSettings::createDesert());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createDesert());
     return biome;
 }
 
@@ -969,6 +1009,7 @@ Biome createTaigaHills()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createTaiga());
     return biome;
 }
 
@@ -984,6 +1025,7 @@ Biome createGiantSpruceTaiga()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createTaiga());
     return biome;
 }
 
@@ -999,6 +1041,7 @@ Biome createGiantSpruceTaigaHills()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createTaiga());
     return biome;
 }
 
@@ -1018,6 +1061,7 @@ Biome createSunflowerPlains()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createPlains());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createPlains());
     return biome;
 }
 
@@ -1033,6 +1077,7 @@ Biome createDesertLakes()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::SAND));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::SAND));
     biome.setGenerationSettings(BiomeGenerationSettings::createDesert());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createDesert());
     return biome;
 }
 
@@ -1048,6 +1093,7 @@ Biome createGravellyMountains()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::STONE));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::STONE));
     biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createMountains());
     return biome;
 }
 
@@ -1063,6 +1109,7 @@ Biome createTaigaMountains()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createTaiga());
     return biome;
 }
 
@@ -1078,6 +1125,7 @@ Biome createSwampHills()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createSwamp());
     return biome;
 }
 
@@ -1093,6 +1141,7 @@ Biome createModifiedJungle()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createJungle());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createJungle());
     return biome;
 }
 
@@ -1108,6 +1157,7 @@ Biome createModifiedJungleEdge()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createJungle());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createJungle());
     return biome;
 }
 
@@ -1123,6 +1173,7 @@ Biome createSnowyTaigaMountains()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createSnowy());
     return biome;
 }
 
@@ -1138,6 +1189,7 @@ Biome createModifiedGravellyMountains()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::STONE));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::STONE));
     biome.setGenerationSettings(BiomeGenerationSettings::createMountains());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createMountains());
     return biome;
 }
 
@@ -1153,6 +1205,7 @@ Biome createShatteredSavannaPlateau()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createSavanna());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createSavanna());
     return biome;
 }
 
@@ -1168,6 +1221,7 @@ Biome createModifiedWoodedBadlandsPlateau()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::COBBLESTONE));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::RED_SANDSTONE));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createDesert());
     return biome;
 }
 
@@ -1183,6 +1237,7 @@ Biome createModifiedBadlandsPlateau()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::COBBLESTONE));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::RED_SANDSTONE));
     biome.setGenerationSettings(BiomeGenerationSettings::createDefault());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createDesert());
     return biome;
 }
 
@@ -1199,6 +1254,7 @@ Biome createGiantTreeTaigaHillsBiome()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createForest());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createTaiga());
     return biome;
 }
 
@@ -1214,6 +1270,7 @@ Biome createSnowyTaigaHills()
     biome.setSubSurfaceBlock(getBlockState(VanillaBlocks::DIRT));
     biome.setUnderWaterBlock(getBlockState(VanillaBlocks::GRAVEL));
     biome.setGenerationSettings(BiomeGenerationSettings::createTaiga());
+    biome.setSpawnInfo(world::spawn::MobSpawnInfo::createSnowy());
     return biome;
 }
 

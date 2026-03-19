@@ -1,8 +1,10 @@
 #pragma once
 
 #include "../../core/Types.hpp"
+#include "../../entity/EntityClassification.hpp"
 #include <vector>
 #include <string>
+#include <unordered_map>
 
 namespace mc::world::spawn {
 
@@ -13,16 +15,36 @@ namespace mc::world::spawn {
  * 用于限制高密度区域内的实体数量。
  *
  * 参考 MC 1.16.5 SpawnCosts
+ *
+ * 字段命名与MC原版对应：
+ * - energy_budget: 能量预算，限制区域内的总生成成本
+ * - charge: 单个实体的"充电"成本
  */
 struct SpawnCosts {
-    /// 基础成本（单个实体的成本）
-    f64 entityCost = 1.0;
+    /// 能量预算（区域内允许的最大生成成本总和）
+    /// 对应MC原版的 energy_budget
+    f64 energyBudget = 0.0;
 
-    /// 最大成本上限（超过此值不再生成）
-    f64 maxCost = 0.0;
+    /// 单个实体的充电成本（增加给区域的成本）
+    /// 对应MC原版的 charge
+    f64 charge = 0.0;
 
     SpawnCosts() = default;
-    SpawnCosts(f64 entity, f64 max) : entityCost(entity), maxCost(max) {}
+
+    /**
+     * @brief 构造生成成本
+     * @param budget 能量预算（最大总成本）
+     * @param chargePerEntity 每个实体的成本
+     */
+    SpawnCosts(f64 budget, f64 chargePerEntity)
+        : energyBudget(budget), charge(chargePerEntity) {}
+
+    /**
+     * @brief 检查是否有效（有成本限制）
+     */
+    [[nodiscard]] bool isValid() const {
+        return energyBudget > 0.0 && charge > 0.0;
+    }
 };
 
 /**
@@ -71,12 +93,9 @@ struct SpawnEntry {
  *
  * 定义特定实体分类（怪物、动物、环境等）的生成配置。
  *
- * 参考 MC 1.16.5 MobSpawnInfo.SpawnCosts
+ * 参考 MC 1.16.5 MobSpawnInfo.Spawners
  */
 struct SpawnCategory {
-    /// 实体分类（怪物、动物、环境等）
-    // TODO: 使用 EntityClassification enum
-
     /// 该分类的生成条目列表
     std::vector<SpawnEntry> entries;
 
@@ -88,6 +107,8 @@ struct SpawnCategory {
 
     SpawnCategory() = default;
 
+    explicit SpawnCategory(i32 maxInst) : maxInstances(maxInst) {}
+
     void addEntry(const SpawnEntry& entry) {
         entries.push_back(entry);
     }
@@ -95,17 +116,127 @@ struct SpawnCategory {
     void addEntry(SpawnEntry&& entry) {
         entries.push_back(std::move(entry));
     }
+
+    /**
+     * @brief 计算所有条目的总权重
+     */
+    [[nodiscard]] i32 getTotalWeight() const {
+        i32 total = 0;
+        for (const auto& entry : entries) {
+            total += entry.weight;
+        }
+        return total;
+    }
 };
 
 /**
  * @brief 生物群系实体生成信息
  *
  * 定义在特定生物群系中可以生成的实体类型及其配置。
+ * 包含生成概率、各分类的生成列表、生成成本等完整信息。
  *
  * 参考 MC 1.16.5 MobSpawnInfo
  */
 class MobSpawnInfo {
 public:
+    /**
+     * @brief 构建器类
+     *
+     * 用于流式构建 MobSpawnInfo 对象
+     */
+    class Builder {
+    public:
+        Builder() = default;
+
+        /**
+         * @brief 添加生成条目
+         * @param classification 实体分类
+         * @param entry 生成条目
+         * @return Builder引用
+         */
+        Builder& addSpawn(entity::EntityClassification classification, const SpawnEntry& entry) {
+            switch (classification) {
+                case entity::EntityClassification::Monster:
+                    m_monsters.addEntry(entry);
+                    break;
+                case entity::EntityClassification::Creature:
+                    m_creatures.addEntry(entry);
+                    break;
+                case entity::EntityClassification::Ambient:
+                    m_ambient.addEntry(entry);
+                    break;
+                case entity::EntityClassification::WaterCreature:
+                    m_waterCreatures.addEntry(entry);
+                    break;
+                case entity::EntityClassification::WaterAmbient:
+                    m_waterAmbient.addEntry(entry);
+                    break;
+                case entity::EntityClassification::Misc:
+                    m_misc.addEntry(entry);
+                    break;
+            }
+            return *this;
+        }
+
+        /**
+         * @brief 设置生成成本
+         * @param entityTypeId 实体类型ID
+         * @param costs 生成成本
+         * @return Builder引用
+         */
+        Builder& setSpawnCost(const String& entityTypeId, const SpawnCosts& costs) {
+            m_spawnCosts[entityTypeId] = costs;
+            return *this;
+        }
+
+        /**
+         * @brief 设置动物生成概率
+         * @param probability 概率值（默认 0.1F）
+         * @return Builder引用
+         */
+        Builder& setCreatureSpawnProbability(f32 probability) {
+            m_creatureSpawnProbability = probability;
+            return *this;
+        }
+
+        /**
+         * @brief 设置为适合玩家生成
+         * @return Builder引用
+         */
+        Builder& setPlayerSpawnFriendly() {
+            m_playerSpawnFriendly = true;
+            return *this;
+        }
+
+        /**
+         * @brief 构建最终的 MobSpawnInfo
+         */
+        MobSpawnInfo build() const {
+            MobSpawnInfo info;
+            info.m_monsters = m_monsters;
+            info.m_creatures = m_creatures;
+            info.m_ambient = m_ambient;
+            info.m_waterCreatures = m_waterCreatures;
+            info.m_waterAmbient = m_waterAmbient;
+            info.m_misc = m_misc;
+            info.m_spawnCosts = m_spawnCosts;
+            info.m_creatureSpawnProbability = m_creatureSpawnProbability;
+            info.m_playerSpawnFriendly = m_playerSpawnFriendly;
+            return info;
+        }
+
+    private:
+        SpawnCategory m_monsters;
+        SpawnCategory m_creatures;
+        SpawnCategory m_ambient;
+        SpawnCategory m_waterCreatures;
+        SpawnCategory m_waterAmbient;
+        SpawnCategory m_misc;
+        std::unordered_map<String, SpawnCosts> m_spawnCosts;
+        f32 m_creatureSpawnProbability = 0.1f;
+        bool m_playerSpawnFriendly = false;
+    };
+
     MobSpawnInfo() = default;
 
     // ========== 生成条目管理 ==========
@@ -139,13 +270,55 @@ public:
     }
 
     /**
+     * @brief 添加水生环境生物生成条目（小鱼等）
+     */
+    void addWaterAmbientSpawn(const SpawnEntry& entry) {
+        m_waterAmbient.addEntry(entry);
+    }
+
+    /**
      * @brief 添加其他生成条目
      */
     void addMiscSpawn(const SpawnEntry& entry) {
         m_misc.addEntry(entry);
     }
 
+    /**
+     * @brief 设置生成成本
+     * @param entityTypeId 实体类型ID
+     * @param costs 生成成本
+     */
+    void setSpawnCost(const String& entityTypeId, const SpawnCosts& costs) {
+        m_spawnCosts[entityTypeId] = costs;
+    }
+
     // ========== 获取生成条目 ==========
+
+    /**
+     * @brief 根据实体分类获取生成列表
+     * @param classification 实体分类
+     * @return 对应分类的生成列表
+     *
+     * 参考 MC 1.16.5 MobSpawnInfo.func_242559_a
+     */
+    [[nodiscard]] const std::vector<SpawnEntry>& getSpawns(
+        entity::EntityClassification classification) const {
+        switch (classification) {
+            case entity::EntityClassification::Monster:
+                return m_monsters.entries;
+            case entity::EntityClassification::Creature:
+                return m_creatures.entries;
+            case entity::EntityClassification::Ambient:
+                return m_ambient.entries;
+            case entity::EntityClassification::WaterCreature:
+                return m_waterCreatures.entries;
+            case entity::EntityClassification::WaterAmbient:
+                return m_waterAmbient.entries;
+            case entity::EntityClassification::Misc:
+            default:
+                return m_misc.entries;
+        }
+    }
 
     [[nodiscard]] const std::vector<SpawnEntry>& getMonsterSpawns() const {
         return m_monsters.entries;
@@ -163,8 +336,24 @@ public:
         return m_waterCreatures.entries;
     }
 
+    [[nodiscard]] const std::vector<SpawnEntry>& getWaterAmbientSpawns() const {
+        return m_waterAmbient.entries;
+    }
+
     [[nodiscard]] const std::vector<SpawnEntry>& getMiscSpawns() const {
         return m_misc.entries;
+    }
+
+    /**
+     * @brief 获取实体的生成成本
+     * @param entityTypeId 实体类型ID
+     * @return 生成成本指针，如果不存在返回 nullptr
+     *
+     * 参考 MC 1.16.5 MobSpawnInfo.func_242558_a
+     */
+    [[nodiscard]] const SpawnCosts* getSpawnCost(const String& entityTypeId) const {
+        auto it = m_spawnCosts.find(entityTypeId);
+        return it != m_spawnCosts.end() ? &it->second : nullptr;
     }
 
     // ========== 分类配置 ==========
@@ -174,6 +363,52 @@ public:
 
     [[nodiscard]] i32 getMaxCreatureInstances() const { return m_creatures.maxInstances; }
     void setMaxCreatureInstances(i32 max) { m_creatures.maxInstances = max; }
+
+    [[nodiscard]] i32 getMaxAmbientInstances() const { return m_ambient.maxInstances; }
+    void setMaxAmbientInstances(i32 max) { m_ambient.maxInstances = max; }
+
+    [[nodiscard]] i32 getMaxWaterCreatureInstances() const { return m_waterCreatures.maxInstances; }
+    void setMaxWaterCreatureInstances(i32 max) { m_waterCreatures.maxInstances = max; }
+
+    [[nodiscard]] i32 getMaxWaterAmbientInstances() const { return m_waterAmbient.maxInstances; }
+    void setMaxWaterAmbientInstances(i32 max) { m_waterAmbient.maxInstances = max; }
+
+    // ========== 生物群系特性 ==========
+
+    /**
+     * @brief 获取动物生成概率
+     *
+     * 参考 MC 1.16.5 MobSpawnInfo.func_242557_a
+     * 这是区块生成时放置动物的基础概率
+     * 默认值为 0.1F (10%)
+     */
+    [[nodiscard]] f32 getCreatureSpawnProbability() const {
+        return m_creatureSpawnProbability;
+    }
+
+    /**
+     * @brief 设置动物生成概率
+     */
+    void setCreatureSpawnProbability(f32 probability) {
+        m_creatureSpawnProbability = probability;
+    }
+
+    /**
+     * @brief 是否适合玩家生成
+     *
+     * 参考 MC 1.16.5 MobSpawnInfo.func_242562_b
+     * 用于判断是否可以在该生物群系生成玩家
+     */
+    [[nodiscard]] bool isPlayerSpawnFriendly() const {
+        return m_playerSpawnFriendly;
+    }
+
+    /**
+     * @brief 设置是否适合玩家生成
+     */
+    void setPlayerSpawnFriendly(bool friendly) {
+        m_playerSpawnFriendly = friendly;
+    }
 
     // ========== 工厂方法 ==========
 
@@ -197,18 +432,67 @@ public:
      */
     static MobSpawnInfo createOcean();
 
+    /**
+     * @brief 创建针叶林生物群系的生成信息
+     */
+    static MobSpawnInfo createTaiga();
+
+    /**
+     * @brief 创建丛林生物群系的生成信息
+     */
+    static MobSpawnInfo createJungle();
+
+    /**
+     * @brief 创建热带草原生物群系的生成信息
+     */
+    static MobSpawnInfo createSavanna();
+
+    /**
+     * @brief 创建沼泽生物群系的生成信息
+     */
+    static MobSpawnInfo createSwamp();
+
+    /**
+     * @brief 创建山地生物群系的生成信息
+     */
+    static MobSpawnInfo createMountains();
+
+    /**
+     * @brief 创建雪地生物群系的生成信息
+     */
+    static MobSpawnInfo createSnowy();
+
+    /**
+     * @brief 创建默认（空）生成信息
+     */
+    static MobSpawnInfo createEmpty();
+
 private:
-    SpawnCategory m_monsters;        // 怪物（僵尸、骷髅等）
-    SpawnCategory m_creatures;       // 动物（猪、牛、羊等）
-    SpawnCategory m_ambient;         // 环境生物（蝙蝠）
-    SpawnCategory m_waterCreatures;  // 水生生物（鱼、鱿鱼）
-    SpawnCategory m_misc;            // 其他
+    SpawnCategory m_monsters;           // 怪物（僵尸、骷髅等）
+    SpawnCategory m_creatures;          // 动物（猪、牛、羊等）
+    SpawnCategory m_ambient;            // 环境生物（蝙蝠）
+    SpawnCategory m_waterCreatures;     // 水生生物（鱿鱼、海豚）
+    SpawnCategory m_waterAmbient;       // 水生环境生物（鱼）
+    SpawnCategory m_misc;               // 其他
+
+    /// 实体类型到生成成本的映射
+    /// 参考 MC 1.16.5 MobSpawnInfo.field_242555_f
+    std::unordered_map<String, SpawnCosts> m_spawnCosts;
+
+    /// 动物生成概率
+    /// 参考 MC 1.16.5 MobSpawnInfo.field_242553_d
+    f32 m_creatureSpawnProbability = 0.1f;
+
+    /// 是否适合玩家生成
+    /// 参考 MC 1.16.5 MobSpawnInfo.field_242556_g
+    bool m_playerSpawnFriendly = false;
 
     // 默认实例限制
     static constexpr i32 DEFAULT_MAX_MONSTERS = 70;
     static constexpr i32 DEFAULT_MAX_CREATURES = 10;
     static constexpr i32 DEFAULT_MAX_AMBIENT = 15;
     static constexpr i32 DEFAULT_MAX_WATER_CREATURES = 5;
+    static constexpr i32 DEFAULT_MAX_WATER_AMBIENT = 20;
 };
 
 } // namespace mc::world::spawn

@@ -95,6 +95,10 @@ const fluid::FluidState* BlockState::getFluidState() const {
     return m_owner->getFluidState(*this);
 }
 
+const Material& BlockState::getMaterial() const {
+    return m_owner->material();
+}
+
 String BlockState::toModelKey() const {
     if (m_values.empty()) {
         return "";

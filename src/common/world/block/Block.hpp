@@ -193,6 +193,13 @@ public:
     [[nodiscard]] const fluid::FluidState* getFluidState() const;
 
     /**
+     * @brief 获取材质
+     *
+     * 委托到方块的 material 方法
+     */
+    [[nodiscard]] const Material& getMaterial() const;
+
+    /**
      * @brief 转换为模型键（用于查找模型变体）
      * @return 格式: "axis=y,facing=north" 或 "" (无属性时)
      */

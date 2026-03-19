@@ -4,10 +4,46 @@
 #include "../../WorldConstants.hpp"
 #include "../../../entity/EntityRegistry.hpp"
 #include "../../../entity/EntityClassification.hpp"
+#include "../../../entity/EntitySpawnPlacementRegistry.hpp"
 #include "../../../entity/mob/MobEntity.hpp"
 #include <spdlog/spdlog.h>
 
 namespace mc {
+
+// ============================================================================
+// WorldGenRegion 适配器 - 实现 ISpawnWorldReader 接口
+// ============================================================================
+
+/**
+ * @brief WorldGenRegion 的 ISpawnWorldReader 适配器
+ *
+ * 将 WorldGenRegion 适配为 ISpawnWorldReader 接口，
+ * 用于 EntitySpawnPlacementRegistry 的位置检查。
+ */
+class WorldGenRegionAdapter : public world::spawn::ISpawnWorldReader {
+public:
+    explicit WorldGenRegionAdapter(WorldGenRegion& region)
+        : m_region(region) {}
+
+    [[nodiscard]] const BlockState* getBlockState(i32 x, i32 y, i32 z) const override {
+        return m_region.getBlock(x, y, z);
+    }
+
+    [[nodiscard]] bool isInWorldBounds(i32 x, i32 y, i32 z) const override {
+        return world::isValidY(y);
+    }
+
+    [[nodiscard]] i32 getHeight(HeightmapType type, i32 x, i32 z) const override {
+        return m_region.getTopBlockY(x, z, type);
+    }
+
+    [[nodiscard]] BiomeId getBiome(i32 x, i32 y, i32 z) const override {
+        return m_region.getBiome(x, y, z);
+    }
+
+private:
+    WorldGenRegion& m_region;
+};
 
 // ============================================================================
 // 常量定义
@@ -206,36 +242,66 @@ i32 WorldGenSpawner::spawnGroup(
 
 i32 WorldGenSpawner::getSpawnHeight(
     WorldGenRegion& region,
-    const entity::EntityType& /* entityType */,
+    const entity::EntityType& entityType,
     i32 x,
     i32 z) const
 {
+    // 获取实体类型的高度图类型
+    HeightmapType heightmapType =
+        world::spawn::EntitySpawnPlacementRegistry::getHeightmapType(entityType.name());
+
     // 获取世界表面高度
-    const i32 topY = region.getTopBlockY(x, z, HeightmapType::WorldSurfaceWG);
+    const i32 topY = region.getTopBlockY(x, z, heightmapType);
 
     if (topY <= 0) {
         return -1;
     }
 
+    // 获取实体放置类型
+    world::spawn::PlacementType placementType =
+        world::spawn::EntitySpawnPlacementRegistry::getPlacementType(entityType.name());
+
     // 对于地面生物，需要在地面上一格生成
-    // 参考 MC getTopSolidOrLiquidBlock
+    if (placementType == world::spawn::PlacementType::OnGround) {
+        // 检查脚下方块是否是实心方块
+        const BlockState* groundBlock = region.getBlock(x, topY - 1, z);
+        if (!groundBlock || groundBlock->isAir()) {
+            return -1;
+        }
 
-    // 检查脚下方块是否是实心方块
-    const BlockState* groundBlock = region.getBlock(x, topY - 1, z);
-    if (!groundBlock || groundBlock->isAir()) {
-        return -1;
+        // 检查生成位置是否为空气或可通过方块
+        const BlockState* spawnBlock = region.getBlock(x, topY, z);
+        if (spawnBlock && spawnBlock->isSolid()) {
+            return -1;  // 头顶被堵住
+        }
+
+        // 再检查上一格（对于高度 > 1 的生物）
+        const BlockState* aboveBlock = region.getBlock(x, topY + 1, z);
+        if (aboveBlock && aboveBlock->isSolid()) {
+            return -1;  // 头顶被堵住
+        }
     }
-
-    // 检查生成位置是否为空气或可通过方块
-    const BlockState* spawnBlock = region.getBlock(x, topY, z);
-    if (spawnBlock && spawnBlock->isSolid()) {
-        return -1;  // 头顶被堵住
+    // 对于水中生物，需要找到水
+    else if (placementType == world::spawn::PlacementType::InWater) {
+        // 在高度位置向下搜索水
+        for (i32 y = topY; y > 0; --y) {
+            const BlockState* state = region.getBlock(x, y, z);
+            if (state && state->getMaterial().isLiquid()) {
+                return y;
+            }
+        }
+        return -1;  // 没找到水
     }
-
-    // 再检查上一格（对于高度 > 1 的生物）
-    const BlockState* aboveBlock = region.getBlock(x, topY + 1, z);
-    if (aboveBlock && aboveBlock->isSolid()) {
-        return -1;  // 头顶被堵住
+    // 对于岩浆中生物，需要找到岩浆
+    else if (placementType == world::spawn::PlacementType::InLava) {
+        // 在高度位置向下搜索岩浆
+        for (i32 y = topY; y > 0; --y) {
+            const BlockState* state = region.getBlock(x, y, z);
+            if (state && &state->getMaterial() == &Material::LAVA) {
+                return y;
+            }
+        }
+        return -1;  // 没找到岩浆
     }
 
     return topY;
@@ -248,52 +314,37 @@ bool WorldGenSpawner::canSpawnAt(
     i32 y,
     i32 z) const
 {
-    // 参考 MC EntitySpawnPlacementRegistry.canSpawnEntity
+    // 参考 MC 1.16.5 EntitySpawnPlacementRegistry.canSpawnEntity
 
-    // 检查基本位置规则（使用工具函数）
+    // WorldGenSpawner 只处理 Creature 分类（被动动物）的区块生成
+    // 怪物通过 NaturalSpawner 在夜间/黑暗环境生成
+    // 水生生物和环境生物有单独的生成逻辑
+    const entity::EntityClassification classification = entityType.classification();
+    if (classification != entity::EntityClassification::Creature) {
+        return false;
+    }
+
+    // 检查基本位置规则
     if (!world::isValidY(y)) {
         return false;
     }
 
-    // 检查脚下方块
-    const BlockState* groundBlock = region.getBlock(x, y - 1, z);
-    if (!groundBlock || groundBlock->isAir()) {
+    // 获取放置类型
+    const world::spawn::PlacementType placementType =
+        world::spawn::EntitySpawnPlacementRegistry::getPlacementType(entityType.name());
+
+    // 创建适配器用于位置检查
+    WorldGenRegionAdapter adapter(region);
+    const Vector3i pos(x, y, z);
+
+    // 使用 EntitySpawnPlacementRegistry 检查位置是否适合生成
+    if (!world::spawn::EntitySpawnPlacementRegistry::canSpawnAtLocation(
+            placementType, adapter, pos, entityType.name())) {
         return false;
     }
 
-    // 检查生成位置是否为空
-    const BlockState* spawnBlock = region.getBlock(x, y, z);
-    if (spawnBlock && spawnBlock->isSolid()) {
-        return false;
-    }
-
-    // 根据实体分类检查
-    const entity::EntityClassification classification = entityType.classification();
-
-    switch (classification) {
-        case entity::EntityClassification::Creature:
-            // 陆生动物需要固体地面
-            // TODO: 检查是否在草方块或泥土上
-            return groundBlock->isSolid();
-
-        case entity::EntityClassification::WaterCreature:
-        case entity::EntityClassification::WaterAmbient:
-            // 水生生物需要水
-            // TODO: 检查流体状态
-            return false;  // 暂不支持
-
-        case entity::EntityClassification::Monster:
-            // 怪物不在区块生成时放置
-            return false;
-
-        case entity::EntityClassification::Ambient:
-            // 环境生物（蝙蝠）在黑暗环境生成
-            return false;  // 暂不支持
-
-        case entity::EntityClassification::Misc:
-        default:
-            return true;
-    }
+    // 检查特定实体的生成规则（如果有）
+    return checkSpawnRules(region, entityType, x, y, z);
 }
 
 bool WorldGenSpawner::checkSpawnRules(

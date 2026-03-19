@@ -47,6 +47,7 @@ add_library(mc_common STATIC
     entity/Entity.cpp
     entity/EntityType.cpp
     entity/EntityClassification.cpp
+    entity/EntitySpawnPlacementRegistry.cpp
     entity/Player.cpp
     entity/PlayerManager.cpp
     entity/ItemEntity.cpp

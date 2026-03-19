@@ -73,6 +73,7 @@ add_executable(mc_tests
     network/LocalServerConnectionTest.cpp
     common/entity/loot/LootTest.cpp
     common/world/gen/WorldGenSpawnerTest.cpp
+    common/entity/EntitySpawnPlacementRegistryTest.cpp
     common/world/gen/ChunkSpawnIntegrationTest.cpp
     # Perfetto 测试（集成到主测试套件）
     common/perfetto/PerfettoTest.cpp
@@ -105,6 +106,8 @@ add_executable(mc_tests
     lighting/LightUpdateTest.cpp
     # 环境光遮蔽测试
     client/renderer/AmbientOcclusionCalculatorTest.cpp
+    # NaturalSpawner 测试
+    server/world/spawn/NaturalSpawnerTest.cpp
 )
 
 # 添加服务端源文件

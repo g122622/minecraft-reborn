@@ -5,6 +5,7 @@
 #include "../../../math/Vector3.hpp"
 #include "../../spawn/MobSpawnInfo.hpp"
 #include "../../biome/Biome.hpp"
+#include "../../../entity/EntitySpawnPlacementRegistry.hpp"
 #include <vector>
 #include <memory>
 
