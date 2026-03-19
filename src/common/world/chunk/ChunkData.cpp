@@ -100,12 +100,12 @@ std::vector<u8> ChunkSection::serialize() const {
     data.push_back(static_cast<u8>(m_blockCount >> 8));
     data.push_back(static_cast<u8>(m_blockCount & 0xFF));
 
-    // 方块状态ID (u32)
+    // 方块状态ID (u32) - 使用小端序与 ChunkSerializer::serializeSection 保持一致
     for (u32 stateId : m_blockStates) {
-        data.push_back(static_cast<u8>(stateId >> 24));
-        data.push_back(static_cast<u8>(stateId >> 16));
-        data.push_back(static_cast<u8>(stateId >> 8));
         data.push_back(static_cast<u8>(stateId & 0xFF));
+        data.push_back(static_cast<u8>((stateId >> 8) & 0xFF));
+        data.push_back(static_cast<u8>((stateId >> 16) & 0xFF));
+        data.push_back(static_cast<u8>((stateId >> 24) & 0xFF));
     }
 
     // 天空光照
@@ -143,12 +143,12 @@ Result<std::unique_ptr<ChunkSection>> ChunkSection::deserialize(const u8* data, 
     section->m_blockCount = (static_cast<u16>(data[offset]) << 8) | data[offset + 1];
     offset += 2;
 
-    // 方块状态ID
+    // 方块状态ID - 使用小端序与 ChunkSerializer::serializeSection 保持一致
     for (size_t i = 0; i < VOLUME; ++i) {
-        section->m_blockStates[i] = (static_cast<u32>(data[offset]) << 24) |
-                                    (static_cast<u32>(data[offset + 1]) << 16) |
-                                    (static_cast<u32>(data[offset + 2]) << 8) |
-                                    static_cast<u32>(data[offset + 3]);
+        section->m_blockStates[i] = static_cast<u32>(data[offset]) |
+                                    (static_cast<u32>(data[offset + 1]) << 8) |
+                                    (static_cast<u32>(data[offset + 2]) << 16) |
+                                    (static_cast<u32>(data[offset + 3]) << 24);
         offset += 4;
     }
 

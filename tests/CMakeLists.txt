@@ -102,6 +102,7 @@ add_executable(mc_tests
     common/world/gen/test_vegetation_features.cpp
     # 光照系统测试
     lighting/LightingTest.cpp
+    lighting/LightUpdateTest.cpp
 )
 
 # 添加服务端源文件
@@ -148,6 +149,7 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/common/network/packet/Packet.cpp
         ${CMAKE_SOURCE_DIR}/src/common/network/packet/EntityPackets.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkData.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/util/NibbleArray.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkDistanceGraph.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkLoadTicketManager.cpp
         ${CMAKE_SOURCE_DIR}/src/common/world/chunk/ChunkStatus.cpp

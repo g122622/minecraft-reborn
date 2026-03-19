@@ -809,8 +809,15 @@ void IntegratedServer::handleBlockInteraction(const u8* data, size_t size) {
         return;
     }
 
-    chunk->setBlock(localX, packet.y(), localZ, &airBlock->defaultState());
-    chunk->setDirty(true);
+    // 使用 ServerWorld::setBlock 以触发光照更新
+    ServerWorld* world = m_serverCore ? m_serverCore->world() : nullptr;
+    if (world) {
+        world->setBlock(packet.x(), packet.y(), packet.z(), &airBlock->defaultState());
+    } else {
+        // 回退到直接设置区块（无光照更新）
+        chunk->setBlock(localX, packet.y(), localZ, &airBlock->defaultState());
+        chunk->setDirty(true);
+    }
     sendBlockUpdate(packet.x(), packet.y(), packet.z(), airBlock->defaultState().stateId());
 
     // spdlog::info("[Mining] Destroyed block {} at ({}, {}, {})",
@@ -938,8 +945,16 @@ void IntegratedServer::handleBlockPlacement(const u8* data, size_t size)
 
     const i32 placeLocalX = placePos.x - placeChunkX * 16;
     const i32 placeLocalZ = placePos.z - placeChunkZ * 16;
-    placeChunk->setBlock(placeLocalX, placePos.y, placeLocalZ, newState);
-    placeChunk->setDirty(true);
+
+    // 使用 ServerWorld::setBlock 以触发光照更新
+    ServerWorld* world = m_serverCore ? m_serverCore->world() : nullptr;
+    if (world) {
+        world->setBlock(placePos.x, placePos.y, placePos.z, newState);
+    } else {
+        // 回退到直接设置区块（无光照更新）
+        placeChunk->setBlock(placeLocalX, placePos.y, placeLocalZ, newState);
+        placeChunk->setDirty(true);
+    }
 
     if (player->gameMode != GameMode::Creative) {
         const i32 selectedSlot = m_clientData.inventory.getSelectedSlot();

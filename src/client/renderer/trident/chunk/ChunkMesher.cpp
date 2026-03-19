@@ -378,11 +378,22 @@ void ChunkMesher::simpleMeshSection(
                         u8 skyLight = 15;   // 默认天空光
                         u8 blockLight = 0;  // 默认方块光
                         if (s_lightingEnabled) {
-                            const i32 sampleX = x + dir[0];
-                            const i32 sampleY = baseY + y + dir[1];
-                            const i32 sampleZ = z + dir[2];
-                            skyLight = sampleSkyLight(chunk, sampleX, sampleY, sampleZ, neighborChunks);
-                            blockLight = sampleBlockLight(chunk, sampleX, sampleY, sampleZ, neighborChunks);
+                            i32 sampleX = x + dir[0];
+                            i32 sampleY = baseY + y + dir[1];
+                            i32 sampleZ = z + dir[2];
+
+                            // 对于透明方块的边界面，如果邻居是不透明方块，
+                            // 使用方块自身位置的光照，避免采样到不透明方块内部的黑色
+                            // 这解决了草方块底部渲染为黑色的问题
+                            if (block->isTransparent() && neighbor && !neighbor->isAir() && !neighbor->isTransparent()) {
+                                // 采样方块自身位置的光照
+                                skyLight = sampleSkyLight(chunk, x, baseY + y, z, neighborChunks);
+                                blockLight = sampleBlockLight(chunk, x, baseY + y, z, neighborChunks);
+                            } else {
+                                // 正常情况：采样邻居位置的光照
+                                skyLight = sampleSkyLight(chunk, sampleX, sampleY, sampleZ, neighborChunks);
+                                blockLight = sampleBlockLight(chunk, sampleX, sampleY, sampleZ, neighborChunks);
+                            }
                         }
 
                         addFaceFromAppearance(outMesh, face,

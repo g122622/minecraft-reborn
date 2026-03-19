@@ -50,6 +50,7 @@ enum class PacketType : u16 {
     EntityMove = 218,           // 实体移动（相对）
     EntityHeadLook = 219,       // 实体头部朝向
     EntityStatus = 220,         // 实体状态（受伤、死亡等）
+    LightUpdate = 221,          // 光照更新 (S->C)
 
     // 背包相关包 (双向)
     ContainerContent = 300,     // 容器内容同步 (S->C)

@@ -341,6 +341,7 @@ private:
     void sendUnloadChunkToPlayer(PlayerId playerId, ChunkCoord x, ChunkCoord z);
     void broadcastBlockUpdate(i32 x, i32 y, i32 z, u32 blockStateId);
     void broadcastTimeUpdate();  // 广播时间更新
+    void broadcastLightUpdate(LightType type, const SectionPos& pos);  // 广播光照更新
 
     // 卸载检查
     void checkChunkUnloading();

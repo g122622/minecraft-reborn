@@ -600,6 +600,11 @@ void NetworkClient::processPacket(const u8* data, size_t size) {
             break;
         }
 
+        case network::PacketType::LightUpdate: {
+            handleLightUpdate(bodyDeser);
+            break;
+        }
+
         default:
             spdlog::debug("Unhandled packet type: {}", static_cast<int>(packetType));
             break;
@@ -1128,6 +1133,30 @@ void NetworkClient::handleGameStateChange(network::PacketDeserializer& deser) {
             spdlog::debug("GameStateChange: unhandled reason={}, value={}",
                           static_cast<u8>(reason), value);
             break;
+    }
+}
+
+void NetworkClient::handleLightUpdate(network::PacketDeserializer& deser) {
+    auto result = network::LightUpdatePacket::deserialize(deser);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize LightUpdate packet: {}", result.error().message());
+        return;
+    }
+
+    const auto& packet = result.value();
+    spdlog::debug("LightUpdate: chunk({}, {}, {}), skyLight={}B, blockLight={}B",
+                  packet.chunkX(), packet.sectionY(), packet.chunkZ(),
+                  packet.skyLight().size(), packet.blockLight().size());
+
+    if (m_callbacks.onLightUpdate) {
+        m_callbacks.onLightUpdate(
+            packet.chunkX(),
+            packet.chunkZ(),
+            packet.sectionY(),
+            packet.skyLight(),
+            packet.blockLight(),
+            packet.trustEdges()
+        );
     }
 }
 

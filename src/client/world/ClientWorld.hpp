@@ -314,6 +314,22 @@ public:
      */
     void onEndRaining();
 
+    // ========== 光照更新 ==========
+
+    /**
+     * @brief 处理服务端光照更新
+     * @param chunkX 区块X坐标
+     * @param chunkZ 区块Z坐标
+     * @param sectionY 区块段Y坐标
+     * @param skyLight 天空光照数据 (NibbleArray格式的原始字节)
+     * @param blockLight 方块光照数据 (NibbleArray格式的原始字节)
+     * @param trustEdges 是否信任边缘光照
+     */
+    void onLightUpdate(i32 chunkX, i32 chunkZ, i32 sectionY,
+                       const std::vector<u8>& skyLight,
+                       const std::vector<u8>& blockLight,
+                       bool trustEdges = false);
+
 private:
     // 区块卸载回调
     std::function<void(const ChunkId&)> m_chunkUnloadCallback;

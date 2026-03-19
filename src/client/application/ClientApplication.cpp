@@ -1400,6 +1400,14 @@ void ClientApplication::setupNetworkCallbacks()
         m_world.onEndRaining();
     };
 
+    // ========== 光照更新回调 ==========
+    callbacks.onLightUpdate = [this](i32 chunkX, i32 chunkZ, i32 sectionY,
+                                      const std::vector<u8>& skyLight,
+                                      const std::vector<u8>& blockLight,
+                                      bool trustEdges) {
+        m_world.onLightUpdate(chunkX, chunkZ, sectionY, skyLight, blockLight, trustEdges);
+    };
+
     m_networkClient->setCallbacks(callbacks);
 }
 

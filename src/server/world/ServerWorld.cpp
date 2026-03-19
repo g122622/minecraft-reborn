@@ -7,9 +7,12 @@
 #include "common/network/connection/IServerConnection.hpp"
 #include "common/network/packet/Packet.hpp"
 #include "common/network/packet/PacketSerializer.hpp"
+#include "common/network/packet/ProtocolPackets.hpp"
 #include "common/physics/collision/CollisionShape.hpp"
 #include "common/world/lighting/manager/WorldLightManager.hpp"
 #include "common/world/chunk/IChunk.hpp"
+#include "common/world/chunk/ChunkData.hpp"
+#include "common/util/NibbleArray.hpp"
 #include <chrono>
 #include <spdlog/spdlog.h>
 #include <cmath>
@@ -1068,9 +1071,89 @@ void ServerWorld::markLightChanged(LightType type, const SectionPos& pos) {
         chunk->setDirty(true);
     }
 
-    // TODO: 发送光照更新包给客户端
-    (void)type;
-    (void)pos;
+    // 发送光照更新包给客户端
+    broadcastLightUpdate(type, pos);
+}
+
+void ServerWorld::broadcastLightUpdate(LightType type, const SectionPos& pos) {
+    // 获取区块数据
+    ChunkCoord chunkX = pos.x;
+    ChunkCoord chunkZ = pos.z;
+    ChunkData* chunk = getChunk(chunkX, chunkZ);
+    if (!chunk) {
+        return;
+    }
+
+    // 获取该区块段的索引
+    i32 sectionY = pos.y;
+    const ChunkSection* section = chunk->getSection(sectionY);
+    if (!section) {
+        return;
+    }
+
+    // 获取订阅该区块的玩家
+    std::vector<PlayerId> subscribers;
+    m_chunkSyncManager.getChunkSubscribers(chunkX, chunkZ, subscribers);
+    if (subscribers.empty()) {
+        return;
+    }
+
+    // 准备光照数据
+    std::vector<u8> skyLightData;
+    std::vector<u8> blockLightData;
+
+    if (type == LightType::SKY) {
+        const auto& skyLight = section->skyLightNibble();
+        if (!skyLight.data().empty()) {
+            skyLightData = skyLight.data();
+        } else {
+            // 如果为空，填充默认值15（全亮）
+            skyLightData.resize(NibbleArray::BYTE_SIZE, 0xFF);
+        }
+    }
+
+    if (type == LightType::BLOCK) {
+        const auto& blockLight = section->blockLightNibble();
+        if (!blockLight.data().empty()) {
+            blockLightData = blockLight.data();
+        } else {
+            // 如果为空，填充默认值0（无光照）
+            blockLightData.resize(NibbleArray::BYTE_SIZE, 0x00);
+        }
+    }
+
+    // 创建光照更新包
+    network::LightUpdatePacket lightPacket(
+        chunkX, chunkZ, sectionY,
+        std::move(skyLightData),
+        std::move(blockLightData),
+        false  // trustEdges
+    );
+
+    // 序列化包
+    network::PacketSerializer ser;
+    lightPacket.serialize(ser);
+
+    network::PacketSerializer fullPacket;
+    fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + ser.size()));
+    fullPacket.writeU16(static_cast<u16>(network::PacketType::LightUpdate));
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeU16(0);
+    fullPacket.writeBytes(ser.buffer());
+
+    // 发送给所有订阅该区块的玩家
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+    for (PlayerId playerId : subscribers) {
+        auto it = m_players.find(playerId);
+        if (it != m_players.end()) {
+            it->second.send(fullPacket.data(), fullPacket.size());
+        }
+    }
+
+    spdlog::debug("Broadcast light update: chunk({}, {}), section {}, type {}",
+                  chunkX, chunkZ, sectionY,
+                  type == LightType::SKY ? "sky" : "block");
 }
 
 bool ServerWorld::hasSkyLight() const {

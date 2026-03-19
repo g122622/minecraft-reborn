@@ -4,6 +4,8 @@
 #include "../../common/network/sync/ChunkSync.hpp"
 #include "../../common/core/Constants.hpp"
 #include "../../common/world/biome/BiomeRegistry.hpp"
+#include "../../common/world/chunk/ChunkData.hpp"
+#include "../../common/util/NibbleArray.hpp"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <cmath>
@@ -650,6 +652,55 @@ void ClientWorld::onBeginRaining() {
 
 void ClientWorld::onEndRaining() {
     m_weather.endRain();
+}
+
+// ============================================================================
+// 光照更新
+// ============================================================================
+
+void ClientWorld::onLightUpdate(i32 chunkX, i32 chunkZ, i32 sectionY,
+                                 const std::vector<u8>& skyLight,
+                                 const std::vector<u8>& blockLight,
+                                 bool /*trustEdges*/) {
+    // 查找目标区块
+    ChunkId id(chunkX, chunkZ);
+    ClientChunk* chunk = getChunk(id);
+    if (!chunk || !chunk->data) {
+        spdlog::debug("LightUpdate: chunk ({}, {}) not loaded", chunkX, chunkZ);
+        return;
+    }
+
+    // 获取目标区块段
+    ChunkSection* section = chunk->data->getSection(sectionY);
+    if (!section) {
+        spdlog::debug("LightUpdate: section {} not found in chunk ({}, {})", sectionY, chunkX, chunkZ);
+        return;
+    }
+
+    // 更新天空光照
+    if (!skyLight.empty()) {
+        if (skyLight.size() == NibbleArray::BYTE_SIZE) {
+            section->skyLightNibble() = NibbleArray(skyLight);
+        } else {
+            spdlog::warn("LightUpdate: invalid sky light size {}, expected {}",
+                         skyLight.size(), NibbleArray::BYTE_SIZE);
+        }
+    }
+
+    // 更新方块光照
+    if (!blockLight.empty()) {
+        if (blockLight.size() == NibbleArray::BYTE_SIZE) {
+            section->blockLightNibble() = NibbleArray(blockLight);
+        } else {
+            spdlog::warn("LightUpdate: invalid block light size {}, expected {}",
+                         blockLight.size(), NibbleArray::BYTE_SIZE);
+        }
+    }
+
+    // 标记区块需要重新构建网格
+    chunk->needsMeshUpdate = true;
+
+    spdlog::debug("LightUpdate: applied to chunk ({}, {}) section {}", chunkX, chunkZ, sectionY);
 }
 
 } // namespace mc::client

@@ -90,6 +90,12 @@ struct NetworkClientCallbacks {
     std::function<void(f32 thunderStrength)> onThunderStrengthChange;
     std::function<void()> onBeginRaining;
     std::function<void()> onEndRaining;
+
+    // 光照更新事件
+    std::function<void(i32 chunkX, i32 chunkZ, i32 sectionY,
+                       const std::vector<u8>& skyLight,
+                       const std::vector<u8>& blockLight,
+                       bool trustEdges)> onLightUpdate;
 };
 
 // ============================================================================
@@ -189,6 +195,9 @@ private:
 
     // 天气包处理
     void handleGameStateChange(network::PacketDeserializer& deser);
+
+    // 光照更新包处理
+    void handleLightUpdate(network::PacketDeserializer& deser);
 
     // ASIO 网络
     asio::io_context m_ioContext;

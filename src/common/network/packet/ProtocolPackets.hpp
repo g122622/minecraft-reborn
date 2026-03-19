@@ -1087,4 +1087,168 @@ private:
     bool m_daylightCycleEnabled = true;
 };
 
+// ============================================================================
+// 光照更新包 (服务端 -> 客户端)
+// ============================================================================
+
+/**
+ * @brief 光照更新包
+ *
+ * 当服务端光照计算完成后，向客户端发送光照数据更新。
+ * 可以发送整个区块段的光照数据，或仅发送变更标记。
+ *
+ * 协议格式:
+ * - chunkX: i32 区块X坐标
+ * - chunkZ: i32 区块Z坐标
+ * - sectionY: i32 区块段Y坐标 (可以是负数，如下界)
+ * - flags: u8 标志位
+ *   - bit 0: 包含天空光照数据
+ *   - bit 1: 包含方块光照数据
+ *   - bit 2: 信任边缘 (客户端可信任边界光照)
+ * - skyLightData: 天空光照数据 (可选，2048字节 = 4096个方块 / 2)
+ * - blockLightData: 方块光照数据 (可选，2048字节)
+ */
+class LightUpdatePacket {
+public:
+    LightUpdatePacket() = default;
+
+    /**
+     * @brief 构造光照更新包
+     * @param chunkX 区块X坐标
+     * @param chunkZ 区块Z坐标
+     * @param sectionY 区块段Y坐标
+     * @param skyLight 天空光照数据 (可选)
+     * @param blockLight 方块光照数据 (可选)
+     * @param trustEdges 是否信任边缘光照
+     */
+    LightUpdatePacket(i32 chunkX, i32 chunkZ, i32 sectionY,
+                      std::vector<u8>&& skyLight,
+                      std::vector<u8>&& blockLight,
+                      bool trustEdges = false)
+        : m_chunkX(chunkX)
+        , m_chunkZ(chunkZ)
+        , m_sectionY(sectionY)
+        , m_skyLight(std::move(skyLight))
+        , m_blockLight(std::move(blockLight))
+        , m_trustEdges(trustEdges)
+    {}
+
+    // Getters
+    i32 chunkX() const { return m_chunkX; }
+    i32 chunkZ() const { return m_chunkZ; }
+    i32 sectionY() const { return m_sectionY; }
+    const std::vector<u8>& skyLight() const { return m_skyLight; }
+    const std::vector<u8>& blockLight() const { return m_blockLight; }
+    bool hasSkyLight() const { return !m_skyLight.empty(); }
+    bool hasBlockLight() const { return !m_blockLight.empty(); }
+    bool trustEdges() const { return m_trustEdges; }
+
+    // Setters
+    void setChunkX(i32 x) { m_chunkX = x; }
+    void setChunkZ(i32 z) { m_chunkZ = z; }
+    void setSectionY(i32 y) { m_sectionY = y; }
+    void setSkyLight(std::vector<u8>&& data) { m_skyLight = std::move(data); }
+    void setBlockLight(std::vector<u8>&& data) { m_blockLight = std::move(data); }
+    void setTrustEdges(bool trust) { m_trustEdges = trust; }
+
+    /**
+     * @brief 获取区块段位置编码
+     * @return 区块段位置 (用于索引光照数据)
+     */
+    [[nodiscard]] i64 sectionPos() const {
+        // SectionPos 编码: (x & 0x3FFFFF) << 42 | (y & 0xFFFFF) << 20 | (z & 0x3FFFFF)
+        return (static_cast<i64>(m_chunkX) & 0x3FFFFFLL) << 42 |
+               (static_cast<i64>(m_sectionY) & 0xFFFFFLL) << 20 |
+               (static_cast<i64>(m_chunkZ) & 0x3FFFFFLL);
+    }
+
+    // 序列化
+    void serialize(PacketSerializer& ser) const {
+        ser.writeI32(m_chunkX);
+        ser.writeI32(m_chunkZ);
+        ser.writeI32(m_sectionY);
+
+        // 标志位
+        u8 flags = 0;
+        if (!m_skyLight.empty()) flags |= 0x01;
+        if (!m_blockLight.empty()) flags |= 0x02;
+        if (m_trustEdges) flags |= 0x04;
+        ser.writeU8(flags);
+
+        // 天空光照数据
+        if (!m_skyLight.empty()) {
+            ser.writeVarUInt(static_cast<u32>(m_skyLight.size()));
+            ser.writeBytes(m_skyLight);
+        }
+
+        // 方块光照数据
+        if (!m_blockLight.empty()) {
+            ser.writeVarUInt(static_cast<u32>(m_blockLight.size()));
+            ser.writeBytes(m_blockLight);
+        }
+    }
+
+    [[nodiscard]] static Result<LightUpdatePacket> deserialize(PacketDeserializer& deser) {
+        LightUpdatePacket packet;
+
+        auto xResult = deser.readI32();
+        if (xResult.failed()) return xResult.error();
+        packet.m_chunkX = xResult.value();
+
+        auto zResult = deser.readI32();
+        if (zResult.failed()) return zResult.error();
+        packet.m_chunkZ = zResult.value();
+
+        auto yResult = deser.readI32();
+        if (yResult.failed()) return yResult.error();
+        packet.m_sectionY = yResult.value();
+
+        auto flagsResult = deser.readU8();
+        if (flagsResult.failed()) return flagsResult.error();
+        u8 flags = flagsResult.value();
+
+        packet.m_trustEdges = (flags & 0x04) != 0;
+
+        // 天空光照数据
+        if (flags & 0x01) {
+            auto skySizeResult = deser.readVarUInt();
+            if (skySizeResult.failed()) return skySizeResult.error();
+            u32 skySize = skySizeResult.value();
+
+            if (skySize > 4096) {  // 最大 2048 字节 (4096 个 nibble)
+                return Error(ErrorCode::InvalidData, "Sky light data too large");
+            }
+
+            auto skyDataResult = deser.readBytes(skySize);
+            if (skyDataResult.failed()) return skyDataResult.error();
+            packet.m_skyLight = std::move(skyDataResult.value());
+        }
+
+        // 方块光照数据
+        if (flags & 0x02) {
+            auto blockSizeResult = deser.readVarUInt();
+            if (blockSizeResult.failed()) return blockSizeResult.error();
+            u32 blockSize = blockSizeResult.value();
+
+            if (blockSize > 4096) {
+                return Error(ErrorCode::InvalidData, "Block light data too large");
+            }
+
+            auto blockDataResult = deser.readBytes(blockSize);
+            if (blockDataResult.failed()) return blockDataResult.error();
+            packet.m_blockLight = std::move(blockDataResult.value());
+        }
+
+        return packet;
+    }
+
+private:
+    i32 m_chunkX = 0;
+    i32 m_chunkZ = 0;
+    i32 m_sectionY = 0;
+    std::vector<u8> m_skyLight;
+    std::vector<u8> m_blockLight;
+    bool m_trustEdges = false;
+};
+
 } // namespace mc::network
