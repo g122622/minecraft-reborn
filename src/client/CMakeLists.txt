@@ -89,6 +89,10 @@ add_executable(minecraft-client
     ui/kagero/template/runtime/TemplateInstance.cpp
     ui/kagero/template/bindings/BuiltinWidgets.cpp
     ui/kagero/template/bindings/BuiltinEvents.cpp
+    # UI Kagero布局系统
+    ui/kagero/layout/core/LayoutEngine.cpp
+    ui/kagero/layout/algorithms/FlexLayout.cpp
+    ui/kagero/layout/integration/WidgetLayoutAdaptor.cpp
     # 客户端实体管理
     world/entity/ClientEntity.cpp
     world/entity/ClientEntityManager.cpp

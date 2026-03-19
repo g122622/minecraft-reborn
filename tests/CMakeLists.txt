@@ -107,6 +107,11 @@ add_executable(mc_tests
     client/renderer/AmbientOcclusionCalculatorTest.cpp
     # Kagero UI模板系统测试
     ui/kagero/template/template_test.cpp
+    # Kagero UI布局系统测试
+    client/ui/kagero/layout/MeasureSpecTest.cpp
+    client/ui/kagero/layout/LayoutConstraintsTest.cpp
+    client/ui/kagero/layout/FlexLayoutTest.cpp
+    client/ui/kagero/layout/LayoutEngineTest.cpp
 )
 
 # 添加服务端源文件
@@ -276,6 +281,10 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/parser/Parser.cpp
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/binder/BindingContext.cpp
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/compiler/TemplateCompiler.cpp
+        # Kagero UI布局系统
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/layout/core/LayoutEngine.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/layout/algorithms/FlexLayout.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/layout/integration/WidgetLayoutAdaptor.cpp
         # TemplateInstance.cpp 依赖 Widget 实现，在测试中暂时排除
 )
 
