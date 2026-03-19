@@ -300,7 +300,7 @@ private:
 } // namespace mc::client::ui::kagero::state
 ```
 
-### 第二阶段：模板系统（核心创新）
+### 第二阶段：模板系统（核心创新）（已废弃，以新文件为参考）
 
 #### 2.1 UI模板语言设计
 
@@ -463,6 +463,9 @@ private:
 
 } // namespace mc::client::ui::kagero::template
 ```
+
+
+
 
 ### 第三阶段：布局系统
 
