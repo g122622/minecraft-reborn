@@ -2,6 +2,7 @@
 #include "../../../../common/world/chunk/ChunkData.hpp"
 #include "../../../../common/world/block/Block.hpp"
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 
 namespace mc {
@@ -56,24 +57,28 @@ inline constexpr std::tuple<i32, i32, i32> getDirection(int dirIdx) {
  * 每个面定义4个方向，用于采样边缘中点位置。
  * 这些方向相对于基础位置（方块自身或面外侧）偏移。
  *
- * DOWN面: corners = {WEST, EAST, NORTH, SOUTH}
- * UP面: corners = {EAST, WEST, NORTH, SOUTH}
- * NORTH面: corners = {UP, DOWN, EAST, WEST}
- * SOUTH面: corners = {WEST, EAST, DOWN, UP}
- * WEST面: corners = {UP, DOWN, NORTH, SOUTH}
- * EAST面: corners = {DOWN, UP, NORTH, SOUTH}
+ * 这里的顺序不是直接照搬 Java 的 NeighborInfo，而是与本项目
+ * BlockGeometry::getFaceVertices() 的顶点顺序（0,1,2,3）严格对齐：
+ *
+ * 顶点关系固定为：
+ * - v0 使用 (corner0, corner3)
+ * - v1 使用 (corner0, corner2)
+ * - v2 使用 (corner1, corner2)
+ * - v3 使用 (corner1, corner3)
+ *
+ * 这样可确保 AO 明暗方向与实际几何方向一致，不出现旋转/镜像。
  */
 constexpr std::array<std::array<i32, 4>, 6> FACE_CORNER_DIRECTIONS = {{
-    // DOWN: {WEST, EAST, NORTH, SOUTH} = {4, 5, 2, 3}
-    {{ 4, 5, 2, 3 }},
-    // UP: {EAST, WEST, NORTH, SOUTH} = {5, 4, 2, 3}
-    {{ 5, 4, 2, 3 }},
-    // NORTH: {UP, DOWN, EAST, WEST} = {1, 0, 5, 4}
-    {{ 1, 0, 5, 4 }},
-    // SOUTH: {WEST, EAST, DOWN, UP} = {4, 5, 0, 1}
-    {{ 4, 5, 0, 1 }},
-    // WEST: {UP, DOWN, NORTH, SOUTH} = {1, 0, 2, 3}
-    {{ 1, 0, 2, 3 }},
+    // DOWN: {NORTH, SOUTH, EAST, WEST} = {2, 3, 5, 4}
+    {{ 2, 3, 5, 4 }},
+    // UP: {SOUTH, NORTH, EAST, WEST} = {3, 2, 5, 4}
+    {{ 3, 2, 5, 4 }},
+    // NORTH: {DOWN, UP, WEST, EAST} = {0, 1, 4, 5}
+    {{ 0, 1, 4, 5 }},
+    // SOUTH: {DOWN, UP, EAST, WEST} = {0, 1, 5, 4}
+    {{ 0, 1, 5, 4 }},
+    // WEST: {DOWN, UP, SOUTH, NORTH} = {0, 1, 3, 2}
+    {{ 0, 1, 3, 2 }},
     // EAST: {DOWN, UP, NORTH, SOUTH} = {0, 1, 2, 3}
     {{ 0, 1, 2, 3 }},
 }};
@@ -81,24 +86,26 @@ constexpr std::array<std::array<i32, 4>, 6> FACE_CORNER_DIRECTIONS = {{
 /**
  * @brief 顶点索引映射
  *
- * 参考: net.minecraft.client.renderer.BlockModelRenderer.VertexTranslations
+ * 注意：当前 C++ 网格器在六个面上都使用统一的顶点语义顺序
+ * （左下/右下/右上/左上），因此这里保持恒等映射。
  *
- * 将计算得到的顶点亮度/颜色映射到正确的顶点索引。
- * 我们的顶点顺序是: 左下(0), 右下(1), 右上(2), 左上(3)
+ * Java 版 `VertexTranslations` 依赖其 BakedQuad 顶点布局，
+ * 与本项目的 `BlockGeometry::getFaceVertices()` 顺序不同。
+ * 若继续沿用 Java 的重排表，会造成 AO 方向镜像/翻转。
  */
 constexpr std::array<std::array<u32, 4>, 6> VERTEX_TRANSLATIONS = {{
-    // DOWN: vert0=0, vert1=1, vert2=2, vert3=3
+    // DOWN
     {{ 0, 1, 2, 3 }},
-    // UP: vert0=2, vert1=3, vert2=0, vert3=1
-    {{ 2, 3, 0, 1 }},
-    // NORTH: vert0=3, vert1=0, vert2=1, vert3=2
-    {{ 3, 0, 1, 2 }},
-    // SOUTH: vert0=0, vert1=1, vert2=2, vert3=3
+    // UP
     {{ 0, 1, 2, 3 }},
-    // WEST: vert0=3, vert1=0, vert2=1, vert3=2
-    {{ 3, 0, 1, 2 }},
-    // EAST: vert0=1, vert1=2, vert2=3, vert3=0
-    {{ 1, 2, 3, 0 }},
+    // NORTH
+    {{ 0, 1, 2, 3 }},
+    // SOUTH
+    {{ 0, 1, 2, 3 }},
+    // WEST
+    {{ 0, 1, 2, 3 }},
+    // EAST
+    {{ 0, 1, 2, 3 }},
 }};
 
 } // anonymous namespace
@@ -119,6 +126,7 @@ AmbientOcclusionCalculator::Result AmbientOcclusionCalculator::calculate(
     Result result{};
 
     const size_t faceIdx = static_cast<size_t>(face);
+    assert(faceIdx < FACE_CORNER_DIRECTIONS.size());
     const auto& cornerDirs = FACE_CORNER_DIRECTIONS[faceIdx];
     const auto& vertexTrans = VERTEX_TRANSLATIONS[faceIdx];
 
@@ -141,10 +149,14 @@ AmbientOcclusionCalculator::Result AmbientOcclusionCalculator::calculate(
 
     bool faceOuterOpaque = !isTransparent(chunk, faceOuterX, faceOuterY, faceOuterZ, neighborChunks);
 
+    // Java 版在整方块面（bitSet[0] = true）时总是使用面外侧作为基础采样位置。
+    // 当前网格构建路径仅输出轴对齐整方块面，因此这里默认对齐该行为。
+    const bool useOuterFaceSamples = true;
+
     // 基础采样位置
-    i32 baseX = faceOuterOpaque ? faceOuterX : blockX;
-    i32 baseY = faceOuterOpaque ? faceOuterY : blockY;
-    i32 baseZ = faceOuterOpaque ? faceOuterZ : blockZ;
+    i32 baseX = useOuterFaceSamples ? faceOuterX : blockX;
+    i32 baseY = useOuterFaceSamples ? faceOuterY : blockY;
+    i32 baseZ = useOuterFaceSamples ? faceOuterZ : blockZ;
 
     // ================================================================
     // 步骤2: 采样4个边缘位置的光照和AO亮度
@@ -269,11 +281,15 @@ AmbientOcclusionCalculator::Result AmbientOcclusionCalculator::calculate(
     auto faceOuterSample = samplePosition(chunk, faceOuterX, faceOuterY, faceOuterZ, neighborChunks);
     u32 faceOuterPackedLight = packLight(faceOuterSample.skyLight, faceOuterSample.blockLight);
 
-    // 中心光照
-    u32 centerPackedLight = faceOuterOpaque ? selfPackedLight : faceOuterPackedLight;
+    // 中心光照：对齐 MC 1.16.5
+    // i3 初始为自身亮度；当 bitSet[0] = true 或 面外侧不是不透明方块 时使用面外侧亮度。
+    // 当前路径下 bitSet[0] 等价 useOuterFaceSamples = true，因此此处会稳定使用面外侧亮度。
+    u32 centerPackedLight = (!useOuterFaceSamples && faceOuterOpaque)
+        ? selfPackedLight
+        : faceOuterPackedLight;
 
-    // 中心AO亮度
-    float f8 = faceOuterOpaque
+    // 中心AO亮度（与中心光照位置保持一致）
+    float f8 = (!useOuterFaceSamples && faceOuterOpaque)
         ? selfSample.aoBrightness
         : faceOuterSample.aoBrightness;
 
@@ -311,6 +327,10 @@ AmbientOcclusionCalculator::Result AmbientOcclusionCalculator::calculate(
         (f2 + f1 + f6 + f8) * 0.25f,  // 顶点2
         (f3 + f1 + f7 + f8) * 0.25f   // 顶点3
     }};
+
+    for (float& value : vertexAoColorMultiplier) {
+        value = std::clamp(value, 0.0f, 1.0f);
+    }
 
     // ================================================================
     // 步骤7: 计算每个顶点的亮度值
@@ -398,23 +418,14 @@ AmbientOcclusionCalculator::CornerSample AmbientOcclusionCalculator::samplePosit
     // Z边界处理
     if (localZ < 0) {
         localZ += SIZE;
-        if (sampleChunk != &chunk && sampleChunk != nullptr) {
-            // X和Z都越界，需要获取对角区块
-            sample.skyLight = 15;
-            sample.blockLight = 0;
-            sample.aoBrightness = 1.0f;
-            return sample;
+        if (sampleChunk == &chunk || sampleChunk == nullptr) {
+            sampleChunk = neighborChunks ? neighborChunks[2] : nullptr; // -Z
         }
-        sampleChunk = neighborChunks ? neighborChunks[2] : nullptr; // -Z
     } else if (localZ >= SIZE) {
         localZ -= SIZE;
-        if (sampleChunk != &chunk && sampleChunk != nullptr) {
-            sample.skyLight = 15;
-            sample.blockLight = 0;
-            sample.aoBrightness = 1.0f;
-            return sample;
+        if (sampleChunk == &chunk || sampleChunk == nullptr) {
+            sampleChunk = neighborChunks ? neighborChunks[3] : nullptr; // +Z
         }
-        sampleChunk = neighborChunks ? neighborChunks[3] : nullptr; // +Z
     }
 
     // 如果区块不存在，使用默认值
@@ -470,16 +481,14 @@ bool AmbientOcclusionCalculator::isTransparent(
     // Z边界处理
     if (localZ < 0) {
         localZ += SIZE;
-        if (sampleChunk != &chunk && sampleChunk != nullptr) {
-            return true;  // 对角区块缺失，视为透明
+        if (sampleChunk == &chunk || sampleChunk == nullptr) {
+            sampleChunk = neighborChunks ? neighborChunks[2] : nullptr;
         }
-        sampleChunk = neighborChunks ? neighborChunks[2] : nullptr;
     } else if (localZ >= SIZE) {
         localZ -= SIZE;
-        if (sampleChunk != &chunk && sampleChunk != nullptr) {
-            return true;
+        if (sampleChunk == &chunk || sampleChunk == nullptr) {
+            sampleChunk = neighborChunks ? neighborChunks[3] : nullptr;
         }
-        sampleChunk = neighborChunks ? neighborChunks[3] : nullptr;
     }
 
     // 如果区块不存在，视为透明
@@ -596,16 +605,14 @@ u32 AmbientOcclusionCalculator::getPackedLight(
 
     if (localZ < 0) {
         localZ += SIZE;
-        if (sampleChunk != &chunk && sampleChunk != nullptr) {
-            return packLight(15, 0);
+        if (sampleChunk == &chunk || sampleChunk == nullptr) {
+            sampleChunk = neighborChunks ? neighborChunks[2] : nullptr;
         }
-        sampleChunk = neighborChunks ? neighborChunks[2] : nullptr;
     } else if (localZ >= SIZE) {
         localZ -= SIZE;
-        if (sampleChunk != &chunk && sampleChunk != nullptr) {
-            return packLight(15, 0);
+        if (sampleChunk == &chunk || sampleChunk == nullptr) {
+            sampleChunk = neighborChunks ? neighborChunks[3] : nullptr;
         }
-        sampleChunk = neighborChunks ? neighborChunks[3] : nullptr;
     }
 
     if (!sampleChunk) {

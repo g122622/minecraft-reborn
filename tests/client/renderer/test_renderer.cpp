@@ -412,6 +412,20 @@ TEST_F(ChunkMesherTest, SampleCombinedLightReadsNeighborChunkAtBorder) {
     EXPECT_EQ(fallbackLight, 15u);
 }
 
+TEST_F(ChunkMesherTest, SampleCombinedLight_DiagonalOutOfBounds_UsesAvailableNeighborApproximation) {
+    auto westNeighbor = std::make_unique<ChunkData>(-1, 0);
+
+    // 目标采样点为 (-1, 64, -1)，缺少西北对角区块。
+    // 期望：不再回退到固定全亮，而是近似使用可用西侧邻区 (15,64,15) 的值。
+    westNeighbor->setSkyLight(15, 64, 15, 7);
+    westNeighbor->setBlockLight(15, 64, 15, 0);
+
+    const ChunkData* neighbors[6] = {westNeighbor.get(), nullptr, nullptr, nullptr, nullptr, nullptr};
+    const u8 approxLight = ChunkMesher::sampleCombinedLight(*testChunk, -1, 64, -1, neighbors);
+
+    EXPECT_EQ(approxLight, 7u);
+}
+
 TEST_F(ChunkMesherTest, ModelCacheIsNullByDefault) {
     // 默认情况下 BlockModelCache 应该是 nullptr
     EXPECT_EQ(ChunkMesher::modelCache(), nullptr);

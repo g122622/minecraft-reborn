@@ -212,14 +212,12 @@ protected:
 };
 
 TEST_F(OreFeatureTest, CreateOreFeature) {
-    OreFeature feature;
     EXPECT_STREQ(OreFeature::name(), "ore");
 }
 
 TEST_F(OreFeatureTest, PlaceSmallOre) {
     fillWithStone();
 
-    OreFeature feature;
     auto config = std::make_unique<OreFeatureConfig>(
         createOreTarget(OreTargetType::NaturalStone),
         &VanillaBlocks::COAL_ORE->defaultState(),

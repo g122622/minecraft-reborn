@@ -4,6 +4,8 @@
 #include "../../../../common/perfetto/TraceEvents.hpp"
 #include <spdlog/spdlog.h>
 #include <algorithm>
+#include <cassert>
+#include <cmath>
 
 namespace mc {
 
@@ -15,6 +17,55 @@ BlockModelCache* ChunkMesher::s_modelCache = nullptr;
 bool ChunkMesher::s_useGreedyMeshing = false;
 bool ChunkMesher::s_lightingEnabled = true;
 LightingMode ChunkMesher::s_lightingMode = LightingMode::Smooth;
+
+namespace {
+
+/**
+ * @brief 将 RGBA 分量打包为顶点颜色（与 VK_FORMAT_R8G8B8A8_UNORM 对齐）
+ *
+ * @note 低字节为 R，高字节为 A。这样在小端内存布局下可与 Vulkan 直接对应。
+ */
+[[nodiscard]] constexpr u32 packVertexColor(u8 r, u8 g, u8 b, u8 a) {
+    return static_cast<u32>(r)
+        | (static_cast<u32>(g) << 8)
+        | (static_cast<u32>(b) << 16)
+        | (static_cast<u32>(a) << 24);
+}
+
+/**
+ * @brief 返回与 MC 1.16.5 对齐的面向明暗系数
+ *
+ * 参考: IBlockDisplayReader#func_230487_a_ 的默认面向亮度
+ * DOWN=0.5, UP=1.0, NORTH/SOUTH=0.8, WEST/EAST=0.6
+ */
+[[nodiscard]] constexpr float getFaceShade(Face face) {
+    switch (face) {
+        case Face::Bottom:
+            return 0.5f;
+        case Face::Top:
+            return 1.0f;
+        case Face::North:
+        case Face::South:
+            return 0.8f;
+        case Face::West:
+        case Face::East:
+            return 0.6f;
+        default:
+            return 1.0f;
+    }
+}
+
+/**
+ * @brief 将亮度因子转换为灰度顶点色（RGB 同值，A 固定 255）
+ */
+[[nodiscard]] u32 makeGrayscaleVertexColor(float factor) {
+    assert(factor >= -0.01f && factor <= 1.01f);
+    const float clamped = std::clamp(factor, 0.0f, 1.0f);
+    const u8 channel = static_cast<u8>(std::round(clamped * 255.0f));
+    return packVertexColor(channel, channel, channel, 255);
+}
+
+} // namespace
 
 // ============================================================================
 // ChunkMesher 实现
@@ -129,17 +180,15 @@ u8 ChunkMesher::sampleSkyLight(
 
     if (localZ < 0) {
         localZ += SIZE;
-        // 面采样一次只会跨一个轴；若出现双轴越界则安全降级为天空
-        if (sampleChunk != &chunk) {
-            return 15;
+        // 双轴越界时优先使用已选定的 X 邻区做近似，避免边界全亮接缝。
+        if (sampleChunk == &chunk || sampleChunk == nullptr) {
+            sampleChunk = neighborChunks ? neighborChunks[2] : nullptr;
         }
-        sampleChunk = neighborChunks ? neighborChunks[2] : nullptr;
     } else if (localZ >= SIZE) {
         localZ -= SIZE;
-        if (sampleChunk != &chunk) {
-            return 15;
+        if (sampleChunk == &chunk || sampleChunk == nullptr) {
+            sampleChunk = neighborChunks ? neighborChunks[3] : nullptr;
         }
-        sampleChunk = neighborChunks ? neighborChunks[3] : nullptr;
     }
 
     // 邻区块尚未就绪时，按天空处理，避免边界黑边
@@ -176,16 +225,14 @@ u8 ChunkMesher::sampleBlockLight(
 
     if (localZ < 0) {
         localZ += SIZE;
-        if (sampleChunk != &chunk) {
-            return 0;
+        if (sampleChunk == &chunk || sampleChunk == nullptr) {
+            sampleChunk = neighborChunks ? neighborChunks[2] : nullptr;
         }
-        sampleChunk = neighborChunks ? neighborChunks[2] : nullptr;
     } else if (localZ >= SIZE) {
         localZ -= SIZE;
-        if (sampleChunk != &chunk) {
-            return 0;
+        if (sampleChunk == &chunk || sampleChunk == nullptr) {
+            sampleChunk = neighborChunks ? neighborChunks[3] : nullptr;
         }
-        sampleChunk = neighborChunks ? neighborChunks[3] : nullptr;
     }
 
     if (!sampleChunk) {
@@ -244,6 +291,7 @@ void ChunkMesher::addFaceFromAppearance(
 
     // 创建4个顶点
     std::array<Vertex, 4> faceVerts;
+    const u32 shadedWhiteColor = makeGrayscaleVertexColor(getFaceShade(face));
 
     // UV坐标根据顶点位置设置
     // 顶点顺序: 左下、右下、右上、左上
@@ -264,7 +312,7 @@ void ChunkMesher::addFaceFromAppearance(
             z + vertices[i * 3 + 2],
             normal[0], normal[1], normal[2],
             uvs[i][0], uvs[i][1],
-            0xFFFFFFFF,
+            shadedWhiteColor,
             packedLight
         );
     }
@@ -344,6 +392,7 @@ void ChunkMesher::addFaceFromAppearanceSmooth(
 
     // 创建4个顶点，每个顶点有独立的光照和AO
     std::array<Vertex, 4> faceVerts;
+    const float faceShade = getFaceShade(face);
     for (size_t i = 0; i < 4; ++i) {
         // 打包双通道光照：高4位=天空光，低4位=方块光
         const u8 packedLight = static_cast<u8>(
@@ -351,12 +400,11 @@ void ChunkMesher::addFaceFromAppearanceSmooth(
             (aoResult.vertexBlockLight[i] & 0x0F)
         );
 
-        // AO颜色乘数应用到顶点颜色
-        // 注意：这里将AO值编码到颜色中
-        // shader中会乘以顶点颜色来实现阴影效果
+        // AO 乘数与面向明暗共同作用于顶点颜色。
+        // 注意：颜色打包必须遵循 RGBA 字节顺序，避免出现偏色（例如偏红）问题。
         const float ao = aoResult.vertexColorMultiplier[i];
-        const u8 aoColor = static_cast<u8>(ao * 255.0f);
-        const u32 color = (aoColor << 24) | (aoColor << 16) | (aoColor << 8) | 0xFF;
+        const float finalShade = std::clamp(ao * faceShade, 0.0f, 1.0f);
+        const u32 color = makeGrayscaleVertexColor(finalShade);
 
         faceVerts[i] = Vertex(
             x + vertices[i * 3 + 0],

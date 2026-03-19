@@ -10,6 +10,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <algorithm>
 #include <array>
 #include <memory>
 #include "client/renderer/trident/chunk/AmbientOcclusionCalculator.hpp"
@@ -375,6 +376,35 @@ TEST_F(AmbientOcclusionCalculatorTest, Calculate_LightValues_PropagatedCorrectly
     }
 }
 
+TEST_F(AmbientOcclusionCalculatorTest, Calculate_UsesFaceOuterCenterLight_ForFullCubeFace) {
+    // 场景：中心方块自身无光，但顶面外侧有强天空光。
+    // 对齐 Java 1.16.5 时，整方块面应使用面外侧作为中心采样点，
+    // 因此顶点天空光应明显大于 0。
+    const i32 cx = 8;
+    const i32 cy = 64;
+    const i32 cz = 8;
+
+    fillSolidBlock(cx, cy, cz);
+
+    // 自身与角落采样位置置零，避免干扰
+    setSkyLight(cx, cy, cz, 0);
+    setSkyLight(cx + 1, cy + 1, cz, 0);
+    setSkyLight(cx - 1, cy + 1, cz, 0);
+    setSkyLight(cx, cy + 1, cz + 1, 0);
+    setSkyLight(cx, cy + 1, cz - 1, 0);
+
+    // 仅面外侧中心位置给满天空光
+    setSkyLight(cx, cy + 1, cz, 15);
+
+    AmbientOcclusionCalculator calculator;
+    auto result = calculator.calculate(*m_chunk, cx, cy, cz, Face::Top, m_neighbors);
+
+    for (size_t i = 0; i < 4; ++i) {
+        EXPECT_GE(result.vertexSkyLight[i], 3)
+            << "顶点 " << i << " 应从面外侧中心光照获得非零贡献";
+    }
+}
+
 TEST_F(AmbientOcclusionCalculatorTest, Calculate_BlockLight_IndependentlyCalculated) {
     // 测试方块光独立计算
     i32 cx = 8, cy = 64, cz = 8;
@@ -392,6 +422,32 @@ TEST_F(AmbientOcclusionCalculatorTest, Calculate_BlockLight_IndependentlyCalcula
     for (size_t i = 0; i < 4; ++i) {
         EXPECT_GT(result.vertexBlockLight[i], 0) << "方块光未传播";
     }
+}
+
+TEST_F(AmbientOcclusionCalculatorTest, Calculate_TopFace_WestOccluder_DarkensWestVertices) {
+    // 构造一个顶面强不对称遮挡：仅在面外侧(y+1)的西侧邻域放置遮挡。
+    // 期望：Top 面西侧顶点(0,3)整体应比东侧顶点(1,2)更暗。
+    const i32 cx = 8;
+    const i32 cy = 64;
+    const i32 cz = 8;
+
+    fillSolidBlock(cx, cy, cz);
+
+    // 西边及西北/西南角
+    fillSolidBlock(cx - 1, cy + 1, cz);
+    fillSolidBlock(cx - 1, cy + 1, cz - 1);
+    fillSolidBlock(cx - 1, cy + 1, cz + 1);
+
+    AmbientOcclusionCalculator calculator;
+    auto result = calculator.calculate(*m_chunk, cx, cy, cz, Face::Top, m_neighbors);
+
+    // Top 顶点语义（见 BlockGeometry::getFaceVertices）:
+    // 0=西南, 1=东南, 2=东北, 3=西北
+    const float westAvg = (result.vertexColorMultiplier[0] + result.vertexColorMultiplier[3]) * 0.5f;
+    const float eastAvg = (result.vertexColorMultiplier[1] + result.vertexColorMultiplier[2]) * 0.5f;
+
+    EXPECT_LT(westAvg, eastAvg)
+        << "顶面 AO 方向疑似旋转：西侧遮挡应优先压暗西侧顶点";
 }
 
 // ============================================================================
