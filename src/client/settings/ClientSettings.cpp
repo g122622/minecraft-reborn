@@ -27,6 +27,12 @@ ClientSettings::ClientSettings()
     , fovEffectScale("fovEffectScale", 0.0f, 1.0f, 1.0f)
     , screenShakeScale("screenShakeScale", 0.0f, 1.0f, 1.0f)
     , fogDensity("fogDensity", 0.0f, 2.0f, 1.0f)
+    , ambientOcclusion("ambientOcclusion",
+                       {static_cast<u8>(AmbientOcclusionMode::Off),
+                        static_cast<u8>(AmbientOcclusionMode::Min),
+                        static_cast<u8>(AmbientOcclusionMode::Max)},
+                       static_cast<u8>(AmbientOcclusionMode::Max),
+                       {"off", "min", "max"})
 
     // 音频设置
     , masterVolume("masterVolume", 0.0f, 1.0f, 1.0f)
@@ -72,6 +78,7 @@ ClientSettings::ClientSettings()
     registerOption("video", &fovEffectScale);
     registerOption("video", &screenShakeScale);
     registerOption("video", &fogDensity);
+    registerOption("video", &ambientOcclusion);
 
     // 注册音频设置
     registerOption("audio", &masterVolume);

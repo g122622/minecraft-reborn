@@ -4,6 +4,7 @@
 #include "../../../../common/world/chunk/ChunkData.hpp"
 #include "../../../../common/world/block/Block.hpp"
 #include "../../MeshTypes.hpp"
+#include "../../../settings/ClientSettings.hpp"
 #include <memory>
 #include <functional>
 
@@ -12,6 +13,20 @@ namespace mc {
 // 前向声明
 class BlockModelCache;
 struct BlockAppearance;
+
+// ============================================================================
+// 光照模式
+// ============================================================================
+
+/**
+ * @brief 光照模式枚举
+ *
+ * 参考: net.minecraft.client.settings.AmbientOcclusionStatus
+ */
+enum class LightingMode : u8 {
+    Flat = 0,     ///< 平面光照（每个面使用统一光照）
+    Smooth = 1,   ///< 平滑光照（逐顶点AO）
+};
 
 // ============================================================================
 // 区块网格生成器
@@ -23,10 +38,17 @@ struct BlockAppearance;
  * 负责将 ChunkData 转换为可渲染的 MeshData。
  * 使用 BlockModelCache 获取方块外观信息。
  *
+ * 支持两种光照模式:
+ * - Flat: 平面光照，每个面的所有顶点使用相同的光照值
+ * - Smooth: 平滑光照，使用环境光遮蔽(AO)计算逐顶点光照
+ *
  * 使用示例:
  * @code
  * // 初始化时设置模型缓存
  * ChunkMesher::setModelCache(&modelCache);
+ *
+ * // 启用平滑光照
+ * ChunkMesher::setLightingMode(LightingMode::Smooth);
  *
  * // 生成网格
  * MeshData mesh;
@@ -97,10 +119,36 @@ public:
     static bool isGreedyMeshingEnabled() { return s_useGreedyMeshing; }
 
     /**
-     * @brief 设置光照计算
+     * @brief 设置光照模式
+     *
+     * @param mode 光照模式 (Flat: 平面, Smooth: 平滑AO)
+     */
+    static void setLightingMode(LightingMode mode) { s_lightingMode = mode; }
+    static LightingMode lightingMode() { return s_lightingMode; }
+
+    /**
+     * @brief 设置光照计算是否启用
      */
     static void setLightingEnabled(bool enabled) { s_lightingEnabled = enabled; }
     static bool isLightingEnabled() { return s_lightingEnabled; }
+
+    /**
+     * @brief 从客户端设置同步光照模式
+     *
+     * 将 AmbientOcclusionMode 转换为内部 LightingMode：
+     * - Off -> Flat（平面光照）
+     * - Min/Max -> Smooth（平滑光照）
+     *
+     * @param aoMode 客户端的 AO 模式设置
+     */
+    static void syncFromSettings(client::AmbientOcclusionMode aoMode) {
+        using client::AmbientOcclusionMode;
+        if (aoMode == AmbientOcclusionMode::Off) {
+            s_lightingMode = LightingMode::Flat;
+        } else {
+            s_lightingMode = LightingMode::Smooth;
+        }
+    }
 
     /**
      * @brief 采样指定坐标的合成光照（天空光/方块光取最大值）
@@ -132,7 +180,7 @@ private:
         const BlockState* neighbor
     );
 
-    // 添加单个面的顶点（使用 BlockAppearance）
+    // 添加单个面的顶点（使用 BlockAppearance）- 平面光照版本
     static void addFaceFromAppearance(
         MeshData& mesh,
         Face face,
@@ -140,6 +188,17 @@ private:
         u8 skyLight,
         u8 blockLight,
         const BlockAppearance* appearance
+    );
+
+    // 添加单个面的顶点（使用 BlockAppearance）- 平滑光照版本
+    static void addFaceFromAppearanceSmooth(
+        MeshData& mesh,
+        Face face,
+        f32 x, f32 y, f32 z,
+        const ChunkData& chunk,
+        i32 blockX, i32 blockY, i32 blockZ,
+        const BlockAppearance* appearance,
+        const ChunkData* neighborChunks[6]
     );
 
     // 获取天空光照
@@ -179,6 +238,7 @@ private:
     static BlockModelCache* s_modelCache;
     static bool s_useGreedyMeshing;
     static bool s_lightingEnabled;
+    static LightingMode s_lightingMode;
 };
 
 // ============================================================================

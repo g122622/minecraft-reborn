@@ -103,6 +103,8 @@ add_executable(mc_tests
     # 光照系统测试
     lighting/LightingTest.cpp
     lighting/LightUpdateTest.cpp
+    # 环境光遮蔽测试
+    client/renderer/AmbientOcclusionCalculatorTest.cpp
 )
 
 # 添加服务端源文件
@@ -247,6 +249,7 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/client/renderer/mesh/MeshWorkerPool.cpp
         # 区块网格生成
         ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/chunk/ChunkMesher.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/chunk/AmbientOcclusionCalculator.cpp
         ${CMAKE_SOURCE_DIR}/src/client/renderer/MeshTypes.cpp
         ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/entity/model/ModelRenderer.cpp
         ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/entity/model/EntityModel.cpp
@@ -393,6 +396,7 @@ if(MC_BUILD_CLIENT)
             # 网格相关
             ${CMAKE_SOURCE_DIR}/src/client/renderer/MeshTypes.cpp
             ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/chunk/ChunkMesher.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/chunk/AmbientOcclusionCalculator.cpp
             # 常用资源
             ${CMAKE_SOURCE_DIR}/src/common/resource/ResourceLocation.cpp
             ${CMAKE_SOURCE_DIR}/src/common/resource/ResourcePackList.cpp

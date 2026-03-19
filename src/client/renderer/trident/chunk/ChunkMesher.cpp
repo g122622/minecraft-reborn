@@ -1,4 +1,5 @@
 #include "ChunkMesher.hpp"
+#include "AmbientOcclusionCalculator.hpp"
 #include "../../../resource/BlockModelCache.hpp"
 #include "../../../../common/perfetto/TraceEvents.hpp"
 #include <spdlog/spdlog.h>
@@ -13,6 +14,7 @@ namespace mc {
 BlockModelCache* ChunkMesher::s_modelCache = nullptr;
 bool ChunkMesher::s_useGreedyMeshing = false;
 bool ChunkMesher::s_lightingEnabled = true;
+LightingMode ChunkMesher::s_lightingMode = LightingMode::Smooth;
 
 // ============================================================================
 // ChunkMesher 实现
@@ -279,6 +281,106 @@ void ChunkMesher::addFaceFromAppearance(
     }
 }
 
+void ChunkMesher::addFaceFromAppearanceSmooth(
+    MeshData& mesh,
+    Face face,
+    f32 x, f32 y, f32 z,
+    const ChunkData& chunk,
+    i32 blockX, i32 blockY, i32 blockZ,
+    const BlockAppearance* appearance,
+    const ChunkData* neighborChunks[6]
+) {
+    if (!appearance) {
+        return;
+    }
+
+    // 检查是否有 elements
+    if (appearance->elements.empty()) {
+        return;
+    }
+
+    // 查找面的纹理
+    String faceName;
+    switch (face) {
+        case Face::Bottom: faceName = "down"; break;
+        case Face::Top: faceName = "up"; break;
+        case Face::North: faceName = "north"; break;
+        case Face::South: faceName = "south"; break;
+        case Face::West: faceName = "west"; break;
+        case Face::East: faceName = "east"; break;
+        default: return;
+    }
+
+    auto texIt = appearance->faceTextures.find(faceName);
+    if (texIt == appearance->faceTextures.end()) {
+        // 尝试使用 "side" 作为后备
+        texIt = appearance->faceTextures.find("side");
+        if (texIt == appearance->faceTextures.end()) {
+            // 尝试使用 "all" 作为后备
+            texIt = appearance->faceTextures.find("all");
+            if (texIt == appearance->faceTextures.end()) {
+                return; // 没有找到纹理，跳过此面
+            }
+        }
+    }
+
+    TextureRegion tex = texIt->second;
+
+    auto normal = BlockGeometry::getFaceNormal(face);
+    auto vertices = BlockGeometry::getFaceVertices(face);
+
+    // 计算 AO
+    client::renderer::AmbientOcclusionCalculator aoCalc;
+    auto aoResult = aoCalc.calculate(chunk, blockX, blockY, blockZ, face, neighborChunks);
+
+    // UV坐标根据顶点位置设置
+    // 顶点顺序: 左下、右下、右上、左上
+    f32 uvs[4][2] = {
+        { tex.u0, tex.v1 }, // 左下
+        { tex.u1, tex.v1 }, // 右下
+        { tex.u1, tex.v0 }, // 右上
+        { tex.u0, tex.v0 }  // 左上
+    };
+
+    // 创建4个顶点，每个顶点有独立的光照和AO
+    std::array<Vertex, 4> faceVerts;
+    for (size_t i = 0; i < 4; ++i) {
+        // 打包双通道光照：高4位=天空光，低4位=方块光
+        const u8 packedLight = static_cast<u8>(
+            ((aoResult.vertexSkyLight[i] & 0x0F) << 4) |
+            (aoResult.vertexBlockLight[i] & 0x0F)
+        );
+
+        // AO颜色乘数应用到顶点颜色
+        // 注意：这里将AO值编码到颜色中
+        // shader中会乘以顶点颜色来实现阴影效果
+        const float ao = aoResult.vertexColorMultiplier[i];
+        const u8 aoColor = static_cast<u8>(ao * 255.0f);
+        const u32 color = (aoColor << 24) | (aoColor << 16) | (aoColor << 8) | 0xFF;
+
+        faceVerts[i] = Vertex(
+            x + vertices[i * 3 + 0],
+            y + vertices[i * 3 + 1],
+            z + vertices[i * 3 + 2],
+            normal[0], normal[1], normal[2],
+            uvs[i][0], uvs[i][1],
+            color,
+            packedLight
+        );
+    }
+
+    // 添加顶点和索引
+    u32 baseIndex = static_cast<u32>(mesh.vertices.size());
+    for (const auto& v : faceVerts) {
+        mesh.vertices.push_back(v);
+    }
+
+    auto indices = BlockGeometry::getFaceIndices();
+    for (u32 idx : indices) {
+        mesh.indices.push_back(baseIndex + idx);
+    }
+}
+
 void ChunkMesher::simpleMeshSection(
     const ChunkData& chunk,
     i32 sectionIndex,
@@ -375,34 +477,45 @@ void ChunkMesher::simpleMeshSection(
 
                     // 决定是否渲染该面
                     if (shouldRenderFace(block, neighbor)) {
-                        u8 skyLight = 15;   // 默认天空光
-                        u8 blockLight = 0;  // 默认方块光
-                        if (s_lightingEnabled) {
-                            i32 sampleX = x + dir[0];
-                            i32 sampleY = baseY + y + dir[1];
-                            i32 sampleZ = z + dir[2];
+                        const f32 fx = static_cast<f32>(x);
+                        const f32 fy = static_cast<f32>(baseY + y);
+                        const f32 fz = static_cast<f32>(z);
 
-                            // 对于透明方块的边界面，如果邻居是不透明方块，
-                            // 使用方块自身位置的光照，避免采样到不透明方块内部的黑色
-                            // 这解决了草方块底部渲染为黑色的问题
-                            if (block->isTransparent() && neighbor && !neighbor->isAir() && !neighbor->isTransparent()) {
-                                // 采样方块自身位置的光照
-                                skyLight = sampleSkyLight(chunk, x, baseY + y, z, neighborChunks);
-                                blockLight = sampleBlockLight(chunk, x, baseY + y, z, neighborChunks);
-                            } else {
-                                // 正常情况：采样邻居位置的光照
-                                skyLight = sampleSkyLight(chunk, sampleX, sampleY, sampleZ, neighborChunks);
-                                blockLight = sampleBlockLight(chunk, sampleX, sampleY, sampleZ, neighborChunks);
+                        if (s_lightingMode == LightingMode::Smooth && s_lightingEnabled) {
+                            // 平滑光照模式：使用AO计算
+                            addFaceFromAppearanceSmooth(outMesh, face,
+                                    fx, fy, fz,
+                                    chunk, x, baseY + y, z,
+                                    appearance, neighborChunks);
+                        } else {
+                            // 平面光照模式
+                            u8 skyLight = 15;   // 默认天空光
+                            u8 blockLight = 0;  // 默认方块光
+                            if (s_lightingEnabled) {
+                                const i32 sampleX = x + dir[0];
+                                const i32 sampleY = baseY + y + dir[1];
+                                const i32 sampleZ = z + dir[2];
+
+                                // 对于透明方块的边界面，如果邻居是不透明方块，
+                                // 使用方块自身位置的光照，避免采样到不透明方块内部的黑色
+                                // 这解决了草方块底部渲染为黑色的问题
+                                if (block->isTransparent() && neighbor && !neighbor->isAir() && !neighbor->isTransparent()) {
+                                    // 采样方块自身位置的光照
+                                    skyLight = sampleSkyLight(chunk, x, baseY + y, z, neighborChunks);
+                                    blockLight = sampleBlockLight(chunk, x, baseY + y, z, neighborChunks);
+                                } else {
+                                    // 正常情况：采样邻居位置的光照
+                                    skyLight = sampleSkyLight(chunk, sampleX, sampleY, sampleZ, neighborChunks);
+                                    blockLight = sampleBlockLight(chunk, sampleX, sampleY, sampleZ, neighborChunks);
+                                }
                             }
-                        }
 
-                        addFaceFromAppearance(outMesh, face,
-                                static_cast<f32>(x),
-                                static_cast<f32>(baseY + y),
-                                static_cast<f32>(z),
-                                skyLight,
-                                blockLight,
-                                appearance);
+                            addFaceFromAppearance(outMesh, face,
+                                    fx, fy, fz,
+                                    skyLight,
+                                    blockLight,
+                                    appearance);
+                        }
                     }
                 }
             }

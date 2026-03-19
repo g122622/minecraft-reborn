@@ -38,6 +38,17 @@ enum class ParticleMode : u8 {
 };
 
 /**
+ * @brief 环境光遮蔽（AO）模式
+ *
+ * 参考: net.minecraft.client.settings.AmbientOcclusionStatus
+ */
+enum class AmbientOcclusionMode : u8 {
+    Off = 0,   // 关闭 - 使用平面光照
+    Min = 1,   // 最小 - 较低质量的 AO
+    Max = 2    // 最大 - 最高质量的 AO（默认）
+};
+
+/**
  * @brief 客户端设置类
  *
  * 管理客户端所有设置项，包括视频、音频、控制和游戏设置。
@@ -114,6 +125,12 @@ public:
     /// 雾效果密度倍率 (0.0-2.0, 默认 1.0)
     /// 1.0 = 标准雾效果, 0.0 = 禁用雾, >1.0 = 更浓的雾
     FloatOption fogDensity;
+
+    /// 环境光遮蔽（AO）模式
+    /// Off: 平面光照（每个面使用统一光照）
+    /// Min: 最小 AO（较低质量）
+    /// Max: 最大 AO（最高质量，平滑光照）
+    EnumOption<u8> ambientOcclusion;
 
     // ========================================================================
     // 音频设置

@@ -74,6 +74,19 @@ const CollisionShape& BlockState::getOcclusionShape() const {
     return m_owner->getOcclusionShape(*this);
 }
 
+bool BlockState::hasOpaqueCollisionShape() const {
+    // 如果方块不透明且有碰撞，则有不透明碰撞形状
+    // 参考: net.minecraft.block.AbstractBlock.AbstractBlockState#hasOpaqueCollisionShape
+    return m_isOpaque && m_owner->material().blocksMovement();
+}
+
+float BlockState::getAmbientOcclusionLightValue() const {
+    // 如果方块有不透明碰撞形状，返回0.2（产生阴影）
+    // 否则返回1.0（透明方块如玻璃、树叶不产生阴影）
+    // 参考: net.minecraft.block.AbstractBlock.AbstractBlockState#getAmbientOcclusionLightValue
+    return hasOpaqueCollisionShape() ? 0.2f : 1.0f;
+}
+
 const ResourceLocation& BlockState::blockLocation() const {
     return m_owner->blockLocation();
 }

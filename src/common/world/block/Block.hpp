@@ -160,6 +160,27 @@ public:
     [[nodiscard]] const CollisionShape& getOcclusionShape() const;
 
     /**
+     * @brief 是否有不透明碰撞形状
+     *
+     * 用于环境光遮蔽(AO)计算。如果方块有不透明的完整碰撞箱，
+     * 则返回true，导致周围顶点变暗。
+     *
+     * 参考: net.minecraft.block.AbstractBlock.AbstractBlockState#hasOpaqueCollisionShape
+     */
+    [[nodiscard]] bool hasOpaqueCollisionShape() const;
+
+    /**
+     * @brief 获取环境光遮蔽亮度值
+     *
+     * 返回值用于AO计算：
+     * - 0.2f: 方块有不透明碰撞形状（实心方块），产生阴影
+     * - 1.0f: 方块无碰撞或透明（玻璃、树叶等），不产生阴影
+     *
+     * 参考: net.minecraft.block.AbstractBlock.AbstractBlockState#getAmbientOcclusionLightValue
+     */
+    [[nodiscard]] float getAmbientOcclusionLightValue() const;
+
+    /**
      * @brief 获取方块资源位置
      */
     [[nodiscard]] const ResourceLocation& blockLocation() const;
