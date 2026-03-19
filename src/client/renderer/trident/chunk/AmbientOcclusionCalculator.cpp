@@ -2,98 +2,102 @@
 #include "../../../../common/world/chunk/ChunkData.hpp"
 #include "../../../../common/world/block/Block.hpp"
 #include <algorithm>
+#include <cmath>
 
 namespace mc {
 namespace client {
 namespace renderer {
 
 // ============================================================================
-// 面角落偏移定义
+// 方向定义 - 与MC 1.16.5 Direction一致
 // ============================================================================
+//
+// MC原版方向向量:
+// DOWN  = (0, -1, 0)
+// UP    = (0, +1, 0)
+// NORTH = (0, 0, -1)
+// SOUTH = (0, 0, +1)
+// WEST  = (-1, 0, 0)
+// EAST  = (+1, 0, 0)
 
 namespace {
 
 /**
- * @brief 3D整数向量，用于角落偏移
+ * @brief 方向向量定义
+ *
+ * 索引: 0=DOWN, 1=UP, 2=NORTH, 3=SOUTH, 4=WEST, 5=EAST
+ * 与MC Direction.getIndex()一致
  */
-struct Vec3i {
-    i32 x, y, z;
-    constexpr Vec3i(i32 x_, i32 y_, i32 z_) : x(x_), y(y_), z(z_) {}
+constexpr std::array<i32, 6 * 3> DIRECTION_VECTORS = {
+    0, -1,  0,   // DOWN (0)
+    0,  +1,  0,   // UP (1)
+    0,  0, -1,   // NORTH (2)
+    0,  0, +1,   // SOUTH (3)
+    -1,  0,  0,   // WEST (4)
+    +1,  0,  0    // EAST (5)
 };
 
 /**
- * @brief 每个面的4个角落偏移
- *
- * 相对于方块中心，沿着面的法线方向偏移到邻居位置。
+ * @brief 获取方向向量
+ */
+inline constexpr std::tuple<i32, i32, i32> getDirection(int dirIdx) {
+    return {
+        DIRECTION_VECTORS[dirIdx * 3 + 0],
+        DIRECTION_VECTORS[dirIdx * 3 + 1],
+        DIRECTION_VECTORS[dirIdx * 3 + 2]
+    };
+}
+
+/**
+ * @brief 每个面的角落方向定义
  *
  * 参考: net.minecraft.client.renderer.BlockModelRenderer.NeighborInfo
  *
- * 角落顺序决定了顶点索引映射。
- * 对于每个面，角落按照以下顺序排列：
- * - 角落0,1,2,3 对应顶点位置
+ * 每个面定义4个方向，用于采样边缘中点位置。
+ * 这些方向相对于基础位置（方块自身或面外侧）偏移。
  *
- * DOWN面 (Y-): 角落在 Y-1 平面
- * UP面 (Y+): 角落在 Y+1 平面
- * NORTH面 (Z-): 角落在 Z-1 平面
- * SOUTH面 (Z+): 角落在 Z+1 平面
- * WEST面 (X-): 角落在 X-1 平面
- * EAST面 (X+): 角落在 X+1 平面
+ * DOWN面: corners = {WEST, EAST, NORTH, SOUTH}
+ * UP面: corners = {EAST, WEST, NORTH, SOUTH}
+ * NORTH面: corners = {UP, DOWN, EAST, WEST}
+ * SOUTH面: corners = {WEST, EAST, DOWN, UP}
+ * WEST面: corners = {UP, DOWN, NORTH, SOUTH}
+ * EAST面: corners = {DOWN, UP, NORTH, SOUTH}
  */
-constexpr std::array<std::array<Vec3i, 4>, 6> FACE_CORNERS = {{
-    // DOWN (Y-1): 西北、东北、东南、西南 (相对于 Y-1 平面)
-    // 顶点顺序: 左下、右下、右上、左上 (在DOWN面上)
-    {{ Vec3i{-1, -1, -1}, Vec3i{+1, -1, -1}, Vec3i{+1, -1, +1}, Vec3i{-1, -1, +1} }},
-
-    // UP (Y+1): 西北、东北、东南、西南 (相对于 Y+1 平面)
-    {{ Vec3i{-1, +1, -1}, Vec3i{+1, +1, -1}, Vec3i{+1, +1, +1}, Vec3i{-1, +1, +1} }},
-
-    // NORTH (Z-1): 西下、东下、东上、西上
-    {{ Vec3i{-1, -1, -1}, Vec3i{+1, -1, -1}, Vec3i{+1, +1, -1}, Vec3i{-1, +1, -1} }},
-
-    // SOUTH (Z+1): 西下、东下、东上、西上
-    {{ Vec3i{-1, -1, +1}, Vec3i{+1, -1, +1}, Vec3i{+1, +1, +1}, Vec3i{-1, +1, +1} }},
-
-    // WEST (X-1): 下北、下南、上南、上北
-    {{ Vec3i{-1, -1, -1}, Vec3i{-1, -1, +1}, Vec3i{-1, +1, +1}, Vec3i{-1, +1, -1} }},
-
-    // EAST (X+1): 下北、下南、上南、上北
-    {{ Vec3i{+1, -1, -1}, Vec3i{+1, -1, +1}, Vec3i{+1, +1, +1}, Vec3i{+1, +1, -1} }},
-}};
-
-/**
- * @brief 面的法线方向偏移
- *
- * 用于确定采样光照的位置（面的外侧）
- */
-constexpr std::array<Vec3i, 6> FACE_NORMALS = {{
-    Vec3i{ 0, -1,  0},  // DOWN
-    Vec3i{ 0, +1,  0},  // UP
-    Vec3i{ 0,  0, -1},  // NORTH
-    Vec3i{ 0,  0, +1},  // SOUTH
-    Vec3i{-1,  0,  0},  // WEST
-    Vec3i{+1,  0,  0},  // EAST
+constexpr std::array<std::array<i32, 4>, 6> FACE_CORNER_DIRECTIONS = {{
+    // DOWN: {WEST, EAST, NORTH, SOUTH} = {4, 5, 2, 3}
+    {{ 4, 5, 2, 3 }},
+    // UP: {EAST, WEST, NORTH, SOUTH} = {5, 4, 2, 3}
+    {{ 5, 4, 2, 3 }},
+    // NORTH: {UP, DOWN, EAST, WEST} = {1, 0, 5, 4}
+    {{ 1, 0, 5, 4 }},
+    // SOUTH: {WEST, EAST, DOWN, UP} = {4, 5, 0, 1}
+    {{ 4, 5, 0, 1 }},
+    // WEST: {UP, DOWN, NORTH, SOUTH} = {1, 0, 2, 3}
+    {{ 1, 0, 2, 3 }},
+    // EAST: {DOWN, UP, NORTH, SOUTH} = {0, 1, 2, 3}
+    {{ 0, 1, 2, 3 }},
 }};
 
 /**
  * @brief 顶点索引映射
  *
- * 对于每个面，将角落采样结果映射到顶点索引。
- * MC中的顶点顺序可能与我们的不同，需要调整。
- *
  * 参考: net.minecraft.client.renderer.BlockModelRenderer.VertexTranslations
+ *
+ * 将计算得到的顶点亮度/颜色映射到正确的顶点索引。
+ * 我们的顶点顺序是: 左下(0), 右下(1), 右上(2), 左上(3)
  */
-constexpr std::array<std::array<u32, 4>, 6> VERTEX_MAP = {{
-    // DOWN: 顶点0,1,2,3 映射到 角落3,0,1,2
-    {{ 3, 0, 1, 2 }},
-    // UP: 顶点0,1,2,3 映射到 角落2,3,0,1
-    {{ 2, 3, 0, 1 }},
-    // NORTH: 顶点0,1,2,3 映射到 角落3,0,1,2
-    {{ 3, 0, 1, 2 }},
-    // SOUTH: 顶点0,1,2,3 映射到 角落0,1,2,3
+constexpr std::array<std::array<u32, 4>, 6> VERTEX_TRANSLATIONS = {{
+    // DOWN: vert0=0, vert1=1, vert2=2, vert3=3
     {{ 0, 1, 2, 3 }},
-    // WEST: 顶点0,1,2,3 映射到 角落3,0,1,2
+    // UP: vert0=2, vert1=3, vert2=0, vert3=1
+    {{ 2, 3, 0, 1 }},
+    // NORTH: vert0=3, vert1=0, vert2=1, vert3=2
     {{ 3, 0, 1, 2 }},
-    // EAST: 顶点0,1,2,3 映射到 角落1,2,3,0
+    // SOUTH: vert0=0, vert1=1, vert2=2, vert3=3
+    {{ 0, 1, 2, 3 }},
+    // WEST: vert0=3, vert1=0, vert2=1, vert3=2
+    {{ 3, 0, 1, 2 }},
+    // EAST: vert0=1, vert1=2, vert2=3, vert3=0
     {{ 1, 2, 3, 0 }},
 }};
 
@@ -109,145 +113,243 @@ AmbientOcclusionCalculator::Result AmbientOcclusionCalculator::calculate(
     i32 blockY,
     i32 blockZ,
     Face face,
-    const ChunkData* neighborChunks[6]
+    const ChunkData* neighborChunks[6],
+    const float* nonCubicWeights
 ) {
     Result result{};
 
     const size_t faceIdx = static_cast<size_t>(face);
-    const auto& corners = FACE_CORNERS[faceIdx];
-    const auto& normal = FACE_NORMALS[faceIdx];
+    const auto& cornerDirs = FACE_CORNER_DIRECTIONS[faceIdx];
+    const auto& vertexTrans = VERTEX_TRANSLATIONS[faceIdx];
 
-    // 采样4个角落位置
+    // 面法线方向索引
+    const int faceNormalIdx = static_cast<int>(faceIdx);
+    auto [fnX, fnY, fnZ] = getDirection(faceNormalIdx);
+
+    // ================================================================
+    // 步骤1: 确定基础采样位置
+    // ================================================================
+    // MC原版逻辑:
+    // 如果面外侧的方块是实心的（isOpaqueCube），则采样位置在面外侧
+    // 否则采样位置在方块自身位置
+    // 这对应于fillQuadBounds中的BitSet.get(0)标志
+
+    // 检查面外侧是否是实心方块
+    i32 faceOuterX = blockX + fnX;
+    i32 faceOuterY = blockY + fnY;
+    i32 faceOuterZ = blockZ + fnZ;
+
+    bool faceOuterOpaque = !isTransparent(chunk, faceOuterX, faceOuterY, faceOuterZ, neighborChunks);
+
+    // 基础采样位置
+    i32 baseX = faceOuterOpaque ? faceOuterX : blockX;
+    i32 baseY = faceOuterOpaque ? faceOuterY : blockY;
+    i32 baseZ = faceOuterOpaque ? faceOuterZ : blockZ;
+
+    // ================================================================
+    // 步骤2: 采样4个边缘位置的光照和AO亮度
+    // ================================================================
+    // 边缘位置 = basePos + cornerDirs[i]方向偏移
     std::array<CornerSample, 4> cornerSamples{};
+    std::array<u32, 4> cornerPackedLight{};
+
     for (size_t i = 0; i < 4; ++i) {
-        // 角落位置 = 方块位置 + 角落偏移
-        i32 cx = blockX + corners[i].x;
-        i32 cy = blockY + corners[i].y;
-        i32 cz = blockZ + corners[i].z;
+        auto [dx, dy, dz] = getDirection(cornerDirs[i]);
+        i32 cx = baseX + dx;
+        i32 cy = baseY + dy;
+        i32 cz = baseZ + dz;
 
         cornerSamples[i] = samplePosition(chunk, cx, cy, cz, neighborChunks);
+        cornerPackedLight[i] = packLight(cornerSamples[i].skyLight, cornerSamples[i].blockLight);
     }
 
-    // 检查角落外侧的方块是否透明
-    // 用于确定是否需要采样对角线位置
-    std::array<bool, 4> cornerOuterOpaque{};
+    // ================================================================
+    // 步骤3: 检查边缘外侧透明度
+    // ================================================================
+    // 边缘外侧 = basePos + cornerDirs[i] + faceNormal
+    std::array<bool, 4> edgeOuterTransparent{};
+
     for (size_t i = 0; i < 4; ++i) {
-        // 外侧位置 = 角落位置 + 法线方向
-        i32 ox = blockX + corners[i].x + normal.x;
-        i32 oy = blockY + corners[i].y + normal.y;
-        i32 oz = blockZ + corners[i].z + normal.z;
+        auto [dx, dy, dz] = getDirection(cornerDirs[i]);
+        i32 ox = baseX + dx + fnX;
+        i32 oy = baseY + dy + fnY;
+        i32 oz = baseZ + dz + fnZ;
 
-        auto sample = samplePosition(chunk, ox, oy, oz, neighborChunks);
-        cornerOuterOpaque[i] = sample.opaque;
+        edgeOuterTransparent[i] = isTransparent(chunk, ox, oy, oz, neighborChunks);
     }
 
-    // 计算面中心位置的光照（用于某些情况）
-    i32 centerX = blockX + normal.x;
-    i32 centerY = blockY + normal.y;
-    i32 centerZ = blockZ + normal.z;
-    auto centerSample = samplePosition(chunk, centerX, centerY, centerZ, neighborChunks);
-    u32 centerPacked = packLight(centerSample.skyLight, centerSample.blockLight);
+    // ================================================================
+    // 步骤4: 采样对角线位置（当需要时）
+    // ================================================================
+    std::array<u32, 4> diagonalPackedLight{};
+    std::array<float, 4> diagonalAoBrightness{};
 
-    // 计算每个角落的打包亮度
-    std::array<u32, 4> cornerPacked{};
-    for (size_t i = 0; i < 4; ++i) {
-        cornerPacked[i] = packLight(cornerSamples[i].skyLight, cornerSamples[i].blockLight);
+    // MC原版对角线采样逻辑:
+    // i1: 如果 !flag2 && !flag，使用 corner[0]；否则采样 corner[0] + corner[2]
+    // j1: 如果 !flag3 && !flag，使用 corner[0]；否则采样 corner[0] + corner[3]
+    // k1: 如果 !flag2 && !flag1，使用 corner[0]；否则采样 corner[1] + corner[2]
+    // l1: 如果 !flag3 && !flag1，使用 corner[0]；否则采样 corner[1] + corner[3]
+
+    // i1 (diagonal[0]): corner[0] + corner[2]
+    if (!edgeOuterTransparent[2] && !edgeOuterTransparent[0]) {
+        diagonalPackedLight[0] = cornerPackedLight[0];
+        diagonalAoBrightness[0] = cornerSamples[0].aoBrightness;
+    } else {
+        auto [d0x, d0y, d0z] = getDirection(cornerDirs[0]);
+        auto [d2x, d2y, d2z] = getDirection(cornerDirs[2]);
+        i32 dx = baseX + d0x + d2x;
+        i32 dy = baseY + d0y + d2y;
+        i32 dz = baseZ + d0z + d2z;
+
+        auto diagSample = samplePosition(chunk, dx, dy, dz, neighborChunks);
+        diagonalPackedLight[0] = packLight(diagSample.skyLight, diagSample.blockLight);
+        diagonalAoBrightness[0] = diagSample.aoBrightness;
     }
 
-    // 计算对角线位置（当相邻角落被遮挡时需要）
-    std::array<u32, 4> diagonalPacked{};
-    for (size_t i = 0; i < 4; ++i) {
-        size_t nextI = (i + 1) % 4;
-        size_t prevI = (i + 3) % 4;
+    // j1 (diagonal[1]): corner[0] + corner[3]
+    if (!edgeOuterTransparent[3] && !edgeOuterTransparent[0]) {
+        diagonalPackedLight[1] = cornerPackedLight[0];
+        diagonalAoBrightness[1] = cornerSamples[0].aoBrightness;
+    } else {
+        auto [d0x, d0y, d0z] = getDirection(cornerDirs[0]);
+        auto [d3x, d3y, d3z] = getDirection(cornerDirs[3]);
+        i32 dx = baseX + d0x + d3x;
+        i32 dy = baseY + d0y + d3y;
+        i32 dz = baseZ + d0z + d3z;
 
-        // 对角线位置 = 角落i + 角落nextI的偏移（去掉法线分量）
-        // 简化：如果两个相邻角落外侧都透明，则需要采样对角线
-        if (!cornerOuterOpaque[i] || !cornerOuterOpaque[nextI]) {
-            // 不需要对角线采样，使用角落i的值
-            diagonalPacked[i] = cornerPacked[i];
-        } else {
-            // 需要采样对角线位置
-            i32 dx = blockX + corners[i].x + corners[nextI].x;
-            i32 dy = blockY + corners[i].y + corners[nextI].y;
-            i32 dz = blockZ + corners[i].z + corners[nextI].z;
-
-            // 对角线位置在面的外侧
-            dx += normal.x;
-            dy += normal.y;
-            dz += normal.z;
-
-            auto diagSample = samplePosition(chunk, dx, dy, dz, neighborChunks);
-            diagonalPacked[i] = packLight(diagSample.skyLight, diagSample.blockLight);
-        }
+        auto diagSample = samplePosition(chunk, dx, dy, dz, neighborChunks);
+        diagonalPackedLight[1] = packLight(diagSample.skyLight, diagSample.blockLight);
+        diagonalAoBrightness[1] = diagSample.aoBrightness;
     }
 
-    // 计算AO颜色乘数
-    // 对于每个顶点，AO值是周围4个位置AO亮度的平均值
-    // 参考 MC 的计算: (corner1 + corner2 + corner3 + center) * 0.25
+    // k1 (diagonal[2]): corner[1] + corner[2]
+    if (!edgeOuterTransparent[2] && !edgeOuterTransparent[1]) {
+        diagonalPackedLight[2] = cornerPackedLight[0];
+        diagonalAoBrightness[2] = cornerSamples[0].aoBrightness;
+    } else {
+        auto [d1x, d1y, d1z] = getDirection(cornerDirs[1]);
+        auto [d2x, d2y, d2z] = getDirection(cornerDirs[2]);
+        i32 dx = baseX + d1x + d2x;
+        i32 dy = baseY + d1y + d2y;
+        i32 dz = baseZ + d1z + d2z;
 
-    // 顶点AO计算 (对应MC中的顶点映射)
-    std::array<float, 4> vertexAo{};
-    std::array<u32, 4> vertexBrightness{};
+        auto diagSample = samplePosition(chunk, dx, dy, dz, neighborChunks);
+        diagonalPackedLight[2] = packLight(diagSample.skyLight, diagSample.blockLight);
+        diagonalAoBrightness[2] = diagSample.aoBrightness;
+    }
 
-    // 使用MC的顶点映射
-    const auto& vertexMap = VERTEX_MAP[faceIdx];
+    // l1 (diagonal[3]): corner[1] + corner[3]
+    if (!edgeOuterTransparent[3] && !edgeOuterTransparent[1]) {
+        diagonalPackedLight[3] = cornerPackedLight[0];
+        diagonalAoBrightness[3] = cornerSamples[0].aoBrightness;
+    } else {
+        auto [d1x, d1y, d1z] = getDirection(cornerDirs[1]);
+        auto [d3x, d3y, d3z] = getDirection(cornerDirs[3]);
+        i32 dx = baseX + d1x + d3x;
+        i32 dy = baseY + d1y + d3y;
+        i32 dz = baseZ + d1z + d3z;
 
+        auto diagSample = samplePosition(chunk, dx, dy, dz, neighborChunks);
+        diagonalPackedLight[3] = packLight(diagSample.skyLight, diagSample.blockLight);
+        diagonalAoBrightness[3] = diagSample.aoBrightness;
+    }
+
+    // ================================================================
+    // 步骤5: 计算中心位置的光照
+    // ================================================================
+    // MC原版:
+    // i3 = 方块自身的光照（如果面外侧不透明）
+    // 如果面外侧透明，使用面外侧位置的光照
+
+    // 获取方块自身的光照
+    auto selfSample = samplePosition(chunk, blockX, blockY, blockZ, neighborChunks);
+    u32 selfPackedLight = packLight(selfSample.skyLight, selfSample.blockLight);
+
+    // 获取面外侧位置的光照
+    auto faceOuterSample = samplePosition(chunk, faceOuterX, faceOuterY, faceOuterZ, neighborChunks);
+    u32 faceOuterPackedLight = packLight(faceOuterSample.skyLight, faceOuterSample.blockLight);
+
+    // 中心光照
+    u32 centerPackedLight = faceOuterOpaque ? selfPackedLight : faceOuterPackedLight;
+
+    // 中心AO亮度
+    float f8 = faceOuterOpaque
+        ? selfSample.aoBrightness
+        : faceOuterSample.aoBrightness;
+
+    // ================================================================
+    // 步骤6: 计算每个顶点的AO颜色乘数
+    // ================================================================
+    // MC原版变量命名:
+    // f = cornerSamples[0].aoBrightness
+    // f1 = cornerSamples[1].aoBrightness
+    // f2 = cornerSamples[2].aoBrightness
+    // f3 = cornerSamples[3].aoBrightness
+    // f4 = diagonalAoBrightness[0]
+    // f5 = diagonalAoBrightness[1]
+    // f6 = diagonalAoBrightness[2]
+    // f7 = diagonalAoBrightness[3]
+
+    float f0 = cornerSamples[0].aoBrightness;
+    float f1 = cornerSamples[1].aoBrightness;
+    float f2 = cornerSamples[2].aoBrightness;
+    float f3 = cornerSamples[3].aoBrightness;
+    float f4 = diagonalAoBrightness[0];
+    float f5 = diagonalAoBrightness[1];
+    float f6 = diagonalAoBrightness[2];
+    float f7 = diagonalAoBrightness[3];
+
+    // MC原版计算:
+    // f9  = (f3 + f + f5 + f8) * 0.25  -> 顶点0
+    // f10 = (f2 + f + f4 + f8) * 0.25  -> 顶点1
+    // f11 = (f2 + f1 + f6 + f8) * 0.25 -> 顶点2
+    // f12 = (f3 + f1 + f7 + f8) * 0.25 -> 顶点3
+
+    std::array<float, 4> vertexAoColorMultiplier = {{
+        (f3 + f0 + f5 + f8) * 0.25f,  // 顶点0
+        (f2 + f0 + f4 + f8) * 0.25f,  // 顶点1
+        (f2 + f1 + f6 + f8) * 0.25f,  // 顶点2
+        (f3 + f1 + f7 + f8) * 0.25f   // 顶点3
+    }};
+
+    // ================================================================
+    // 步骤7: 计算每个顶点的亮度值
+    // ================================================================
+    // MC原版:
+    // vertexBrightness[vert0] = getAoBrightness(l, i, j1, i3)
+    // vertexBrightness[vert1] = getAoBrightness(k, i, i1, i3)
+    // vertexBrightness[vert2] = getAoBrightness(k, j, k1, i3)
+    // vertexBrightness[vert3] = getAoBrightness(l, j, l1, i3)
+
+    // 其中:
+    // l = cornerPackedLight[3]
+    // i = cornerPackedLight[0]
+    // k = cornerPackedLight[2]
+    // j = cornerPackedLight[1]
+    // i1 = diagonalPackedLight[0]
+    // j1 = diagonalPackedLight[1]
+    // k1 = diagonalPackedLight[2]
+    // l1 = diagonalPackedLight[3]
+    // i3 = centerPackedLight
+
+    std::array<u32, 4> vertexBrightness;
+    vertexBrightness[0] = getAoBrightness(cornerPackedLight[3], cornerPackedLight[0],
+                                          diagonalPackedLight[1], centerPackedLight);
+    vertexBrightness[1] = getAoBrightness(cornerPackedLight[2], cornerPackedLight[0],
+                                          diagonalPackedLight[0], centerPackedLight);
+    vertexBrightness[2] = getAoBrightness(cornerPackedLight[2], cornerPackedLight[1],
+                                          diagonalPackedLight[2], centerPackedLight);
+    vertexBrightness[3] = getAoBrightness(cornerPackedLight[3], cornerPackedLight[1],
+                                          diagonalPackedLight[3], centerPackedLight);
+
+    // ================================================================
+    // 步骤8: 应用顶点映射
+    // ================================================================
     for (size_t v = 0; v < 4; ++v) {
-        size_t c0 = vertexMap[v];  // 主角落
-        size_t c1 = (c0 + 1) % 4;  // 相邻角落1
-        size_t c2 = (c0 + 2) % 4;  // 对角角落
-        size_t c3 = (c0 + 3) % 4;  // 相邻角落2
-
-        // AO颜色乘数 = 四个位置的AO亮度平均
-        float ao0 = cornerSamples[c0].aoBrightness;
-        float ao1 = cornerSamples[c1].aoBrightness;
-        float ao2 = cornerSamples[c2].aoBrightness;
-        float aoCenter = centerSample.aoBrightness;
-
-        vertexAo[v] = (ao0 + ao1 + ao2 + aoCenter) * 0.25f;
-
-        // 亮度计算
-        // 如果相邻角落外侧不透明，使用该角落的亮度
-        // 否则使用对角线亮度或中心亮度
-        u32 br0, br1, br2, br3;
-
-        // c0 角落的亮度
-        if (!cornerOuterOpaque[c3] && !cornerOuterOpaque[c0]) {
-            br0 = centerPacked;
-        } else {
-            br0 = diagonalPacked[(c0 + 3) % 4]; // 对应的对角线
-        }
-
-        if (!cornerOuterOpaque[c1] && !cornerOuterOpaque[c0]) {
-            br1 = cornerPacked[c0];
-        } else {
-            br1 = diagonalPacked[c0];
-        }
-
-        if (!cornerOuterOpaque[c1] && !cornerOuterOpaque[c2]) {
-            br2 = diagonalPacked[c1];
-        } else {
-            br2 = cornerPacked[c1];
-        }
-
-        if (!cornerOuterOpaque[c3] && !cornerOuterOpaque[c2]) {
-            br3 = diagonalPacked[(c2 + 3) % 4];
-        } else {
-            br3 = cornerPacked[c3];
-        }
-
-        // 计算顶点亮度
-        // 简化版：使用四个角落亮度的平均
-        u32 aoBr = getAoBrightness(cornerPacked[c3], cornerPacked[c0],
-                                    diagonalPacked[(c0 + 3) % 4], centerPacked);
-        vertexBrightness[v] = aoBr;
-    }
-
-    // 填充结果
-    for (size_t i = 0; i < 4; ++i) {
-        result.vertexColorMultiplier[i] = vertexAo[i];
-        result.vertexSkyLight[i] = unpackSkyLight(vertexBrightness[i]);
-        result.vertexBlockLight[i] = unpackBlockLight(vertexBrightness[i]);
+        size_t mappedIdx = vertexTrans[v];
+        result.vertexColorMultiplier[mappedIdx] = vertexAoColorMultiplier[v];
+        result.vertexSkyLight[mappedIdx] = unpackSkyLight(vertexBrightness[v]);
+        result.vertexBlockLight[mappedIdx] = unpackBlockLight(vertexBrightness[v]);
     }
 
     return result;
@@ -270,14 +372,12 @@ AmbientOcclusionCalculator::CornerSample AmbientOcclusionCalculator::samplePosit
         sample.skyLight = 15;
         sample.blockLight = 0;
         sample.aoBrightness = 1.0f;
-        sample.opaque = false;
         return sample;
     }
     if (y < world::MIN_BUILD_HEIGHT) {
         sample.skyLight = 0;
         sample.blockLight = 0;
         sample.aoBrightness = 0.2f;
-        sample.opaque = true;
         return sample;
     }
 
@@ -299,11 +399,10 @@ AmbientOcclusionCalculator::CornerSample AmbientOcclusionCalculator::samplePosit
     if (localZ < 0) {
         localZ += SIZE;
         if (sampleChunk != &chunk && sampleChunk != nullptr) {
-            // X和Z都越界，需要获取对角区块，简化处理使用默认值
+            // X和Z都越界，需要获取对角区块
             sample.skyLight = 15;
             sample.blockLight = 0;
             sample.aoBrightness = 1.0f;
-            sample.opaque = false;
             return sample;
         }
         sampleChunk = neighborChunks ? neighborChunks[2] : nullptr; // -Z
@@ -313,7 +412,6 @@ AmbientOcclusionCalculator::CornerSample AmbientOcclusionCalculator::samplePosit
             sample.skyLight = 15;
             sample.blockLight = 0;
             sample.aoBrightness = 1.0f;
-            sample.opaque = false;
             return sample;
         }
         sampleChunk = neighborChunks ? neighborChunks[3] : nullptr; // +Z
@@ -324,7 +422,6 @@ AmbientOcclusionCalculator::CornerSample AmbientOcclusionCalculator::samplePosit
         sample.skyLight = 15;
         sample.blockLight = 0;
         sample.aoBrightness = 1.0f;
-        sample.opaque = false;
         return sample;
     }
 
@@ -337,9 +434,68 @@ AmbientOcclusionCalculator::CornerSample AmbientOcclusionCalculator::samplePosit
 
     // 计算AO亮度
     sample.aoBrightness = getAoBrightness(state);
-    sample.opaque = isOpaque(state);
 
     return sample;
+}
+
+bool AmbientOcclusionCalculator::isTransparent(
+    const ChunkData& chunk,
+    i32 x,
+    i32 y,
+    i32 z,
+    const ChunkData* neighborChunks[6]
+) const {
+    // 边界检查
+    constexpr i32 SIZE = ChunkSection::SIZE;
+
+    // Y边界
+    if (y >= world::MAX_BUILD_HEIGHT || y < world::MIN_BUILD_HEIGHT) {
+        return true;  // 边界外视为透明
+    }
+
+    // 确定采样区块
+    const ChunkData* sampleChunk = &chunk;
+    i32 localX = x;
+    i32 localZ = z;
+
+    // X边界处理
+    if (localX < 0) {
+        localX += SIZE;
+        sampleChunk = neighborChunks ? neighborChunks[0] : nullptr;
+    } else if (localX >= SIZE) {
+        localX -= SIZE;
+        sampleChunk = neighborChunks ? neighborChunks[1] : nullptr;
+    }
+
+    // Z边界处理
+    if (localZ < 0) {
+        localZ += SIZE;
+        if (sampleChunk != &chunk && sampleChunk != nullptr) {
+            return true;  // 对角区块缺失，视为透明
+        }
+        sampleChunk = neighborChunks ? neighborChunks[2] : nullptr;
+    } else if (localZ >= SIZE) {
+        localZ -= SIZE;
+        if (sampleChunk != &chunk && sampleChunk != nullptr) {
+            return true;
+        }
+        sampleChunk = neighborChunks ? neighborChunks[3] : nullptr;
+    }
+
+    // 如果区块不存在，视为透明
+    if (!sampleChunk) {
+        return true;
+    }
+
+    // 获取方块状态
+    const BlockState* state = sampleChunk->getBlock(localX, y, localZ);
+    if (!state || state->isAir()) {
+        return true;  // 空气是透明的
+    }
+
+    // 参考 MC: state.getOpacity(world, pos) == 0
+    // 如果不透光度为0，则为透明
+    return state->getOpacity() == 0;
 }
 
 float AmbientOcclusionCalculator::getAoBrightness(const BlockState* state) {
@@ -347,10 +503,11 @@ float AmbientOcclusionCalculator::getAoBrightness(const BlockState* state) {
         // 空气或null，不产生阴影
         return 1.0f;
     }
+    // 参考 MC: state.getAmbientOcclusionLightValue(world, pos)
     return state->getAmbientOcclusionLightValue();
 }
 
-bool AmbientOcclusionCalculator::isOpaque(const BlockState* state) {
+bool AmbientOcclusionCalculator::hasOpaqueCollisionShape(const BlockState* state) {
     if (state == nullptr || state->isAir()) {
         return false;
     }
@@ -358,32 +515,35 @@ bool AmbientOcclusionCalculator::isOpaque(const BlockState* state) {
 }
 
 u32 AmbientOcclusionCalculator::getAoBrightness(u32 br1, u32 br2, u32 br3, u32 br4) {
-    // 参考 MC: 如果值为0，使用中心亮度
-    // 这里简化处理，将0替换为br4
+    // 参考 MC: AmbientOcclusionFace#getAoBrightness
+    // 如果值为0，使用中心亮度(br4)
     if (br1 == 0) br1 = br4;
     if (br2 == 0) br2 = br4;
     if (br3 == 0) br3 = br4;
 
-    // 平均并提取有效位
-    // packed格式: skyLight << 16 | blockLight
-    u32 skyBr = (((br1 >> 16) & 0xFF) + ((br2 >> 16) & 0xFF) +
-                 ((br3 >> 16) & 0xFF) + ((br4 >> 16) & 0xFF)) >> 2;
-    u32 blockBr = ((br1 & 0xFF) + (br2 & 0xFF) + (br3 & 0xFF) + (br4 & 0xFF)) >> 2;
+    // MC原版: return br1 + br2 + br3 + br4 >> 2 & 16711935;
+    // 我们的打包格式: skyLight << 20 | blockLight << 4
+    u32 skyBr = (((br1 >> 20) & 0xF) + ((br2 >> 20) & 0xF) +
+                 ((br3 >> 20) & 0xF) + ((br4 >> 20) & 0xF)) >> 2;
+    u32 blockBr = (((br1 >> 4) & 0xF) + ((br2 >> 4) & 0xF) +
+                   ((br3 >> 4) & 0xF) + ((br4 >> 4) & 0xF)) >> 2;
 
-    return (skyBr << 16) | blockBr;
+    return (skyBr << 20) | (blockBr << 4);
 }
 
 u32 AmbientOcclusionCalculator::packLight(u8 skyLight, u8 blockLight) {
-    // 使用16位存储，方便计算
-    return (static_cast<u32>(skyLight) << 16) | static_cast<u32>(blockLight);
+    // 使用MC原版的打包格式: skyLight << 20 | blockLight << 4
+    // 这样可以正确应用掩码操作
+    return (static_cast<u32>(skyLight & 0xF) << 20) |
+           (static_cast<u32>(blockLight & 0xF) << 4);
 }
 
 u8 AmbientOcclusionCalculator::unpackSkyLight(u32 packed) {
-    return static_cast<u8>((packed >> 16) & 0xFF);
+    return static_cast<u8>((packed >> 20) & 0xF);
 }
 
 u8 AmbientOcclusionCalculator::unpackBlockLight(u32 packed) {
-    return static_cast<u8>(packed & 0xFF);
+    return static_cast<u8>((packed >> 4) & 0xF);
 }
 
 u32 AmbientOcclusionCalculator::getVertexBrightness(
@@ -392,20 +552,70 @@ u32 AmbientOcclusionCalculator::getVertexBrightness(
 ) {
     // 根据权重插值亮度
     u32 sky = static_cast<u32>(
-        ((b1 >> 16) & 0xFF) * w1 +
-        ((b2 >> 16) & 0xFF) * w2 +
-        ((b3 >> 16) & 0xFF) * w3 +
-        ((b4 >> 16) & 0xFF) * w4
-    ) & 0xFF;
+        ((b1 >> 20) & 0xF) * w1 +
+        ((b2 >> 20) & 0xF) * w2 +
+        ((b3 >> 20) & 0xF) * w3 +
+        ((b4 >> 20) & 0xF) * w4
+    ) & 0xF;
 
     u32 block = static_cast<u32>(
-        (b1 & 0xFF) * w1 +
-        (b2 & 0xFF) * w2 +
-        (b3 & 0xFF) * w3 +
-        (b4 & 0xFF) * w4
-    ) & 0xFF;
+        ((b1 >> 4) & 0xF) * w1 +
+        ((b2 >> 4) & 0xF) * w2 +
+        ((b3 >> 4) & 0xF) * w3 +
+        ((b4 >> 4) & 0xF) * w4
+    ) & 0xF;
 
-    return (sky << 16) | block;
+    return (sky << 20) | (block << 4);
+}
+
+u32 AmbientOcclusionCalculator::getPackedLight(
+    const ChunkData& chunk,
+    i32 x, i32 y, i32 z,
+    const ChunkData* neighborChunks[6]
+) {
+    constexpr i32 SIZE = ChunkSection::SIZE;
+
+    if (y >= world::MAX_BUILD_HEIGHT) {
+        return packLight(15, 0);
+    }
+    if (y < world::MIN_BUILD_HEIGHT) {
+        return packLight(0, 0);
+    }
+
+    const ChunkData* sampleChunk = &chunk;
+    i32 localX = x;
+    i32 localZ = z;
+
+    if (localX < 0) {
+        localX += SIZE;
+        sampleChunk = neighborChunks ? neighborChunks[0] : nullptr;
+    } else if (localX >= SIZE) {
+        localX -= SIZE;
+        sampleChunk = neighborChunks ? neighborChunks[1] : nullptr;
+    }
+
+    if (localZ < 0) {
+        localZ += SIZE;
+        if (sampleChunk != &chunk && sampleChunk != nullptr) {
+            return packLight(15, 0);
+        }
+        sampleChunk = neighborChunks ? neighborChunks[2] : nullptr;
+    } else if (localZ >= SIZE) {
+        localZ -= SIZE;
+        if (sampleChunk != &chunk && sampleChunk != nullptr) {
+            return packLight(15, 0);
+        }
+        sampleChunk = neighborChunks ? neighborChunks[3] : nullptr;
+    }
+
+    if (!sampleChunk) {
+        return packLight(15, 0);
+    }
+
+    return packLight(
+        sampleChunk->getSkyLight(localX, y, localZ),
+        sampleChunk->getBlockLight(localX, y, localZ)
+    );
 }
 
 } // namespace renderer
