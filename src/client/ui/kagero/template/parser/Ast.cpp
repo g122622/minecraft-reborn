@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <cctype>
 #include <regex>
+#include <set>
+#include <map>
 
 namespace mc::client::ui::kagero::tpl::ast {
 

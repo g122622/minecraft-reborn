@@ -499,7 +499,7 @@ void TemplateCompiler::generateBindingPlansRecursive(const ast::Node* node,
     // 处理元素节点
     if (auto* element = dynamic_cast<const ast::ElementNode*>(node)) {
         // 生成当前路径
-        currentPath = generateWidgetPath(element, parentPath);
+        currentPath = TemplateCompiler::generateWidgetPath(element, parentPath);
 
         // 处理绑定属性
         for (const auto& attr : element->bindingAttrs) {

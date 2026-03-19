@@ -36,17 +36,17 @@ void levelOrder(Node& root, const std::function<bool(Node&)>& callback) {
     }
 }
 
-void preorder(const Node& root, const std::function<bool(const Node&)>& callback) {
+void preorderConst(const Node& root, const std::function<bool(const Node&)>& callback) {
     if (!callback(root)) return;
 
     for (const auto& child : root.children) {
-        preorder(*child, callback);
+        preorderConst(*child, callback);
     }
 }
 
-void postorder(const Node& root, const std::function<bool(const Node&)>& callback) {
+void postorderConst(const Node& root, const std::function<bool(const Node&)>& callback) {
     for (const auto& child : root.children) {
-        postorder(*child, callback);
+        postorderConst(*child, callback);
     }
 
     callback(root);

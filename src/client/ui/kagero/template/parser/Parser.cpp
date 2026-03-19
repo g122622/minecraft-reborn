@@ -204,7 +204,7 @@ std::unique_ptr<ElementNode> Parser::parseElement() {
     }
 
     // 创建元素节点
-    NodeType nodeType = getNodeTypeFromTagName(tagName);
+    NodeType nodeType = ast::getNodeTypeFromTagName(tagName);
     auto element = std::make_unique<ElementNode>(nodeType);
     element->tagName = tagName;
     element->range.start = startLoc;
@@ -276,6 +276,11 @@ void Parser::parseAttributes(ElementNode& element) {
                 // 警告但不报错，后定义的覆盖前面的
             }
             element.addAttribute(attr);
+
+            // 特殊处理id属性
+            if (attr.name == "id" && !attr.rawValue.empty()) {
+                element.id = attr.rawValue;
+            }
         }
 
         skipWhitespaceAndNewlines();
@@ -512,8 +517,10 @@ void Parser::validateElement(ElementNode& element) {
 }
 
 void Parser::validateAttribute(const Attribute& attr, const ElementNode& element) {
+    (void)element; // 暂时未使用
+
     // 验证属性名
-    if (!isValidAttributeName(attr.name)) {
+    if (!ast::isValidAttributeName(attr.name)) {
         addError(TemplateErrorType::InvalidAttributeName,
                  "Invalid attribute name: " + attr.name,
                  attr.location);
@@ -547,7 +554,7 @@ void Parser::validateAttribute(const Attribute& attr, const ElementNode& element
             for (const auto& pattern : forbiddenPatterns) {
                 if (attr.rawValue.find(pattern) != String::npos) {
                     addError(TemplateErrorType::InlineExpressionNotAllowed,
-                             "Inline expressions are not allowed in strict mode. " +
+                             String("Inline expressions are not allowed in strict mode. ") +
                              "Found pattern '" + pattern + "' in binding: " + attr.rawValue,
                              attr.location);
                     break;
@@ -558,7 +565,7 @@ void Parser::validateAttribute(const Attribute& attr, const ElementNode& element
 }
 
 void Parser::validateBindingPath(const String& path, const SourceLocation& loc) {
-    if (!isValidBindingPath(path)) {
+    if (!ast::isValidBindingPath(path)) {
         addError(TemplateErrorType::InvalidBindingPath,
                  "Invalid binding path: '" + path + "'",
                  loc);
@@ -566,7 +573,7 @@ void Parser::validateBindingPath(const String& path, const SourceLocation& loc) 
 }
 
 void Parser::validateCallbackName(const String& name, const SourceLocation& loc) {
-    if (!isValidCallbackName(name)) {
+    if (!ast::isValidCallbackName(name)) {
         addError(TemplateErrorType::InvalidCallbackName,
                  "Invalid callback name: '" + name + "'. Must be a valid identifier.",
                  loc);

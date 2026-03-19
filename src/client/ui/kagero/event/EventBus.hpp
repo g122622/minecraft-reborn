@@ -8,6 +8,7 @@
 #include <memory>
 #include <mutex>
 #include <atomic>
+#include <algorithm>
 
 namespace mc::client::ui::kagero::event {
 

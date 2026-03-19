@@ -16,6 +16,17 @@ using core::TemplateError;
 using core::TemplateErrorType;
 using core::TemplateErrorInfo;
 using core::TemplateErrorCollector;
+using core::SourceLocation;
+
+// 引入ast命名空间的类型
+using ast::LoopInfo;
+using ast::ConditionInfo;
+using ast::ElementNode;
+using ast::DocumentNode;
+using ast::TextNode;
+using ast::CommentNode;
+using ast::Attribute;
+using ast::NodeType;
 
 /**
  * @brief 语法分析器

@@ -9,8 +9,28 @@
 #include <memory>
 #include <unordered_map>
 #include <functional>
+#include <set>
+#include <vector>
 
 namespace mc::client::ui::kagero::tpl::compiler {
+
+// 引入core命名空间类型
+using core::TemplateConfig;
+using core::TemplateErrorType;
+using core::TemplateErrorInfo;
+using core::TemplateErrorCollector;
+using core::SourceLocation;
+
+// 引入parser命名空间类型
+using parser::Token;
+using parser::TokenType;
+using parser::Lexer;
+using parser::Parser;
+
+// 引入ast命名空间类型
+using ast::DocumentNode;
+using ast::ElementNode;
+using ast::Node;
 
 // 前向声明
 class CompiledTemplate;
@@ -356,9 +376,21 @@ private:
     void generateBindingPlans(ast::DocumentNode* document, CompiledTemplate* result);
 
     /**
+     * @brief 递归生成绑定计划
+     */
+    void generateBindingPlansRecursive(const ast::Node* node, const String& parentPath,
+                                        CompiledTemplate* result);
+
+    /**
      * @brief 生成事件计划
      */
     void generateEventPlans(ast::DocumentNode* document, CompiledTemplate* result);
+
+    /**
+     * @brief 递归生成事件计划
+     */
+    void generateEventPlansRecursive(const ast::Node* node, const String& parentPath,
+                                      CompiledTemplate* result);
 
     /**
      * @brief 收集状态路径

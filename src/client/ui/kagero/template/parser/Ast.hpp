@@ -12,6 +12,7 @@
 namespace mc::client::ui::kagero::tpl::ast {
 
 // 引入core命名空间的类型
+using core::TemplateVersion;
 using core::SourceLocation;
 using core::SourceRange;
 

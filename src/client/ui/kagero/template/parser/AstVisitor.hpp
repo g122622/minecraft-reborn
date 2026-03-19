@@ -194,12 +194,12 @@ void levelOrder(Node& root, const std::function<bool(Node&)>& callback);
 /**
  * @brief 常量版本的前序遍历
  */
-void preorder(const Node& root, const std::function<bool(const Node&)>& callback);
+void preorderConst(const Node& root, const std::function<bool(const Node&)>& callback);
 
 /**
  * @brief 常量版本的后序遍历
  */
-void postorder(const Node& root, const std::function<bool(const Node&)>& callback);
+void postorderConst(const Node& root, const std::function<bool(const Node&)>& callback);
 
 /**
  * @brief 查找第一个匹配的节点

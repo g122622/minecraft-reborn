@@ -9,6 +9,11 @@
 namespace mc::client::ui::kagero::tpl::parser {
 
 // 引入core命名空间的类型
+using core::TemplateConfig;
+using core::TemplateError;
+using core::TemplateErrorType;
+using core::TemplateErrorInfo;
+using core::TemplateErrorCollector;
 using core::SourceLocation;
 using core::SourceRange;
 
@@ -263,6 +268,38 @@ public:
      */
     [[nodiscard]] String getContext(const SourceLocation& loc, size_t contextLines = 2) const;
 
+    // ========== 静态工具方法 ==========
+
+    /**
+     * @brief 检查字符是否是空白字符
+     */
+    [[nodiscard]] static bool isWhitespace(char c);
+
+    /**
+     * @brief 检查字符是否是换行符
+     */
+    [[nodiscard]] static bool isNewline(char c);
+
+    /**
+     * @brief 检查字符是否是字母
+     */
+    [[nodiscard]] static bool isAlpha(char c);
+
+    /**
+     * @brief 检查字符是否是数字
+     */
+    [[nodiscard]] static bool isDigit(char c);
+
+    /**
+     * @brief 检查字符是否是字母或数字
+     */
+    [[nodiscard]] static bool isAlphaNumeric(char c);
+
+    /**
+     * @brief 检查字符是否是有效的标识符字符
+     */
+    [[nodiscard]] static bool isIdentifierChar(char c);
+
 private:
     /**
      * @brief 扫描下一个Token
@@ -341,31 +378,6 @@ private:
      * @brief 检查是否到达文件末尾
      */
     [[nodiscard]] bool isAtEnd() const;
-
-    /**
-     * @brief 检查字符是否是空白字符
-     */
-    [[nodiscard]] static bool isWhitespace(char c);
-
-    /**
-     * @brief 检查字符是否是字母
-     */
-    [[nodiscard]] static bool isAlpha(char c);
-
-    /**
-     * @brief 检查字符是否是数字
-     */
-    [[nodiscard]] static bool isDigit(char c);
-
-    /**
-     * @brief 检查字符是否是字母或数字
-     */
-    [[nodiscard]] static bool isAlphaNumeric(char c);
-
-    /**
-     * @brief 检查字符是否是有效的标识符字符
-     */
-    [[nodiscard]] static bool isIdentifierChar(char c);
 
     /**
      * @brief 添加错误

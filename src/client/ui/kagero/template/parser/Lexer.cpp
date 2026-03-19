@@ -486,6 +486,10 @@ bool Lexer::isWhitespace(char c) {
     return c == ' ' || c == '\t' || c == '\r';
 }
 
+bool Lexer::isNewline(char c) {
+    return c == '\n' || c == '\r';
+}
+
 bool Lexer::isAlpha(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }

@@ -269,14 +269,14 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/common/resource/compat/v1_12/ResourceMapperV112.cpp
         ${CMAKE_SOURCE_DIR}/src/common/resource/compat/v1_13/ResourceMapperV113.cpp
         ${CMAKE_SOURCE_DIR}/src/common/resource/loader/ResourceLoader.cpp
-        # Kagero UI模板系统
+        # Kagero UI模板系统（仅核心解析组件）
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/parser/Ast.cpp
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/parser/AstVisitor.cpp
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/parser/Lexer.cpp
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/parser/Parser.cpp
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/binder/BindingContext.cpp
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/compiler/TemplateCompiler.cpp
-        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/runtime/TemplateInstance.cpp
+        # TemplateInstance.cpp 依赖 Widget 实现，在测试中暂时排除
 )
 
 target_link_libraries(mc_tests
