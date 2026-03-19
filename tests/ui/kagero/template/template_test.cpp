@@ -9,9 +9,8 @@
 #include "client/ui/kagero/template/parser/AstVisitor.hpp"
 #include "client/ui/kagero/template/binder/BindingContext.hpp"
 #include "client/ui/kagero/template/compiler/TemplateCompiler.hpp"
-#include "client/ui/kagero/template/bindings/BuiltinWidgets.hpp"
 
-using namespace mc::client::ui::kagero::template;
+using namespace mc::client::ui::kagero::tpl;
 
 // ========== Lexer测试 ==========
 

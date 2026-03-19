@@ -2,7 +2,15 @@
 
 #include "../../Types.hpp"
 
-namespace mc::client::ui::kagero::template::core {
+namespace mc::client::ui::kagero::tpl::core {
+
+// 引入基础类型
+using mc::String;
+using mc::i32;
+using mc::u8;
+using mc::u64;
+using mc::f32;
+using mc::Size;
 
 /**
  * @brief 模板系统配置
@@ -135,4 +143,4 @@ struct SourceRange {
     }
 };
 
-} // namespace mc::client::ui::kagero::template::core
+} // namespace mc::client::ui::kagero::tpl::core

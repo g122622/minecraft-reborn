@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cctype>
 
-namespace mc::client::ui::kagero::template::bindings {
+namespace mc::client::ui::kagero::tpl::bindings {
 
 // ========== BuiltinWidgets实现 ==========
 
@@ -633,4 +633,4 @@ std::pair<f32, f32> parseRange(const String& value) {
 
 } // namespace widget_attrs
 
-} // namespace mc::client::ui::kagero::template::bindings
+} // namespace mc::client::ui::kagero::tpl::bindings

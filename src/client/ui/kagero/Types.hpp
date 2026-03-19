@@ -9,8 +9,13 @@
 
 namespace mc::client::ui::kagero {
 
-// 使用Colors命名空间中的颜色常量
-using namespace mc::client::Colors;
+// 引入Colors命名空间中的颜色常量
+using mc::client::Colors::WHITE;
+using mc::client::Colors::BLACK;
+using mc::client::Colors::RED;
+using mc::client::Colors::GREEN;
+using mc::client::Colors::BLUE;
+using mc::client::Colors::fromARGB;
 
 /**
  * @brief 矩形区域

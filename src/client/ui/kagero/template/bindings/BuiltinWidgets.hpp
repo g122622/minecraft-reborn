@@ -17,7 +17,7 @@
 #include <unordered_map>
 #include <memory>
 
-namespace mc::client::ui::kagero::template::bindings {
+namespace mc::client::ui::kagero::tpl::bindings {
 
 /**
  * @brief Widget创建函数类型
@@ -203,4 +203,4 @@ void applySize(widget::Widget* widget, const String& value);
 
 } // namespace widget_attrs
 
-} // namespace mc::client::ui::kagero::template::bindings
+} // namespace mc::client::ui::kagero::tpl::bindings

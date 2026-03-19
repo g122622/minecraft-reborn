@@ -3,7 +3,7 @@
 #include <cctype>
 #include <regex>
 
-namespace mc::client::ui::kagero::template::ast {
+namespace mc::client::ui::kagero::tpl::ast {
 
 // ========== BindingInfo ==========
 
@@ -311,4 +311,4 @@ bool isValidCallbackName(const String& name) {
     return std::regex_match(name, identifierPattern);
 }
 
-} // namespace mc::client::ui::kagero::template::ast
+} // namespace mc::client::ui::kagero::tpl::ast

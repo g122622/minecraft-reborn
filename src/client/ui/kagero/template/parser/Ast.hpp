@@ -9,7 +9,11 @@
 #include <optional>
 #include <variant>
 
-namespace mc::client::ui::kagero::template::ast {
+namespace mc::client::ui::kagero::tpl::ast {
+
+// 引入core命名空间的类型
+using core::SourceLocation;
+using core::SourceRange;
 
 /**
  * @brief AST节点类型枚举
@@ -380,4 +384,4 @@ struct DocumentNode : public Node {
  */
 [[nodiscard]] bool isValidCallbackName(const String& name);
 
-} // namespace mc::client::ui::kagero::template::ast
+} // namespace mc::client::ui::kagero::tpl::ast

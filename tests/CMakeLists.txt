@@ -277,8 +277,6 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/binder/BindingContext.cpp
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/compiler/TemplateCompiler.cpp
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/runtime/TemplateInstance.cpp
-        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/bindings/BuiltinWidgets.cpp
-        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/bindings/BuiltinEvents.cpp
 )
 
 target_link_libraries(mc_tests

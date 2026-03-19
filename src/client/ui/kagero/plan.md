@@ -408,7 +408,7 @@ src/client/ui/kagero/
 将UI模板编译为C++代码：
 
 ```cpp
-namespace mc::client::ui::kagero::template {
+namespace mc::client::ui::kagero::tpl {
 
 // AST节点类型
 enum class NodeType {
@@ -461,7 +461,7 @@ private:
     std::vector<EventHandler> m_eventHandlers;
 };
 
-} // namespace mc::client::ui::kagero::template
+} // namespace mc::client::ui::kagero::tpl
 ```
 
 
@@ -758,7 +758,7 @@ src/client/ui/kagero/
 - `mc::client::ui::kagero::event` - 事件系统
 - `mc::client::ui::kagero::state` - 状态管理
 - `mc::client::ui::kagero::layout` - 布局引擎
-- `mc::client::ui::kagero::template` - 模板系统
+- `mc::client::ui::kagero::tpl` - 模板系统
 - `mc::client::ui::kagero::screen` - 屏幕管理
 - `mc::client::ui::kagero::resource` - 资源管理
 - `mc::client::ui::kagero::render` - 渲染系统

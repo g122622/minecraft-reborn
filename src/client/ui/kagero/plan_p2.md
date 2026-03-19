@@ -110,7 +110,7 @@ src/client/ui/kagero/template/
 ### 1. AST 节点（严格类型化）
 
 ```cpp
-namespace mc::client::ui::kagero::template::ast {
+namespace mc::client::ui::kagero::tpl::ast {
 
 enum class NodeType {
     Screen, Widget, Grid, Slot, Viewport3D, Button, Text, Image, Style,
@@ -165,7 +165,7 @@ struct WidgetNode {
 ### 2. 绑定上下文（连接模板与C++状态）
 
 ```cpp
-namespace mc::client::ui::kagero::template::binder {
+namespace mc::client::ui::kagero::tpl::binder {
 
 // 绑定上下文：模板实例与StateStore/EventBus的桥梁
 class BindingContext {
@@ -212,7 +212,7 @@ private:
 ### 3. 模板编译器（模板 → 可执行描述）
 
 ```cpp
-namespace mc::client::ui::kagero::template::compiler {
+namespace mc::client::ui::kagero::tpl::compiler {
 
 // 编译结果：轻量、可序列化、可缓存
 class CompiledTemplate {

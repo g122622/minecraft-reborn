@@ -3,7 +3,7 @@
 #include "Ast.hpp"
 #include <functional>
 
-namespace mc::client::ui::kagero::template::ast {
+namespace mc::client::ui::kagero::tpl::ast {
 
 /**
  * @brief AST访问者接口
@@ -246,4 +246,4 @@ size_t countNodes(const Node& root, NodeType type);
 
 } // namespace traversal
 
-} // namespace mc::client::ui::kagero::template::ast
+} // namespace mc::client::ui::kagero::tpl::ast

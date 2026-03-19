@@ -4,7 +4,7 @@
 #include <sstream>
 #include <algorithm>
 
-namespace mc::client::ui::kagero::template::compiler {
+namespace mc::client::ui::kagero::tpl::compiler {
 
 // ========== CompiledTemplate实现 ==========
 
@@ -658,4 +658,4 @@ void TemplateCompiler::extractBindings(const ast::ElementNode* element,
     }
 }
 
-} // namespace mc::client::ui::kagero::template::compiler
+} // namespace mc::client::ui::kagero::tpl::compiler

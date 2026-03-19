@@ -85,7 +85,7 @@
  * - runtime: 运行时实例和更新调度
  * - bindings: 内置Widget和事件注册
  */
-namespace mc::client::ui::kagero::template {
+namespace mc::client::ui::kagero::tpl {
 
 /**
  * @brief 初始化模板系统
@@ -108,4 +108,4 @@ struct TemplateVersion {
     static constexpr const char* String = "1.0.0";
 };
 
-} // namespace mc::client::ui::kagero::template
+} // namespace mc::client::ui::kagero::tpl

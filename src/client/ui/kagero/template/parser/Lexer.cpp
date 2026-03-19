@@ -1,7 +1,7 @@
 #include "Lexer.hpp"
 #include <sstream>
 
-namespace mc::client::ui::kagero::template::parser {
+namespace mc::client::ui::kagero::tpl::parser {
 
 // ========== TokenType名称 ==========
 
@@ -520,4 +520,4 @@ Token Lexer::makeToken(TokenType type, const String& value) const {
     return Token(type, value, m_location);
 }
 
-} // namespace mc::client::ui::kagero::template::parser
+} // namespace mc::client::ui::kagero::tpl::parser

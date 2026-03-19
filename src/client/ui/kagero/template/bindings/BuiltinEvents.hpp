@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <String>
 
-namespace mc::client::ui::kagero::template::bindings {
+namespace mc::client::ui::kagero::tpl::bindings {
 
 /**
  * @brief 事件处理器类型
@@ -197,4 +197,4 @@ template<typename T>
 
 } // namespace event_utils
 
-} // namespace mc::client::ui::kagero::template::bindings
+} // namespace mc::client::ui::kagero::tpl::bindings

@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <chrono>
 
-namespace mc::client::ui::kagero::template::runtime {
+namespace mc::client::ui::kagero::tpl::runtime {
 
 // ========== TemplateInstance实现 ==========
 
@@ -700,4 +700,4 @@ void UpdateScheduler::deduplicatePaths() {
     }
 }
 
-} // namespace mc::client::ui::kagero::template::runtime
+} // namespace mc::client::ui::kagero::tpl::runtime

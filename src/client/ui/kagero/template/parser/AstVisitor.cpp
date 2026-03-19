@@ -2,7 +2,7 @@
 #include <queue>
 #include <stack>
 
-namespace mc::client::ui::kagero::template::ast::traversal {
+namespace mc::client::ui::kagero::tpl::ast::traversal {
 
 void preorder(Node& root, const std::function<bool(Node&)>& callback) {
     if (!callback(root)) return;
@@ -193,4 +193,4 @@ size_t countNodes(const Node& root, NodeType type) {
     return count;
 }
 
-} // namespace mc::client::ui::kagero::template::ast::traversal
+} // namespace mc::client::ui::kagero::tpl::ast::traversal

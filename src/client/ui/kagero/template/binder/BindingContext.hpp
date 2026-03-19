@@ -9,7 +9,7 @@
 #include <any>
 #include <typeindex>
 
-namespace mc::client::ui::kagero::template::binder {
+namespace mc::client::ui::kagero::tpl::binder {
 
 /**
  * @brief 动态值类型
@@ -382,4 +382,4 @@ private:
     u64 m_nextSubscriberId = 1;
 };
 
-} // namespace mc::client::ui::kagero::template::binder
+} // namespace mc::client::ui::kagero::tpl::binder

@@ -6,7 +6,11 @@
 #include <vector>
 #include <unordered_map>
 
-namespace mc::client::ui::kagero::template::parser {
+namespace mc::client::ui::kagero::tpl::parser {
+
+// 引入core命名空间的类型
+using core::SourceLocation;
+using core::SourceRange;
 
 /**
  * @brief Token类型枚举
@@ -395,4 +399,4 @@ private:
     bool m_inAttribute = false;             ///< 是否在属性值内部
 };
 
-} // namespace mc::client::ui::kagero::template::parser
+} // namespace mc::client::ui::kagero::tpl::parser

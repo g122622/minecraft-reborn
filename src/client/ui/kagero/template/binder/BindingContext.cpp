@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cctype>
 
-namespace mc::client::ui::kagero::template::binder {
+namespace mc::client::ui::kagero::tpl::binder {
 
 // ========== Value实现 ==========
 
@@ -418,4 +418,4 @@ std::vector<String> BindingContext::splitPath(const String& path) const {
     return parts;
 }
 
-} // namespace mc::client::ui::kagero::template::binder
+} // namespace mc::client::ui::kagero::tpl::binder

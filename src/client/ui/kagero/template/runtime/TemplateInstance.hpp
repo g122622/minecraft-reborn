@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <functional>
 
-namespace mc::client::ui::kagero::template::runtime {
+namespace mc::client::ui::kagero::tpl::runtime {
 
 // 前向声明
 class UpdateScheduler;
@@ -469,4 +469,4 @@ private:
     bool m_deferredUpdate = true; ///< 是否启用延迟更新
 };
 
-} // namespace mc::client::ui::kagero::template::runtime
+} // namespace mc::client::ui::kagero::tpl::runtime

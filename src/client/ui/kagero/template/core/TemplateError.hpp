@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace mc::client::ui::kagero::template::core {
+namespace mc::client::ui::kagero::tpl::core {
 
 /**
  * @brief 模板错误类型枚举
@@ -314,4 +314,4 @@ private:
     std::vector<TemplateErrorInfo> m_errors;
 };
 
-} // namespace mc::client::ui::kagero::template::core
+} // namespace mc::client::ui::kagero::tpl::core

@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <cctype>
 
-namespace mc::client::ui::kagero::template::bindings {
+namespace mc::client::ui::kagero::tpl::bindings {
 
 // ========== BuiltinEvents实现 ==========
 
@@ -445,4 +445,4 @@ i32 parseKeyMods(const String& mods) {
 
 } // namespace event_utils
 
-} // namespace mc::client::ui::kagero::template::bindings
+} // namespace mc::client::ui::kagero::tpl::bindings

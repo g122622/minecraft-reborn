@@ -6,8 +6,16 @@
 #include "../core/TemplateError.hpp"
 #include <memory>
 #include <functional>
+#include <algorithm>
 
-namespace mc::client::ui::kagero::template::parser {
+namespace mc::client::ui::kagero::tpl::parser {
+
+// 引入core命名空间的类型
+using core::TemplateConfig;
+using core::TemplateError;
+using core::TemplateErrorType;
+using core::TemplateErrorInfo;
+using core::TemplateErrorCollector;
 
 /**
  * @brief 语法分析器
@@ -292,4 +300,4 @@ private:
     std::vector<TemplateErrorInfo> m_errors;
 };
 
-} // namespace mc::client::ui::kagero::template::parser
+} // namespace mc::client::ui::kagero::tpl::parser

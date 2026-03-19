@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <functional>
 
-namespace mc::client::ui::kagero::template::compiler {
+namespace mc::client::ui::kagero::tpl::compiler {
 
 // 前向声明
 class CompiledTemplate;
@@ -420,4 +420,4 @@ private:
     std::vector<TemplateErrorInfo> m_lastErrors;
 };
 
-} // namespace mc::client::ui::kagero::template::compiler
+} // namespace mc::client::ui::kagero::tpl::compiler

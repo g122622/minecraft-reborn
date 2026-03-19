@@ -1,7 +1,7 @@
 #include "Parser.hpp"
 #include <algorithm>
 
-namespace mc::client::ui::kagero::template::parser {
+namespace mc::client::ui::kagero::tpl::parser {
 
 Parser::Parser(const std::vector<Token>& tokens, const TemplateConfig& config)
     : m_tokens(tokens)
@@ -667,4 +667,4 @@ bool Parser::isValidTagName(const String& name) const {
     return ast::isValidWidgetTag(name);
 }
 
-} // namespace mc::client::ui::kagero::template::parser
+} // namespace mc::client::ui::kagero::tpl::parser
