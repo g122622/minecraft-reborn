@@ -177,6 +177,24 @@ TEST_F(ItemTest, ForEachItem) {
     EXPECT_GT(count, 0);
 }
 
+TEST_F(ItemTest, DuplicateRegistrationReturnsExistingItem) {
+    const ResourceLocation id("test:duplicate_item_reg");
+    const size_t countBefore = ItemRegistry::instance().itemCount();
+
+    auto& first = ItemRegistry::instance().registerItem<Item>(
+        id,
+        ItemProperties().maxStackSize(16)
+    );
+    auto& second = ItemRegistry::instance().registerItem<Item>(
+        id,
+        ItemProperties().maxStackSize(1)
+    );
+
+    EXPECT_EQ(&first, &second);
+    EXPECT_EQ(ItemRegistry::instance().itemCount(), countBefore + 1);
+    EXPECT_EQ(first.maxStackSize(), 16);
+}
+
 // ============================================================================
 // ItemStack 测试
 // ============================================================================

@@ -7,6 +7,8 @@
 #include <functional>
 #include <optional>
 #include <algorithm>
+#include <type_traits>
+#include <stdexcept>
 
 namespace mc {
 
@@ -54,6 +56,20 @@ public:
      */
     template<typename BlockType, typename... Args>
     BlockType& registerBlock(const ResourceLocation& id, Args&&... args) {
+        static_assert(std::is_base_of_v<Block, BlockType>,
+                      "BlockType must inherit from Block");
+
+        // 避免重复注册同一资源位置导致旧状态指针悬挂
+        auto existingIt = m_blocks.find(id);
+        if (existingIt != m_blocks.end()) {
+            auto* existing = dynamic_cast<BlockType*>(existingIt->second.get());
+            if (existing == nullptr) {
+                throw std::logic_error(
+                    "Block id already registered with different type: " + id.toString());
+            }
+            return *existing;
+        }
+
         auto block = std::make_unique<BlockType>(std::forward<Args>(args)...);
         block->m_blockLocation = id;
 
@@ -120,8 +136,16 @@ public:
      * @brief 遍历所有方块状态
      */
     void forEachBlockState(std::function<void(const BlockState&)> callback) {
-        for (const auto& [id, state] : m_statesById) {
-            callback(*state);
+        for (const auto& [id, block] : m_blocks) {
+            (void)id;
+            if (!block) {
+                continue;
+            }
+            for (const auto& state : block->stateContainer().validStates()) {
+                if (state) {
+                    callback(*state);
+                }
+            }
         }
     }
 

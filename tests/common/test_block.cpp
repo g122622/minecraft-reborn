@@ -411,6 +411,23 @@ TEST(BlockRegistryTest, GetBlockByLocation) {
     EXPECT_EQ(retrieved, &registered);
 }
 
+TEST(BlockRegistryTest, DuplicateRegistrationReturnsExistingBlock) {
+    const ResourceLocation id("test:duplicate_block_reg");
+    const size_t countBefore = BlockRegistry::instance().blockCount();
+
+    auto& first = BlockRegistry::instance().registerBlock<TestBlock>(
+        id,
+        BlockProperties{Material::ROCK}
+    );
+    auto& second = BlockRegistry::instance().registerBlock<TestBlock>(
+        id,
+        BlockProperties{Material::WOOD}
+    );
+
+    EXPECT_EQ(&first, &second);
+    EXPECT_EQ(BlockRegistry::instance().blockCount(), countBefore + 1);
+}
+
 TEST(BlockRegistryTest, GetBlockState) {
     auto& block = BlockRegistry::instance().registerBlock<TestBlockWithAxis>(
         ResourceLocation("test:block_with_axis_reg"),

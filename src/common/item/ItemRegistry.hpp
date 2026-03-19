@@ -8,6 +8,8 @@
 #include <memory>
 #include <functional>
 #include <optional>
+#include <type_traits>
+#include <stdexcept>
 
 namespace mc {
 
@@ -56,6 +58,17 @@ public:
     ItemType& registerItem(const ResourceLocation& id, Args&&... args) {
         static_assert(std::is_base_of_v<Item, ItemType>,
                       "ItemType must inherit from Item");
+
+        // 避免重复注册导致旧指针失效
+        auto existingIt = m_items.find(id);
+        if (existingIt != m_items.end()) {
+            auto* existing = dynamic_cast<ItemType*>(existingIt->second.get());
+            if (existing == nullptr) {
+                throw std::logic_error(
+                    "Item id already registered with different type: " + id.toString());
+            }
+            return *existing;
+        }
 
         // 使用辅助函数创建实例（绕过protected构造函数限制）
         auto item = createItem<ItemType>(std::forward<Args>(args)...);
