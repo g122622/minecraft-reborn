@@ -112,6 +112,7 @@ add_executable(mc_tests
     client/ui/kagero/layout/LayoutConstraintsTest.cpp
     client/ui/kagero/layout/FlexLayoutTest.cpp
     client/ui/kagero/layout/LayoutEngineTest.cpp
+    client/ui/kagero/layout/FlexLayoutAlgorithmTest.cpp
 )
 
 # 添加服务端源文件

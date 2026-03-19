@@ -176,8 +176,15 @@ Size FlexLayout::measure(
     const std::vector<WidgetLayoutAdaptor*>& children
 ) {
     if (children.empty()) {
-        return Size(0, 0);
+        // 即使没有子元素，也要尊重测量规格
+        return Size(widthSpec.resolve(0), heightSpec.resolve(0));
     }
+
+    // 清除之前的状态
+    m_lines.clear();
+    m_results.clear();
+    m_measuredSizes.clear();
+    m_measuredSizes.resize(children.size());
 
     const bool isHorizontal = m_config.isHorizontal();
     const i32 mainSizeLimit = isHorizontal ? widthSpec.size : heightSpec.size;
@@ -479,11 +486,13 @@ void FlexLayout::applyJustifyContent(
         size_t idx = line.indices[i];
         auto* child = line.items[i];
 
-        // 设置位置
+        // 设置位置和尺寸
         if (isHorizontal) {
             m_results[idx].bounds.x = currentPos + child->constraints().margin.left;
+            m_results[idx].bounds.width = m_measuredSizes[idx].width;
         } else {
             m_results[idx].bounds.y = currentPos + child->constraints().margin.top;
+            m_results[idx].bounds.height = m_measuredSizes[idx].height;
         }
 
         i32 main = isHorizontal ? m_measuredSizes[idx].width : m_measuredSizes[idx].height;
@@ -516,8 +525,20 @@ void FlexLayout::applyAlignItems(
         i32 totalChildCross = childCross + childMarginCross;
         i32 freeCross = crossAxisSize - totalChildCross;
 
+        // 先设置交叉轴尺寸
+        if (isHorizontal) {
+            m_results[idx].bounds.height = m_measuredSizes[idx].height;
+        } else {
+            m_results[idx].bounds.width = m_measuredSizes[idx].width;
+        }
+
         if (freeCross <= 0) {
-            // 交叉轴空间不足，不调整
+            // 交叉轴空间不足，不调整位置，使用默认起始位置
+            if (isHorizontal) {
+                m_results[idx].bounds.y = child->constraints().margin.top;
+            } else {
+                m_results[idx].bounds.x = child->constraints().margin.left;
+            }
             continue;
         }
 
@@ -549,11 +570,13 @@ void FlexLayout::applyAlignItems(
                     m_measuredSizes[idx].height = child->flexItem().clampHeight(
                         m_measuredSizes[idx].height
                     );
+                    m_results[idx].bounds.height = m_measuredSizes[idx].height;
                 } else {
                     m_measuredSizes[idx].width = crossAxisSize - childMarginCross;
                     m_measuredSizes[idx].width = child->flexItem().clampWidth(
                         m_measuredSizes[idx].width
                     );
+                    m_results[idx].bounds.width = m_measuredSizes[idx].width;
                 }
                 crossOffset = isHorizontal ?
                     child->constraints().margin.top :

@@ -196,8 +196,9 @@ TEST_F(FlexLayoutTest, MeasureEmptyChildren) {
         children
     );
 
-    EXPECT_EQ(size.width, 0);
-    EXPECT_EQ(size.height, 0);
+    // Exactly规格应该返回规格指定的尺寸
+    EXPECT_EQ(size.width, 400);
+    EXPECT_EQ(size.height, 300);
 }
 
 // ============================================================================
