@@ -85,35 +85,7 @@ public:
 
     void paint(PaintContext& ctx) override {
         if (!isVisible() || m_text.empty()) return;
-
-        class TextPaint final : public paint::IPaint {
-        public:
-            explicit TextPaint(u32 argb) : m_color(paint::Color::fromARGB(argb)) {}
-            void setColor(const paint::Color& color) override { m_color = color; }
-            [[nodiscard]] paint::Color color() const override { return m_color; }
-            void setStyle(paint::PaintStyle style) override { m_style = style; }
-            [[nodiscard]] paint::PaintStyle style() const override { return m_style; }
-            void setStrokeWidth(f32 width) override { m_width = width; }
-            [[nodiscard]] f32 strokeWidth() const override { return m_width; }
-            void setStrokeCap(paint::StrokeCap cap) override { m_cap = cap; }
-            [[nodiscard]] paint::StrokeCap strokeCap() const override { return m_cap; }
-            void setStrokeJoin(paint::StrokeJoin join) override { m_join = join; }
-            [[nodiscard]] paint::StrokeJoin strokeJoin() const override { return m_join; }
-            void setAntiAlias(bool enabled) override { m_aa = enabled; }
-            [[nodiscard]] bool antiAlias() const override { return m_aa; }
-            void setAlpha(f32 alpha) override { m_alpha = alpha; }
-            [[nodiscard]] f32 alpha() const override { return m_alpha; }
-        private:
-            paint::Color m_color;
-            paint::PaintStyle m_style = paint::PaintStyle::Fill;
-            paint::StrokeCap m_cap = paint::StrokeCap::Butt;
-            paint::StrokeJoin m_join = paint::StrokeJoin::Miter;
-            f32 m_width = 1.0f;
-            f32 m_alpha = 1.0f;
-            bool m_aa = true;
-        } textPaint(m_color);
-
-        ctx.drawTextCentered(m_text, bounds(), textPaint);
+        ctx.drawTextCentered(m_text, bounds(), m_color);
     }
 
     // ==================== 文本属性 ====================

@@ -3,14 +3,16 @@
 namespace mc::client::ui::minecraft {
 
 MinecraftUIContext::MinecraftUIContext(
-    kagero::backend::IRenderBackend& backend,
+    Font& font,
+    renderer::trident::gui::GuiRenderer& renderer,
     kagero::state::StateStore& stateStore,
     kagero::event::EventBus& eventBus
-) : m_backend(backend),
-    m_stateStore(stateStore),
-    m_eventBus(eventBus),
-    m_bindingContext(stateStore, eventBus),
-    m_resources(backend) {
+) : m_font(font)
+  , m_renderer(renderer)
+  , m_stateStore(stateStore)
+  , m_eventBus(eventBus)
+  , m_bindingContext(stateStore, eventBus)
+  , m_resources(font, renderer) {
     setupStateBindings();
     setupDefaultResources();
 }
@@ -49,8 +51,9 @@ void MinecraftUIContext::setupStateBindings() {
 }
 
 void MinecraftUIContext::setupDefaultResources() {
-    m_resources.loadGuiTextureAtlas("textures/gui/widgets.png");
-    m_resources.loadMinecraftTypeface("fonts/minecraft.ttf");
+    // 默认资源加载已移至 ResourceProvider
+    // m_resources.loadGuiTextureAtlas("textures/gui/widgets.png");
+    // m_resources.loadMinecraftTypeface("fonts/minecraft.ttf");
 }
 
 } // namespace mc::client::ui::minecraft

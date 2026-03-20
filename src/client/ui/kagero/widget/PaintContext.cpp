@@ -1,11 +1,19 @@
 #include "PaintContext.hpp"
+#include <memory>
 
 namespace mc::client::ui::kagero::widget {
 
 namespace {
 
-class SolidColorPaint final : public paint::IPaint {
+/**
+ * @brief 简单的纯色画笔实现
+ *
+ * 实现 IPaint 接口，用于 PaintContext 内部缓存。
+ */
+class SimplePaint final : public paint::IPaint {
 public:
+    SimplePaint() = default;
+
     void setColor(const paint::Color& color) override { m_color = color; }
     [[nodiscard]] paint::Color color() const override { return m_color; }
 
@@ -40,7 +48,13 @@ private:
 } // namespace
 
 PaintContext::PaintContext(paint::ICanvas& canvas)
-    : m_canvas(canvas) {}
+    : m_canvas(canvas)
+    , m_fillPaint(std::make_unique<SimplePaint>())
+    , m_strokePaint(std::make_unique<SimplePaint>()) {
+    // 初始化画笔默认样式
+    m_fillPaint->setStyle(paint::PaintStyle::Fill);
+    m_strokePaint->setStyle(paint::PaintStyle::Stroke);
+}
 
 paint::ICanvas& PaintContext::canvas() {
     return m_canvas;
@@ -50,32 +64,26 @@ const paint::ICanvas& PaintContext::canvas() const {
     return m_canvas;
 }
 
-void PaintContext::drawTextCentered(const String& text, const Rect& bounds, const paint::IPaint& paint) {
-    const f32 x = static_cast<f32>(bounds.centerX());
-    const f32 y = static_cast<f32>(bounds.centerY());
-    m_canvas.drawText(text, x, y, paint);
+void PaintContext::drawTextCentered(const String& text, const Rect& bounds, u32 color) {
+    // 使用缓存的画笔
+    m_fillPaint->setColor(paint::Color::fromARGB(color));
+    m_canvas.drawText(text, static_cast<f32>(bounds.centerX()), static_cast<f32>(bounds.centerY()), *m_fillPaint);
 }
 
 void PaintContext::drawBorder(const Rect& bounds, f32 width, u32 color) {
-    SolidColorPaint borderPaint;
-    borderPaint.setStyle(paint::PaintStyle::Stroke);
-    borderPaint.setStrokeWidth(width);
-    borderPaint.setColor(paint::Color::fromARGB(color));
-    m_canvas.drawRect(bounds, borderPaint);
+    m_strokePaint->setColor(paint::Color::fromARGB(color));
+    m_strokePaint->setStrokeWidth(width);
+    m_canvas.drawRect(bounds, *m_strokePaint);
 }
 
 void PaintContext::drawFilledRect(const Rect& bounds, u32 color) {
-    SolidColorPaint fillPaint;
-    fillPaint.setStyle(paint::PaintStyle::Fill);
-    fillPaint.setColor(paint::Color::fromARGB(color));
-    m_canvas.drawRect(bounds, fillPaint);
+    m_fillPaint->setColor(paint::Color::fromARGB(color));
+    m_canvas.drawRect(bounds, *m_fillPaint);
 }
 
 void PaintContext::drawNinePatch(const paint::IImage& image, const Rect& center, const Rect& dst, u32 tint) {
-    SolidColorPaint tintPaint;
-    tintPaint.setStyle(paint::PaintStyle::Fill);
-    tintPaint.setColor(paint::Color::fromARGB(tint));
-    m_canvas.drawImageNine(image, center, dst, &tintPaint);
+    m_fillPaint->setColor(paint::Color::fromARGB(tint));
+    m_canvas.drawImageNine(image, center, dst, m_fillPaint.get());
 }
 
 i32 PaintContext::save() {

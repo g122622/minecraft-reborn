@@ -1,26 +1,60 @@
 #pragma once
 
 #include "GuiTextureAtlas.hpp"
-#include "MinecraftTypeface.hpp"
-#include "../../kagero/backend/IRenderBackend.hpp"
 #include <optional>
+
+namespace mc::client {
+class Font;
+}
+
+namespace mc::client::renderer::trident::gui {
+class GuiRenderer;
+}
 
 namespace mc::client::ui::minecraft {
 
+/**
+ * @brief UI资源提供者
+ *
+ * 管理Minecraft UI所需的资源，如纹理图集。
+ * 不再依赖 IRenderBackend，改为直接使用 Font 和 GuiRenderer。
+ */
 class ResourceProvider {
 public:
-    explicit ResourceProvider(kagero::backend::IRenderBackend& backend);
+    /**
+     * @brief 构造函数
+     * @param font 字体对象
+     * @param renderer GUI渲染器
+     */
+    ResourceProvider(Font& font, renderer::trident::gui::GuiRenderer& renderer);
 
+    /**
+     * @brief 加载GUI纹理图集
+     * @param path 资源路径
+     */
     void loadGuiTextureAtlas(const String& path);
-    void loadMinecraftTypeface(const String& path);
 
+    /**
+     * @brief 获取纹理图集
+     */
     [[nodiscard]] const GuiTextureAtlas& atlas() const;
-    [[nodiscard]] const MinecraftTypeface* typeface() const;
+
+    /**
+     * @brief 获取字体
+     */
+    [[nodiscard]] Font& font() { return m_font; }
+    [[nodiscard]] const Font& font() const { return m_font; }
+
+    /**
+     * @brief 获取GUI渲染器
+     */
+    [[nodiscard]] renderer::trident::gui::GuiRenderer& renderer() { return m_renderer; }
+    [[nodiscard]] const renderer::trident::gui::GuiRenderer& renderer() const { return m_renderer; }
 
 private:
-    kagero::backend::IRenderBackend& m_backend;
+    Font& m_font;
+    renderer::trident::gui::GuiRenderer& m_renderer;
     GuiTextureAtlas m_atlas;
-    std::optional<MinecraftTypeface> m_typeface;
 };
 
 } // namespace mc::client::ui::minecraft

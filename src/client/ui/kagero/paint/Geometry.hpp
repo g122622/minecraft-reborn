@@ -5,6 +5,9 @@
 
 namespace mc::client::ui::kagero::paint {
 
+// 引入 Rect 类型（定义在 kagero 命名空间）
+using mc::client::ui::kagero::Rect;
+
 /**
  * @brief 2D仿射矩阵（3x3）
  */

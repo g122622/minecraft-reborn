@@ -2,6 +2,8 @@
 #include "client/ui/kagero/layout/algorithms/AnchorLayout.hpp"
 #include "client/ui/kagero/widget/Widget.hpp"
 #include "client/ui/kagero/layout/integration/WidgetLayoutAdaptor.hpp"
+#include "client/ui/kagero/Types.hpp"
+#include "common/core/Types.hpp"
 
 using namespace mc::client::ui::kagero;
 using namespace mc::client::ui::kagero::layout;
@@ -9,10 +11,10 @@ using namespace mc::client::ui::kagero::widget;
 
 class AnchorTestWidget : public Widget {
 public:
-    explicit AnchorTestWidget(String id) : Widget(std::move(id)) {
+    explicit AnchorTestWidget(const mc::String& id) : Widget(id) {
         setSize(20, 10);
     }
-    void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override {
+    void render(RenderContext& ctx, mc::i32 mouseX, mc::i32 mouseY, mc::f32 partialTick) override {
         (void)ctx;
         (void)mouseX;
         (void)mouseY;
