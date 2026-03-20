@@ -99,7 +99,7 @@ add_executable(minecraft-client
     ui/kagero/layout/algorithms/AnchorLayout.cpp
     ui/kagero/layout/integration/WidgetLayoutAdaptor.cpp
     # UI Kagero Paint抽象
-    ui/kagero/widget/PaintContext.cpp
+    ui/kagero/paint/PaintContext.cpp
     ui/kagero/widget/ContainerWidget.cpp
     # Minecraft UI业务层
     ui/minecraft/MinecraftUIContext.cpp

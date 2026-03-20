@@ -2,7 +2,7 @@
 
 #include "Widget.hpp"
 #include "IWidgetContainer.hpp"
-#include "PaintContext.hpp"
+#include "../paint/PaintContext.hpp"
 
 namespace mc::client::ui::kagero::widget {
 

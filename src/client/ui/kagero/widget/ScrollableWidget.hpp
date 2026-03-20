@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Widget.hpp"
-#include "PaintContext.hpp"
+#include "../paint/PaintContext.hpp"
 #include "IWidgetContainer.hpp"
 #include <memory>
 #include <vector>

@@ -500,7 +500,7 @@ viewport->setBackgroundColor(Colors::fromARGB(255, 100, 149, 237));
 组件绘制的抽象层：
 
 ```cpp
-#include "kagero/widget/PaintContext.hpp"
+#include "kagero/paint/PaintContext.hpp"
 
 void MyWidget::paint(PaintContext& ctx) {
     // 绘制填充矩形

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../../kagero/widget/Widget.hpp"
-#include "../../kagero/widget/PaintContext.hpp"
+#include "../../kagero/paint/PaintContext.hpp"
 
 namespace mc::client::ui::minecraft {
 
