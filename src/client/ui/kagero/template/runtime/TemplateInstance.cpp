@@ -1,7 +1,7 @@
 #include "TemplateInstance.hpp"
-#include "../../widget/ButtonWidget.hpp"
+#include "../bindings/BuiltinWidgets.hpp"
+#include "../bindings/BuiltinEvents.hpp"
 #include "../../widget/TextWidget.hpp"
-#include "../../widget/ContainerWidget.hpp"
 #include "../../event/WidgetEvents.hpp"
 #include <algorithm>
 #include <chrono>
@@ -75,46 +75,13 @@ void TemplateInstance::registerWidgetFactory(const String& tagName, WidgetFactor
 }
 
 void TemplateInstance::registerDefaultFactories() {
-    // 注册默认Widget工厂
-    // 这些工厂会根据标签名创建对应的Widget实例
+    // 确保BuiltinWidgets已初始化
+    bindings::BuiltinWidgets::instance().initialize();
 
-    // Button
-    m_widgetFactories["button"] = [](const String& tagName, const String& id,
-                                      const std::map<String, String>& attrs) {
-        auto widget = std::make_unique<widget::ButtonWidget>();
-        if (!id.empty()) {
-            widget->setId(id);
-        }
-        return widget;
-    };
-
-    // Text
-    m_widgetFactories["text"] = [](const String& tagName, const String& id,
-                                    const std::map<String, String>& attrs) {
-        auto widget = std::make_unique<widget::TextWidget>();
-        if (!id.empty()) {
-            widget->setId(id);
-        }
-
-        // 设置初始文本
-        auto textIt = attrs.find("text");
-        if (textIt != attrs.end()) {
-            widget->setText(textIt->second);
-        }
-
-        return widget;
-    };
-
-    // 默认工厂
+    // 设置默认工厂，使用BuiltinWidgets作为fallback
     m_defaultFactory = [](const String& tagName, const String& id,
                           const std::map<String, String>& attrs) {
-        (void)tagName;
-        (void)attrs;
-        auto widget = std::make_unique<widget::ContainerWidget>();
-        if (!id.empty()) {
-            widget->setId(id);
-        }
-        return widget;
+        return bindings::BuiltinWidgets::instance().create(tagName, id, attrs);
     };
 }
 
@@ -127,39 +94,18 @@ void TemplateInstance::registerAttributeSetter(const String& attrName, Attribute
 }
 
 void TemplateInstance::registerDefaultAttributeSetters() {
-    // 位置
+    // 位置属性
     m_attributeSetters["pos"] = [](widget::Widget* widget, const String& attrName,
                                     const binder::Value& value) {
         (void)attrName;
-        String posStr = value.toString();
-        // 解析 "x,y" 格式
-        size_t comma = posStr.find(',');
-        if (comma != String::npos) {
-            try {
-                i32 x = std::stoi(posStr.substr(0, comma));
-                i32 y = std::stoi(posStr.substr(comma + 1));
-                widget->setPosition(x, y);
-            } catch (...) {
-                // 忽略解析错误
-            }
-        }
+        bindings::widget_attrs::applyPosition(widget, value.toString());
     };
 
-    // 尺寸
+    // 尺寸属性
     m_attributeSetters["size"] = [](widget::Widget* widget, const String& attrName,
                                      const binder::Value& value) {
         (void)attrName;
-        String sizeStr = value.toString();
-        size_t comma = sizeStr.find(',');
-        if (comma != String::npos) {
-            try {
-                i32 w = std::stoi(sizeStr.substr(0, comma));
-                i32 h = std::stoi(sizeStr.substr(comma + 1));
-                widget->setSize(w, h);
-            } catch (...) {
-                // 忽略解析错误
-            }
-        }
+        bindings::widget_attrs::applySize(widget, value.toString());
     };
 
     // 可见性
@@ -176,13 +122,79 @@ void TemplateInstance::registerDefaultAttributeSetters() {
         widget->setActive(value.asBool());
     };
 
-    // 文本
+    // 文本内容
     m_attributeSetters["text"] = [](widget::Widget* widget, const String& attrName,
                                      const binder::Value& value) {
         (void)attrName;
         if (auto* textWidget = dynamic_cast<widget::TextWidget*>(widget)) {
             textWidget->setText(value.toString());
         }
+    };
+
+    // 文本颜色
+    m_attributeSetters["color"] = [](widget::Widget* widget, const String& attrName,
+                                      const binder::Value& value) {
+        (void)attrName;
+        if (auto* textWidget = dynamic_cast<widget::TextWidget*>(widget)) {
+            textWidget->setColor(bindings::widget_attrs::parseColor(value.toString()));
+        }
+    };
+
+    // X坐标（单独设置）
+    m_attributeSetters["x"] = [](widget::Widget* widget, const String& attrName,
+                                  const binder::Value& value) {
+        (void)attrName;
+        i32 x = widget->x();
+        i32 y = widget->y();
+        widget->setPosition(value.asInteger(), y);
+    };
+
+    // Y坐标（单独设置）
+    m_attributeSetters["y"] = [](widget::Widget* widget, const String& attrName,
+                                  const binder::Value& value) {
+        (void)attrName;
+        i32 x = widget->x();
+        i32 y = widget->y();
+        widget->setPosition(x, value.asInteger());
+    };
+
+    // 宽度（单独设置）
+    m_attributeSetters["width"] = [](widget::Widget* widget, const String& attrName,
+                                      const binder::Value& value) {
+        (void)attrName;
+        i32 w = widget->width();
+        i32 h = widget->height();
+        widget->setSize(value.asInteger(), h);
+    };
+
+    // 高度（单独设置）
+    m_attributeSetters["height"] = [](widget::Widget* widget, const String& attrName,
+                                       const binder::Value& value) {
+        (void)attrName;
+        i32 w = widget->width();
+        i32 h = widget->height();
+        widget->setSize(w, value.asInteger());
+    };
+
+    // 锚点
+    m_attributeSetters["anchor"] = [](widget::Widget* widget, const String& attrName,
+                                       const binder::Value& value) {
+        (void)attrName;
+        widget->setAnchor(bindings::widget_attrs::parseAnchor(value.toString()));
+    };
+
+    // Z层级
+    m_attributeSetters["zIndex"] = [](widget::Widget* widget, const String& attrName,
+                                       const binder::Value& value) {
+        (void)attrName;
+        widget->setZIndex(bindings::widget_attrs::parseInt(value.toString()));
+    };
+
+    // 透明度
+    m_attributeSetters["alpha"] = [](widget::Widget* widget, const String& attrName,
+                                      const binder::Value& value) {
+        (void)attrName;
+        widget->setAlpha(bindings::widget_attrs::parseFloat(value.toString(), 1.0f));
     };
 }
 
@@ -191,6 +203,9 @@ void TemplateInstance::registerEventBinder(const String& eventName, EventBinder 
 }
 
 void TemplateInstance::registerDefaultEventBinders() {
+    // 确保BuiltinEvents已初始化
+    bindings::BuiltinEvents::instance().initialize();
+
     // 点击事件
     m_eventBinders["click"] = [](widget::Widget* widget, const String& eventName,
                                   const String& callbackName, binder::BindingContext& ctx) {
@@ -203,23 +218,105 @@ void TemplateInstance::registerDefaultEventBinders() {
         }
     };
 
-    // 焦点事件
+    // 双击事件
+    m_eventBinders["doubleClick"] = [](widget::Widget* widget, const String& eventName,
+                                        const String& callbackName, binder::BindingContext& ctx) {
+        (void)eventName;
+        (void)widget;
+        ctx.invokeCallback(callbackName, widget, event::MouseClickEvent(0, 0, 0, 2));
+    };
+
+    // 右键点击事件
+    m_eventBinders["rightClick"] = [](widget::Widget* widget, const String& eventName,
+                                       const String& callbackName, binder::BindingContext& ctx) {
+        (void)eventName;
+        (void)widget;
+        ctx.invokeCallback(callbackName, widget, event::MouseClickEvent(0, 0, 1, 1));
+    };
+
+    // 鼠标进入事件
+    m_eventBinders["mouseEnter"] = [](widget::Widget* widget, const String& eventName,
+                                       const String& callbackName, binder::BindingContext& ctx) {
+        (void)eventName;
+        (void)callbackName;
+        if (widget) {
+            widget->setHovered(true);
+            widget->onMouseEnter();
+        }
+    };
+
+    // 鼠标离开事件
+    m_eventBinders["mouseLeave"] = [](widget::Widget* widget, const String& eventName,
+                                       const String& callbackName, binder::BindingContext& ctx) {
+        (void)eventName;
+        (void)callbackName;
+        if (widget) {
+            widget->setHovered(false);
+            widget->onMouseLeave();
+        }
+    };
+
+    // 滚动事件
+    m_eventBinders["scroll"] = [](widget::Widget* widget, const String& eventName,
+                                   const String& callbackName, binder::BindingContext& ctx) {
+        (void)eventName;
+        (void)callbackName;
+        // ScrollableWidget等需要实现setOnScroll
+        (void)widget;
+    };
+
+    // 键盘按下事件
+    m_eventBinders["keyDown"] = [](widget::Widget* widget, const String& eventName,
+                                    const String& callbackName, binder::BindingContext& ctx) {
+        (void)eventName;
+        (void)callbackName;
+        (void)widget;
+    };
+
+    // 键盘释放事件
+    m_eventBinders["keyUp"] = [](widget::Widget* widget, const String& eventName,
+                                  const String& callbackName, binder::BindingContext& ctx) {
+        (void)eventName;
+        (void)callbackName;
+        (void)widget;
+    };
+
+    // 焦点获得事件
     m_eventBinders["focus"] = [](widget::Widget* widget, const String& eventName,
                                   const String& callbackName, binder::BindingContext& ctx) {
         (void)eventName;
-        // 保存原始焦点获得处理
-        widget->onFocusGained(); // 触发默认行为
-        // TODO: 添加自定义回调支持
+        (void)callbackName;
+        if (widget) {
+            widget->setFocused(true);
+            widget->onFocusGained();
+        }
     };
 
     // 失去焦点事件
     m_eventBinders["blur"] = [](widget::Widget* widget, const String& eventName,
                                  const String& callbackName, binder::BindingContext& ctx) {
         (void)eventName;
-        (void)widget;
         (void)callbackName;
-        (void)ctx;
-        // TODO: 实现失焦回调
+        if (widget) {
+            widget->setFocused(false);
+            widget->onFocusLost();
+        }
+    };
+
+    // 值变化事件
+    m_eventBinders["change"] = [](widget::Widget* widget, const String& eventName,
+                                   const String& callbackName, binder::BindingContext& ctx) {
+        (void)eventName;
+        (void)callbackName;
+        (void)widget;
+    };
+
+    // 输入事件
+    m_eventBinders["input"] = [](widget::Widget* widget, const String& eventName,
+                                  const String& callbackName, binder::BindingContext& ctx) {
+        (void)eventName;
+        (void)callbackName;
+        (void)widget;
     };
 }
 
@@ -372,39 +469,58 @@ std::unique_ptr<widget::Widget> TemplateInstance::instantiateElement(
 
     if (!element) return nullptr;
 
-    // 收集属性
+    // 1. 条件渲染检查（优先）
+    if (element->condition.has_value()) {
+        if (!evaluateCondition(element->condition.value())) {
+            return nullptr;  // 条件不满足，跳过创建
+        }
+    }
+
+    // 2. 循环渲染检查
+    if (element->loop.has_value()) {
+        // 循环元素：为集合中每个项创建子元素
+        instantiateLoopChildren(
+            element, parent,
+            element->loop->collectionPath,
+            element->loop->itemVarName,
+            element->loop->indexVarName
+        );
+        return nullptr;  // 循环容器本身不返回Widget
+    }
+
+    // 3. 收集属性
     std::map<String, String> staticAttrs;
     for (const auto& attr : element->staticAttrs) {
         staticAttrs[attr.name] = attr.rawValue;
     }
 
-    // 创建Widget
+    // 4. 创建Widget
     String id = element->id.empty() ? "" : element->id;
     auto widget = createWidget(element->tagName, id, staticAttrs);
     if (!widget) return nullptr;
 
-    // 设置父Widget容器
+    // 5. 设置父Widget容器
     if (auto* containerParent = dynamic_cast<widget::IWidgetContainer*>(parent)) {
         widget->setParent(containerParent);
     }
 
-    // 注册Widget
+    // 6. 注册Widget
     String widgetPath = buildWidgetPath(element, parent ? parent->id() : "");
     registerWidgetPath(widgetPath, widget.get());
     if (!id.empty()) {
         registerWidgetId(id, widget.get());
     }
 
-    // 应用静态属性
+    // 7. 应用静态属性
     applyStaticAttributes(widget.get(), element->staticAttrs);
 
-    // 应用绑定属性（初始值）
+    // 8. 应用绑定属性（初始值）
     applyBindingAttributes(widget.get(), element->bindingAttrs, widgetPath);
 
-    // 应用事件绑定
+    // 9. 应用事件绑定
     applyEventBindings(widget.get(), element->eventAttrs, widgetPath);
 
-    // 实例化子节点
+    // 10. 实例化子节点
     for (const auto& child : element->children) {
         auto childWidget = instantiateNode(child.get(), widget.get());
         if (childWidget) {
@@ -436,13 +552,19 @@ std::unique_ptr<widget::Widget> TemplateInstance::createWidget(
     const String& tagName, const String& id,
     const std::map<String, String>& attrs) {
 
-    // 查找工厂
+    // 1. 首先使用BuiltinWidgets单例
+    auto widget = bindings::BuiltinWidgets::instance().create(tagName, id, attrs);
+    if (widget) {
+        return widget;
+    }
+
+    // 2. 然后使用自定义工厂
     auto it = m_widgetFactories.find(tagName);
     if (it != m_widgetFactories.end()) {
         return it->second(tagName, id, attrs);
     }
 
-    // 使用默认工厂
+    // 3. 最后使用默认工厂
     if (m_defaultFactory) {
         return m_defaultFactory(tagName, id, attrs);
     }
@@ -471,8 +593,36 @@ void TemplateInstance::applyBindingAttributes(widget::Widget* widget,
     for (const auto& attr : attrs) {
         if (!attr.binding.has_value()) continue;
 
-        // 解析绑定值
-        binder::Value value = m_context->resolveBinding(attr.binding->path);
+        // 解析绑定值，支持循环变量
+        binder::Value value;
+
+        // 检查绑定路径是否是循环变量引用
+        const String& bindingPath = attr.binding->path;
+        if (!bindingPath.empty() && bindingPath[0] == '$') {
+            // 循环变量引用
+            String varName;
+            String property;
+            size_t dotPos = bindingPath.find('.');
+            if (dotPos != String::npos) {
+                varName = bindingPath.substr(1, dotPos - 1);
+                property = bindingPath.substr(dotPos + 1);
+            } else {
+                varName = bindingPath.substr(1);
+            }
+
+            // 获取循环变量值
+            binder::Value loopValue = m_context->getLoopVariable(varName);
+            if (!loopValue.isNull()) {
+                if (property.empty()) {
+                    value = loopValue;
+                } else {
+                    value = loopValue.getProperty(property);
+                }
+            }
+        } else {
+            // 普通绑定路径
+            value = m_context->resolveBinding(bindingPath);
+        }
 
         // 应用属性
         auto setterIt = m_attributeSetters.find(attr.baseName());
@@ -529,6 +679,65 @@ void TemplateInstance::registerWidgetPath(const String& path, widget::Widget* wi
 
 void TemplateInstance::registerWidgetId(const String& id, widget::Widget* widget) {
     m_widgetById[id] = widget;
+}
+
+void TemplateInstance::instantiateLoopChildren(
+    const ast::ElementNode* element,
+    widget::Widget* parent,
+    const String& collectionPath,
+    const String& itemVarName,
+    const String& indexVarName) {
+
+    if (!element || !m_context) return;
+
+    // 解析集合
+    auto collection = resolveCollection(collectionPath);
+
+    // 获取父容器
+    auto* container = dynamic_cast<widget::IWidgetContainer*>(parent);
+    if (!container) return;
+
+    // 为每个元素创建子节点
+    for (size_t i = 0; i < collection.size(); ++i) {
+        // 设置循环变量
+        m_context->setLoopVariable(itemVarName, collection[i]);
+        if (!indexVarName.empty()) {
+            m_context->setLoopVariable(indexVarName, binder::Value(static_cast<i32>(i)));
+        }
+
+        // 实例化子节点
+        for (const auto& child : element->children) {
+            auto childWidget = instantiateNode(child.get(), parent);
+            if (childWidget) {
+                container->addWidget(std::move(childWidget));
+            }
+        }
+
+        // 清除循环变量
+        m_context->clearLoopVariable(itemVarName);
+        if (!indexVarName.empty()) {
+            m_context->clearLoopVariable(indexVarName);
+        }
+    }
+}
+
+std::vector<binder::Value> TemplateInstance::resolveCollection(const String& path) const {
+    if (!m_context) return {};
+
+    return m_context->resolveCollection(path);
+}
+
+bool TemplateInstance::evaluateCondition(const ast::ConditionInfo& condition) const {
+    if (!m_context) return false;
+
+    auto value = m_context->resolveBinding(condition.booleanPath);
+    bool visible = value.asBool();
+
+    if (condition.negate) {
+        visible = !visible;
+    }
+
+    return visible;
 }
 
 // ========== UpdateScheduler实现 ==========

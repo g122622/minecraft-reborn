@@ -97,6 +97,16 @@ String Value::toString() const {
         case ValueType::Integer: return std::to_string(m_intValue);
         case ValueType::Float: return std::to_string(m_floatValue);
         case ValueType::String: return m_stringValue;
+        case ValueType::Array: {
+            std::ostringstream oss;
+            oss << "[";
+            for (size_t i = 0; i < m_arrayValue.size(); ++i) {
+                if (i > 0) oss << ", ";
+                oss << m_arrayValue[i].toString();
+            }
+            oss << "]";
+            return oss.str();
+        }
         default: return "";
     }
 }
@@ -113,6 +123,17 @@ bool Value::toBool() const {
     return asBool();
 }
 
+size_t Value::arraySize() const {
+    return m_type == ValueType::Array ? m_arrayValue.size() : 0;
+}
+
+Value Value::arrayGet(size_t index) const {
+    if (m_type != ValueType::Array || index >= m_arrayValue.size()) {
+        return Value();
+    }
+    return m_arrayValue[index];
+}
+
 Value Value::getProperty(const String& name) const {
     // 对于简单值类型，不支持属性访问
     // 扩展时可以支持对象类型
@@ -121,8 +142,10 @@ Value Value::getProperty(const String& name) const {
 }
 
 Value Value::getElement(size_t index) const {
-    // 对于简单值类型，不支持数组访问
-    (void)index;
+    // 对于数组类型，支持索引访问
+    if (m_type == ValueType::Array && index < m_arrayValue.size()) {
+        return m_arrayValue[index];
+    }
     return Value();
 }
 
@@ -141,6 +164,7 @@ bool Value::operator==(const Value& other) const {
         case ValueType::Integer: return m_intValue == other.m_intValue;
         case ValueType::Float: return m_floatValue == other.m_floatValue;
         case ValueType::String: return m_stringValue == other.m_stringValue;
+        case ValueType::Array: return m_arrayValue == other.m_arrayValue;
         default: return false;
     }
 }
@@ -318,6 +342,74 @@ bool BindingContext::hasLoopVariable(const String& varName) const {
     return m_loopVariables.find(varName) != m_loopVariables.end();
 }
 
+std::vector<Value> BindingContext::resolveCollection(const String& path) const {
+    std::vector<Value> result;
+
+    // 首先尝试从循环变量获取
+    if (path.size() > 1 && path[0] == '$') {
+        // 解析变量名和属性
+        size_t dotPos = path.find('.');
+        String varName;
+        String property;
+
+        if (dotPos != String::npos) {
+            varName = path.substr(1, dotPos - 1);
+            property = path.substr(dotPos + 1);
+        } else {
+            varName = path.substr(1);
+        }
+
+        auto loopIt = m_loopVariables.find(varName);
+        if (loopIt != m_loopVariables.end()) {
+            const Value& val = loopIt->second;
+            if (val.isArray()) {
+                // 如果本身就是数组，直接返回
+                if (property.empty()) {
+                    return val.asArray();
+                }
+                // 如果有属性访问，对每个元素获取属性
+                for (const auto& item : val.asArray()) {
+                    result.push_back(item.getProperty(property));
+                }
+                return result;
+            }
+        }
+    }
+
+    // 尝试从暴露的变量获取
+    auto it = m_exposedVars.find(path);
+    if (it != m_exposedVars.end()) {
+        Value val = it->second.readFunc();
+        if (val.isArray()) {
+            return val.asArray();
+        }
+        // 单个值包装成数组
+        if (!val.isNull()) {
+            result.push_back(val);
+        }
+        return result;
+    }
+
+    // 尝试路径解析
+    Value resolved = resolvePath(path);
+    if (resolved.isArray()) {
+        return resolved.asArray();
+    }
+    if (!resolved.isNull()) {
+        result.push_back(resolved);
+    }
+
+    return result;
+}
+
+void BindingContext::setCollectionValue(const String& name, const std::vector<Value>& values) {
+    m_exposedVars[name] = ExposedVar{
+        nullptr, 0, "", false,
+        [values]() -> Value { return Value(values); },
+        nullptr, nullptr
+    };
+}
+
 void BindingContext::clear() {
     m_exposedVars.clear();
     m_callbacks.clear();
@@ -336,6 +428,12 @@ Value BindingContext::resolvePath(const String& path) const {
     // 第一部分应该是暴露的变量或StateStore中的键
     String rootKey = parts[0];
     Value current;
+
+    // 检查是否是数组索引作为第一个部分
+    if (!rootKey.empty() && rootKey[0] == '[') {
+        // 以数组索引开头，需要找到上下文
+        return Value();
+    }
 
     // 检查暴露的变量
     auto it = m_exposedVars.find(rootKey);

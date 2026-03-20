@@ -102,7 +102,9 @@ using AttrValue = std::variant<
 enum class AttributeType : u8 {
     Static,     ///< 静态属性（直接值）
     Binding,    ///< 绑定属性 (bind:xxx)
-    Event       ///< 事件属性 (on:xxx)
+    Event,      ///< 事件属性 (on:xxx)
+    Loop,       ///< 循环属性 (for:xxx)
+    Condition   ///< 条件属性 (if:xxx)
 };
 
 /**
@@ -192,12 +194,17 @@ struct Attribute {
  * @brief 循环信息
  *
  * 存储循环渲染指令的信息
+ *
+ * 支持语法：
+ * - for:item="item in collection" - 基本循环
+ * - for:(item, index) in collection" - 带索引循环
  */
 struct LoopInfo {
     String collectionPath;  ///< 集合路径 (e.g., "player.inventory.slots")
     String itemVarName;     ///< 循环变量名 (e.g., "slot" for $slot)
     String indexVarName;    ///< 索引变量名 (可选，如 "$index")
     SourceLocation location;///< 源码位置
+    bool hasIndex = false;  ///< 是否有索引变量
 
     /**
      * @brief 检查是否有效

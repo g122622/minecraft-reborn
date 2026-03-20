@@ -205,4 +205,13 @@ void applySize(widget::Widget* widget, const String& value);
 
 } // namespace widget_attrs
 
+/**
+ * @brief 初始化内置Widget工厂
+ *
+ * 调用 BuiltinWidgets::instance().initialize()
+ */
+inline void registerBuiltinWidgets() {
+    BuiltinWidgets::instance().initialize();
+}
+
 } // namespace mc::client::ui::kagero::tpl::bindings

@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <any>
 #include <typeindex>
+#include <vector>
 
 namespace mc::client::ui::kagero::tpl::binder {
 
@@ -28,6 +29,10 @@ public:
     explicit Value(const String& v) : m_type(ValueType::String), m_stringValue(v) {}
     explicit Value(String&& v) : m_type(ValueType::String), m_stringValue(std::move(v)) {}
 
+    // 数组类型构造
+    explicit Value(const std::vector<Value>& v) : m_type(ValueType::Array), m_arrayValue(v) {}
+    explicit Value(std::vector<Value>&& v) : m_type(ValueType::Array), m_arrayValue(std::move(v)) {}
+
     // 从std::any构造
     static Value fromAny(const std::any& any);
 
@@ -37,6 +42,7 @@ public:
     [[nodiscard]] bool isInteger() const { return m_type == ValueType::Integer; }
     [[nodiscard]] bool isFloat() const { return m_type == ValueType::Float; }
     [[nodiscard]] bool isString() const { return m_type == ValueType::String; }
+    [[nodiscard]] bool isArray() const { return m_type == ValueType::Array; }
     [[nodiscard]] bool isNumber() const { return isInteger() || isFloat(); }
 
     // 值获取
@@ -45,6 +51,16 @@ public:
     [[nodiscard]] f32 asFloat() const;
     [[nodiscard]] const String& asString() const;
     [[nodiscard]] String toString() const;
+
+    // 数组操作
+    [[nodiscard]] size_t arraySize() const;
+    [[nodiscard]] Value arrayGet(size_t index) const;
+    [[nodiscard]] const std::vector<Value>& asArray() const { return m_arrayValue; }
+    [[nodiscard]] std::vector<Value>& asArray() { return m_arrayValue; }
+
+    // 创建数组值
+    static Value fromArray(const std::vector<Value>& values) { return Value(values); }
+    static Value emptyArray() { return Value(std::vector<Value>{}); }
 
     // 类型转换
     [[nodiscard]] i32 toInteger() const;
@@ -67,7 +83,8 @@ public:
         Bool,
         Integer,
         Float,
-        String
+        String,
+        Array
     };
 
     [[nodiscard]] ValueType type() const { return m_type; }
@@ -78,6 +95,7 @@ private:
     i32 m_intValue = 0;
     f32 m_floatValue = 0.0f;
     String m_stringValue;
+    std::vector<Value> m_arrayValue;
 };
 
 /**
@@ -323,6 +341,43 @@ public:
      * @brief 检查循环变量是否存在
      */
     [[nodiscard]] bool hasLoopVariable(const String& varName) const;
+
+    // ========== 集合解析 ==========
+
+    /**
+     * @brief 解析集合（数组）
+     *
+     * 将路径解析为值数组，用于循环渲染
+     *
+     * @param path 集合路径
+     * @return 值数组，如果路径不存在或不是集合则返回空数组
+     */
+    [[nodiscard]] std::vector<Value> resolveCollection(const String& path) const;
+
+    /**
+     * @brief 设置集合值供索引访问
+     *
+     * @param name 集合名
+     * @param values 值数组
+     */
+    void setCollectionValue(const String& name, const std::vector<Value>& values);
+
+    /**
+     * @brief 设置任意类型的集合
+     *
+     * @tparam T 元素类型
+     * @param name 集合名
+     * @param items 元素数组
+     */
+    template<typename T>
+    void setCollection(const String& name, const std::vector<T>& items) {
+        std::vector<Value> values;
+        values.reserve(items.size());
+        for (const auto& item : items) {
+            values.emplace_back(Value(item));
+        }
+        setCollectionValue(name, values);
+    }
 
     // ========== 工具方法 ==========
 

@@ -287,6 +287,41 @@ private:
      */
     void registerWidgetId(const String& id, widget::Widget* widget);
 
+    // ========== 循环渲染辅助方法 ==========
+
+    /**
+     * @brief 实例化循环子元素
+     *
+     * 为集合中每个元素创建子元素的副本
+     *
+     * @param element 循环元素模板
+     * @param parent 父Widget
+     * @param collectionPath 集合路径
+     * @param itemVarName 循环变量名
+     * @param indexVarName 索引变量名（可选）
+     */
+    void instantiateLoopChildren(const ast::ElementNode* element,
+                                  widget::Widget* parent,
+                                  const String& collectionPath,
+                                  const String& itemVarName,
+                                  const String& indexVarName = "");
+
+    /**
+     * @brief 解析集合
+     *
+     * @param path 集合路径
+     * @return 值数组
+     */
+    [[nodiscard]] std::vector<binder::Value> resolveCollection(const String& path) const;
+
+    /**
+     * @brief 检查条件是否满足
+     *
+     * @param condition 条件信息
+     * @return 条件是否满足
+     */
+    [[nodiscard]] bool evaluateCondition(const ast::ConditionInfo& condition) const;
+
 private:
     const compiler::CompiledTemplate* m_compiled;
     binder::BindingContext* m_context;

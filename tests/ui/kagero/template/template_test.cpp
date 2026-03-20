@@ -786,9 +786,10 @@ TEST_F(ParserTest, AttributeCategorization) {
 }
 
 TEST_F(ParserTest, LoopInfoExtraction) {
+    // Test that for: directive properly extracts loop info
     auto doc = parse(R"(
-        <grid bind:items="player.inventory.slots">
-            <slot bind:item="$slot.item"/>
+        <grid for:slot="slot in player.inventory.slots">
+            <text bind:text="$slot.name"/>
         </grid>
     )");
 
@@ -798,6 +799,7 @@ TEST_F(ParserTest, LoopInfoExtraction) {
     auto* grid = doc->rootElement();
     EXPECT_TRUE(grid->loop.has_value());
     EXPECT_EQ(grid->loop->collectionPath, "player.inventory.slots");
+    EXPECT_EQ(grid->loop->itemVarName, "slot");
 }
 
 TEST_F(ParserTest, ConditionInfoExtraction) {
@@ -2029,3 +2031,366 @@ TEST_F(IntegrationTest, ParseComplexAttributeValues) {
     EXPECT_TRUE(elem->hasAttribute("visible"));
     EXPECT_TRUE(elem->hasAttribute("opacity"));
 }
+
+// ==================== Loop Directive Tests ====================
+
+class LoopDirectiveTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        m_config = core::TemplateConfig::defaults();
+    }
+
+    std::unique_ptr<ast::DocumentNode> parse(const String& source) {
+        parser::Lexer lexer(source, "<test>");
+        lexer.tokenize();
+
+        parser::Parser parser(lexer, m_config);
+        return parser.parse();
+    }
+
+    core::TemplateConfig m_config;
+};
+
+TEST_F(LoopDirectiveTest, SimpleLoopDirective) {
+    auto doc = parse(R"(
+        <list for:item="item in items">
+            <text bind:text="$item.name"/>
+        </list>
+    )");
+
+    ASSERT_NE(doc, nullptr);
+    ASSERT_NE(doc->rootElement(), nullptr);
+
+    auto* list = doc->rootElement();
+    EXPECT_TRUE(list->loop.has_value());
+    EXPECT_EQ(list->loop->collectionPath, "items");
+    EXPECT_EQ(list->loop->itemVarName, "item");
+}
+
+TEST_F(LoopDirectiveTest, LoopWithIndex) {
+    auto doc = parse(R"(
+        <grid for:item="(item, index) in items">
+            <slot bind:item="$item"/>
+        </grid>
+    )");
+
+    ASSERT_NE(doc, nullptr);
+    ASSERT_NE(doc->rootElement(), nullptr);
+
+    auto* grid = doc->rootElement();
+    EXPECT_TRUE(grid->loop.has_value());
+    EXPECT_EQ(grid->loop->collectionPath, "items");
+    EXPECT_EQ(grid->loop->itemVarName, "item");
+    EXPECT_EQ(grid->loop->indexVarName, "index");
+    EXPECT_TRUE(grid->loop->hasIndex);
+}
+
+TEST_F(LoopDirectiveTest, LoopAttributeType) {
+    auto doc = parse(R"(<list for:item="item in items"/>)");
+    ASSERT_NE(doc, nullptr);
+    ASSERT_NE(doc->rootElement(), nullptr);
+
+    auto* list = doc->rootElement();
+
+    // Find the for:item attribute
+    bool foundLoopAttr = false;
+    for (const auto& [name, attr] : list->attributes) {
+        if (name.find("for:") == 0) {
+            foundLoopAttr = true;
+            EXPECT_EQ(attr.type, ast::AttributeType::Loop);
+            break;
+        }
+    }
+    EXPECT_TRUE(foundLoopAttr);
+}
+
+TEST_F(LoopDirectiveTest, LoopWithNestedBindings) {
+    compiler::TemplateCompiler compiler(m_config);
+
+    auto result = compiler.compile(R"(
+        <list for:item="item in player.inventory">
+            <text bind:text="$item.name"/>
+            <text bind:text="$item.count"/>
+        </list>
+    )");
+
+    ASSERT_NE(result, nullptr);
+    EXPECT_TRUE(result->isValid());
+
+    // Should have binding plans for nested bindings
+    EXPECT_GE(result->bindingPlans().size(), 2u);
+}
+
+// ==================== Condition Directive Tests ====================
+
+class ConditionDirectiveTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        m_config = core::TemplateConfig::defaults();
+    }
+
+    std::unique_ptr<ast::DocumentNode> parse(const String& source) {
+        parser::Lexer lexer(source, "<test>");
+        lexer.tokenize();
+
+        parser::Parser parser(lexer, m_config);
+        return parser.parse();
+    }
+
+    core::TemplateConfig m_config;
+};
+
+TEST_F(ConditionDirectiveTest, SimpleConditionDirective) {
+    auto doc = parse(R"(<text if:condition="player.alive"/>)");
+
+    ASSERT_NE(doc, nullptr);
+    ASSERT_NE(doc->rootElement(), nullptr);
+
+    auto* text = doc->rootElement();
+    EXPECT_TRUE(text->condition.has_value());
+    EXPECT_EQ(text->condition->booleanPath, "player.alive");
+    EXPECT_FALSE(text->condition->negate);
+}
+
+TEST_F(ConditionDirectiveTest, ConditionWithNegation) {
+    auto doc = parse(R"(<text if:condition="!player.hidden"/>)");
+
+    ASSERT_NE(doc, nullptr);
+    ASSERT_NE(doc->rootElement(), nullptr);
+
+    auto* text = doc->rootElement();
+    EXPECT_TRUE(text->condition.has_value());
+    EXPECT_EQ(text->condition->booleanPath, "player.hidden");
+    EXPECT_TRUE(text->condition->negate);
+}
+
+TEST_F(ConditionDirectiveTest, ConditionAttributeType) {
+    auto doc = parse(R"(<panel if:condition="game.isPlaying"/>)");
+    ASSERT_NE(doc, nullptr);
+    ASSERT_NE(doc->rootElement(), nullptr);
+
+    auto* panel = doc->rootElement();
+
+    // Find the if:condition attribute
+    bool foundConditionAttr = false;
+    for (const auto& [name, attr] : panel->attributes) {
+        if (name.find("if:") == 0) {
+            foundConditionAttr = true;
+            EXPECT_EQ(attr.type, ast::AttributeType::Condition);
+            break;
+        }
+    }
+    EXPECT_TRUE(foundConditionAttr);
+}
+
+TEST_F(ConditionDirectiveTest, LegacyVisibleBinding) {
+    // Test backward compatibility with bind:visible
+    auto doc = parse(R"(<text bind:visible="player.isSneaking"/>)");
+
+    ASSERT_NE(doc, nullptr);
+    ASSERT_NE(doc->rootElement(), nullptr);
+
+    // The condition should be extracted from bind:visible
+    auto* text = doc->rootElement();
+
+    // After categorizeAttributes and extractConditionInfo
+    text->categorizeAttributes();
+
+    // bind:visible should create a condition
+    EXPECT_TRUE(text->condition.has_value());
+    EXPECT_EQ(text->condition->booleanPath, "player.isSneaking");
+}
+
+TEST_F(ConditionDirectiveTest, ConditionWithContent) {
+    compiler::TemplateCompiler compiler(m_config);
+
+    // Use 'widget' as a generic container
+    auto result = compiler.compile(R"(
+        <widget if:condition="game.isPlaying">
+            <text bind:text="player.health"/>
+            <text bind:text="player.name"/>
+        </widget>
+    )");
+
+    ASSERT_NE(result, nullptr);
+    EXPECT_TRUE(result->isValid());
+
+    // Should have binding plans for the content
+    EXPECT_GE(result->bindingPlans().size(), 2u);
+}
+
+// ==================== Value Array Tests ====================
+
+class ValueArrayTest : public ::testing::Test {
+};
+
+TEST_F(ValueArrayTest, EmptyArray) {
+    binder::Value v(std::vector<binder::Value>{});
+    EXPECT_TRUE(v.isArray());
+    EXPECT_EQ(v.arraySize(), 0u);
+}
+
+TEST_F(ValueArrayTest, ArrayWithElements) {
+    std::vector<binder::Value> items;
+    items.emplace_back(binder::Value(1));
+    items.emplace_back(binder::Value(2));
+    items.emplace_back(binder::Value(3));
+
+    binder::Value v(items);
+    EXPECT_TRUE(v.isArray());
+    EXPECT_EQ(v.arraySize(), 3u);
+
+    EXPECT_EQ(v.arrayGet(0).asInteger(), 1);
+    EXPECT_EQ(v.arrayGet(1).asInteger(), 2);
+    EXPECT_EQ(v.arrayGet(2).asInteger(), 3);
+}
+
+TEST_F(ValueArrayTest, ArrayOutOfBounds) {
+    std::vector<binder::Value> items;
+    items.emplace_back(binder::Value(42));
+
+    binder::Value v(items);
+    EXPECT_TRUE(v.isArray());
+
+    // Out of bounds should return null
+    auto elem = v.arrayGet(10);
+    EXPECT_TRUE(elem.isNull());
+}
+
+TEST_F(ValueArrayTest, ArrayToString) {
+    std::vector<binder::Value> items;
+    items.emplace_back(binder::Value(1));
+    items.emplace_back(binder::Value(2));
+    items.emplace_back(binder::Value(3));
+
+    binder::Value v(items);
+    String str = v.toString();
+    EXPECT_TRUE(str.find("[") != String::npos);
+    EXPECT_TRUE(str.find("]") != String::npos);
+}
+
+TEST_F(ValueArrayTest, ArrayEquality) {
+    std::vector<binder::Value> items1;
+    items1.emplace_back(binder::Value(1));
+    items1.emplace_back(binder::Value(2));
+
+    std::vector<binder::Value> items2;
+    items2.emplace_back(binder::Value(1));
+    items2.emplace_back(binder::Value(2));
+
+    std::vector<binder::Value> items3;
+    items3.emplace_back(binder::Value(1));
+    items3.emplace_back(binder::Value(3));
+
+    binder::Value v1(items1);
+    binder::Value v2(items2);
+    binder::Value v3(items3);
+
+    EXPECT_TRUE(v1 == v2);
+    EXPECT_FALSE(v1 == v3);
+}
+
+TEST_F(ValueArrayTest, FromArrayStatic) {
+    auto v = binder::Value::fromArray({binder::Value(1), binder::Value(2)});
+    EXPECT_TRUE(v.isArray());
+    EXPECT_EQ(v.arraySize(), 2u);
+}
+
+TEST_F(ValueArrayTest, EmptyArrayStatic) {
+    auto v = binder::Value::emptyArray();
+    EXPECT_TRUE(v.isArray());
+    EXPECT_EQ(v.arraySize(), 0u);
+}
+
+// ==================== BindingContext Collection Tests ====================
+
+class BindingContextCollectionTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        m_ctx = std::make_unique<binder::BindingContext>(
+            mc::client::ui::kagero::state::StateStore::instance(),
+            mc::client::ui::kagero::event::EventBus::instance()
+        );
+    }
+
+    std::unique_ptr<binder::BindingContext> m_ctx;
+};
+
+TEST_F(BindingContextCollectionTest, ResolveCollection) {
+    // Set up a collection
+    std::vector<binder::Value> items;
+    items.emplace_back(binder::Value(String("item1")));
+    items.emplace_back(binder::Value(String("item2")));
+    items.emplace_back(binder::Value(String("item3")));
+
+    m_ctx->setCollectionValue("inventory", items);
+
+    auto resolved = m_ctx->resolveCollection("inventory");
+    EXPECT_EQ(resolved.size(), 3u);
+    EXPECT_EQ(resolved[0].asString(), "item1");
+    EXPECT_EQ(resolved[1].asString(), "item2");
+    EXPECT_EQ(resolved[2].asString(), "item3");
+}
+
+TEST_F(BindingContextCollectionTest, ResolveEmptyCollection) {
+    auto resolved = m_ctx->resolveCollection("nonexistent");
+    EXPECT_EQ(resolved.size(), 0u);
+}
+
+TEST_F(BindingContextCollectionTest, SetCollectionTemplate) {
+    // Test the template version
+    m_ctx->setCollection<i32>("numbers", {1, 2, 3, 4, 5});
+
+    auto resolved = m_ctx->resolveCollection("numbers");
+    EXPECT_EQ(resolved.size(), 5u);
+    EXPECT_EQ(resolved[0].asInteger(), 1);
+    EXPECT_EQ(resolved[4].asInteger(), 5);
+}
+
+TEST_F(BindingContextCollectionTest, LoopVariableWithCollection) {
+    // Set up a collection
+    m_ctx->setCollection<i32>("items", {10, 20, 30});
+
+    // Iterate using loop variables
+    auto items = m_ctx->resolveCollection("items");
+    EXPECT_EQ(items.size(), 3u);
+
+    for (size_t i = 0; i < items.size(); ++i) {
+        m_ctx->setLoopVariable("item", items[i]);
+        m_ctx->setLoopVariable("index", binder::Value(static_cast<i32>(i)));
+
+        auto itemValue = m_ctx->getLoopVariable("item");
+        auto indexValue = m_ctx->getLoopVariable("index");
+
+        EXPECT_EQ(itemValue.asInteger(), static_cast<i32>(10 * (i + 1)));
+        EXPECT_EQ(indexValue.asInteger(), static_cast<i32>(i));
+
+        m_ctx->clearLoopVariable("item");
+        m_ctx->clearLoopVariable("index");
+    }
+}
+
+// ==================== Template System Tests ====================
+// NOTE: TemplateSystemTest is disabled because it requires BuiltinWidgets and BuiltinEvents
+// which depend on Widget implementations that are excluded from the test build.
+// The TemplateSystem functionality is tested indirectly through integration tests.
+
+// class TemplateSystemTest : public ::testing::Test {
+// };
+//
+// TEST_F(TemplateSystemTest, InitializeShutdown) {
+//     // Test initialization
+//     initializeTemplateSystem();
+//     EXPECT_TRUE(isTemplateSystemInitialized());
+//
+//     // Test idempotent initialization
+//     initializeTemplateSystem();
+//     EXPECT_TRUE(isTemplateSystemInitialized());
+//
+//     // Test shutdown
+//     shutdownTemplateSystem();
+//     EXPECT_FALSE(isTemplateSystemInitialized());
+//
+//     // Re-initialize for other tests
+//     initializeTemplateSystem();
+// }

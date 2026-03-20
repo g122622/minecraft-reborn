@@ -198,4 +198,13 @@ template<typename T>
 
 } // namespace event_utils
 
+/**
+ * @brief 初始化内置事件处理器
+ *
+ * 调用 BuiltinEvents::instance().initialize()
+ */
+inline void registerBuiltinEvents() {
+    BuiltinEvents::instance().initialize();
+}
+
 } // namespace mc::client::ui::kagero::tpl::bindings

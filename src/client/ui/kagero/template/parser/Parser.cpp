@@ -212,6 +212,11 @@ std::unique_ptr<ElementNode> Parser::parseElement() {
     // 解析属性
     parseAttributes(*element);
 
+    // 分类属性和提取指令（在自关闭标签检查之前）
+    element->categorizeAttributes();
+    element->loop = extractLoopInfo(*element);
+    element->condition = extractConditionInfo(*element);
+
     // 自关闭标签
     if (match(TokenType::SelfCloseTag)) {
         element->range.end = currentLocation();
@@ -233,13 +238,6 @@ std::unique_ptr<ElementNode> Parser::parseElement() {
     }
 
     element->range.end = currentLocation();
-
-    // 分类属性
-    element->categorizeAttributes();
-
-    // 提取指令
-    element->loop = extractLoopInfo(*element);
-    element->condition = extractConditionInfo(*element);
 
     // 验证元素
     validateElement(*element);
@@ -290,7 +288,7 @@ void Parser::parseAttributes(ElementNode& element) {
 Attribute Parser::parseAttribute() {
     SourceLocation attrLoc = currentLocation();
 
-    // 属性名（可能带 bind: 或 on: 前缀）
+    // 属性名（可能带 bind:, on:, for:, if: 前缀）
     Token nameToken = parseAttributeName();
     if (nameToken.type == TokenType::Error || nameToken.value.empty()) {
         return Attribute();
@@ -301,10 +299,14 @@ Attribute Parser::parseAttribute() {
     // 检查是否是特殊前缀
     bool isBinding = false;
     bool isEvent = false;
+    bool isLoop = false;
+    bool isCondition = false;
     String baseName = attrName;
 
     static const String BIND_PREFIX = "bind:";
     static const String ON_PREFIX = "on:";
+    static const String FOR_PREFIX = "for:";
+    static const String IF_PREFIX = "if:";
 
     if (attrName.size() > BIND_PREFIX.size() &&
         attrName.substr(0, BIND_PREFIX.size()) == BIND_PREFIX) {
@@ -314,6 +316,14 @@ Attribute Parser::parseAttribute() {
                attrName.substr(0, ON_PREFIX.size()) == ON_PREFIX) {
         isEvent = true;
         baseName = attrName.substr(ON_PREFIX.size());
+    } else if (attrName.size() > FOR_PREFIX.size() &&
+               attrName.substr(0, FOR_PREFIX.size()) == FOR_PREFIX) {
+        isLoop = true;
+        baseName = attrName.substr(FOR_PREFIX.size());
+    } else if (attrName.size() > IF_PREFIX.size() &&
+               attrName.substr(0, IF_PREFIX.size()) == IF_PREFIX) {
+        isCondition = true;
+        baseName = attrName.substr(IF_PREFIX.size());
     }
 
     // 期望等号
@@ -337,6 +347,12 @@ Attribute Parser::parseAttribute() {
         attr = Attribute::createBinding(attrName, valueToken.value, attrLoc);
     } else if (isEvent) {
         attr = Attribute::createEvent(attrName, valueToken.value, attrLoc);
+    } else if (isLoop) {
+        attr = Attribute::createStatic(attrName, valueToken.value, attrLoc);
+        attr.type = ast::AttributeType::Loop;
+    } else if (isCondition) {
+        attr = Attribute::createStatic(attrName, valueToken.value, attrLoc);
+        attr.type = ast::AttributeType::Condition;
     } else {
         attr = Attribute::createStatic(attrName, valueToken.value, attrLoc);
     }
@@ -588,32 +604,120 @@ bool Parser::isInlineExpressionAllowed() const {
 }
 
 std::optional<LoopInfo> Parser::extractLoopInfo(const ElementNode& element) {
-    // 查找 bind:items 属性
-    auto it = element.attributes.find("bind:items");
-    if (it == element.attributes.end()) {
-        return std::nullopt;
+    // 查找 for:xxx 属性
+    // 支持两种语法：
+    // 1. for:item="item in collection" - 简单循环
+    // 2. for:(item, index)="(item, index) in collection" - 带索引循环
+
+    String forAttrName;
+    String forAttrValue;
+    SourceLocation forAttrLoc;
+
+    // 查找任何以 "for:" 开头的属性
+    for (const auto& [name, attr] : element.attributes) {
+        if (name.size() > 4) {
+            if (name[0] == 'f' && name[1] == 'o' && name[2] == 'r' && name[3] == ':') {
+                forAttrName = name;
+                forAttrValue = attr.rawValue;
+                forAttrLoc = attr.location;
+                break;
+            }
+        }
     }
 
-    const Attribute& attr = it->second;
-    if (!attr.binding.has_value()) {
+    if (forAttrValue.empty()) {
         return std::nullopt;
     }
 
     LoopInfo info;
-    info.collectionPath = attr.binding->path;
-    info.location = attr.location;
+    info.location = forAttrLoc;
 
-    // 从子元素中推断循环变量名
-    // 例如，如果有 bind:item="$slot.item"，则循环变量名为 "slot"
-    for (const auto& [name, childAttr] : element.attributes) {
-        if (name.find("bind:") == 0 && childAttr.binding.has_value() &&
-            childAttr.binding->isLoopVariable) {
-            info.itemVarName = childAttr.binding->loopVarName;
-            break;
+    // 解析循环表达式
+    // 格式: "item in collection" 或 "(item, index) in collection"
+    String expr = forAttrValue;
+
+    // 查找 " in " 关键字
+    const String IN_KEYWORD = " in ";
+    size_t inPos = expr.find(IN_KEYWORD);
+    if (inPos == String::npos) {
+        // 尝试小写的 " in "
+        String lowerExpr = expr;
+        std::transform(lowerExpr.begin(), lowerExpr.end(), lowerExpr.begin(),
+                      [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        inPos = lowerExpr.find(" in ");
+        if (inPos == String::npos) {
+            addError(TemplateErrorType::SemanticError,
+                     "Invalid loop syntax: expected 'item in collection' or '(item, index) in collection'",
+                     forAttrLoc);
+            return std::nullopt;
         }
     }
 
-    // 如果没有找到循环变量，使用默认名 "item"
+    String varsPart = expr.substr(0, inPos);
+    String collectionPart = expr.substr(inPos + 4); // " in " 长度为4
+
+    // 去除空白
+    size_t varsStart = varsPart.find_first_not_of(" \t");
+    size_t varsEnd = varsPart.find_last_not_of(" \t");
+    if (varsStart != String::npos && varsEnd != String::npos) {
+        varsPart = varsPart.substr(varsStart, varsEnd - varsStart + 1);
+    }
+
+    size_t collStart = collectionPart.find_first_not_of(" \t");
+    size_t collEnd = collectionPart.find_last_not_of(" \t");
+    if (collStart != String::npos && collEnd != String::npos) {
+        collectionPart = collectionPart.substr(collStart, collEnd - collStart + 1);
+    }
+
+    info.collectionPath = collectionPart;
+
+    // 解析变量部分
+    // 检查是否是 "(item, index)" 格式
+    if (!varsPart.empty() && varsPart[0] == '(' && varsPart.back() == ')') {
+        // 解析 "(item, index)" 格式
+        String inner = varsPart.substr(1, varsPart.size() - 2);
+        size_t commaPos = inner.find(',');
+
+        if (commaPos != String::npos) {
+            String itemVar = inner.substr(0, commaPos);
+            String indexVar = inner.substr(commaPos + 1);
+
+            // 去除空白
+            size_t itemStart = itemVar.find_first_not_of(" \t");
+            size_t itemEnd = itemVar.find_last_not_of(" \t");
+            if (itemStart != String::npos && itemEnd != String::npos) {
+                itemVar = itemVar.substr(itemStart, itemEnd - itemStart + 1);
+            }
+
+            size_t indexStart = indexVar.find_first_not_of(" \t");
+            size_t indexEnd = indexVar.find_last_not_of(" \t");
+            if (indexStart != String::npos && indexEnd != String::npos) {
+                indexVar = indexVar.substr(indexStart, indexEnd - indexStart + 1);
+            }
+
+            info.itemVarName = itemVar;
+            info.indexVarName = indexVar;
+            info.hasIndex = true;
+        } else {
+            // 单个变量在括号内: "(item)"
+            size_t innerStart = inner.find_first_not_of(" \t");
+            size_t innerEnd = inner.find_last_not_of(" \t");
+            if (innerStart != String::npos && innerEnd != String::npos) {
+                info.itemVarName = inner.substr(innerStart, innerEnd - innerStart + 1);
+            }
+        }
+    } else {
+        // 简单格式: "item"
+        info.itemVarName = varsPart;
+    }
+
+    // 如果没有找到循环变量，使用属性名作为变量名
+    // 例如 for:slot="..." 使用 "slot" 作为变量名
+    if (info.itemVarName.empty() && forAttrName.size() > 4) {
+        info.itemVarName = forAttrName.substr(4);
+    }
+
+    // 如果仍然没有变量名，使用默认值
     if (info.itemVarName.empty()) {
         info.itemVarName = "item";
     }
@@ -622,19 +726,44 @@ std::optional<LoopInfo> Parser::extractLoopInfo(const ElementNode& element) {
 }
 
 std::optional<ConditionInfo> Parser::extractConditionInfo(const ElementNode& element) {
-    // 查找 bind:visible 属性
-    auto it = element.attributes.find("bind:visible");
-    if (it == element.attributes.end()) {
-        return std::nullopt;
+    // 查找 if:xxx 属性
+    // 支持语法：
+    // 1. if:condition="booleanPath" - 条件为真时显示
+    // 2. if:condition="!booleanPath" - 条件为假时显示（取反）
+
+    String ifAttrValue;
+    SourceLocation ifAttrLoc;
+
+    // 查找任何以 "if:" 开头的属性
+    for (const auto& [name, attr] : element.attributes) {
+        // Check for "if:" prefix
+        if (name.size() > 3) {
+            if (name[0] == 'i' && name[1] == 'f' && name[2] == ':') {
+                ifAttrValue = attr.rawValue;
+                ifAttrLoc = attr.location;
+                break;
+            }
+        }
     }
 
-    const Attribute& attr = it->second;
-    if (!attr.binding.has_value()) {
-        return std::nullopt;
+    if (ifAttrValue.empty()) {
+        // 兼容旧的 bind:visible 属性
+        auto it = element.attributes.find("bind:visible");
+        if (it == element.attributes.end()) {
+            return std::nullopt;
+        }
+
+        const Attribute& attr = it->second;
+        if (!attr.binding.has_value()) {
+            return std::nullopt;
+        }
+
+        ifAttrValue = attr.binding->path;
+        ifAttrLoc = attr.location;
     }
 
     ConditionInfo info;
-    String path = attr.binding->path;
+    String path = ifAttrValue;
 
     // 检查是否有取反
     if (!path.empty() && path[0] == '!') {
@@ -648,7 +777,7 @@ std::optional<ConditionInfo> Parser::extractConditionInfo(const ElementNode& ele
     }
 
     info.booleanPath = path;
-    info.location = attr.location;
+    info.location = ifAttrLoc;
 
     return info;
 }
