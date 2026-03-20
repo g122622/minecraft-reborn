@@ -1,7 +1,12 @@
 #pragma once
 
 #include "../Block.hpp"
+#include "../../fluid/Fluid.hpp"
 #include "../../fluid/FlowingFluid.hpp"
+#include "../../IWorld.hpp"
+#include "../BlockPos.hpp"
+#include "../../../util/property/Properties.hpp"
+#include <memory>
 
 namespace mc {
 namespace block {
@@ -56,6 +61,57 @@ public:
      * 液体方块没有碰撞形状。
      */
     [[nodiscard]] const CollisionShape& getCollisionShape(const BlockState& state) const override;
+
+    /**
+     * @brief 检查指定面是否为实体面
+     *
+     * 液体方块没有实体面。
+     */
+    [[nodiscard]] bool isSolidSide(const BlockState& state, IWorld& world,
+                                   const BlockPos& pos, Direction side) const override {
+        (void)state;
+        (void)world;
+        (void)pos;
+        (void)side;
+        return false;
+    }
+
+    /**
+     * @brief 检查是否传播天空光向下
+     *
+     * 液体总是传播天空光（衰减1级）。
+     */
+    [[nodiscard]] bool propagatesSkylightDown(const BlockState& state,
+                                               IWorld* world = nullptr,
+                                               const BlockPos* pos = nullptr) const override {
+        (void)state;
+        (void)world;
+        (void)pos;
+        return true;
+    }
+
+    /**
+     * @brief 方块被放置时的处理
+     *
+     * 流体方块放置时需要调度流体tick。
+     */
+    void onBlockAdded(IWorld& world, const BlockPos& pos, const BlockState& state) override;
+
+    /**
+     * @brief 邻居方块更新
+     *
+     * 当邻居方块改变时，重新调度流体tick。
+     */
+    void neighborChanged(IWorld& world, const BlockPos& pos,
+                         Block& neighborBlock, const BlockPos& neighborPos,
+                         bool isMoving) override;
+
+    /**
+     * @brief 执行方块tick
+     *
+     * 委托给流体的tick方法。
+     */
+    void tick(IWorld& world, const BlockPos& pos, BlockState& state) override;
 
     /**
      * @brief 获取关联的流体

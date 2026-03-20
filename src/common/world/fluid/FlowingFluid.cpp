@@ -350,26 +350,36 @@ bool FlowingFluid::doesSideHaveHoles(Direction dir, IWorld& world,
         return true;
     }
 
-    // 简化实现：使用碰撞形状检测
     // 参考 MC 1.16.5: VoxelShapes.doAdjacentCubeSidesFillSquare
+    // 检查两个方块的碰撞形状在相邻面是否有空隙
+
+    // 获取碰撞形状
     const CollisionShape& fromShape = state->getCollisionShape();
     const CollisionShape& toShape = neighborState->getCollisionShape();
-
-    // 检查两个方块的碰撞形状在相邻面是否有空隙
-    Direction oppositeDir = Directions::opposite(dir);
 
     // 如果任一方块没有碰撞，则流体可以通过
     if (fromShape.isEmpty() || toShape.isEmpty()) {
         return true;
     }
 
-    // 检查相邻面的碰撞形状
-    // 简化实现：如果两个方块都是完整方块，则流体不能通过
-    const Material& fromMaterial = state->owner().material();
-    const Material& toMaterial = neighborState->owner().material();
+    // 冰块特殊处理：冰块的侧面不阻止流体流动
+    const Material& neighborMaterial = neighborState->owner().material();
+    if (neighborMaterial == Material::ICE) {
+        return true;
+    }
 
-    // 流体可以穿过非固体方块
-    return !fromMaterial.blocksMovement() || !toMaterial.blocksMovement();
+    // 使用 isSolidSide 方法检查
+    // 这简化了 VoxelShape 检查，对于大多数情况足够准确
+    Direction oppositeDir = Directions::opposite(dir);
+
+    // 检查当前方块在该面是否为实体
+    bool fromSolid = state->isSolidSide(world, pos, dir);
+
+    // 检查相邻方块在对面是否为实体
+    bool toSolid = neighborState->isSolidSide(world, neighborPos, oppositeDir);
+
+    // 如果两个方块在该面都为实体，则流体不能通过
+    return !fromSolid || !toSolid;
 }
 
 bool FlowingFluid::canFormSource(IWorld& world, const BlockPos& pos) {
@@ -423,23 +433,35 @@ bool FlowingFluid::isBlocked(IWorld& world, const BlockPos& pos,
     const Material& material = blockRef.material();
 
     // 传送门材质（不允许流体进入）
-    // TODO: 当Material::PORTAL可用时启用
-    // if (material == Material::PORTAL) {
-    //     return false;
-    // }
+    if (material == Material::PORTAL) {
+        return false;
+    }
 
     // 结构空位（不允许流体进入）
-    // if (material == Material::STRUCTURE_VOID) {
-    //     return false;
-    // }
+    if (material == Material::STRUCTURE_VOID) {
+        return false;
+    }
 
     // 海草、海洋植物
-    // if (material == Material::OCEAN_PLANT || material == Material::SEA_GRASS) {
-    //     return false;
+    if (material == Material::OCEAN_PLANT || material == Material::SEA_GRASS) {
+        return false;
+    }
+
+    // 检查是否为 ILiquidContainer（大锅、炼药锅等可以容纳液体的方块）
+    // 使用 dynamic_cast 检查方块是否实现了 ILiquidContainer 接口
+    // TODO: 当具体方块实现后启用此检查
+    // if (auto* container = dynamic_cast<const ILiquidContainer*>(&blockRef)) {
+    //     return container->canContainFluid(world, pos, *block, fluid);
     // }
 
-    // 门、告示牌、梯子、甘蔗、气泡柱（特殊方块处理）
-    // TODO: 检查特定方块类型
+    // 特殊方块检查（门、告示牌、梯子、甘蔗、气泡柱）
+    // 这些方块允许流体通过
+    // TODO: 当这些方块实现后添加具体检查
+    // - DoorBlock: 门
+    // - SignBlock: 告示牌
+    // - LadderBlock: 梯子
+    // - SugarCaneBlock: 甘蔗
+    // - BubbleColumnBlock: 气泡柱
 
     // 默认：非固体方块可以被流体替换
     (void)world;

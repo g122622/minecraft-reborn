@@ -1,11 +1,13 @@
 #include "Block.hpp"
 #include "BlockRegistry.hpp"
 #include "Material.hpp"
+#include "BlockPos.hpp"
 #include "../IWorld.hpp"
 #include "../fluid/Fluid.hpp"
 #include "../fluid/FluidRegistry.hpp"
 #include "../fluid/fluids/EmptyFluid.hpp"
 #include "../../math/random/IRandom.hpp"
+#include "../../util/Direction.hpp"
 #include <sstream>
 
 namespace mc {
@@ -85,6 +87,15 @@ float BlockState::getAmbientOcclusionLightValue() const {
     // 否则返回1.0（透明方块如玻璃、树叶不产生阴影）
     // 参考: net.minecraft.block.AbstractBlock.AbstractBlockState#getAmbientOcclusionLightValue
     return hasOpaqueCollisionShape() ? 0.2f : 1.0f;
+}
+
+bool BlockState::isSolidSide(IWorld& world, const BlockPos& pos, Direction side) const {
+    return m_owner->isSolidSide(*this, world, pos, side);
+}
+
+bool BlockState::isOpaqueCube(IBlockReader& world, const BlockPos& pos) const {
+    // 如果方块是固体的且有不透明碰撞形状，则为不透明完整方块
+    return m_isSolid && m_isOpaque && hasOpaqueCollisionShape();
 }
 
 const ResourceLocation& BlockState::blockLocation() const {
@@ -314,6 +325,48 @@ void Block::randomTick(IWorld& world, const BlockPos& pos, BlockState& state, IR
     (void)pos;
     (void)state;
     (void)random;
+}
+
+void Block::neighborChanged(IWorld& world, const BlockPos& pos,
+                             Block& neighborBlock, const BlockPos& neighborPos,
+                             bool isMoving) {
+    // 默认实现：空操作
+    // 需要响应邻居变化的方块应重写此方法
+    (void)world;
+    (void)pos;
+    (void)neighborBlock;
+    (void)neighborPos;
+    (void)isMoving;
+}
+
+void Block::onBlockAdded(IWorld& world, const BlockPos& pos, const BlockState& state) {
+    // 默认实现：空操作
+    // 需要特殊初始化的方块应重写此方法
+    (void)world;
+    (void)pos;
+    (void)state;
+}
+
+void Block::onBlockRemoved(IWorld& world, const BlockPos& pos, const BlockState& state) {
+    // 默认实现：空操作
+    // 需要特殊清理的方块应重写此方法
+    (void)world;
+    (void)pos;
+    (void)state;
+}
+
+bool Block::isSolidSide(const BlockState& state, IWorld& world, const BlockPos& pos, Direction side) const {
+    // 参考 MC 1.16.5: Block.isSolidSide
+    // 冰块特殊处理：冰块的侧面不被认为是实体面（用于流体流动判断）
+    if (m_material == Material::ICE) {
+        return false;
+    }
+    // 默认实现：检查方块是否为固体且有碰撞
+    (void)state;
+    (void)world;
+    (void)pos;
+    (void)side;
+    return m_material.isSolid() && m_hasCollision;
 }
 
 } // namespace mc

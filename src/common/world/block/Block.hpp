@@ -19,6 +19,7 @@ class Block;
 class BlockState;
 class BlockRegistry;
 class IWorld;
+class IBlockReader;
 class BlockPos;
 class IRandom;
 
@@ -179,6 +180,29 @@ public:
      * 参考: net.minecraft.block.AbstractBlock.AbstractBlockState#getAmbientOcclusionLightValue
      */
     [[nodiscard]] float getAmbientOcclusionLightValue() const;
+
+    /**
+     * @brief 检查指定面是否为实体面
+     *
+     * 用于流体流动判断、渲染面剔除等。
+     *
+     * @param world 世界
+     * @param pos 方块位置
+     * @param side 要检查的面
+     * @return 如果该面是实体面返回true
+     */
+    [[nodiscard]] bool isSolidSide(IWorld& world, const BlockPos& pos, Direction side) const;
+
+    /**
+     * @brief 检查是否为不透明完整方块
+     *
+     * 用于渲染和光照计算。
+     *
+     * @param world 世界读取器
+     * @param pos 方块位置
+     * @return 如果是不透明完整方块返回true
+     */
+    [[nodiscard]] bool isOpaqueCube(IBlockReader& world, const BlockPos& pos) const;
 
     /**
      * @brief 获取方块资源位置
@@ -546,6 +570,21 @@ public:
                                                        const BlockPos* pos = nullptr) const;
 
     /**
+     * @brief 检查指定面是否为实体面
+     *
+     * 用于流体流动判断、渲染面剔除等。
+     * 默认实现基于材质和碰撞形状。
+     *
+     * @param state 方块状态
+     * @param world 世界
+     * @param pos 方块位置
+     * @param side 要检查的面
+     * @return 如果该面是实体面返回true
+     */
+    [[nodiscard]] virtual bool isSolidSide(const BlockState& state, IWorld& world,
+                                           const BlockPos& pos, Direction side) const;
+
+    /**
      * @brief 获取流体状态
      *
      * 默认返回空流体。液体方块（LiquidBlock）会重写此方法返回对应的流体。
@@ -583,6 +622,46 @@ public:
      * @param random 随机数生成器
      */
     virtual void randomTick(IWorld& world, const BlockPos& pos, BlockState& state, IRandom& random);
+
+    /**
+     * @brief 邻居方块更新
+     *
+     * 当相邻方块改变时调用。默认实现为空。
+     * 需要响应邻居变化的方块（如红石、流体等）应重写此方法。
+     *
+     * @param world 世界引用
+     * @param pos 当前方块位置
+     * @param neighborBlock 邻居方块
+     * @param neighborPos 邻居位置
+     * @param isMoving 是否正在移动（活塞等）
+     */
+    virtual void neighborChanged(IWorld& world, const BlockPos& pos,
+                                  Block& neighborBlock, const BlockPos& neighborPos,
+                                  bool isMoving);
+
+    /**
+     * @brief 方块被放置时的处理
+     *
+     * 当方块被放置到世界中时调用。默认实现为空。
+     * 需要特殊初始化的方块应重写此方法。
+     *
+     * @param world 世界引用
+     * @param pos 方块位置
+     * @param state 方块状态
+     */
+    virtual void onBlockAdded(IWorld& world, const BlockPos& pos, const BlockState& state);
+
+    /**
+     * @brief 方块被移除时的处理
+     *
+     * 当方块从世界中移除时调用。默认实现为空。
+     * 需要特殊清理的方块应重写此方法。
+     *
+     * @param world 世界引用
+     * @param pos 方块位置
+     * @param state 方块状态
+     */
+    virtual void onBlockRemoved(IWorld& world, const BlockPos& pos, const BlockState& state);
 
     /**
      * @brief 是否响应随机刻

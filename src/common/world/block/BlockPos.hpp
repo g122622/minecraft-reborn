@@ -4,6 +4,7 @@
 #include "../../core/Constants.hpp"
 #include "../../math/MathUtils.hpp"
 #include "../../math/Vector3.hpp"
+#include "../../util/Direction.hpp"
 
 #include <cstdint>
 #include <functional>
@@ -126,6 +127,19 @@ public:
             case BlockFace::West:   return {x - distance, y, z};
             default: return *this;
         }
+    }
+
+    /**
+     * @brief 根据方向获取相邻方块
+     *
+     * @param dir 方向
+     * @param distance 距离（默认1）
+     * @return 相邻方块位置
+     */
+    [[nodiscard]] BlockPos offset(Direction dir, i32 distance = 1) const noexcept {
+        return {x + Directions::xOffset(dir) * distance,
+                y + Directions::yOffset(dir) * distance,
+                z + Directions::zOffset(dir) * distance};
     }
 
     // 转换为64位唯一ID

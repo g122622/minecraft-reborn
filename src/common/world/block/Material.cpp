@@ -258,6 +258,36 @@ namespace {
             .replaceable()
             .build();
     }
+
+    Material makePortalMaterial() {
+        return MaterialBuilder()
+            .solid(false)
+            .blocksMovement(false)
+            .pushReaction(Material::PushReaction::Block)
+            .build();
+    }
+
+    Material makeOceanPlantMaterial() {
+        return MaterialBuilder()
+            .solid(false)
+            .replaceable()
+            .build();
+    }
+
+    Material makeSeaGrassMaterial() {
+        return MaterialBuilder()
+            .solid(false)
+            .replaceable()
+            .build();
+    }
+
+    Material makeFireMaterial() {
+        return MaterialBuilder()
+            .solid(false)
+            .blocksMovement(false)
+            .replaceable()
+            .build();
+    }
 }
 
 // 静态常量定义
@@ -378,6 +408,26 @@ const Material& Material::PISTON = []() -> const Material& {
 
 const Material& Material::DECORATION = []() -> const Material& {
     static Material material = makeDecorationMaterial();
+    return material;
+}();
+
+const Material& Material::PORTAL = []() -> const Material& {
+    static Material material = makePortalMaterial();
+    return material;
+}();
+
+const Material& Material::OCEAN_PLANT = []() -> const Material& {
+    static Material material = makeOceanPlantMaterial();
+    return material;
+}();
+
+const Material& Material::SEA_GRASS = []() -> const Material& {
+    static Material material = makeSeaGrassMaterial();
+    return material;
+}();
+
+const Material& Material::FIRE = []() -> const Material& {
+    static Material material = makeFireMaterial();
     return material;
 }();
 

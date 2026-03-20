@@ -1,4 +1,8 @@
 #include "VanillaBlocks.hpp"
+#include "blocks/LiquidBlock.hpp"
+#include "../fluid/FluidRegistry.hpp"
+#include "../fluid/fluids/WaterFluid.hpp"
+#include "../fluid/fluids/LavaFluid.hpp"
 
 namespace mc {
 
@@ -313,6 +317,10 @@ void VanillaBlocks::initialize() {
 void VanillaBlocks::registerBaseBlocks() {
     auto& registry = BlockRegistry::instance();
 
+    // 首先初始化流体注册表（确保流体先于方块注册）
+    // 这样LiquidBlock可以引用已注册的流体
+    fluid::FluidRegistry::instance().initialize();
+
     // 空气 - ID 0
     AIR = &registry.registerBlock<AirBlock>(
         ResourceLocation("minecraft:air"),
@@ -355,18 +363,41 @@ void VanillaBlocks::registerBaseBlocks() {
     );
 
     // 水 - ID 6
-    // 水：透明度2，传播天空光
-    WATER = &registry.registerBlock<SimpleBlock>(
-        ResourceLocation("minecraft:water"),
-        BlockProperties(Material::WATER).noCollision().notSolid().opacity(2).propagatesSkylightDown()
-    );
+    // 使用LiquidBlock注册，关联FlowingFluid
+    // 参考: net.minecraft.block.FlowingFluidBlock
+    // 水：透明度2，传播天空光，tick延迟5
+    {
+        fluid::Fluid* waterFluid = fluid::FluidRegistry::instance().getFluid(
+            fluid::FluidRegistry::WATER_ID);
+        if (waterFluid != nullptr) {
+            auto* flowingWater = dynamic_cast<fluid::FlowingFluid*>(waterFluid);
+            if (flowingWater != nullptr) {
+                WATER = &registry.registerBlock<block::LiquidBlock>(
+                    ResourceLocation("minecraft:water"),
+                    *flowingWater,
+                    BlockProperties(Material::WATER).noCollision().notSolid().opacity(2).propagatesSkylightDown()
+                );
+            }
+        }
+    }
 
     // 岩浆 - ID 7
-    // 岩浆：发光15级，不透明
-    LAVA = &registry.registerBlock<SimpleBlock>(
-        ResourceLocation("minecraft:lava"),
-        BlockProperties(Material::LAVA).noCollision().notSolid().lightLevel(15)
-    );
+    // 使用LiquidBlock注册，关联FlowingFluid
+    // 岩浆：发光15级，tick延迟30（主世界）
+    {
+        fluid::Fluid* lavaFluid = fluid::FluidRegistry::instance().getFluid(
+            fluid::FluidRegistry::LAVA_ID);
+        if (lavaFluid != nullptr) {
+            auto* flowingLava = dynamic_cast<fluid::FlowingFluid*>(lavaFluid);
+            if (flowingLava != nullptr) {
+                LAVA = &registry.registerBlock<block::LiquidBlock>(
+                    ResourceLocation("minecraft:lava"),
+                    *flowingLava,
+                    BlockProperties(Material::LAVA).noCollision().notSolid().lightLevel(15)
+                );
+            }
+        }
+    }
 
     // 基岩 - ID 8
     // 参考: new Block(Properties.create(Material.ROCK).hardnessAndResistance(-1.0F, 3600000.0F).noDrops())

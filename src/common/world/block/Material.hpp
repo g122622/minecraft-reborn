@@ -156,6 +156,18 @@ public:
     /** 装饰材质（不可移动） */
     static const Material& DECORATION;
 
+    /** 传送门材质 */
+    static const Material& PORTAL;
+
+    /** 海洋植物材质 */
+    static const Material& OCEAN_PLANT;
+
+    /** 海草材质 */
+    static const Material& SEA_GRASS;
+
+    /** 火材质 */
+    static const Material& FIRE;
+
     // ========================================================================
     // 比较运算符
     // ========================================================================

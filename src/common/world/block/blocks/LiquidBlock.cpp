@@ -2,6 +2,8 @@
 #include "../Block.hpp"
 #include "../../../util/property/Properties.hpp"
 #include "../../../util/property/FluidProperties.hpp"
+#include "../../IWorld.hpp"
+#include "../BlockPos.hpp"
 
 namespace mc {
 namespace block {
@@ -45,6 +47,33 @@ const CollisionShape& LiquidBlock::getCollisionShape(const BlockState& state) co
     // 液体方块没有碰撞形状
     (void)state;
     return VoxelShapes::empty();
+}
+
+void LiquidBlock::onBlockAdded(IWorld& world, const BlockPos& pos, const BlockState& state) {
+    // 调度流体tick
+    // 使用m_fluid直接调度（非const引用）
+    world.scheduleFluidTick(pos, m_fluid, m_fluid.getTickDelay());
+}
+
+void LiquidBlock::neighborChanged(IWorld& world, const BlockPos& pos,
+                                   Block& neighborBlock, const BlockPos& neighborPos,
+                                   bool isMoving) {
+    // 邻居变化时重新调度流体tick
+    world.scheduleFluidTick(pos, m_fluid, m_fluid.getTickDelay());
+    (void)neighborBlock;
+    (void)neighborPos;
+    (void)isMoving;
+}
+
+void LiquidBlock::tick(IWorld& world, const BlockPos& pos, BlockState& state) {
+    // 获取流体状态并调用流体的tick方法
+    // 使用m_fluid直接调用tick（非const引用）
+    const fluid::FluidState* fluidState = getFluidState(state);
+    if (fluidState != nullptr && !fluidState->isEmpty()) {
+        // 创建可变副本进行tick
+        fluid::FluidState mutableState = *fluidState;
+        m_fluid.tick(world, pos, mutableState);
+    }
 }
 
 i32 LiquidBlock::blockLevelToFluidLevel(i32 blockLevel) {
