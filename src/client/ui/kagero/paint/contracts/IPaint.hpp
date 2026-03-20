@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Color.hpp"
+#include "../Color.hpp"
 
 namespace mc::client::ui::kagero::paint {
 

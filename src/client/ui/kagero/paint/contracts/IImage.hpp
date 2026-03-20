@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Types.hpp"
+#include "../../Types.hpp"
 
 namespace mc::client::ui::kagero::paint {
 

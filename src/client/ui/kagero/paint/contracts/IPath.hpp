@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Geometry.hpp"
+#include "../Geometry.hpp"
 #include <vector>
 
 namespace mc::client::ui::kagero::paint {

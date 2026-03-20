@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../paint/ICanvas.hpp"
-#include "../paint/IImage.hpp"
-#include "../paint/IPaint.hpp"
-#include "../paint/Color.hpp"
+#include "./contracts/ICanvas.hpp"
+#include "./contracts/IImage.hpp"
+#include "./contracts/IPaint.hpp"
+#include "./Color.hpp"
 
 namespace mc::client::ui::kagero::widget {
 
