@@ -92,7 +92,41 @@ add_executable(minecraft-client
     # UI Kagero布局系统
     ui/kagero/layout/core/LayoutEngine.cpp
     ui/kagero/layout/algorithms/FlexLayout.cpp
+    ui/kagero/layout/algorithms/GridLayout.cpp
+    ui/kagero/layout/algorithms/AnchorLayout.cpp
     ui/kagero/layout/integration/WidgetLayoutAdaptor.cpp
+    # UI Kagero Paint抽象与后端
+    ui/kagero/widget/PaintContext.cpp
+    ui/kagero/widget/ContainerWidget.cpp
+    ui/kagero/backends/trident/TridentBackend.cpp
+    ui/kagero/backends/trident/TridentSurface.cpp
+    ui/kagero/backends/trident/TridentCanvas.cpp
+    ui/kagero/backends/trident/TridentPaint.cpp
+    ui/kagero/backends/trident/TridentImage.cpp
+    ui/kagero/backends/trident/TridentTypeface.cpp
+    ui/kagero/backends/trident/TridentPath.cpp
+    ui/kagero/backends/trident/TridentTextBlob.cpp
+    ui/kagero/backends/trident/pipelines/UIPipeline.cpp
+    # Minecraft UI业务层
+    ui/minecraft/MinecraftUIContext.cpp
+    ui/minecraft/resources/GuiTextureAtlas.cpp
+    ui/minecraft/resources/GuiSprite.cpp
+    ui/minecraft/resources/MinecraftTypeface.cpp
+    ui/minecraft/resources/ResourceProvider.cpp
+    ui/minecraft/widgets/SlotWidget.cpp
+    ui/minecraft/widgets/InventorySlot.cpp
+    ui/minecraft/widgets/HotbarWidget.cpp
+    ui/minecraft/widgets/HealthBarWidget.cpp
+    ui/minecraft/widgets/HungerBarWidget.cpp
+    ui/minecraft/widgets/ExperienceBar.cpp
+    ui/minecraft/widgets/Viewport3DWidget.cpp
+    ui/minecraft/screens/Screen.cpp
+    ui/minecraft/screens/ScreenManager.cpp
+    ui/minecraft/screens/MainMenuScreen.cpp
+    ui/minecraft/screens/InventoryScreen.cpp
+    ui/minecraft/screens/ContainerScreen.cpp
+    ui/minecraft/screens/PauseScreen.cpp
+    ui/minecraft/screens/OptionsScreen.cpp
     # 客户端实体管理
     world/entity/ClientEntity.cpp
     world/entity/ClientEntityManager.cpp

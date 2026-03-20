@@ -10,6 +10,7 @@ namespace mc::client::ui::kagero::widget {
 
 // 前向声明
 class IWidgetContainer;
+class PaintContext;
 
 /**
  * @brief Widget基类
@@ -94,6 +95,15 @@ public:
      * @param partialTick 部分tick时间（用于插值渲染）
      */
     virtual void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) = 0;
+
+    /**
+     * @brief 新绘制入口（Paint抽象层）
+     *
+     * 默认实现为空，子类可按需重写。
+     */
+    virtual void paint(PaintContext& ctx) {
+        (void)ctx;
+    }
 
     /**
      * @brief 窗口尺寸改变时调用

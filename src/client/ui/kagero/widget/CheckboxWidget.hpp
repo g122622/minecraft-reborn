@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Widget.hpp"
+#include "PaintContext.hpp"
 #include <functional>
 #include <string>
 
@@ -77,6 +78,17 @@ public:
 
         // TODO: 实际渲染逻辑
         // renderCheckbox(ctx, mouseX, mouseY, partialTick);
+    }
+
+    void paint(PaintContext& ctx) override {
+        if (!isVisible()) return;
+        const Rect box{bounds().x, bounds().y, boxSize(), boxSize()};
+        ctx.drawFilledRect(box, Colors::fromARGB(255, 32, 32, 32));
+        ctx.drawBorder(box, 1.0f, Colors::fromARGB(255, 96, 96, 96));
+        if (m_checked) {
+            const Rect mark{box.x + 4, box.y + 4, box.width - 8, box.height - 8};
+            ctx.drawFilledRect(mark, m_checkColor);
+        }
     }
 
     // ==================== 事件处理 ====================

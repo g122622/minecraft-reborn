@@ -10,12 +10,14 @@
 #include "../../widget/ScrollableWidget.hpp"
 #include "../../widget/ListWidget.hpp"
 #include "../../widget/Viewport3DWidget.hpp"
+#include "../../widget/ContainerWidget.hpp"
 #include "../../event/EventBus.hpp"
 #include "../../event/InputEvents.hpp"
 #include "../../event/UIEvents.hpp"
 #include <functional>
 #include <unordered_map>
 #include <memory>
+#include <map>
 
 namespace mc::client::ui::kagero::tpl::bindings {
 
@@ -165,12 +167,12 @@ void applySize(widget::Widget* widget, const String& value);
 /**
  * @brief 解析锚点值
  */
-[[nodiscard]] widget::Anchor parseAnchor(const String& value);
+[[nodiscard]] Anchor parseAnchor(const String& value);
 
 /**
  * @brief 锚点转字符串
  */
-[[nodiscard]] String anchorToString(widget::Anchor anchor);
+[[nodiscard]] String anchorToString(Anchor anchor);
 
 // ========== 布尔值 ==========
 

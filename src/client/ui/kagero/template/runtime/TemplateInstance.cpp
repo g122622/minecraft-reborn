@@ -1,6 +1,11 @@
 #include "TemplateInstance.hpp"
+#include "../../widget/ButtonWidget.hpp"
+#include "../../widget/TextWidget.hpp"
+#include "../../widget/ContainerWidget.hpp"
+#include "../../event/WidgetEvents.hpp"
 #include <algorithm>
 #include <chrono>
+#include <sstream>
 
 namespace mc::client::ui::kagero::tpl::runtime {
 
@@ -103,7 +108,9 @@ void TemplateInstance::registerDefaultFactories() {
     // 默认工厂
     m_defaultFactory = [](const String& tagName, const String& id,
                           const std::map<String, String>& attrs) {
-        auto widget = std::make_unique<widget::Widget>();
+        (void)tagName;
+        (void)attrs;
+        auto widget = std::make_unique<widget::ContainerWidget>();
         if (!id.empty()) {
             widget->setId(id);
         }
@@ -376,8 +383,10 @@ std::unique_ptr<widget::Widget> TemplateInstance::instantiateElement(
     auto widget = createWidget(element->tagName, id, staticAttrs);
     if (!widget) return nullptr;
 
-    // 设置父Widget
-    widget->setParent(parent);
+    // 设置父Widget容器
+    if (auto* containerParent = dynamic_cast<widget::IWidgetContainer*>(parent)) {
+        widget->setParent(containerParent);
+    }
 
     // 注册Widget
     String widgetPath = buildWidgetPath(element, parent ? parent->id() : "");
@@ -416,7 +425,9 @@ std::unique_ptr<widget::Widget> TemplateInstance::instantiateText(
 
     auto widget = std::make_unique<widget::TextWidget>();
     widget->setText(textNode->text);
-    widget->setParent(parent);
+    if (auto* containerParent = dynamic_cast<widget::IWidgetContainer*>(parent)) {
+        widget->setParent(containerParent);
+    }
 
     return widget;
 }

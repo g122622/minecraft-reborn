@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Widget.hpp"
+#include "PaintContext.hpp"
 #include <functional>
 #include <string>
 
@@ -116,6 +117,15 @@ public:
         // 渲染提示
         if (m_hovered && m_onTooltip) {
             m_onTooltip(*this, mouseX, mouseY);
+        }
+    }
+
+    void paint(PaintContext& ctx) override {
+        if (!isVisible()) return;
+        ctx.drawFilledRect(bounds(), getBackgroundColor());
+        if (m_style.drawBorder) {
+            const u32 border = isHovered() ? m_style.hoverBorderColor : m_style.borderColor;
+            ctx.drawBorder(bounds(), 1.0f, border);
         }
     }
 
@@ -272,6 +282,11 @@ public:
 
         // TODO: 实际渲染逻辑
         // 绑定纹理并渲染
+    }
+
+    void paint(PaintContext& ctx) override {
+        if (!isVisible()) return;
+        (void)ctx;
     }
 
     /**

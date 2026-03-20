@@ -2,6 +2,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <iomanip>
 
 namespace mc::client::ui::kagero::tpl::bindings {
 
@@ -115,7 +116,7 @@ void BuiltinWidgets::registerScreenWidget() {
     // 这里注册一个简单的容器Widget
     m_creators["screen"] = [](const String& id,
                                const std::map<String, String>& attrs) {
-        auto widget = std::make_unique<widget::Widget>(id.empty() ? "screen" : id);
+        auto widget = std::make_unique<widget::ContainerWidget>(id.empty() ? "screen" : id);
 
         // 解析title属性
         auto titleIt = attrs.find("title");
@@ -297,7 +298,7 @@ void BuiltinWidgets::registerCheckboxWidget() {
 void BuiltinWidgets::registerImageWidget() {
     m_creators["image"] = [](const String& id,
                               const std::map<String, String>& attrs) {
-        auto widget = std::make_unique<widget::Widget>(id.empty() ? "image" : id);
+        auto widget = std::make_unique<widget::ContainerWidget>(id.empty() ? "image" : id);
 
         // 解析图片源
         auto srcIt = attrs.find("src");
@@ -316,7 +317,7 @@ void BuiltinWidgets::registerImageWidget() {
 void BuiltinWidgets::registerGridWidget() {
     m_creators["grid"] = [](const String& id,
                              const std::map<String, String>& attrs) {
-        auto widget = std::make_unique<widget::Widget>(id.empty() ? "grid" : id);
+        auto widget = std::make_unique<widget::ContainerWidget>(id.empty() ? "grid" : id);
 
         // 解析列数和行数
         auto colsIt = attrs.find("cols");
@@ -556,38 +557,38 @@ String colorToString(u32 color) {
     return oss.str();
 }
 
-widget::Anchor parseAnchor(const String& value) {
+Anchor parseAnchor(const String& value) {
     String lower = value;
     std::transform(lower.begin(), lower.end(), lower.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
-    static const std::unordered_map<String, widget::Anchor> anchors = {
-        {"topleft", widget::Anchor::TopLeft},
-        {"topcenter", widget::Anchor::TopCenter},
-        {"topright", widget::Anchor::TopRight},
-        {"centerleft", widget::Anchor::CenterLeft},
-        {"center", widget::Anchor::Center},
-        {"centerright", widget::Anchor::CenterRight},
-        {"bottomleft", widget::Anchor::BottomLeft},
-        {"bottomcenter", widget::Anchor::BottomCenter},
-        {"bottomright", widget::Anchor::BottomRight}
+    static const std::unordered_map<String, Anchor> anchors = {
+        {"topleft", Anchor::TopLeft},
+        {"topcenter", Anchor::TopCenter},
+        {"topright", Anchor::TopRight},
+        {"centerleft", Anchor::CenterLeft},
+        {"center", Anchor::Center},
+        {"centerright", Anchor::CenterRight},
+        {"bottomleft", Anchor::BottomLeft},
+        {"bottomcenter", Anchor::BottomCenter},
+        {"bottomright", Anchor::BottomRight}
     };
 
     auto it = anchors.find(lower);
-    return it != anchors.end() ? it->second : widget::Anchor::TopLeft;
+    return it != anchors.end() ? it->second : Anchor::TopLeft;
 }
 
-String anchorToString(widget::Anchor anchor) {
+String anchorToString(Anchor anchor) {
     switch (anchor) {
-        case widget::Anchor::TopLeft: return "topLeft";
-        case widget::Anchor::TopCenter: return "topCenter";
-        case widget::Anchor::TopRight: return "topRight";
-        case widget::Anchor::CenterLeft: return "centerLeft";
-        case widget::Anchor::Center: return "center";
-        case widget::Anchor::CenterRight: return "centerRight";
-        case widget::Anchor::BottomLeft: return "bottomLeft";
-        case widget::Anchor::BottomCenter: return "bottomCenter";
-        case widget::Anchor::BottomRight: return "bottomRight";
+        case Anchor::TopLeft: return "topLeft";
+        case Anchor::TopCenter: return "topCenter";
+        case Anchor::TopRight: return "topRight";
+        case Anchor::CenterLeft: return "centerLeft";
+        case Anchor::Center: return "center";
+        case Anchor::CenterRight: return "centerRight";
+        case Anchor::BottomLeft: return "bottomLeft";
+        case Anchor::BottomCenter: return "bottomCenter";
+        case Anchor::BottomRight: return "bottomRight";
         default: return "topLeft";
     }
 }

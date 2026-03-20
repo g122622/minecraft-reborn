@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Widget.hpp"
+#include "PaintContext.hpp"
 #include "IWidgetContainer.hpp"
 #include <memory>
 #include <vector>
@@ -102,6 +103,12 @@ public:
         }
     }
 
+    void paint(PaintContext& ctx) override {
+        if (!isVisible()) return;
+        ctx.drawFilledRect(bounds(), Colors::fromARGB(255, 20, 20, 20));
+        ctx.drawBorder(bounds(), 1.0f, Colors::fromARGB(255, 70, 70, 70));
+    }
+
     // ==================== 事件处理 ====================
 
     bool onClick(i32 mouseX, i32 mouseY, i32 button) override {
@@ -147,7 +154,14 @@ public:
         }
 
         i32 adjustedY = mouseY + m_scrollY;
-        return WidgetContainerMixin<ScrollableWidget>::handleDragInChildren(mouseX, adjustedY, deltaX, deltaY);
+        for (auto& child : m_children) {
+            if (child->isVisible() && child->isActive() && child->contains(mouseX, adjustedY)) {
+                if (child->onDrag(mouseX, adjustedY, deltaX, deltaY)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     bool onScroll(i32 mouseX, i32 mouseY, f64 delta) override {

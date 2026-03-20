@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Widget.hpp"
+#include "PaintContext.hpp"
 #include <functional>
 #include <string>
 
@@ -75,6 +76,18 @@ public:
 
         // TODO: 实际渲染逻辑
         // renderSlider(ctx, mouseX, mouseY, partialTick);
+    }
+
+    void paint(PaintContext& ctx) override {
+        if (!isVisible()) return;
+        ctx.drawFilledRect(bounds(), Colors::fromARGB(255, 45, 45, 45));
+        ctx.drawBorder(bounds(), 1.0f, Colors::fromARGB(255, 90, 90, 90));
+
+        const i32 knobSize = std::max(8, height() - 4);
+        const i32 range = std::max(1, width() - knobSize - 4);
+        const i32 knobX = x() + 2 + static_cast<i32>(getRatio() * range);
+        const Rect knob{knobX, y() + 2, knobSize, std::max(4, height() - 4)};
+        ctx.drawFilledRect(knob, Colors::fromARGB(255, 200, 200, 200));
     }
 
     // ==================== 事件处理 ====================
@@ -162,7 +175,7 @@ public:
     /**
      * @brief 设置值
      */
-    void setValue(f64 value) {
+    virtual void setValue(f64 value) {
         f64 newValue = clampValue(value);
         if (m_value != newValue) {
             m_value = newValue;

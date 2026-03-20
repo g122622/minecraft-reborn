@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Widget.hpp"
+#include "PaintContext.hpp"
 #include <functional>
 #include <string>
 
@@ -76,6 +77,13 @@ public:
 
         // TODO: 实际渲染逻辑
         // renderTextField(ctx, mouseX, mouseY, partialTick);
+    }
+
+    void paint(PaintContext& ctx) override {
+        if (!isVisible()) return;
+        const u32 bg = isFocused() ? Colors::fromARGB(255, 30, 30, 30) : Colors::fromARGB(255, 22, 22, 22);
+        ctx.drawFilledRect(bounds(), bg);
+        ctx.drawBorder(bounds(), 1.0f, Colors::fromARGB(255, 120, 120, 120));
     }
 
     // ==================== 事件处理 ====================

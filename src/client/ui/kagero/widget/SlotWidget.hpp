@@ -1,7 +1,8 @@
 #pragma once
 
 #include "Widget.hpp"
-#include "../../../common/world/item/ItemStack.hpp"
+#include "PaintContext.hpp"
+#include "../../../../common/item/ItemStack.hpp"
 #include <functional>
 #include <string>
 
@@ -82,6 +83,17 @@ public:
         // 2. 渲染物品
         // 3. 渲染数量
         // 4. 渲染高亮（如果悬停）
+    }
+
+    void paint(PaintContext& ctx) override {
+        if (!isVisible()) return;
+        if (m_showBackground) {
+            ctx.drawFilledRect(bounds(), Colors::fromARGB(255, 40, 40, 40));
+            ctx.drawBorder(bounds(), 1.0f, Colors::fromARGB(255, 100, 100, 100));
+        }
+        if (isHovered()) {
+            ctx.drawBorder(bounds(), 1.0f, m_highlightColor);
+        }
     }
 
     // ==================== 事件处理 ====================

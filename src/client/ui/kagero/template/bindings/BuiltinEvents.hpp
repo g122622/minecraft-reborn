@@ -4,10 +4,11 @@
 #include "../../event/EventBus.hpp"
 #include "../../event/InputEvents.hpp"
 #include "../../event/UIEvents.hpp"
+#include "../../event/WidgetEvents.hpp"
 #include "../../widget/Widget.hpp"
 #include <functional>
 #include <unordered_map>
-#include <String>
+#include <string>
 
 namespace mc::client::ui::kagero::tpl::bindings {
 

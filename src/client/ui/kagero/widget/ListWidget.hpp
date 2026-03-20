@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Widget.hpp"
+#include "PaintContext.hpp"
 #include "ScrollableWidget.hpp"
 #include <functional>
 #include <vector>
@@ -145,6 +146,12 @@ public:
         if (m_showScrollbar && m_contentHeight > visibleHeight()) {
             renderScrollbar(ctx, mouseX, mouseY);
         }
+    }
+
+    void paint(PaintContext& ctx) override {
+        if (!isVisible()) return;
+        ctx.drawFilledRect(bounds(), Colors::fromARGB(255, 18, 18, 18));
+        ctx.drawBorder(bounds(), 1.0f, Colors::fromARGB(255, 80, 80, 80));
     }
 
     // ==================== 事件处理 ====================

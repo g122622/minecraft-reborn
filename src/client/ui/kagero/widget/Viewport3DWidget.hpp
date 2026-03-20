@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Widget.hpp"
+#include "PaintContext.hpp"
 #include <functional>
 #include <memory>
 
@@ -84,6 +85,12 @@ public:
         // TODO: 实际渲染逻辑
         // 1. 渲染到帧缓冲区
         // 2. 将帧缓冲区内容渲染到屏幕
+    }
+
+    void paint(PaintContext& ctx) override {
+        if (!isVisible()) return;
+        ctx.drawFilledRect(bounds(), Colors::fromARGB(255, 16, 16, 20));
+        ctx.drawBorder(bounds(), 1.0f, Colors::fromARGB(255, 90, 90, 120));
     }
 
     // ==================== 事件处理 ====================

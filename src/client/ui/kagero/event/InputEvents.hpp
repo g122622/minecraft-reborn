@@ -34,7 +34,7 @@ public:
     /**
      * @brief 检查是否是双击
      */
-    [[nodiscard]] isDoubleClick() const { return m_clicks == 2; }
+    [[nodiscard]] bool isDoubleClick() const { return m_clicks == 2; }
 
 private:
     i32 m_x;

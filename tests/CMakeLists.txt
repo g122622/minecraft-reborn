@@ -113,6 +113,8 @@ add_executable(mc_tests
     client/ui/kagero/layout/FlexLayoutTest.cpp
     client/ui/kagero/layout/LayoutEngineTest.cpp
     client/ui/kagero/layout/FlexLayoutAlgorithmTest.cpp
+    client/ui/kagero/layout/GridLayoutTest.cpp
+    client/ui/kagero/layout/AnchorLayoutTest.cpp
 )
 
 # 添加服务端源文件
@@ -285,6 +287,8 @@ target_sources(mc_tests
         # Kagero UI布局系统
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/layout/core/LayoutEngine.cpp
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/layout/algorithms/FlexLayout.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/layout/algorithms/GridLayout.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/layout/algorithms/AnchorLayout.cpp
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/layout/integration/WidgetLayoutAdaptor.cpp
         # TemplateInstance.cpp 依赖 Widget 实现，在测试中暂时排除
 )
