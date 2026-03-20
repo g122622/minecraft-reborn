@@ -5,8 +5,16 @@
 #include "IWidgetContainer.hpp"
 #include <memory>
 #include <vector>
+#include <functional>
 
 namespace mc::client::ui::kagero::widget {
+
+/**
+ * @brief 滚动回调类型
+ *
+ * 参数: x, y, deltaX, deltaY
+ */
+using ScrollCallback = std::function<void(i32, i32, f64, f64)>;
 
 /**
  * @brief 可滚动容器组件
@@ -173,6 +181,11 @@ public:
         // 滚动内容
         m_scrollY -= static_cast<i32>(delta * m_scrollSpeed);
         clampScroll();
+
+        // 调用用户回调
+        if (m_onScrollCallback) {
+            m_onScrollCallback(mouseX, mouseY, 0.0, delta);
+        }
 
         return true;
     }
@@ -375,6 +388,21 @@ public:
     [[nodiscard]] f64 scrollSpeed() const { return m_scrollSpeed; }
 
     /**
+     * @brief 设置滚动回调
+     * @param callback 回调函数，参数为 (x, y, deltaX, deltaY)
+     */
+    void setOnScroll(ScrollCallback callback) {
+        m_onScrollCallback = std::move(callback);
+    }
+
+    /**
+     * @brief 清除滚动回调
+     */
+    void clearOnScroll() {
+        m_onScrollCallback = nullptr;
+    }
+
+    /**
      * @brief 设置滚动条宽度
      */
     void setScrollbarWidth(i32 width) {
@@ -471,6 +499,9 @@ protected:
     bool m_draggingScrollbar = false;  ///< 是否正在拖动滚动条
     i32 m_lastMouseX = 0;              ///< 上次鼠标X位置
     i32 m_lastMouseY = 0;              ///< 上次鼠标Y位置
+
+    // 回调
+    ScrollCallback m_onScrollCallback; ///< 滚动事件回调
 };
 
 } // namespace mc::client::ui::kagero::widget
