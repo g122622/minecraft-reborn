@@ -69,18 +69,15 @@ public:
         HandlerId id = nextId();
         TypeInfo typeInfo = getTypeInfo<EventT>();
 
-        HandlerEntry entry;
-        entry.id = id;
-        entry.priority = priority;
-        entry.handler = [handler](const Event& e) {
-            handler(static_cast<const EventT&>(e));
-        };
-        entry.typeInfo = typeInfo;
+        HandlerEntry entry(id, priority,
+            [handler](const Event& e) {
+                handler(static_cast<const EventT&>(e));
+            }, typeInfo);
 
         m_handlers[typeInfo].push_back(std::move(entry));
         sortHandlers(typeInfo);
 
-        m_handlerToType[id] = typeInfo;
+        m_handlerToType.emplace(id, typeInfo);
 
         return id;
     }
@@ -159,30 +156,39 @@ public:
     }
 
     /**
-     * @brief 发布事件（可移动版本）
+     * @brief 添加事件过滤器（自动生成ID）
+     *
+     * @param filter 过滤函数，返回 true 继续处理，返回 false 阻止处理
+     * @return HandlerId 过滤器ID，用于移除过滤器
      */
-    template<typename EventT>
-    void publish(EventT&& event) {
-        publish(static_cast<const EventT&>(event));
+    HandlerId addFilter(EventFilter filter) {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        HandlerId id = nextId();
+        m_filters[id] = std::move(filter);
+        return id;
     }
 
     /**
-     * @brief 添加事件过滤器
+     * @brief 添加事件过滤器（指定ID）
      *
      * @param id 过滤器ID（用于移除）
      * @param filter 过滤函数
+     * @deprecated 使用 addFilter(EventFilter) 替代，该方法自动生成ID
      */
-    void addFilter(HandlerId id, EventFilter filter) {
+    void addFilterWithId(HandlerId id, EventFilter filter) {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_filters[id] = std::move(filter);
     }
 
     /**
      * @brief 移除事件过滤器
+     *
+     * @param id 过滤器ID
+     * @return 是否成功移除
      */
-    void removeFilter(HandlerId id) {
+    bool removeFilter(HandlerId id) {
         std::lock_guard<std::mutex> lock(m_mutex);
-        m_filters.erase(id);
+        return m_filters.erase(id) > 0;
     }
 
     /**
@@ -225,10 +231,14 @@ private:
      * @brief 处理器条目
      */
     struct HandlerEntry {
-        HandlerId id;
-        i32 priority;
+        HandlerId id = 0;
+        i32 priority = 0;
         std::function<void(const Event&)> handler;
-        TypeInfo typeInfo;
+        TypeInfo typeInfo;  // type_index 没有默认构造函数，需要显式初始化
+
+        HandlerEntry() : typeInfo(typeid(void)) {}
+        HandlerEntry(HandlerId id_, i32 prio, std::function<void(const Event&)> h, TypeInfo ti)
+            : id(id_), priority(prio), handler(std::move(h)), typeInfo(ti) {}
     };
 
     /**

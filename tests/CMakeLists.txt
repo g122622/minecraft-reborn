@@ -120,6 +120,8 @@ add_executable(mc_tests
     client/ui/kagero/state/ReactiveStateTest.cpp
     client/ui/kagero/state/StateBindingTest.cpp
     client/ui/kagero/state/StateObserverTest.cpp
+    # Kagero UI事件系统测试
+    ui/kagero/event/event_test.cpp
 )
 
 # 添加服务端源文件

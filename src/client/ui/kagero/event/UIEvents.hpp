@@ -67,6 +67,8 @@ private:
 
 /**
  * @brief 组件显示事件
+ *
+ * 该事件会冒泡，可以从目标组件向上传播到父组件
  */
 class WidgetShowEvent : public Event {
 public:
@@ -74,10 +76,13 @@ public:
 
     [[nodiscard]] EventType getType() const override { return EventType::WidgetShow; }
     [[nodiscard]] const char* getName() const override { return "WidgetShow"; }
+    [[nodiscard]] bool bubbles() const override { return true; }
 };
 
 /**
  * @brief 组件隐藏事件
+ *
+ * 该事件会冒泡，可以从目标组件向上传播到父组件
  */
 class WidgetHideEvent : public Event {
 public:
@@ -85,10 +90,13 @@ public:
 
     [[nodiscard]] EventType getType() const override { return EventType::WidgetHide; }
     [[nodiscard]] const char* getName() const override { return "WidgetHide"; }
+    [[nodiscard]] bool bubbles() const override { return true; }
 };
 
 /**
  * @brief 组件启用事件
+ *
+ * 该事件会冒泡，可以从目标组件向上传播到父组件
  */
 class WidgetEnableEvent : public Event {
 public:
@@ -96,10 +104,13 @@ public:
 
     [[nodiscard]] EventType getType() const override { return EventType::WidgetEnable; }
     [[nodiscard]] const char* getName() const override { return "WidgetEnable"; }
+    [[nodiscard]] bool bubbles() const override { return true; }
 };
 
 /**
  * @brief 组件禁用事件
+ *
+ * 该事件会冒泡，可以从目标组件向上传播到父组件
  */
 class WidgetDisableEvent : public Event {
 public:
@@ -107,6 +118,7 @@ public:
 
     [[nodiscard]] EventType getType() const override { return EventType::WidgetDisable; }
     [[nodiscard]] const char* getName() const override { return "WidgetDisable"; }
+    [[nodiscard]] bool bubbles() const override { return true; }
 };
 
 /**

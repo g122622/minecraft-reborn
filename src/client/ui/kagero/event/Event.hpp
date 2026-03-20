@@ -93,7 +93,7 @@ public:
      *
      * 取消事件将阻止事件继续传播
      */
-    void cancel() { m_cancelled = true; }
+    void cancel() const { m_cancelled = true; }
 
     /**
      * @brief 获取事件时间戳
@@ -138,7 +138,7 @@ public:
     void setCurrentTarget(void* target) { m_currentTarget = target; }
 
 protected:
-    bool m_cancelled = false;
+    mutable bool m_cancelled = false;  // mutable to allow cancellation in const context
     u64 m_timestamp = 0;
     void* m_target = nullptr;
     void* m_currentTarget = nullptr;

@@ -94,7 +94,9 @@ enum class EventType : u32 {
     WidgetResize = 41,
     WidgetShow = 42,
     WidgetHide = 43,
-    
+    WidgetEnable = 44,
+    WidgetDisable = 45,
+
     // 自定义事件
     Custom = 1000
 };
@@ -570,3 +572,152 @@ std::thread([]() {
     EventBus::instance().publish(MouseClickEvent(100, 200, 0));
 }).detach();
 ```
+
+## API 参考
+
+### EventResult
+
+事件处理结果结构体：
+
+```cpp
+struct EventResult {
+    bool handled = false;       // 是否被处理
+    bool cancelled = false;     // 是否被取消
+
+    EventResult& setHandled(bool value = true);
+    EventResult& setCancelled(bool value = true);
+};
+```
+
+### EventHandler
+
+事件处理器类型定义：
+
+```cpp
+template<typename EventT>
+using EventHandler = std::function<void(const EventT&)>;
+```
+
+### EventFilter
+
+事件过滤器类型定义：
+
+```cpp
+using EventFilter = std::function<bool(const Event&)>;
+```
+
+返回 `true` 继续处理，返回 `false` 阻止处理。
+
+### EventBus 完整 API
+
+```cpp
+class EventBus {
+public:
+    using HandlerId = u64;
+
+    // 获取单例实例
+    static EventBus& instance();
+
+    // 订阅事件（返回订阅 ID）
+    template<typename EventT>
+    HandlerId subscribe(EventHandler<EventT> handler, i32 priority = 0);
+
+    // 取消订阅
+    bool unsubscribe(HandlerId id);
+
+    // 发布事件
+    template<typename EventT>
+    void publish(const EventT& event);
+
+    // 添加事件过滤器（返回过滤器 ID）
+    HandlerId addFilter(EventFilter filter);
+
+    // 添加事件过滤器（指定 ID，已废弃）
+    void addFilterWithId(HandlerId id, EventFilter filter);
+
+    // 移除事件过滤器
+    bool removeFilter(HandlerId id);
+
+    // 清除所有处理器和过滤器
+    void clear();
+
+    // 获取特定类型事件的处理器数量
+    template<typename EventT>
+    size_t handlerCount() const;
+};
+```
+
+### SimpleEvent 模板
+
+用于快速创建携带数据的事件类型：
+
+```cpp
+template<typename T, EventType Type>
+class SimpleEvent : public Event {
+public:
+    explicit SimpleEvent(T data);
+
+    EventType getType() const override;
+    const char* getName() const override;
+
+    const T& data() const;  // 只读访问
+    T& data();               // 可变访问
+};
+
+// 使用示例
+using IntValueEvent = SimpleEvent<i32, EventType::ValueChange>;
+IntValueEvent event(42);
+```
+
+## 事件冒泡行为
+
+不同事件的冒泡行为如下：
+
+| 事件类型 | 是否冒泡 | 说明 |
+|----------|----------|------|
+| MouseClickEvent | 是 | 默认行为 |
+| MouseReleaseEvent | 是 | 默认行为 |
+| MouseDragEvent | 是 | 默认行为 |
+| MouseScrollEvent | 是 | 默认行为 |
+| MouseMoveEvent | 是 | 默认行为 |
+| MouseEnterEvent | 是 | 默认行为 |
+| MouseLeaveEvent | 是 | 默认行为 |
+| KeyEvent | 是 | 默认行为 |
+| CharInputEvent | 是 | 默认行为 |
+| FocusGainedEvent | 否 | 焦点事件不冒泡 |
+| FocusLostEvent | 否 | 焦点事件不冒泡 |
+| WidgetInitEvent | 否 | 初始化事件不冒泡 |
+| WidgetResizeEvent | 是 | 默认行为 |
+| WidgetShowEvent | 是 | 默认行为 |
+| WidgetHideEvent | 是 | 默认行为 |
+| WidgetEnableEvent | 是 | 默认行为 |
+| WidgetDisableEvent | 是 | 默认行为 |
+| ValueChangeEvent | 是 | 默认行为 |
+| TextChangeEvent | 是 | 默认行为 |
+| 自定义事件 | 视情况 | 默认冒泡 |
+
+## 注意事项
+
+### 事件取消
+
+事件取消是通过 `cancel()` 方法实现的。由于事件处理器接收的是 `const` 引用，`cancel()` 方法被声明为 `const`，内部使用 `mutable` 成员变量：
+
+```cpp
+// 正确用法
+bus.subscribe<MouseClickEvent>([](const MouseClickEvent& e) {
+    e.cancel();  // 可以在 const 上下文中调用
+});
+```
+
+取消事件后，EventBus 会检查 `isCancelled()` 状态，停止调用后续处理器。
+
+### 线程安全
+
+EventBus 内部使用 `std::mutex` 保护所有操作，包括：
+- 订阅/取消订阅
+- 发布事件
+- 添加/移除过滤器
+
+可以在多线程环境中安全使用，但要注意：
+- 处理器内部不应执行耗时操作
+- 处理器内部不应死锁等待另一个线程的事件处理
