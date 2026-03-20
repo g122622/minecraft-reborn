@@ -204,7 +204,8 @@ public:
             } else if constexpr (std::is_floating_point_v<T>) {
                 *ptr = static_cast<T>(v.toFloat());
             } else if constexpr (std::is_same_v<T, String>) {
-                *ptr = v.asString();
+                // 使用 toString() 而不是 asString()，因为后者对非字符串类型返回空
+                *ptr = v.toString();
             } else {
                 *ptr = static_cast<T>(v.toFloat());
             }

@@ -136,13 +136,36 @@ u64 UpdateScheduler::currentTimestamp() const {
 u32 UpdateScheduler::executePriority(Priority priority) {
     if (!m_updateCallback) return 0;
 
-    u32 count = 0;
-    for (auto& task : m_tasks) {
-        if (task->cancelled) continue;
-        if (task->priority != priority) continue;
+    // 先收集要执行的任务，避免在迭代过程中修改容器
+    std::vector<std::pair<u64, String>> tasksToExecute;
+    for (const auto& task : m_tasks) {
+        if (!task->cancelled && task->priority == priority) {
+            tasksToExecute.emplace_back(reinterpret_cast<u64>(task.get()), task->path);
+        }
+    }
 
-        m_updateCallback(task->path);
-        task->cancelled = true;
+    // 执行任务
+    u32 count = 0;
+    for (const auto& [taskId, path] : tasksToExecute) {
+        // 检查任务是否仍有效（可能在回调中被取消）
+        bool stillValid = false;
+        for (const auto& task : m_tasks) {
+            if (reinterpret_cast<u64>(task.get()) == taskId && !task->cancelled) {
+                stillValid = true;
+                break;
+            }
+        }
+        if (!stillValid) continue;
+
+        m_updateCallback(path);
+
+        // 标记为已完成
+        for (auto& task : m_tasks) {
+            if (reinterpret_cast<u64>(task.get()) == taskId) {
+                task->cancelled = true;
+                break;
+            }
+        }
         ++count;
     }
 
