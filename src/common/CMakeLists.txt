@@ -117,6 +117,9 @@ add_library(mc_common STATIC
     # World - Entity
     world/entity/EntityManager.cpp
 
+    # World - IWorld implementation
+    world/IWorld.cpp
+
     # World - Spawn
     world/spawn/MobSpawnInfo.cpp
 
@@ -233,6 +236,7 @@ add_library(mc_common STATIC
     # World - Fluid System
     world/fluid/Fluid.cpp
     world/fluid/FluidRegistry.cpp
+    world/fluid/FluidTags.cpp
     world/fluid/FlowingFluid.cpp
     world/fluid/fluids/EmptyFluid.cpp
     world/fluid/fluids/WaterFluid.cpp

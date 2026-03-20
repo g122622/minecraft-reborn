@@ -2,6 +2,7 @@
 
 #include "../FlowingFluid.hpp"
 #include "../../../math/Vector3.hpp"
+#include "../../../math/random/IRandom.hpp"
 
 namespace mc {
 namespace fluid {
@@ -50,13 +51,35 @@ public:
     [[nodiscard]] f32 getExplosionResistance() const override { return 100.0f; }
 
     void randomTick(IWorld& world, const BlockPos& pos,
-                    const FluidState& state, IRandom& random) override;
+                    const FluidState& state, math::IRandom& random) override;
 
     [[nodiscard]] bool ticksRandomly() const override { return true; }
+
+    /**
+     * @brief 检查是否等效于指定流体
+     *
+     * 岩浆和流动岩浆视为等效。
+     *
+     * @param other 其他流体
+     * @return 是否等效
+     */
+    [[nodiscard]] bool isEquivalentTo(const Fluid& other) const override;
 
 protected:
     void beforeReplacingBlock(IWorld& world, const BlockPos& pos,
                               const BlockState* state) override;
+
+    /**
+     * @brief 流入指定位置（重写以处理岩浆与水的交互）
+     *
+     * @param world 世界
+     * @param pos 目标位置
+     * @param blockState 目标位置的方块状态
+     * @param dir 流入方向
+     * @param fluidState 流入的流体状态
+     */
+    void flowInto(IWorld& world, const BlockPos& pos, const BlockState* blockState,
+                  Direction dir, const FluidState& fluidState) override;
 
     /**
      * @brief 检查岩浆是否会变成石头或黑曜石
@@ -71,6 +94,33 @@ protected:
      * @return 是否发生了转换
      */
     bool checkForMixing(IWorld& world, const BlockPos& pos, Direction direction);
+
+private:
+    /**
+     * @brief 检查周围方块是否可燃
+     *
+     * @param world 世界
+     * @param pos 位置
+     * @return 周围是否有可燃方块
+     */
+    [[nodiscard]] bool isSurroundingBlockFlammable(IWorld& world, const BlockPos& pos) const;
+
+    /**
+     * @brief 检查指定方块是否可燃
+     *
+     * @param world 世界
+     * @param pos 位置
+     * @return 方块是否可燃
+     */
+    [[nodiscard]] bool isBlockFlammable(IWorld& world, const BlockPos& pos) const;
+
+    /**
+     * @brief 触发岩浆效果（烟雾和嘶嘶声）
+     *
+     * @param world 世界
+     * @param pos 位置
+     */
+    void triggerEffects(IWorld& world, const BlockPos& pos);
 };
 
 /**
@@ -95,6 +145,16 @@ public:
     [[nodiscard]] FlowingFluid& getFlowing() override;
     [[nodiscard]] FlowingFluid& getStill() override { return *this; }
 
+    /**
+     * @brief 检查是否等效于指定流体
+     *
+     * 岩浆和流动岩浆视为等效。
+     *
+     * @param fluid 其他流体
+     * @return 是否等效
+     */
+    [[nodiscard]] bool isEquivalentTo(const Fluid& fluid) const override;
+
 private:
     mutable FlowingFluid* m_flowingCache = nullptr;
 };
@@ -117,6 +177,16 @@ public:
 
     [[nodiscard]] FlowingFluid& getFlowing() override { return *this; }
     [[nodiscard]] FlowingFluid& getStill() override;
+
+    /**
+     * @brief 检查是否等效于指定流体
+     *
+     * 岩浆和流动岩浆视为等效。
+     *
+     * @param fluid 其他流体
+     * @return 是否等效
+     */
+    [[nodiscard]] bool isEquivalentTo(const Fluid& fluid) const override;
 
 private:
     mutable FlowingFluid* m_stillCache = nullptr;

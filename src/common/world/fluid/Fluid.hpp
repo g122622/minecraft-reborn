@@ -13,9 +13,12 @@ class BlockState;
 class BlockPos;
 class Vector3;
 class CollisionShape;
-class IRandom;
 class IWorld;
 class IBlockReader;
+
+namespace math {
+class IRandom;
+}
 
 namespace fluid {
 
@@ -40,6 +43,13 @@ class FluidState;
  */
 class FluidState : public StateHolder<Fluid, FluidState> {
 public:
+    /**
+     * @brief 默认构造函数（用于容器）
+     *
+     * 创建一个空的流体状态。主要用于 STL 容器支持。
+     */
+    FluidState() : StateHolder<Fluid, FluidState>(nullptr, {}, 0), m_fluidId(0) {}
+
     /**
      * @brief 构造流体状态
      */
@@ -141,7 +151,7 @@ public:
      * @param dir 流入方向
      * @return 是否可替换
      */
-    [[nodiscard]] bool canDisplace(IBlockReader& world, const BlockPos& pos,
+    [[nodiscard]] bool canDisplace(IWorld& world, const BlockPos& pos,
                                     const Fluid& fluid, Direction dir) const;
 
 protected:
@@ -295,7 +305,7 @@ public:
      * @param random 随机数生成器
      */
     virtual void randomTick(IWorld& world, const BlockPos& pos,
-                            const FluidState& state, IRandom& random);
+                            const FluidState& state, math::IRandom& random);
 
     /**
      * @brief 是否执行随机tick
@@ -311,6 +321,14 @@ public:
     [[nodiscard]] virtual bool isEquivalentTo(const Fluid& other) const {
         return this == &other;
     }
+
+    /**
+     * @brief 检查流体是否在指定标签中
+     *
+     * @param tag 流体标签
+     * @return 是否在标签中
+     */
+    [[nodiscard]] bool isIn(const class FluidTag& tag) const;
 
     /**
      * @brief 是否为空流体
@@ -331,7 +349,7 @@ public:
      * @param dir 流入方向
      * @return 是否可替换
      */
-    [[nodiscard]] virtual bool canDisplace(const FluidState& state, IBlockReader& world,
+    [[nodiscard]] virtual bool canDisplace(const FluidState& state, IWorld& world,
                                             const BlockPos& pos, const Fluid& fluid,
                                             Direction dir) const;
 

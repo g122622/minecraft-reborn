@@ -156,6 +156,26 @@ public:
     /** 装饰材质（不可移动） */
     static const Material& DECORATION;
 
+    // ========================================================================
+    // 比较运算符
+    // ========================================================================
+
+    /**
+     * @brief 比较两个材质是否相同
+     *
+     * 通过比较内存地址判断是否为同一材质实例。
+     */
+    [[nodiscard]] bool operator==(const Material& other) const noexcept {
+        return this == &other;
+    }
+
+    /**
+     * @brief 比较两个材质是否不同
+     */
+    [[nodiscard]] bool operator!=(const Material& other) const noexcept {
+        return this != &other;
+    }
+
 private:
     friend class MaterialBuilder;
 

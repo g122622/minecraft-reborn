@@ -39,6 +39,16 @@ public:
 
     [[nodiscard]] const BlockState* getBlockState(const FluidState& state) const override;
 
+    /**
+     * @brief 检查是否等效于指定流体
+     *
+     * 水和流动水视为等效。
+     *
+     * @param other 其他流体
+     * @return 是否等效
+     */
+    [[nodiscard]] bool isEquivalentTo(const Fluid& other) const override;
+
 protected:
     void beforeReplacingBlock(IWorld& world, const BlockPos& pos,
                               const BlockState* state) override;
@@ -88,6 +98,16 @@ public:
 
     [[nodiscard]] FlowingFluid& getFlowing() override { return *this; }
     [[nodiscard]] FlowingFluid& getStill() override;
+
+    /**
+     * @brief 检查是否等效于指定流体
+     *
+     * 水和流动水视为等效。
+     *
+     * @param fluid 其他流体
+     * @return 是否等效
+     */
+    [[nodiscard]] bool isEquivalentTo(const Fluid& fluid) const override;
 
 private:
     mutable FlowingFluid* m_stillCache = nullptr;

@@ -1,5 +1,7 @@
 #include "Fluid.hpp"
 #include "FluidRegistry.hpp"
+#include "FluidTags.hpp"
+#include "../IWorld.hpp"
 #include "../block/Block.hpp"
 #include "../block/BlockPos.hpp"
 #include "../../physics/collision/CollisionShape.hpp"
@@ -41,9 +43,18 @@ f32 FluidState::getHeight() const {
 }
 
 f32 FluidState::getActualHeight(IWorld& world, const BlockPos& pos) const {
-    // TODO: 实现考虑下方流体的实际高度计算
-    (void)world;
-    (void)pos;
+    // 检查上方是否有同种流体（满高度情况）
+    BlockPos above = pos.up();
+    const FluidState* aboveFluid = world.getFluidState(above.x, above.y, above.z);
+
+    if (aboveFluid != nullptr &&
+        !aboveFluid->isEmpty() &&
+        aboveFluid->getFluid().isEquivalentTo(*m_owner)) {
+        // 上方有同种流体，返回满高度
+        return 1.0f;
+    }
+
+    // 返回基础高度
     return getHeight();
 }
 
@@ -66,7 +77,7 @@ Vector3 FluidState::getFlow(IBlockReader& world, const BlockPos& pos) const {
     return m_owner->getFlow(world, pos, *this);
 }
 
-bool FluidState::canDisplace(IBlockReader& world, const BlockPos& pos,
+bool FluidState::canDisplace(IWorld& world, const BlockPos& pos,
                               const Fluid& fluid, Direction dir) const {
     return m_owner->canDisplace(*this, world, pos, fluid, dir);
 }
@@ -123,7 +134,7 @@ void Fluid::tick(IWorld& world, const BlockPos& pos, FluidState& state) {
 }
 
 void Fluid::randomTick(IWorld& world, const BlockPos& pos,
-                        const FluidState& state, IRandom& random) {
+                        const FluidState& state, math::IRandom& random) {
     // 默认实现：无操作
     (void)world;
     (void)pos;
@@ -131,7 +142,7 @@ void Fluid::randomTick(IWorld& world, const BlockPos& pos,
     (void)random;
 }
 
-bool Fluid::canDisplace(const FluidState& state, IBlockReader& world,
+bool Fluid::canDisplace(const FluidState& state, IWorld& world,
                          const BlockPos& pos, const Fluid& fluid, Direction dir) const {
     // 默认实现：如果新流体相同，则不可替换
     (void)state;
@@ -149,6 +160,10 @@ CollisionShape Fluid::getShape(const FluidState& state, IBlockReader& world,
     (void)world;
     (void)pos;
     return CollisionShape::empty();
+}
+
+bool Fluid::isIn(const FluidTag& tag) const {
+    return tag.contains(*this);
 }
 
 } // namespace fluid

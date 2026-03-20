@@ -127,8 +127,8 @@ protected:
      * @param dir 流入方向
      * @param state 流入的流体状态
      */
-    void flowInto(IWorld& world, const BlockPos& pos, const BlockState* blockState,
-                  Direction dir, const FluidState& state);
+    virtual void flowInto(IWorld& world, const BlockPos& pos, const BlockState* blockState,
+                          Direction dir, const FluidState& state);
 
     /**
      * @brief 计算正确的流动状态
@@ -158,7 +158,7 @@ protected:
      * @param fluid 流入的流体类型
      * @return 是否可以流动
      */
-    [[nodiscard]] bool canFlow(IBlockReader& world, const BlockPos& fromPos,
+    [[nodiscard]] bool canFlow(IWorld& world, const BlockPos& fromPos,
                                 const BlockState* fromBlock, Direction dir,
                                 const BlockPos& toPos, const BlockState* toBlock,
                                 const FluidState& toFluid, const Fluid& fluid) const;
@@ -176,7 +176,7 @@ protected:
      * @param neighborState 相邻方块状态
      * @return 是否有孔洞
      */
-    [[nodiscard]] bool doesSideHaveHoles(Direction dir, IBlockReader& world,
+    [[nodiscard]] bool doesSideHaveHoles(Direction dir, IWorld& world,
                                           const BlockPos& pos, const BlockState* state,
                                           const BlockPos& neighborPos,
                                           const BlockState* neighborState) const;
@@ -211,7 +211,7 @@ protected:
      * @param fluid 流体类型
      * @return 是否可替换
      */
-    [[nodiscard]] bool isBlocked(IBlockReader& world, const BlockPos& pos,
+    [[nodiscard]] bool isBlocked(IWorld& world, const BlockPos& pos,
                                   const BlockState* block, const Fluid& fluid) const;
 
     /**
@@ -242,6 +242,97 @@ protected:
      */
     [[nodiscard]] std::unordered_map<Direction, FluidState> getFlowDirections(
         IWorld& world, const BlockPos& pos, const BlockState* blockState);
+
+    /**
+     * @brief 检查是否会产生向下流动
+     *
+     * @param world 世界
+     * @param pos 位置
+     * @param side 方向
+     * @return 是否会导致向下流动
+     */
+    [[nodiscard]] bool causesDownwardCurrent(IBlockReader& world, const BlockPos& pos, Direction side) const;
+
+    /**
+     * @brief 检查流体是否为满高度
+     *
+     * @param state 流体状态
+     * @param world 世界
+     * @param pos 位置
+     * @return 是否为满高度
+     */
+    [[nodiscard]] bool isFullHeight(const FluidState& state, IBlockReader& world, const BlockPos& pos) const;
+
+    /**
+     * @brief 水平扩散流体
+     *
+     * @param world 世界
+     * @param pos 位置
+     * @param state 流体状态
+     * @param blockState 方块状态
+     */
+    void spreadHorizontally(IWorld& world, const BlockPos& pos,
+                             const FluidState& state, const BlockState* blockState);
+
+    /**
+     * @brief 检查是否可以向下流动
+     *
+     * @param world 世界
+     * @param fluid 流体类型
+     * @param pos 当前位置
+     * @param blockState 当前方块状态
+     * @param belowPos 下方位置
+     * @param belowBlock 下方方块状态
+     * @return 是否可以向下流动
+     */
+    [[nodiscard]] bool canFlowDown(IWorld& world, const Fluid& fluid,
+                                    const BlockPos& pos, const BlockState* blockState,
+                                    const BlockPos& belowPos, const BlockState* belowBlock) const;
+
+    /**
+     * @brief 检查是否可以流入指定位置
+     *
+     * @param world 世界
+     * @param fromPos 源位置
+     * @param fromBlock 源方块状态
+     * @param dir 流动方向
+     * @param toPos 目标位置
+     * @param toBlock 目标方块状态
+     * @param toFluid 目标流体状态
+     * @return 是否可以流入
+     */
+    [[nodiscard]] bool canFlowInto(IWorld& world, const BlockPos& fromPos,
+                                    const BlockState* fromBlock, Direction dir,
+                                    const BlockPos& toPos, const BlockState* toBlock,
+                                    const FluidState& toFluid) const;
+
+    /**
+     * @brief 计算流动衰减值
+     *
+     * @param world 世界
+     * @param pos 位置
+     * @param decay 当前衰减值
+     * @param excludeDir 排除的方向
+     * @param blockState 方块状态
+     * @param sourcePos 源位置
+     * @param stateCache 状态缓存
+     * @param fallCache 下落缓存
+     * @return 最小衰减值
+     */
+    [[nodiscard]] i32 calculateFlowDecay(IWorld& world, const BlockPos& pos, i32 decay,
+                                          Direction excludeDir, const BlockState* blockState,
+                                          const BlockPos& sourcePos,
+                                          std::unordered_map<i16, std::pair<const BlockState*, const FluidState*>>& stateCache,
+                                          std::unordered_map<i16, bool>& fallCache) const;
+
+    /**
+     * @brief 打包相对位置为16位整数
+     *
+     * @param source 源位置
+     * @param target 目标位置
+     * @return 打包后的值
+     */
+    [[nodiscard]] i16 packRelativePos(const BlockPos& source, const BlockPos& target) const;
 };
 
 } // namespace fluid
