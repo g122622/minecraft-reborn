@@ -12,7 +12,6 @@ public:
     void setHealth(i32 health);
     [[nodiscard]] i32 health() const;
 
-    void render(kagero::RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override;
     void paint(kagero::widget::PaintContext& ctx) override;
 
 private:

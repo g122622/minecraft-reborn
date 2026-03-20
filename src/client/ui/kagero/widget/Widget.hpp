@@ -16,7 +16,7 @@ class PaintContext;
  * @brief Widget基类
  *
  * 所有UI组件的基类，提供：
- * - 生命周期管理（init, tick, render）
+ * - 生命周期管理（init, tick, paint）
  * - 事件处理（click, drag, scroll, key, char）
  * - 布局属性（position, size, anchor）
  * - 状态管理（visible, active, hovered, focused）
@@ -27,8 +27,9 @@ class PaintContext;
  * @code
  * class MyButton : public Widget {
  * public:
- *     void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override {
- *         // 渲染按钮
+ *     void paint(PaintContext& ctx) override {
+ *         ctx.drawFilledRect(bounds(), getBackgroundColor());
+ *         ctx.drawBorder(bounds(), 1.0f, isHovered() ? hoverColor : borderColor);
  *     }
  *
  *     bool onClick(i32 mouseX, i32 mouseY, i32 button) override {
@@ -88,18 +89,13 @@ public:
     }
 
     /**
-     * @brief 渲染组件
-     * @param ctx 渲染上下文
-     * @param mouseX 鼠标X坐标
-     * @param mouseY 鼠标Y坐标
-     * @param partialTick 部分tick时间（用于插值渲染）
-     */
-    virtual void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) = 0;
-
-    /**
-     * @brief 新绘制入口（Paint抽象层）
+     * @brief 绘制组件
      *
-     * 默认实现为空，子类可按需重写。
+     * 子类应重写此方法实现绘制逻辑。
+     * 悬停状态由事件系统在渲染前通过 updateHover() 更新，
+     * paint() 只负责纯粹的绘制操作。
+     *
+     * @param ctx 绘图上下文
      */
     virtual void paint(PaintContext& ctx) {
         (void)ctx;

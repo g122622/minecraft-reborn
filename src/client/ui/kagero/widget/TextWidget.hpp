@@ -71,18 +71,6 @@ public:
 
     // ==================== 生命周期 ====================
 
-    void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override {
-        (void)ctx;
-        (void)mouseX;
-        (void)mouseY;
-        (void)partialTick;
-
-        if (!isVisible() || m_text.empty()) return;
-
-        // TODO: 实际渲染逻辑（需要FontRenderer）
-        // renderText(ctx, mouseX, mouseY, partialTick);
-    }
-
     void paint(PaintContext& ctx) override {
         if (!isVisible() || m_text.empty()) return;
         ctx.drawTextCentered(m_text, bounds(), m_color);

@@ -25,9 +25,15 @@ public:
     [[nodiscard]] virtual i32 getHeight() const = 0;
 
     /**
-     * @brief 渲染项目
+     * @brief 绘制项目
+     * @param ctx 绘图上下文
+     * @param x X坐标
+     * @param y Y坐标
+     * @param width 宽度
+     * @param selected 是否选中
+     * @param hovered 是否悬停
      */
-    virtual void render(RenderContext& ctx, i32 x, i32 y, i32 width, bool selected, bool hovered, f32 partialTick) = 0;
+    virtual void paintItem(PaintContext& ctx, i32 x, i32 y, i32 width, bool selected, bool hovered) = 0;
 
     /**
      * @brief 点击项目
@@ -123,18 +129,22 @@ public:
         // m_hoveredIndex = getIndexAt(m_lastMouseX, m_lastMouseY);
     }
 
-    void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override {
+    void paint(PaintContext& ctx) override {
         if (!isVisible()) return;
 
-        // 更新悬停状态
-        setHovered(isMouseOver(mouseX, mouseY));
+        // 绘制背景
+        ctx.drawFilledRect(bounds(), Colors::fromARGB(255, 18, 18, 18));
+        ctx.drawBorder(bounds(), 1.0f, Colors::fromARGB(255, 80, 80, 80));
 
         // 计算可见区域
         i32 contentX = m_bounds.x + m_padding.left;
         i32 contentWidth = visibleWidth();
 
-        // 渲染可见项目
+        // 绘制可见项目
         i32 currentY = m_bounds.y + m_padding.top - m_scrollY;
+
+        ctx.save();
+        ctx.translate(0, -static_cast<f32>(m_scrollY));
 
         for (size_t i = 0; i < m_items.size(); ++i) {
             auto& item = m_items[i];
@@ -144,22 +154,18 @@ public:
             if (currentY + itemHeight >= m_bounds.y && currentY < m_bounds.bottom()) {
                 bool selected = (m_selectedIndex == static_cast<i32>(i));
                 bool hovered = (m_hoveredIndex == static_cast<i32>(i));
-                item->render(ctx, contentX, currentY, contentWidth, selected, hovered, partialTick);
+                item->paintItem(ctx, contentX, currentY, contentWidth, selected, hovered);
             }
 
             currentY += itemHeight;
         }
 
-        // 渲染滚动条
-        if (m_showScrollbar && m_contentHeight > visibleHeight()) {
-            renderScrollbar(ctx, mouseX, mouseY);
-        }
-    }
+        ctx.restore();
 
-    void paint(PaintContext& ctx) override {
-        if (!isVisible()) return;
-        ctx.drawFilledRect(bounds(), Colors::fromARGB(255, 18, 18, 18));
-        ctx.drawBorder(bounds(), 1.0f, Colors::fromARGB(255, 80, 80, 80));
+        // 绘制滚动条
+        if (m_showScrollbar && m_contentHeight > visibleHeight()) {
+            paintScrollbar(ctx);
+        }
     }
 
     // ==================== 事件处理 ====================
@@ -560,13 +566,20 @@ public:
 
     [[nodiscard]] i32 getHeight() const override { return m_height; }
 
-    void render(RenderContext& ctx, i32 x, i32 y, i32 width, bool selected, bool hovered, f32 partialTick) override {
-        (void)ctx;
-        (void)partialTick;
+    void paintItem(PaintContext& ctx, i32 x, i32 y, i32 width, bool selected, bool hovered) override {
+        (void)width;
 
-        // TODO: 实际渲染逻辑
-        // 1. 绘制背景（选中/悬停）
-        // 2. 绘制文本
+        // 绘制背景
+        if (selected) {
+            Rect bg{x, y, width, m_height};
+            ctx.drawFilledRect(bg, m_selectedColor);
+        } else if (hovered) {
+            Rect bg{x, y, width, m_height};
+            ctx.drawFilledRect(bg, m_hoveredColor);
+        }
+
+        // TODO: 绘制文本
+        // ctx.drawText(m_text, x + 4, y + (m_height - 9) / 2, m_textColor);
     }
 
     void setText(const String& text) { m_text = text; }

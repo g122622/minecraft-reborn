@@ -32,10 +32,21 @@ const Screen* ScreenManager::top() const {
     return m_stack.empty() ? nullptr : m_stack.back().get();
 }
 
-void ScreenManager::render(kagero::RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) {
+void ScreenManager::paint(kagero::widget::PaintContext& ctx) {
     for (const auto& screen : m_stack) {
         if (screen->isVisible()) {
-            screen->render(ctx, mouseX, mouseY, partialTick);
+            screen->paint(ctx);
+        }
+        if (screen->isModal()) {
+            break;
+        }
+    }
+}
+
+void ScreenManager::updateHover(i32 mouseX, i32 mouseY) {
+    for (const auto& screen : m_stack) {
+        if (screen->isVisible()) {
+            screen->updateHover(mouseX, mouseY);
         }
         if (screen->isModal()) {
             break;

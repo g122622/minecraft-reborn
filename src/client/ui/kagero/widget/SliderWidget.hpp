@@ -67,19 +67,6 @@ public:
 
     // ==================== 生命周期 ====================
 
-    void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override {
-        (void)ctx;
-        (void)partialTick;
-
-        if (!isVisible()) return;
-
-        // 更新悬停状态
-        setHovered(isMouseOver(mouseX, mouseY));
-
-        // TODO: 实际渲染逻辑
-        // renderSlider(ctx, mouseX, mouseY, partialTick);
-    }
-
     void paint(PaintContext& ctx) override {
         if (!isVisible()) return;
         ctx.drawFilledRect(bounds(), Colors::fromARGB(255, 45, 45, 45));

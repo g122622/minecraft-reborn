@@ -22,12 +22,8 @@ namespace mc::client::ui::kagero::widget {
  *         m_children.push_back(std::move(widget));
  *     }
  *
- *     void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override {
- *         for (auto& child : m_children) {
- *             if (child->isVisible()) {
- *                 child->render(ctx, mouseX, mouseY, partialTick);
- *             }
- *         }
+ *     void paint(PaintContext& ctx) override {
+ *         paintChildren(ctx);
  *     }
  * };
  * @endcode
@@ -136,8 +132,8 @@ public:
  *     using WidgetContainerMixin<Panel>::addWidget;
  *     using WidgetContainerMixin<Panel>::widgets;
  *
- *     void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override {
- *         renderChildren(ctx, mouseX, mouseY, partialTick);
+ *     void paint(PaintContext& ctx) override {
+ *         paintChildren(ctx);
  *     }
  * };
  * @endcode
@@ -326,16 +322,13 @@ public:
 
 protected:
     /**
-     * @brief 渲染所有子组件
-     * @param ctx 渲染上下文
-     * @param mouseX 鼠标X坐标
-     * @param mouseY 鼠标Y坐标
-     * @param partialTick 部分tick时间
+     * @brief 绘制所有子组件
+     * @param ctx 绘图上下文
      */
-    void renderChildren(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) {
+    void paintChildren(PaintContext& ctx) {
         for (auto& child : m_children) {
             if (child->isVisible()) {
-                child->render(ctx, mouseX, mouseY, partialTick);
+                child->paint(ctx);
             }
         }
     }

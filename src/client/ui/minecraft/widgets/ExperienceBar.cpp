@@ -13,13 +13,6 @@ f32 ExperienceBar::progress() const {
     return m_progress;
 }
 
-void ExperienceBar::render(kagero::RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) {
-    (void)ctx;
-    (void)mouseX;
-    (void)mouseY;
-    (void)partialTick;
-}
-
 void ExperienceBar::paint(kagero::widget::PaintContext& ctx) {
     ctx.drawFilledRect(bounds(), Colors::fromARGB(255, 20, 40, 0));
     const i32 fillWidth = static_cast<i32>(static_cast<f32>(width()) * m_progress);

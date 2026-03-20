@@ -71,22 +71,6 @@ public:
         initFramebuffer();
     }
 
-    void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override {
-        (void)ctx;
-        (void)mouseX;
-        (void)mouseY;
-        (void)partialTick;
-
-        if (!isVisible()) return;
-
-        // 更新悬停状态
-        setHovered(isMouseOver(mouseX, mouseY));
-
-        // TODO: 实际渲染逻辑
-        // 1. 渲染到帧缓冲区
-        // 2. 将帧缓冲区内容渲染到屏幕
-    }
-
     void paint(PaintContext& ctx) override {
         if (!isVisible()) return;
         ctx.drawFilledRect(bounds(), Colors::fromARGB(255, 16, 16, 20));

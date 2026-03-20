@@ -73,22 +73,6 @@ public:
 
     // ==================== 生命周期 ====================
 
-    void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override {
-        (void)ctx;
-        (void)partialTick;
-
-        if (!isVisible()) return;
-
-        // 更新悬停状态
-        setHovered(isMouseOver(mouseX, mouseY));
-
-        // TODO: 实际渲染逻辑
-        // 1. 渲染背景（如果有）
-        // 2. 渲染物品
-        // 3. 渲染数量
-        // 4. 渲染高亮（如果悬停）
-    }
-
     void paint(PaintContext& ctx) override {
         if (!isVisible()) return;
         if (m_showBackground) {

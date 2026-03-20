@@ -14,11 +14,8 @@ public:
     explicit AnchorTestWidget(const mc::String& id) : Widget(id) {
         setSize(20, 10);
     }
-    void render(RenderContext& ctx, mc::i32 mouseX, mc::i32 mouseY, mc::f32 partialTick) override {
+    void paint(PaintContext& ctx) override {
         (void)ctx;
-        (void)mouseX;
-        (void)mouseY;
-        (void)partialTick;
     }
 };
 

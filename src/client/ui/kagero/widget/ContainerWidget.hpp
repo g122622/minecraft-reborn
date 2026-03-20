@@ -15,9 +15,7 @@ public:
     explicit ContainerWidget(String id)
         : Widget(std::move(id)) {}
 
-    void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override;
-
-    virtual void paint(PaintContext& ctx);
+    void paint(PaintContext& ctx) override;
 };
 
 } // namespace mc::client::ui::kagero::widget

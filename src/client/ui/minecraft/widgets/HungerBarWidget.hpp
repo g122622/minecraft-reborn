@@ -12,7 +12,6 @@ public:
     void setHunger(i32 hunger);
     [[nodiscard]] i32 hunger() const;
 
-    void render(kagero::RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override;
     void paint(kagero::widget::PaintContext& ctx) override;
 
 private:

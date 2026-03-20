@@ -103,24 +103,6 @@ public:
         // 初始化按钮状态
     }
 
-    void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override {
-        (void)ctx;
-        (void)partialTick;
-
-        if (!isVisible()) return;
-
-        // 更新悬停状态
-        setHovered(isMouseOver(mouseX, mouseY));
-
-        // TODO: 实际渲染逻辑（需要GuiRenderer）
-        // renderButton(ctx, mouseX, mouseY, partialTick);
-
-        // 渲染提示
-        if (m_hovered && m_onTooltip) {
-            m_onTooltip(*this, mouseX, mouseY);
-        }
-    }
-
     void paint(PaintContext& ctx) override {
         if (!isVisible()) return;
         ctx.drawFilledRect(bounds(), getBackgroundColor());
@@ -273,21 +255,11 @@ public:
         , m_hoveredU(hoveredVU)
         , m_texturePath(std::move(texturePath)) {}
 
-    void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override {
-        (void)ctx;
-        (void)partialTick;
-
-        if (!isVisible()) return;
-
-        setHovered(isMouseOver(mouseX, mouseY));
-
-        // TODO: 实际渲染逻辑
-        // 绑定纹理并渲染
-    }
-
     void paint(PaintContext& ctx) override {
         if (!isVisible()) return;
         (void)ctx;
+        // TODO: 实际渲染逻辑
+        // 绑定纹理并渲染
     }
 
     /**

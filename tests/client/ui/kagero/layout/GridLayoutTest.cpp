@@ -12,11 +12,8 @@ using namespace mc::client::ui::kagero::widget;
 class GridTestWidget : public Widget {
 public:
     explicit GridTestWidget(const mc::String& id) : Widget(id) {}
-    void render(RenderContext& ctx, mc::i32 mouseX, mc::i32 mouseY, mc::f32 partialTick) override {
+    void paint(PaintContext& ctx) override {
         (void)ctx;
-        (void)mouseX;
-        (void)mouseY;
-        (void)partialTick;
     }
 };
 

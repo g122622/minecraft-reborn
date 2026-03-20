@@ -16,14 +16,13 @@ public:
     // 构造函数
     Widget() = default;
     explicit Widget(String id);
-    
+
     // 生命周期
     virtual void init();
     virtual void tick(f32 dt);
-    virtual void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) = 0;
-    virtual void paint(PaintContext& ctx);
+    virtual void paint(PaintContext& ctx);  // 绘制方法
     virtual void onResize(i32 width, i32 height);
-    
+
     // 事件处理
     virtual bool onClick(i32 mouseX, i32 mouseY, i32 button);
     virtual bool onRelease(i32 mouseX, i32 mouseY, i32 button);
@@ -35,7 +34,7 @@ public:
     virtual void onMouseLeave();
     virtual void onFocusGained();
     virtual void onFocusLost();
-    
+
     // 布局属性
     void setPosition(i32 x, i32 y);
     void setSize(i32 width, i32 height);
@@ -43,7 +42,7 @@ public:
     void setAnchor(Anchor anchor);
     void setMargin(const Margin& margin);
     void setPadding(const Padding& padding);
-    
+
     // 状态查询
     bool isVisible() const;
     bool isActive() const;
@@ -52,13 +51,13 @@ public:
     bool isDisabled() const;
     bool contains(i32 x, i32 y) const;
     bool isMouseOver(i32 mouseX, i32 mouseY) const;
-    
+
     // 状态设置
     void setVisible(bool visible);
     void setActive(bool active);
     void setFocused(bool focused);
     void setHovered(bool hovered);
-    
+
     // 属性访问
     const String& id() const;
     const Rect& bounds() const;
@@ -71,7 +70,7 @@ public:
     const Padding& padding() const;
     f32 alpha() const;
     void setAlpha(f32 alpha);
-    
+
     // 层级
     void setZIndex(i32 z);
     i32 zIndex() const;
@@ -637,14 +636,14 @@ public:
             m_maxHealth, [this](const i32&) { markDirty(); }
         );
     }
-    
-    void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override {
+
+    void paint(PaintContext& ctx) override {
         if (!isVisible()) return;
-        
+
         f32 ratio = static_cast<f32>(m_health.get()) / m_maxHealth.get();
         // 绘制血条...
     }
-    
+
 private:
     Reactive<i32>& m_health;
     Reactive<i32>& m_maxHealth;

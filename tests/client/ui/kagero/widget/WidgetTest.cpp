@@ -20,25 +20,15 @@ public:
     TestWidget() = default;
     explicit TestWidget(String id) : Widget(std::move(id)) {}
 
-    void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override {
-        (void)ctx;
-        (void)mouseX;
-        (void)mouseY;
-        (void)partialTick;
-        m_renderCalled = true;
-    }
-
     void paint(PaintContext& ctx) override {
         (void)ctx;
         m_paintCalled = true;
     }
 
-    bool wasRenderCalled() const { return m_renderCalled; }
     bool wasPaintCalled() const { return m_paintCalled; }
-    void resetFlags() { m_renderCalled = false; m_paintCalled = false; }
+    void resetFlags() { m_paintCalled = false; }
 
 private:
-    bool m_renderCalled = false;
     bool m_paintCalled = false;
 };
 

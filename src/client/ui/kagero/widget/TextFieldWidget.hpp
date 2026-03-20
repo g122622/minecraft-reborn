@@ -65,21 +65,6 @@ public:
         ++m_cursorBlinkCounter;
     }
 
-    void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override {
-        (void)ctx;
-        (void)mouseX;
-        (void)mouseY;
-        (void)partialTick;
-
-        if (!isVisible()) return;
-
-        // 更新悬停状态
-        setHovered(isMouseOver(mouseX, mouseY));
-
-        // TODO: 实际渲染逻辑
-        // renderTextField(ctx, mouseX, mouseY, partialTick);
-    }
-
     void paint(PaintContext& ctx) override {
         if (!isVisible()) return;
         const u32 bg = isFocused() ? Colors::fromARGB(255, 30, 30, 30) : Colors::fromARGB(255, 22, 22, 22);

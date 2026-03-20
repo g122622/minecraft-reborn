@@ -68,53 +68,21 @@ public:
         tickChildren(dt);
     }
 
-    void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override {
-        (void)ctx;
-        (void)partialTick;
-
-        if (!isVisible()) return;
-
-        // 更新悬停状态
-        setHovered(isMouseOver(mouseX, mouseY));
-
-        // 计算可见区域
-        i32 visibleX = m_bounds.x + m_padding.left;
-        i32 visibleY = m_bounds.y + m_padding.top;
-        i32 visibleWidth = m_bounds.width - m_padding.horizontal();
-        i32 visibleHeight = m_bounds.height - m_padding.vertical();
-
-        // TODO: 实际渲染逻辑
-        // 1. 设置裁剪区域
-        // 2. 根据滚动偏移调整子组件位置
-        // 3. 渲染子组件
-        // 4. 渲染滚动条
-
-        // 调整子组件渲染位置
-        i32 adjustedMouseY = mouseY + m_scrollY;
-
-        for (auto& child : m_children) {
-            if (!child->isVisible()) continue;
-
-            // 检查是否在可见区域内
-            Rect childBounds = child->bounds();
-            childBounds.y -= m_scrollY;
-
-            if (childBounds.bottom() >= visibleY && childBounds.y < visibleY + visibleHeight) {
-                // TODO: 设置裁剪区域并渲染
-                // child->render(ctx, mouseX, adjustedMouseY, partialTick);
-            }
-        }
-
-        // 渲染滚动条
-        if (m_showScrollbar && m_contentHeight > visibleHeight) {
-            renderScrollbar(ctx, mouseX, mouseY);
-        }
-    }
-
     void paint(PaintContext& ctx) override {
         if (!isVisible()) return;
         ctx.drawFilledRect(bounds(), Colors::fromARGB(255, 20, 20, 20));
         ctx.drawBorder(bounds(), 1.0f, Colors::fromARGB(255, 70, 70, 70));
+
+        // 绘制子组件（带滚动偏移）
+        ctx.save();
+        ctx.translate(0, -static_cast<f32>(m_scrollY));
+        paintChildren(ctx);
+        ctx.restore();
+
+        // 绘制滚动条
+        if (m_showScrollbar && m_contentHeight > visibleHeight()) {
+            paintScrollbar(ctx);
+        }
     }
 
     // ==================== 事件处理 ====================
@@ -460,16 +428,25 @@ protected:
     }
 
     /**
-     * @brief 渲染滚动条
+     * @brief 绘制滚动条
      */
-    void renderScrollbar(RenderContext& ctx, i32 mouseX, i32 mouseY) {
-        (void)ctx;
-        (void)mouseX;
-        (void)mouseY;
+    void paintScrollbar(PaintContext& ctx) {
+        i32 visibleH = visibleHeight();
+        i32 maxScroll = m_contentHeight - visibleH;
+        if (maxScroll <= 0) return;
 
-        // TODO: 实际渲染滚动条
-        // 1. 计算滚动条位置和高度
-        // 2. 绘制滚动条背景和滑块
+        // 计算滚动条高度和位置
+        f64 ratio = static_cast<f64>(visibleH) / m_contentHeight;
+        i32 scrollbarHeight = std::max(20, static_cast<i32>(ratio * visibleH));
+        i32 scrollbarY = m_bounds.y + static_cast<i32>(scrollRatio() * (visibleH - scrollbarHeight));
+
+        // 绘制滚动条轨道
+        Rect track{m_bounds.right() - m_scrollbarWidth, m_bounds.y, m_scrollbarWidth, m_bounds.height};
+        ctx.drawFilledRect(track, Colors::fromARGB(128, 40, 40, 40));
+
+        // 绘制滚动条滑块
+        Rect thumb{m_bounds.right() - m_scrollbarWidth, scrollbarY, m_scrollbarWidth, scrollbarHeight};
+        ctx.drawFilledRect(thumb, Colors::fromARGB(200, 120, 120, 120));
     }
 
     // 处理子组件拖动

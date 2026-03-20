@@ -12,7 +12,6 @@ public:
     void setProgress(f32 progress);
     [[nodiscard]] f32 progress() const;
 
-    void render(kagero::RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override;
     void paint(kagero::widget::PaintContext& ctx) override;
 
 private:

@@ -42,7 +42,7 @@ public:
         setSize(w, h);
     }
 
-    void render(RenderContext& /*ctx*/, i32 /*mouseX*/, i32 /*mouseY*/, mc::f32 /*partialTick*/) override {
+    void paint(PaintContext& /*ctx*/) override {
         // Mock implementation - do nothing
     }
 };

@@ -147,18 +147,6 @@ enum class Anchor : u8 {
 };
 
 /**
- * @brief 渲染上下文
- *
- * 包含渲染所需的所有信息
- */
-struct RenderContext {
-    i32 screenWidth = 0;
-    i32 screenHeight = 0;
-    f32 partialTick = 0.0f;
-    // 后续可添加：FontRenderer*, GuiRenderer* 等
-};
-
-/**
  * @brief 键盘修饰键
  */
 enum class KeyMods : u8 {

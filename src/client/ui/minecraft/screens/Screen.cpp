@@ -9,8 +9,20 @@ void Screen::onOpen() {}
 
 void Screen::onClose() {}
 
-void Screen::render(kagero::RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) {
-    ContainerWidget::render(ctx, mouseX, mouseY, partialTick);
+void Screen::paint(kagero::widget::PaintContext& ctx) {
+    ContainerWidget::paint(ctx);
+}
+
+void Screen::updateHover(i32 mouseX, i32 mouseY) {
+    // 更新自身悬停状态
+    setHovered(isMouseOver(mouseX, mouseY));
+
+    // 更新所有子组件的悬停状态
+    for (auto& child : m_children) {
+        if (child->isVisible()) {
+            child->updateHover(mouseX, mouseY);
+        }
+    }
 }
 
 bool Screen::isModal() const {

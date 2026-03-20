@@ -195,12 +195,9 @@ TEST(TextWidgetTest, InvisibleNotRendered) {
     TextWidget text("test", 0, 0, 100, 20, "Hello");
     text.setVisible(false);
 
-    // 验证不可见时不渲染
-    RenderContext ctx;
-    text.render(ctx, 0, 0, 0.0f);
-
-    // paint应该跳过
-    // 实际测试需要mock PaintContext
+    // 验证不可见时paint应该跳过绘制
+    // 实际测试需要mock PaintContext验证绘制调用
+    EXPECT_FALSE(text.isVisible());
 }
 
 // ==================== 字体测试 ====================

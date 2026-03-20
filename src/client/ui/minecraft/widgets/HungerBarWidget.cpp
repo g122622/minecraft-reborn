@@ -13,13 +13,6 @@ i32 HungerBarWidget::hunger() const {
     return m_hunger;
 }
 
-void HungerBarWidget::render(kagero::RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) {
-    (void)ctx;
-    (void)mouseX;
-    (void)mouseY;
-    (void)partialTick;
-}
-
 void HungerBarWidget::paint(kagero::widget::PaintContext& ctx) {
     ctx.drawFilledRect(bounds(), Colors::fromARGB(255, 52, 28, 0));
     const i32 fillWidth = static_cast<i32>(static_cast<f32>(width()) * (static_cast<f32>(m_hunger) / 20.0f));

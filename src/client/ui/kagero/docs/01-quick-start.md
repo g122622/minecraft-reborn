@@ -35,10 +35,10 @@ using namespace mc::client::ui::kagero::event;
 
 class MyWidget : public mc::client::ui::kagero::widget::Widget {
 public:
-    void render(RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) override {
-        // 渲染逻辑
+    void paint(PaintContext& ctx) override {
+        // 绘制逻辑
     }
-    
+
     bool onClick(i32 mouseX, i32 mouseY, i32 button) override {
         // 点击处理
         return true;

@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include "client/ui/kagero/widget/ListWidget.hpp"
 #include "client/ui/kagero/Types.hpp"
+#include "client/ui/kagero/paint/PaintContext.hpp"
 #include "client/ui/Glyph.hpp"
 
 using namespace mc::client::ui::kagero;
@@ -23,14 +24,13 @@ public:
 
     [[nodiscard]] i32 getHeight() const override { return m_height; }
 
-    void render(RenderContext& ctx, i32 x, i32 y, i32 width, bool selected, bool hovered, f32 partialTick) override {
+    void paintItem(PaintContext& ctx, i32 x, i32 y, i32 width, bool selected, bool hovered) override {
         (void)ctx;
         (void)x;
         (void)y;
         (void)width;
         (void)selected;
         (void)hovered;
-        (void)partialTick;
     }
 
     void setText(const String& text) { m_text = text; }

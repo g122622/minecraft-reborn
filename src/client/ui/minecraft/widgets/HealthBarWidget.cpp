@@ -13,13 +13,6 @@ i32 HealthBarWidget::health() const {
     return m_health;
 }
 
-void HealthBarWidget::render(kagero::RenderContext& ctx, i32 mouseX, i32 mouseY, f32 partialTick) {
-    (void)ctx;
-    (void)mouseX;
-    (void)mouseY;
-    (void)partialTick;
-}
-
 void HealthBarWidget::paint(kagero::widget::PaintContext& ctx) {
     ctx.drawFilledRect(bounds(), Colors::fromARGB(255, 45, 0, 0));
     const i32 fillWidth = static_cast<i32>(static_cast<f32>(width()) * (static_cast<f32>(m_health) / 20.0f));
