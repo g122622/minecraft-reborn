@@ -123,10 +123,11 @@ struct FlexItem {
  * @brief 网格项参数
  *
  * 用于 grid 布局中子元素的位置和跨越。
+ * 默认 column = -1 和 row = -1 表示需要自动放置。
  */
 struct GridItem {
-    i32 column = 0;       ///< 起始列（0-based）
-    i32 row = 0;          ///< 起始行（0-based）
+    i32 column = -1;      ///< 起始列（0-based，-1 表示自动放置）
+    i32 row = -1;         ///< 起始行（0-based，-1 表示自动放置）
     i32 columnSpan = 1;   ///< 跨越列数
     i32 rowSpan = 1;      ///< 跨越行数
     Align alignSelf = Align::Stretch;  ///< 垂直对齐

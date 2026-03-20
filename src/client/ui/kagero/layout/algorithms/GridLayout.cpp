@@ -73,14 +73,19 @@ std::vector<LayoutResult> GridLayout::compute(const Rect& containerBounds, const
         i32 col = grid.column;
         i32 row = grid.row;
 
+        // 自动放置：如果 column 或 row 为负数，自动计算位置
         if (m_config.autoPlacement && (col < 0 || row < 0)) {
             col = autoIndex % colCount;
             row = autoIndex / colCount;
             ++autoIndex;
+        } else {
+            // 手动指定位置时，确保 col 和 row 非负
+            col = std::max(0, col);
+            row = std::max(0, row);
         }
 
-        col = std::max(0, std::min(colCount - 1, col));
-        row = std::max(0, row);
+        // 限制在网格范围内
+        col = std::min(col, colCount - 1);
 
         const i32 spanCols = std::max(1, std::min(grid.columnSpan, colCount - col));
         const i32 spanRows = std::max(1, grid.rowSpan);

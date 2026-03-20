@@ -339,8 +339,9 @@ protected:
 TEST_F(GridItemTest, DefaultValues) {
     GridItem item;
 
-    EXPECT_EQ(item.column, 0);
-    EXPECT_EQ(item.row, 0);
+    // 默认值为 -1 表示需要自动放置
+    EXPECT_EQ(item.column, -1);
+    EXPECT_EQ(item.row, -1);
     EXPECT_EQ(item.columnSpan, 1);
     EXPECT_EQ(item.rowSpan, 1);
     EXPECT_EQ(item.alignSelf, Align::Stretch);
