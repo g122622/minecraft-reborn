@@ -29,6 +29,7 @@ public:
     explicit Value(f32 v) : m_type(ValueType::Float), m_floatValue(v) {}
     explicit Value(const String& v) : m_type(ValueType::String), m_stringValue(v) {}
     explicit Value(String&& v) : m_type(ValueType::String), m_stringValue(std::move(v)) {}
+    explicit Value(const char* v) : m_type(ValueType::String), m_stringValue(v ? v : "") {}  // 处理字符串字面量
 
     // 数组类型构造
     explicit Value(const std::vector<Value>& v) : m_type(ValueType::Array), m_arrayValue(v) {}
