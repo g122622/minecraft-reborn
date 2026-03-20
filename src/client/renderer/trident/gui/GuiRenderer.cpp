@@ -386,6 +386,26 @@ void GuiRenderer::fillGradientRect(f32 x, f32 y, f32 width, f32 height,
     m_indices.push_back(baseIndex + 3);
 }
 
+void GuiRenderer::fillGradientRectHorizontal(f32 x, f32 y, f32 width, f32 height,
+                                               u32 colorLeft, u32 colorRight) {
+    u32 baseIndex = static_cast<u32>(m_vertices.size());
+
+    // 四个顶点，左侧和右侧不同颜色
+    constexpr f32 SOLID_RECT_UV = -1.0f;
+    m_vertices.emplace_back(x, y, SOLID_RECT_UV, SOLID_RECT_UV, colorLeft);                  // 左上
+    m_vertices.emplace_back(x + width, y, SOLID_RECT_UV, SOLID_RECT_UV, colorRight);         // 右上
+    m_vertices.emplace_back(x + width, y + height, SOLID_RECT_UV, SOLID_RECT_UV, colorRight); // 右下
+    m_vertices.emplace_back(x, y + height, SOLID_RECT_UV, SOLID_RECT_UV, colorLeft);         // 左下
+
+    m_indices.push_back(baseIndex + 0);
+    m_indices.push_back(baseIndex + 1);
+    m_indices.push_back(baseIndex + 2);
+
+    m_indices.push_back(baseIndex + 0);
+    m_indices.push_back(baseIndex + 2);
+    m_indices.push_back(baseIndex + 3);
+}
+
 void GuiRenderer::drawRect(f32 x, f32 y, f32 width, f32 height, u32 color) {
     // 上边
     fillRect(x, y, width, 1.0f, color);

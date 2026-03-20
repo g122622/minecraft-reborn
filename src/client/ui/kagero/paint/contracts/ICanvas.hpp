@@ -22,6 +22,15 @@ public:
     virtual void drawPath(const IPath& path, const IPaint& paint) = 0;
     virtual void drawLine(f32 x0, f32 y0, f32 x1, f32 y1, const IPaint& paint) = 0;
 
+    /**
+     * @brief 绘制渐变矩形
+     * @param rect 矩形区域
+     * @param color1 起始颜色（ARGB）
+     * @param color2 结束颜色（ARGB）
+     * @param vertical true=垂直渐变（从上到下），false=水平渐变（从左到右）
+     */
+    virtual void drawGradientRect(const Rect& rect, u32 color1, u32 color2, bool vertical) = 0;
+
     virtual void drawImage(const IImage& image, f32 x, f32 y) = 0;
     virtual void drawImageRect(const IImage& image, const Rect& src, const Rect& dst) = 0;
     virtual void drawImageNine(const IImage& image, const Rect& center, const Rect& dst, const IPaint* paint = nullptr) = 0;

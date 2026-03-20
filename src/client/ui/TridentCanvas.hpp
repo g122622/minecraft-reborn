@@ -1,6 +1,6 @@
 #pragma once
 
-#include "kagero/paint/ICanvas.hpp"
+#include "kagero/paint/contracts/ICanvas.hpp"
 #include "kagero/Types.hpp"
 #include "Glyph.hpp"
 #include <vector>
@@ -23,6 +23,15 @@ namespace mc::client::ui {
  * 不持有任何 Vulkan 资源，只累积顶点数据并提交给 GuiRenderer。
  *
  * 注意：此类不是线程安全的，应在主线程使用。
+ *
+ * ## 实现限制
+ *
+ * 以下方法为简化实现或未实现（MC UI 不需要）：
+ * - `drawRRect`：退化为普通矩形
+ * - `drawCircle`/`drawOval`：退化为边界矩形
+ * - `drawPath`：忽略（MC UI 是方正风格）
+ * - `clipOutRect`：忽略并记录警告
+ * - `saveLayer`/`saveLayerAlpha`：只保存裁剪和变换状态，不支持离屏渲染
  */
 class TridentCanvas final : public kagero::paint::ICanvas {
 public:
@@ -64,6 +73,8 @@ public:
     void drawOval(const kagero::Rect& bounds, const kagero::paint::IPaint& paint) override;
     void drawPath(const kagero::paint::IPath& path, const kagero::paint::IPaint& paint) override;
     void drawLine(f32 x0, f32 y0, f32 x1, f32 y1, const kagero::paint::IPaint& paint) override;
+
+    void drawGradientRect(const kagero::Rect& rect, u32 color1, u32 color2, bool vertical) override;
 
     void drawImage(const kagero::paint::IImage& image, f32 x, f32 y) override;
     void drawImageRect(const kagero::paint::IImage& image, const kagero::Rect& src, const kagero::Rect& dst) override;

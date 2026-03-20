@@ -167,7 +167,7 @@ public:
                           u32 color = ITEM_TEXTURE_COLOR);
 
     /**
-     * @brief 绘制渐变矩形
+     * @brief 绘制渐变矩形（垂直）
      * @param x 左上角X
      * @param y 左上角Y
      * @param width 宽度
@@ -177,6 +177,18 @@ public:
      */
     void fillGradientRect(f32 x, f32 y, f32 width, f32 height,
                           u32 colorTop, u32 colorBottom);
+
+    /**
+     * @brief 绘制渐变矩形（水平）
+     * @param x 左上角X
+     * @param y 左上角Y
+     * @param width 宽度
+     * @param height 高度
+     * @param colorLeft 左侧颜色
+     * @param colorRight 右侧颜色
+     */
+    void fillGradientRectHorizontal(f32 x, f32 y, f32 width, f32 height,
+                                     u32 colorLeft, u32 colorRight);
 
     /**
      * @brief 绘制矩形边框

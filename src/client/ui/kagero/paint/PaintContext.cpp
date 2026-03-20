@@ -109,17 +109,7 @@ void PaintContext::drawRoundedRect(const Rect& bounds, f32 radius, u32 color) {
 }
 
 void PaintContext::drawGradientRect(const Rect& bounds, u32 startColor, u32 endColor, bool vertical) {
-    // 使用 saveLayerAlpha 实现渐变
-    // 由于 ICanvas 没有直接的渐变 API，我们使用简单的双矩形模拟
-    // 实际实现需要更复杂的着色器支持
-    (void)bounds;
-    (void)startColor;
-    (void)endColor;
-    (void)vertical;
-    // TODO: 实现真正的渐变渲染
-    // 暂时使用起始颜色填充
-    m_fillPaint->setColor(paint::Color::fromARGB(startColor));
-    m_canvas.drawRect(bounds, *m_fillPaint);
+    m_canvas.drawGradientRect(bounds, startColor, endColor, vertical);
 }
 
 i32 PaintContext::pushClip(const Rect& rect) {
