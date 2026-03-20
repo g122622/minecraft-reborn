@@ -22,7 +22,7 @@ class ItemRenderer2D;
  * @code
  * auto slot = std::make_unique<SlotWidget>("slot_0", 10, 10);
  * slot->setItem(itemStack);
- * slot->setOnItemClick([](SlotWidget& s, i32 button) {
+ * slot->setOnSlotClick([](i32 slotIndex, i32 button, bool shiftHeld) {
  *     // 处理点击
  * });
  * @endcode
@@ -30,9 +30,13 @@ class ItemRenderer2D;
 class SlotWidget : public Widget {
 public:
     /**
-     * @brief 槽位点击回调类型
+     * @brief 槽位点击回调类型（与文档一致）
+     *
+     * 参数：slotIndex - 槽位索引
+     *      button - 鼠标按钮
+     *      shiftHeld - 是否按住Shift
      */
-    using OnSlotClickCallback = std::function<void(SlotWidget&, i32)>;
+    using OnSlotClickCallback = std::function<void(i32, i32, bool)>;
 
     /**
      * @brief 槽位释放回调类型
@@ -104,8 +108,8 @@ public:
 
         if (!isActive() || !isVisible()) return false;
 
-        if (m_onClick) {
-            m_onClick(*this, button);
+        if (m_onSlotClick) {
+            m_onSlotClick(m_slotIndex, button, m_shiftHeld);
         }
 
         return true;
@@ -122,6 +126,16 @@ public:
         }
 
         return true;
+    }
+
+    bool onKey(i32 key, i32 scanCode, i32 action, i32 mods) override {
+        (void)scanCode;
+
+        if (action == 1 || action == 2) {
+            // 检测Shift键状态
+            m_shiftHeld = (mods & static_cast<i32>(KeyMods::Shift)) != 0;
+        }
+        return false;
     }
 
     // ==================== 物品操作 ====================
@@ -222,10 +236,11 @@ public:
     // ==================== 回调设置 ====================
 
     /**
-     * @brief 设置点击回调
+     * @brief 设置槽位点击回调（与文档一致）
+     * @param callback 回调函数，参数为(槽位索引, 鼠标按钮, 是否按住Shift)
      */
-    void setOnClick(OnSlotClickCallback callback) {
-        m_onClick = std::move(callback);
+    void setOnSlotClick(OnSlotClickCallback callback) {
+        m_onSlotClick = std::move(callback);
     }
 
     /**
@@ -244,10 +259,11 @@ protected:
     bool m_showBackground = true;       ///< 是否显示背景
     bool m_interactive = true;          ///< 是否可交互
     bool m_showCount = true;            ///< 是否显示数量
+    bool m_shiftHeld = false;           ///< Shift键是否按下
     u32 m_highlightColor = Colors::fromARGB(128, 255, 255, 255); ///< 高亮颜色
 
     // 回调
-    OnSlotClickCallback m_onClick;      ///< 点击回调
+    OnSlotClickCallback m_onSlotClick;  ///< 槽位点击回调
     OnSlotReleaseCallback m_onRelease;  ///< 释放回调
 };
 

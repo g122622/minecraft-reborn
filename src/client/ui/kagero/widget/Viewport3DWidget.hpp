@@ -300,6 +300,11 @@ public:
      */
     void setAutoRotateSpeed(f32 speed) { m_autoRotateSpeed = speed; }
 
+    /**
+     * @brief 获取自动旋转速度
+     */
+    [[nodiscard]] f32 autoRotateSpeed() const { return m_autoRotateSpeed; }
+
 protected:
     /**
      * @brief 初始化帧缓冲区

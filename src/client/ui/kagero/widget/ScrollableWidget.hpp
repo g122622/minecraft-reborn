@@ -219,6 +219,19 @@ public:
     // ==================== 滚动操作 ====================
 
     /**
+     * @brief 设置内容宽度
+     */
+    void setContentWidth(i32 width) {
+        m_contentWidth = width;
+        clampScroll();
+    }
+
+    /**
+     * @brief 获取内容宽度
+     */
+    [[nodiscard]] i32 contentWidth() const { return m_contentWidth; }
+
+    /**
      * @brief 设置内容高度
      */
     void setContentHeight(i32 height) {
@@ -232,7 +245,29 @@ public:
     [[nodiscard]] i32 contentHeight() const { return m_contentHeight; }
 
     /**
-     * @brief 设置滚动位置
+     * @brief 设置内容尺寸
+     */
+    void setContentSize(i32 width, i32 height) {
+        m_contentWidth = width;
+        m_contentHeight = height;
+        clampScroll();
+    }
+
+    /**
+     * @brief 设置水平滚动位置
+     */
+    void setScrollX(i32 scrollX) {
+        m_scrollX = scrollX;
+        clampScroll();
+    }
+
+    /**
+     * @brief 获取水平滚动位置
+     */
+    [[nodiscard]] i32 scrollX() const { return m_scrollX; }
+
+    /**
+     * @brief 设置垂直滚动位置
      */
     void setScrollY(i32 scrollY) {
         m_scrollY = scrollY;
@@ -240,7 +275,7 @@ public:
     }
 
     /**
-     * @brief 获取滚动位置
+     * @brief 获取垂直滚动位置
      */
     [[nodiscard]] i32 scrollY() const { return m_scrollY; }
 
@@ -288,6 +323,28 @@ public:
         } else if (y + height > viewBottom) {
             m_scrollY = y + height - visibleHeight;
         }
+        clampScroll();
+    }
+
+    /**
+     * @brief 滚动到使指定组件可见
+     * @param child 子组件指针
+     */
+    void scrollIntoView(Widget* child) {
+        if (child == nullptr) return;
+
+        // 获取子组件在内容中的位置
+        i32 childTop = child->y() - m_bounds.y;
+        i32 childBottom = childTop + child->height();
+
+        scrollIntoView(childTop, child->height());
+    }
+
+    /**
+     * @brief 水平滚动指定距离
+     */
+    void scrollByX(i32 delta) {
+        m_scrollX += delta;
         clampScroll();
     }
 
@@ -357,8 +414,10 @@ protected:
      * @brief 限制滚动范围
      */
     void clampScroll() {
-        i32 maxScroll = std::max(0, m_contentHeight - visibleHeight());
-        m_scrollY = std::max(0, std::min(m_scrollY, maxScroll));
+        i32 maxScrollY = std::max(0, m_contentHeight - visibleHeight());
+        m_scrollY = std::max(0, std::min(m_scrollY, maxScrollY));
+        i32 maxScrollX = std::max(0, m_contentWidth - visibleWidth());
+        m_scrollX = std::max(0, std::min(m_scrollX, maxScrollX));
     }
 
     /**
@@ -394,18 +453,24 @@ protected:
         return false;
     }
 
-    // 内容
-    i32 m_contentHeight = 0;            ///< 内容高度
-    i32 m_scrollY = 0;                  ///< 垂直滚动位置
+    // 内容尺寸
+    i32 m_contentWidth = 0;            ///< 内容宽度
+    i32 m_contentHeight = 0;           ///< 内容高度
+
+    // 滚动位置
+    i32 m_scrollX = 0;                 ///< 水平滚动位置
+    i32 m_scrollY = 0;                 ///< 垂直滚动位置
 
     // 滚动条
-    bool m_showScrollbar = true;        ///< 是否显示滚动条
-    i32 m_scrollbarWidth = 6;           ///< 滚动条宽度
-    f64 m_scrollSpeed = 20.0;           ///< 滚动速度
+    bool m_showScrollbar = true;       ///< 是否显示滚动条
+    bool m_showHorizontalScrollbar = true; ///< 是否显示水平滚动条
+    i32 m_scrollbarWidth = 6;          ///< 滚动条宽度
+    f64 m_scrollSpeed = 20.0;          ///< 滚动速度
 
     // 状态
-    bool m_draggingScrollbar = false;   ///< 是否正在拖动滚动条
-    i32 m_lastMouseY = 0;               ///< 上次鼠标Y位置
+    bool m_draggingScrollbar = false;  ///< 是否正在拖动滚动条
+    i32 m_lastMouseX = 0;              ///< 上次鼠标X位置
+    i32 m_lastMouseY = 0;              ///< 上次鼠标Y位置
 };
 
 } // namespace mc::client::ui::kagero::widget

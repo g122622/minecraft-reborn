@@ -2,6 +2,7 @@
 
 #include "Widget.hpp"
 #include "PaintContext.hpp"
+#include "../../Glyph.hpp"
 #include <functional>
 #include <string>
 
@@ -58,9 +59,10 @@ public:
         : Widget(std::move(id))
         , m_minValue(minVal)
         , m_maxValue(maxVal)
-        , m_value(clampValue(value))
+        , m_value(minVal)  // 先设为最小值，后面再用 setValue 设置
         , m_stepSize(0.0) {
         setBounds(Rect(x, y, width, height));
+        m_value = clampValue(value);  // 现在可以安全调用 clampValue
     }
 
     // ==================== 生命周期 ====================

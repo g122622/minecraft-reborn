@@ -54,6 +54,70 @@ public:
      */
     void drawNinePatch(const paint::IImage& image, const Rect& center, const Rect& dst, u32 tint = 0xFFFFFFFF);
 
+    /**
+     * @brief 绘制文本
+     * @param text 文本内容
+     * @param x X坐标
+     * @param y Y坐标
+     * @param color 颜色（ARGB）
+     */
+    void drawText(const String& text, i32 x, i32 y, u32 color);
+
+    /**
+     * @brief 绘制图像
+     * @param image 图像
+     * @param dst 目标区域
+     */
+    void drawImage(const paint::IImage& image, const Rect& dst);
+
+    /**
+     * @brief 绘制图像
+     * @param image 图像
+     * @param x X坐标
+     * @param y Y坐标
+     */
+    void drawImage(const paint::IImage& image, i32 x, i32 y);
+
+    /**
+     * @brief 绘制圆角矩形
+     * @param bounds 边界矩形
+     * @param radius 圆角半径
+     * @param color 颜色（ARGB）
+     */
+    void drawRoundedRect(const Rect& bounds, f32 radius, u32 color);
+
+    /**
+     * @brief 绘制渐变矩形
+     * @param bounds 边界矩形
+     * @param startColor 起始颜色（ARGB）
+     * @param endColor 结束颜色（ARGB）
+     * @param vertical 是否垂直渐变（true=垂直，false=水平）
+     */
+    void drawGradientRect(const Rect& bounds, u32 startColor, u32 endColor, bool vertical = true);
+
+    // ==================== 裁剪方法 ====================
+
+    /**
+     * @brief 推入裁剪区域
+     * @param rect 裁剪矩形
+     * @return 当前保存点
+     */
+    i32 pushClip(const Rect& rect);
+
+    /**
+     * @brief 推入圆角裁剪区域
+     * @param bounds 边界矩形
+     * @param radius 圆角半径
+     * @return 当前保存点
+     */
+    i32 pushClipRounded(const Rect& bounds, f32 radius);
+
+    /**
+     * @brief 弹出裁剪区域
+     * 恢复到上一个裁剪状态
+     */
+    void popClip();
+
     // ==================== 变换方法 ====================
 
     /**

@@ -2,6 +2,7 @@
 
 #include "Widget.hpp"
 #include "PaintContext.hpp"
+#include "../../Glyph.hpp"
 #include <functional>
 #include <string>
 
@@ -406,11 +407,21 @@ public:
     }
 
     /**
+     * @brief 获取文本颜色
+     */
+    [[nodiscard]] u32 textColor() const { return m_textColor; }
+
+    /**
      * @brief 设置禁用文本颜色
      */
     void setDisabledTextColor(u32 color) {
         m_disabledTextColor = color;
     }
+
+    /**
+     * @brief 获取禁用文本颜色
+     */
+    [[nodiscard]] u32 disabledTextColor() const { return m_disabledTextColor; }
 
     /**
      * @brief 设置是否可写

@@ -156,6 +156,14 @@ public:
         }
     }
 
+    /**
+     * @brief 添加子组件（别名，与文档一致）
+     * @param widget 子组件
+     */
+    void addChild(Widget::Ptr widget) {
+        addWidget(std::move(widget));
+    }
+
     void removeWidget(Widget* widget) override {
         if (widget == nullptr) return;
 
@@ -168,6 +176,15 @@ public:
             (*it)->setParent(nullptr);
             m_children.erase(it);
         }
+    }
+
+    /**
+     * @brief 移除子组件（别名，与文档一致）
+     * @param id 组件ID
+     * @return 是否成功移除
+     */
+    bool removeChild(const String& id) {
+        return removeWidgetById(id);
     }
 
     bool removeWidgetById(const String& id) override {
@@ -191,8 +208,22 @@ public:
         m_children.clear();
     }
 
+    /**
+     * @brief 清空所有子组件（别名，与文档一致）
+     */
+    void clearChildren() {
+        clearWidgets();
+    }
+
     [[nodiscard]] const std::vector<Widget::Ptr>& widgets() const override {
         return m_children;
+    }
+
+    /**
+     * @brief 获取子组件数量（别名，与文档一致）
+     */
+    [[nodiscard]] size_t childCount() const {
+        return m_children.size();
     }
 
     [[nodiscard]] size_t widgetCount() const override {
@@ -208,6 +239,13 @@ public:
         return (it != m_children.end()) ? it->get() : nullptr;
     }
 
+    /**
+     * @brief 通过ID查找子组件（别名，与文档一致）
+     */
+    [[nodiscard]] Widget* findChild(const String& id) {
+        return findWidgetById(id);
+    }
+
     [[nodiscard]] const Widget* findWidgetById(const String& id) const override {
         auto it = std::find_if(m_children.begin(), m_children.end(),
             [&id](const Widget::Ptr& ptr) {
@@ -215,6 +253,10 @@ public:
             });
 
         return (it != m_children.end()) ? it->get() : nullptr;
+    }
+
+    [[nodiscard]] const Widget* findChild(const String& id) const {
+        return findWidgetById(id);
     }
 
     [[nodiscard]] Widget* getWidgetAt(i32 x, i32 y) override {
@@ -246,10 +288,11 @@ public:
                 return ptr.get() == widget;
             });
 
-        if (it != m_children.end() && it != m_children.begin()) {
+        // 由于 getWidgetAt 从后往前遍历，"最前面"应该是列表末尾
+        if (it != m_children.end() && it != m_children.end() - 1) {
             auto ptr = std::move(*it);
             m_children.erase(it);
-            m_children.insert(m_children.begin(), std::move(ptr));
+            m_children.push_back(std::move(ptr));
         }
     }
 
@@ -261,10 +304,11 @@ public:
                 return ptr.get() == widget;
             });
 
-        if (it != m_children.end() && it != m_children.end() - 1) {
+        // 由于 getWidgetAt 从后往前遍历，"最后面"应该是列表开头
+        if (it != m_children.end() && it != m_children.begin()) {
             auto ptr = std::move(*it);
             m_children.erase(it);
-            m_children.push_back(std::move(ptr));
+            m_children.insert(m_children.begin(), std::move(ptr));
         }
     }
 

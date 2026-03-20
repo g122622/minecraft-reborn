@@ -90,6 +90,14 @@ public:
     ListWidget() = default;
 
     /**
+     * @brief 构造函数（仅ID）
+     * @param id 组件ID
+     */
+    explicit ListWidget(String id)
+        : ScrollableWidget(std::move(id), 0, 0, 0, 0) {
+    }
+
+    /**
      * @brief 构造函数
      * @param id 组件ID
      * @param x X坐标
@@ -289,13 +297,33 @@ public:
         if (m_selectionMode == SelectionMode::None) return;
         if (index >= m_items.size()) return;
 
+        i32 oldIndex = m_selectedIndex;
         i32 newIndex = static_cast<i32>(index);
-        if (m_selectedIndex != newIndex) {
-            m_selectedIndex = newIndex;
 
-            if (m_onSelect) {
-                m_onSelect(index, m_items[index].get());
+        if (m_selectionMode == SelectionMode::Multiple) {
+            // 多选模式：切换选择状态
+            auto it = std::find(m_selectedIndices.begin(), m_selectedIndices.end(), newIndex);
+            if (it != m_selectedIndices.end()) {
+                m_selectedIndices.erase(it);
+            } else {
+                m_selectedIndices.push_back(newIndex);
             }
+            m_selectedIndex = newIndex;
+        } else {
+            // 单选模式
+            if (m_selectedIndex != newIndex) {
+                m_selectedIndex = newIndex;
+                m_selectedIndices.clear();
+                m_selectedIndices.push_back(newIndex);
+            }
+        }
+
+        // 触发回调
+        if (oldIndex != newIndex && m_onSelectionChanged) {
+            m_onSelectionChanged(oldIndex, newIndex);
+        }
+        if (m_onSelect) {
+            m_onSelect(index, m_items[index].get());
         }
     }
 
@@ -304,6 +332,7 @@ public:
      */
     void clearSelection() {
         m_selectedIndex = -1;
+        m_selectedIndices.clear();
     }
 
     /**
@@ -319,6 +348,61 @@ public:
             return m_items[m_selectedIndex].get();
         }
         return nullptr;
+    }
+
+    /**
+     * @brief 设置多选模式
+     *
+     * 多选模式下，用户可以通过Ctrl+点击选择多个项目
+     */
+    void setMultiSelect(bool multiSelect) {
+        m_selectionMode = multiSelect ? SelectionMode::Multiple : SelectionMode::Single;
+        if (!multiSelect && m_selectedIndices.size() > 1) {
+            // 保留第一个选择
+            if (!m_selectedIndices.empty()) {
+                m_selectedIndex = m_selectedIndices[0];
+                m_selectedIndices.clear();
+                m_selectedIndices.push_back(m_selectedIndex);
+            }
+        }
+    }
+
+    /**
+     * @brief 是否启用多选
+     */
+    [[nodiscard]] bool isMultiSelect() const {
+        return m_selectionMode == SelectionMode::Multiple;
+    }
+
+    /**
+     * @brief 设置选中的索引列表
+     */
+    void setSelectedIndices(const std::vector<i32>& indices) {
+        if (m_selectionMode == SelectionMode::None) return;
+
+        m_selectedIndices.clear();
+        for (i32 idx : indices) {
+            if (idx >= 0 && idx < static_cast<i32>(m_items.size())) {
+                m_selectedIndices.push_back(idx);
+            }
+        }
+
+        // 更新单选索引为第一个选中项
+        m_selectedIndex = m_selectedIndices.empty() ? -1 : m_selectedIndices[0];
+    }
+
+    /**
+     * @brief 获取选中的索引列表
+     */
+    [[nodiscard]] const std::vector<i32>& selectedIndices() const {
+        return m_selectedIndices;
+    }
+
+    /**
+     * @brief 检查指定索引是否被选中
+     */
+    [[nodiscard]] bool isSelected(i32 index) const {
+        return std::find(m_selectedIndices.begin(), m_selectedIndices.end(), index) != m_selectedIndices.end();
     }
 
     /**
@@ -346,6 +430,16 @@ public:
     }
 
     /**
+     * @brief 设置选择变化回调（与文档一致）
+     *
+     * 当选择从一项变为另一项时触发
+     * @param callback 回调函数，参数为(旧索引, 新索引)
+     */
+    void setOnSelectionChanged(std::function<void(i32, i32)> callback) {
+        m_onSelectionChanged = std::move(callback);
+    }
+
+    /**
      * @brief 设置双击回调
      */
     void setOnDoubleClick(OnDoubleClickCallback callback) {
@@ -370,6 +464,13 @@ public:
      */
     void setDoubleClickTime(i32 ms) {
         m_doubleClickTime = ms;
+    }
+
+    /**
+     * @brief 获取双击时间阈值
+     */
+    [[nodiscard]] i32 doubleClickTime() const {
+        return m_doubleClickTime;
     }
 
 protected:
@@ -433,7 +534,8 @@ protected:
 
     // 选择
     SelectionMode m_selectionMode = SelectionMode::Single; ///< 选择模式
-    i32 m_selectedIndex = -1;                         ///< 选中索引
+    i32 m_selectedIndex = -1;                         ///< 选中索引（单选模式）
+    std::vector<i32> m_selectedIndices;               ///< 选中索引列表（多选模式）
     i32 m_hoveredIndex = -1;                          ///< 悬停索引
 
     // 双击检测
@@ -444,6 +546,7 @@ protected:
     // 回调
     OnSelectCallback m_onSelect;                      ///< 选择回调
     OnDoubleClickCallback m_onDoubleClick;            ///< 双击回调
+    std::function<void(i32, i32)> m_onSelectionChanged; ///< 选择变化回调
 };
 
 /**

@@ -86,6 +86,62 @@ void PaintContext::drawNinePatch(const paint::IImage& image, const Rect& center,
     m_canvas.drawImageNine(image, center, dst, m_fillPaint.get());
 }
 
+void PaintContext::drawText(const String& text, i32 x, i32 y, u32 color) {
+    m_fillPaint->setColor(paint::Color::fromARGB(color));
+    m_canvas.drawText(text, static_cast<f32>(x), static_cast<f32>(y), *m_fillPaint);
+}
+
+void PaintContext::drawImage(const paint::IImage& image, const Rect& dst) {
+    m_canvas.drawImageRect(image, Rect(0, 0, image.width(), image.height()), dst);
+}
+
+void PaintContext::drawImage(const paint::IImage& image, i32 x, i32 y) {
+    m_canvas.drawImage(image, static_cast<f32>(x), static_cast<f32>(y));
+}
+
+void PaintContext::drawRoundedRect(const Rect& bounds, f32 radius, u32 color) {
+    m_fillPaint->setColor(paint::Color::fromARGB(color));
+    paint::RRect rrect;
+    rrect.rect = bounds;
+    rrect.radiusX = radius;
+    rrect.radiusY = radius;
+    m_canvas.drawRRect(rrect, *m_fillPaint);
+}
+
+void PaintContext::drawGradientRect(const Rect& bounds, u32 startColor, u32 endColor, bool vertical) {
+    // 使用 saveLayerAlpha 实现渐变
+    // 由于 ICanvas 没有直接的渐变 API，我们使用简单的双矩形模拟
+    // 实际实现需要更复杂的着色器支持
+    (void)bounds;
+    (void)startColor;
+    (void)endColor;
+    (void)vertical;
+    // TODO: 实现真正的渐变渲染
+    // 暂时使用起始颜色填充
+    m_fillPaint->setColor(paint::Color::fromARGB(startColor));
+    m_canvas.drawRect(bounds, *m_fillPaint);
+}
+
+i32 PaintContext::pushClip(const Rect& rect) {
+    i32 saveCount = m_canvas.save();
+    m_canvas.clipRect(rect);
+    return saveCount;
+}
+
+i32 PaintContext::pushClipRounded(const Rect& bounds, f32 radius) {
+    i32 saveCount = m_canvas.save();
+    paint::RRect rrect;
+    rrect.rect = bounds;
+    rrect.radiusX = radius;
+    rrect.radiusY = radius;
+    m_canvas.clipRRect(rrect);
+    return saveCount;
+}
+
+void PaintContext::popClip() {
+    m_canvas.restore();
+}
+
 i32 PaintContext::save() {
     return m_canvas.save();
 }

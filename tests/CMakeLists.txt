@@ -122,6 +122,18 @@ add_executable(mc_tests
     client/ui/kagero/state/StateObserverTest.cpp
     # Kagero UI事件系统测试
     ui/kagero/event/event_test.cpp
+    # Kagero UI Widget测试
+    client/ui/kagero/widget/WidgetTest.cpp
+    client/ui/kagero/widget/ButtonWidgetTest.cpp
+    client/ui/kagero/widget/TextWidgetTest.cpp
+    client/ui/kagero/widget/CheckboxWidgetTest.cpp
+    client/ui/kagero/widget/SliderWidgetTest.cpp
+    client/ui/kagero/widget/TextFieldWidgetTest.cpp
+    client/ui/kagero/widget/ContainerWidgetTest.cpp
+    client/ui/kagero/widget/ScrollableWidgetTest.cpp
+    client/ui/kagero/widget/ListWidgetTest.cpp
+    client/ui/kagero/widget/Viewport3DWidgetTest.cpp
+    client/ui/kagero/widget/SlotWidgetTest.cpp
 )
 
 # 添加服务端源文件
@@ -298,6 +310,9 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/layout/algorithms/GridLayout.cpp
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/layout/algorithms/AnchorLayout.cpp
         ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/layout/integration/WidgetLayoutAdaptor.cpp
+        # Kagero UI Widget组件
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/widget/ContainerWidget.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/widget/PaintContext.cpp
         # TemplateInstance.cpp 依赖 Widget 实现，在测试中暂时排除
 )
 
