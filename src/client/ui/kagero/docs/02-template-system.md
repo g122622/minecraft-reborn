@@ -177,9 +177,12 @@ instance.updateBinding("player.name");
 
 ```xml
 <text id="playerName" bind:text="player.name"/>
-<label bind:text="'Health: ' + player.health"/>
 <image bind:visible="player.alive"/>
 ```
+
+> **注意**：当前版本仅支持简单路径绑定（如 `player.name`、`settings.volume`）。
+> 表达式绑定（如 `bind:text="'Health: ' + player.health"`）暂不支持。
+> 如需组合文本，请在 C++ 端预处理后暴露完整字符串。
 
 ### 事件绑定
 
@@ -436,3 +439,71 @@ if (compiled->hasErrors()) {
 - 避免频繁调用 `updateBindings()`
 - 使用 `updateBinding(path)` 更新特定绑定
 - 利用 `notifyChange()` 只更新变化的状态
+
+## 实现限制
+
+### 当前版本限制
+
+以下功能在当前版本中尚未完全实现：
+
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| 表达式绑定 | 暂不支持 | `bind:text="'Health: ' + player.health"` 需在 C++ 端预处理 |
+| 计算属性 | 暂不支持 | 无法定义派生状态 |
+| 样式属性部分功能 | 部分支持 | `margin`、`padding`、`background-color`、`border-color`、`corner-radius` 已注册 setter 但 Widget 类尚无对应属性 |
+| `change`/`input` 事件 | 部分支持 | 已注册事件处理器，但 `TextFieldWidget`、`SliderWidget`、`CheckboxWidget` 需实现对应事件触发 |
+
+### 样式属性支持状态
+
+| 属性 | 解析 | Widget 属性 | 备注 |
+|------|------|-------------|------|
+| `x` | ✅ | ✅ | 位置 X 坐标 |
+| `y` | ✅ | ✅ | 位置 Y 坐标 |
+| `width` | ✅ | ✅ | 宽度 |
+| `height` | ✅ | ✅ | 高度 |
+| `text` | ✅ | ✅ | 文本内容 |
+| `color` | ✅ | ✅ | 文本颜色 |
+| `visible` | ✅ | ✅ | 可见性 |
+| `enabled` | ✅ | ✅ | 启用状态 |
+| `shadow` | ✅ | ✅ | 文本阴影 |
+| `scale` | ✅ | ✅ | 缩放 |
+| `align` | ✅ | ✅ | 文本对齐 |
+| `id` | ✅ | ✅ | 元素标识 |
+| `margin` | ✅ | ⏳ | 已解析，待 Widget 实现 |
+| `padding` | ✅ | ⏳ | 已解析，待 Widget 实现 |
+| `background-color` | ✅ | ⏳ | 已解析，待 Widget 实现 |
+| `border-color` | ✅ | ⏳ | 已解析，待 Widget 实现 |
+| `corner-radius` | ✅ | ⏳ | 已解析，待 Widget 实现 |
+| `disabled` | ✅ | ✅ | 禁用状态（等价于 `enabled="false"`）|
+| `checked` | ✅ | ✅ | 复选框选中状态 |
+| `value` | ✅ | ✅ | 滑块/输入框值 |
+| `min`/`max` | ✅ | ✅ | 滑块范围 |
+| `placeholder` | ✅ | ✅ | 输入框占位文本 |
+| `max-length` | ✅ | ✅ | 输入最大长度 |
+
+### Widget 特定事件支持
+
+| 事件 | 通用支持 | Widget 特定触发 |
+|------|----------|-----------------|
+| `click` | ✅ | ✅ |
+| `doubleClick` | ✅ | ✅ |
+| `rightClick` | ✅ | ✅ |
+| `mouseEnter` | ✅ | ✅ |
+| `mouseLeave` | ✅ | ✅ |
+| `scroll` | ✅ | ✅ |
+| `keyDown` | ✅ | ✅ |
+| `keyUp` | ✅ | ✅ |
+| `focus` | ✅ | ✅ |
+| `blur` | ✅ | ✅ |
+| `change` | ✅ | ⏳ | 需 Widget 实现值变化检测 |
+| `input` | ✅ | ⏳ | 需 TextFieldWidget 实现输入检测 |
+
+### 未来计划
+
+以下功能计划在后续版本中实现：
+
+1. **表达式绑定**：支持简单的算术和字符串运算
+2. **计算属性**：支持基于其他状态自动计算的属性
+3. **双向绑定**：`bind双向:text="player.name"` 自动同步输入
+4. **条件表达式**：`if:condition="player.health > 50"`
+5. **样式系统**：完整的外边距、内边距、边框、圆角支持

@@ -2,10 +2,14 @@
 #include "../bindings/BuiltinWidgets.hpp"
 #include "../bindings/BuiltinEvents.hpp"
 #include "../../widget/TextWidget.hpp"
+#include "../../widget/CheckboxWidget.hpp"
+#include "../../widget/SliderWidget.hpp"
+#include "../../widget/TextFieldWidget.hpp"
 #include "../../event/WidgetEvents.hpp"
 #include <algorithm>
 #include <chrono>
 #include <sstream>
+#include <cctype>
 
 namespace mc::client::ui::kagero::tpl::runtime {
 
@@ -196,6 +200,159 @@ void TemplateInstance::registerDefaultAttributeSetters() {
         (void)attrName;
         widget->setAlpha(bindings::widget_attrs::parseFloat(value.toString(), 1.0f));
     };
+
+    // 阴影
+    m_attributeSetters["shadow"] = [](widget::Widget* widget, const String& attrName,
+                                       const binder::Value& value) {
+        (void)attrName;
+        if (auto* textWidget = dynamic_cast<widget::TextWidget*>(widget)) {
+            textWidget->setShadow(value.asBool());
+        }
+    };
+
+    // 缩放
+    m_attributeSetters["scale"] = [](widget::Widget* widget, const String& attrName,
+                                      const binder::Value& value) {
+        (void)attrName;
+        if (auto* textWidget = dynamic_cast<widget::TextWidget*>(widget)) {
+            textWidget->setScale(bindings::widget_attrs::parseFloat(value.toString(), 1.0f));
+        }
+    };
+
+    // 对齐方式
+    m_attributeSetters["align"] = [](widget::Widget* widget, const String& attrName,
+                                      const binder::Value& value) {
+        (void)attrName;
+        if (auto* textWidget = dynamic_cast<widget::TextWidget*>(widget)) {
+            String align = value.toString();
+            std::transform(align.begin(), align.end(), align.begin(),
+                          [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            if (align == "left") {
+                textWidget->setAlignment(widget::TextAlignment::Left);
+            } else if (align == "center") {
+                textWidget->setAlignment(widget::TextAlignment::Center);
+            } else if (align == "right") {
+                textWidget->setAlignment(widget::TextAlignment::Right);
+            }
+        }
+    };
+
+    // margin属性（格式：margin="10,5" 或 margin="10"）
+    m_attributeSetters["margin"] = [](widget::Widget* widget, const String& attrName,
+                                       const binder::Value& value) {
+        (void)attrName;
+        (void)widget;
+        // TODO: 需要Widget支持margin属性
+        // auto [top, right, bottom, left] = parseMargin(value.toString());
+        // widget->setMargin(top, right, bottom, left);
+    };
+
+    // padding属性（格式：padding="10,5" 或 padding="10"）
+    m_attributeSetters["padding"] = [](widget::Widget* widget, const String& attrName,
+                                        const binder::Value& value) {
+        (void)attrName;
+        (void)widget;
+        // TODO: 需要Widget支持padding属性
+        // auto [top, right, bottom, left] = parsePadding(value.toString());
+        // widget->setPadding(top, right, bottom, left);
+    };
+
+    // 背景色
+    m_attributeSetters["background-color"] = [](widget::Widget* widget, const String& attrName,
+                                                 const binder::Value& value) {
+        (void)attrName;
+        (void)widget;
+        // TODO: 需要Widget支持backgroundColor属性
+        // widget->setBackgroundColor(bindings::widget_attrs::parseColor(value.toString()));
+    };
+
+    // 边框色
+    m_attributeSetters["border-color"] = [](widget::Widget* widget, const String& attrName,
+                                             const binder::Value& value) {
+        (void)attrName;
+        (void)widget;
+        // TODO: 需要Widget支持borderColor属性
+        // widget->setBorderColor(bindings::widget_attrs::parseColor(value.toString()));
+    };
+
+    // 圆角
+    m_attributeSetters["corner-radius"] = [](widget::Widget* widget, const String& attrName,
+                                              const binder::Value& value) {
+        (void)attrName;
+        (void)widget;
+        // TODO: 需要Widget支持cornerRadius属性
+        // widget->setCornerRadius(bindings::widget_attrs::parseInt(value.toString()));
+    };
+
+    // disabled属性
+    m_attributeSetters["disabled"] = [](widget::Widget* widget, const String& attrName,
+                                         const binder::Value& value) {
+        (void)attrName;
+        widget->setActive(!value.asBool());
+    };
+
+    // checked属性（用于CheckboxWidget）
+    m_attributeSetters["checked"] = [](widget::Widget* widget, const String& attrName,
+                                        const binder::Value& value) {
+        (void)attrName;
+        if (auto* checkbox = dynamic_cast<widget::CheckboxWidget*>(widget)) {
+            // TODO: CheckboxWidget needs setChecked method
+            (void)checkbox;
+        }
+    };
+
+    // value属性（用于SliderWidget）
+    m_attributeSetters["value"] = [](widget::Widget* widget, const String& attrName,
+                                      const binder::Value& value) {
+        (void)attrName;
+        if (auto* slider = dynamic_cast<widget::SliderWidget*>(widget)) {
+            // TODO: SliderWidget needs setValue method
+            (void)slider;
+        }
+    };
+
+    // min属性（用于SliderWidget）
+    m_attributeSetters["min"] = [](widget::Widget* widget, const String& attrName,
+                                    const binder::Value& value) {
+        (void)attrName;
+        (void)widget;
+        // TODO: SliderWidget needs setMin method
+    };
+
+    // max属性（用于SliderWidget）
+    m_attributeSetters["max"] = [](widget::Widget* widget, const String& attrName,
+                                    const binder::Value& value) {
+        (void)attrName;
+        (void)widget;
+        // TODO: SliderWidget needs setMax method
+    };
+
+    // placeholder属性（用于TextFieldWidget）
+    m_attributeSetters["placeholder"] = [](widget::Widget* widget, const String& attrName,
+                                            const binder::Value& value) {
+        (void)attrName;
+        if (auto* textField = dynamic_cast<widget::TextFieldWidget*>(widget)) {
+            // TODO: TextFieldWidget needs setPlaceholder method
+            (void)textField;
+        }
+    };
+
+    // max-length属性（用于TextFieldWidget）
+    m_attributeSetters["max-length"] = [](widget::Widget* widget, const String& attrName,
+                                           const binder::Value& value) {
+        (void)attrName;
+        if (auto* textField = dynamic_cast<widget::TextFieldWidget*>(widget)) {
+            // TODO: TextFieldWidget needs setMaxLength method
+            (void)textField;
+        }
+    };
+
+    // id属性（特殊处理）
+    m_attributeSetters["id"] = [](widget::Widget* widget, const String& attrName,
+                                   const binder::Value& value) {
+        (void)attrName;
+        widget->setId(value.toString());
+    };
 }
 
 void TemplateInstance::registerEventBinder(const String& eventName, EventBinder binder) {
@@ -238,10 +395,14 @@ void TemplateInstance::registerDefaultEventBinders() {
     m_eventBinders["mouseEnter"] = [](widget::Widget* widget, const String& eventName,
                                        const String& callbackName, binder::BindingContext& ctx) {
         (void)eventName;
-        (void)callbackName;
         if (widget) {
             widget->setHovered(true);
             widget->onMouseEnter();
+            // 调用用户回调
+            if (!callbackName.empty()) {
+                // 使用Widget的位置作为事件坐标
+                ctx.invokeCallback(callbackName, widget, event::MouseEnterEvent(widget->x(), widget->y()));
+            }
         }
     };
 
@@ -249,10 +410,13 @@ void TemplateInstance::registerDefaultEventBinders() {
     m_eventBinders["mouseLeave"] = [](widget::Widget* widget, const String& eventName,
                                        const String& callbackName, binder::BindingContext& ctx) {
         (void)eventName;
-        (void)callbackName;
         if (widget) {
             widget->setHovered(false);
             widget->onMouseLeave();
+            // 调用用户回调
+            if (!callbackName.empty()) {
+                ctx.invokeCallback(callbackName, widget, event::MouseLeaveEvent(widget->x(), widget->y()));
+            }
         }
     };
 
@@ -260,35 +424,49 @@ void TemplateInstance::registerDefaultEventBinders() {
     m_eventBinders["scroll"] = [](widget::Widget* widget, const String& eventName,
                                    const String& callbackName, binder::BindingContext& ctx) {
         (void)eventName;
-        (void)callbackName;
-        // ScrollableWidget等需要实现setOnScroll
-        (void)widget;
+        if (auto* scrollable = dynamic_cast<widget::ScrollableWidget*>(widget)) {
+            scrollable->setOnScroll([&ctx, callbackName, widget](i32 x, i32 y, f64 deltaX, f64 deltaY) {
+                if (!callbackName.empty()) {
+                    ctx.invokeCallback(callbackName, widget, event::MouseScrollEvent(x, y, deltaX, deltaY));
+                }
+            });
+        }
     };
 
     // 键盘按下事件
     m_eventBinders["keyDown"] = [](widget::Widget* widget, const String& eventName,
                                     const String& callbackName, binder::BindingContext& ctx) {
         (void)eventName;
-        (void)callbackName;
-        (void)widget;
+        if (widget && widget->isFocused()) {
+            // 注意：键盘事件需要通过Widget的onKey方法处理
+            // 这里设置一个标志，指示此Widget有回调
+            // 实际的键盘事件分发由屏幕/输入系统处理
+            (void)ctx;
+            (void)callbackName;
+        }
     };
 
     // 键盘释放事件
     m_eventBinders["keyUp"] = [](widget::Widget* widget, const String& eventName,
                                   const String& callbackName, binder::BindingContext& ctx) {
         (void)eventName;
-        (void)callbackName;
-        (void)widget;
+        if (widget && widget->isFocused()) {
+            (void)ctx;
+            (void)callbackName;
+        }
     };
 
     // 焦点获得事件
     m_eventBinders["focus"] = [](widget::Widget* widget, const String& eventName,
                                   const String& callbackName, binder::BindingContext& ctx) {
         (void)eventName;
-        (void)callbackName;
         if (widget) {
             widget->setFocused(true);
             widget->onFocusGained();
+            // 调用用户回调
+            if (!callbackName.empty()) {
+                ctx.invokeCallback(callbackName, widget, event::FocusGainedEvent());
+            }
         }
     };
 
@@ -296,10 +474,13 @@ void TemplateInstance::registerDefaultEventBinders() {
     m_eventBinders["blur"] = [](widget::Widget* widget, const String& eventName,
                                  const String& callbackName, binder::BindingContext& ctx) {
         (void)eventName;
-        (void)callbackName;
         if (widget) {
             widget->setFocused(false);
             widget->onFocusLost();
+            // 调用用户回调
+            if (!callbackName.empty()) {
+                ctx.invokeCallback(callbackName, widget, event::FocusLostEvent());
+            }
         }
     };
 
@@ -307,16 +488,32 @@ void TemplateInstance::registerDefaultEventBinders() {
     m_eventBinders["change"] = [](widget::Widget* widget, const String& eventName,
                                    const String& callbackName, binder::BindingContext& ctx) {
         (void)eventName;
+        // 为不同类型的Widget注册值变化回调
+        if (auto* checkbox = dynamic_cast<widget::CheckboxWidget*>(widget)) {
+            // CheckboxWidget需要实现setOnChange方法
+            (void)checkbox;
+        } else if (auto* slider = dynamic_cast<widget::SliderWidget*>(widget)) {
+            // SliderWidget需要实现setOnValueChange方法
+            (void)slider;
+        } else if (auto* textField = dynamic_cast<widget::TextFieldWidget*>(widget)) {
+            // TextFieldWidget需要实现setOnTextChange方法
+            (void)textField;
+        }
+        // 存储回调名以便后续调用
+        (void)ctx;
         (void)callbackName;
-        (void)widget;
     };
 
     // 输入事件
     m_eventBinders["input"] = [](widget::Widget* widget, const String& eventName,
                                   const String& callbackName, binder::BindingContext& ctx) {
         (void)eventName;
+        if (auto* textField = dynamic_cast<widget::TextFieldWidget*>(widget)) {
+            // TextFieldWidget需要实现setOnInput方法
+            (void)textField;
+        }
+        (void)ctx;
         (void)callbackName;
-        (void)widget;
     };
 }
 
