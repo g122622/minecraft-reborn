@@ -44,7 +44,7 @@ struct BindingPlan {
     String widgetPath;      ///< Widget路径 (如 "screen.grid.slot")
     String statePath;       ///< 状态路径 (如 "player.inventory.main[0].item")
     String attributeName;   ///< 属性名 (如 "text", "visible")
-    bool isLoopBinding;     ///< 是否是循环内绑定
+    bool isLoopBinding = false; ///< 是否是循环内绑定
     String loopVarName;     ///< 循环变量名
 
     BindingPlan() = default;

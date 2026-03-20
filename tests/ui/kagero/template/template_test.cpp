@@ -9,7 +9,8 @@
 #include "client/ui/kagero/template/parser/AstVisitor.hpp"
 #include "client/ui/kagero/template/compiler/TemplateCompiler.hpp"
 #include "client/ui/kagero/template/binder/BindingContext.hpp"
-#include "client/ui/kagero/state/StateStore.hpp"
+#include "client/ui/kagero/template/runtime/UpdateScheduler.hpp"
+#include "client/ui/kagero/state/StateStore.hpp""
 #include "client/ui/kagero/event/EventBus.hpp"
 #include "client/ui/kagero/event/UIEvents.hpp"
 
@@ -17,6 +18,7 @@ using namespace mc::client::ui::kagero::tpl;
 using mc::String;
 using mc::i32;
 using mc::f32;
+using mc::u32;
 using mc::u64;
 
 // ==================== TemplateConfig Tests ====================
@@ -2394,3 +2396,702 @@ TEST_F(BindingContextCollectionTest, LoopVariableWithCollection) {
 //     // Re-initialize for other tests
 //     initializeTemplateSystem();
 // }
+
+// ==================== UpdateScheduler Tests ====================
+
+class UpdateSchedulerTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        m_scheduler = std::make_unique<runtime::UpdateScheduler>();
+    }
+
+    std::unique_ptr<runtime::UpdateScheduler> m_scheduler;
+};
+
+TEST_F(UpdateSchedulerTest, ScheduleTask) {
+    u64 taskId = m_scheduler->schedule("player.health", runtime::UpdateScheduler::Priority::Normal);
+    EXPECT_GT(taskId, 0u);
+    EXPECT_TRUE(m_scheduler->hasPending());
+    EXPECT_EQ(m_scheduler->pendingCount(), 1u);
+}
+
+TEST_F(UpdateSchedulerTest, ScheduleMultipleTasks) {
+    m_scheduler->schedule("player.health", runtime::UpdateScheduler::Priority::Normal);
+    m_scheduler->schedule("player.name", runtime::UpdateScheduler::Priority::Normal);
+    m_scheduler->schedule("player.xp", runtime::UpdateScheduler::Priority::Normal);
+
+    EXPECT_EQ(m_scheduler->pendingCount(), 3u);
+}
+
+TEST_F(UpdateSchedulerTest, ScheduleDifferentPriorities) {
+    m_scheduler->schedule("low", runtime::UpdateScheduler::Priority::Low);
+    m_scheduler->schedule("high", runtime::UpdateScheduler::Priority::High);
+    m_scheduler->schedule("normal", runtime::UpdateScheduler::Priority::Normal);
+
+    EXPECT_EQ(m_scheduler->pendingCount(), 3u);
+    EXPECT_EQ(m_scheduler->pendingCount(runtime::UpdateScheduler::Priority::High), 1u);
+    EXPECT_EQ(m_scheduler->pendingCount(runtime::UpdateScheduler::Priority::Normal), 1u);
+    EXPECT_EQ(m_scheduler->pendingCount(runtime::UpdateScheduler::Priority::Low), 1u);
+}
+
+TEST_F(UpdateSchedulerTest, CancelTask) {
+    u64 taskId = m_scheduler->schedule("player.health", runtime::UpdateScheduler::Priority::Normal);
+    EXPECT_TRUE(m_scheduler->hasPending());
+
+    m_scheduler->cancel(taskId);
+    // Cancelled tasks remain in the list but marked as cancelled
+    // They are cleaned up during executePending
+}
+
+TEST_F(UpdateSchedulerTest, CancelByPath) {
+    m_scheduler->schedule("player.health", runtime::UpdateScheduler::Priority::Normal);
+    m_scheduler->schedule("player.name", runtime::UpdateScheduler::Priority::Normal);
+
+    m_scheduler->cancelByPath("player.health");
+    // Should cancel tasks for that path
+}
+
+TEST_F(UpdateSchedulerTest, CancelAll) {
+    m_scheduler->schedule("player.health", runtime::UpdateScheduler::Priority::Normal);
+    m_scheduler->schedule("player.name", runtime::UpdateScheduler::Priority::Normal);
+    m_scheduler->schedule("player.xp", runtime::UpdateScheduler::Priority::Normal);
+
+    m_scheduler->cancelAll();
+    EXPECT_FALSE(m_scheduler->hasPending());
+    EXPECT_EQ(m_scheduler->pendingCount(), 0u);
+}
+
+TEST_F(UpdateSchedulerTest, ExecutePendingNoCallback) {
+    m_scheduler->schedule("player.health", runtime::UpdateScheduler::Priority::Normal);
+
+    // Execute without a callback should return 0
+    u32 executed = m_scheduler->executePending();
+    EXPECT_EQ(executed, 0u);
+}
+
+TEST_F(UpdateSchedulerTest, ExecuteWithCallback) {
+    std::vector<String> updatedPaths;
+    m_scheduler->setUpdateCallback([&updatedPaths](const String& path) -> bool {
+        updatedPaths.push_back(path);
+        return true;
+    });
+
+    m_scheduler->schedule("player.health", runtime::UpdateScheduler::Priority::Normal);
+    m_scheduler->schedule("player.name", runtime::UpdateScheduler::Priority::High);
+
+    EXPECT_TRUE(m_scheduler->hasPending());
+    u32 executed = m_scheduler->executePending();
+    EXPECT_EQ(executed, 2u);
+    EXPECT_EQ(updatedPaths.size(), 2u);
+    EXPECT_FALSE(m_scheduler->hasPending());
+}
+
+TEST_F(UpdateSchedulerTest, SetBatchDelay) {
+    m_scheduler->setBatchDelay(32);
+    // No direct way to verify, but should not crash
+}
+
+TEST_F(UpdateSchedulerTest, SetMaxBatchSize) {
+    m_scheduler->setMaxBatchSize(50);
+    // No direct way to verify, but should not crash
+}
+
+TEST_F(UpdateSchedulerTest, SetDeferredUpdate) {
+    m_scheduler->setDeferredUpdate(true);
+    m_scheduler->setDeferredUpdate(false);
+    // No direct way to verify, but should not crash
+}
+
+TEST_F(UpdateSchedulerTest, CurrentTimestamp) {
+    u64 ts1 = m_scheduler->currentTimestamp();
+    u64 ts2 = m_scheduler->currentTimestamp();
+    // Timestamps should be increasing
+    EXPECT_GE(ts2, ts1);
+}
+
+// ==================== CompiledTemplate Tests ====================
+
+class CompiledTemplateTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        m_config = core::TemplateConfig::defaults();
+    }
+
+    core::TemplateConfig m_config;
+};
+
+TEST_F(CompiledTemplateTest, CreateCompiledTemplate) {
+    compiler::CompiledTemplate compiled;
+    EXPECT_FALSE(compiled.isValid());
+    EXPECT_FALSE(compiled.hasErrors());
+    EXPECT_EQ(compiled.bindingPlans().size(), 0u);
+    EXPECT_EQ(compiled.eventPlans().size(), 0u);
+    EXPECT_EQ(compiled.loopPlans().size(), 0u);
+}
+
+TEST_F(CompiledTemplateTest, AddBindingPlan) {
+    compiler::CompiledTemplate compiled;
+    compiler::BindingPlan plan;
+    plan.widgetPath = "screen.button";
+    plan.statePath = "player.health";
+    plan.attributeName = "text";
+
+    compiled.addBindingPlan(plan);
+    EXPECT_EQ(compiled.bindingPlans().size(), 1u);
+    EXPECT_EQ(compiled.bindingPlans()[0].widgetPath, "screen.button");
+    EXPECT_EQ(compiled.bindingPlans()[0].statePath, "player.health");
+}
+
+TEST_F(CompiledTemplateTest, AddEventPlan) {
+    compiler::CompiledTemplate compiled;
+    compiler::EventPlan plan;
+    plan.widgetPath = "screen.button";
+    plan.eventName = "click";
+    plan.callbackName = "onButtonClick";
+
+    compiled.addEventPlan(plan);
+    EXPECT_EQ(compiled.eventPlans().size(), 1u);
+    EXPECT_EQ(compiled.eventPlans()[0].widgetPath, "screen.button");
+    EXPECT_EQ(compiled.eventPlans()[0].eventName, "click");
+}
+
+TEST_F(CompiledTemplateTest, AddLoopPlan) {
+    compiler::CompiledTemplate compiled;
+    compiler::LoopPlan plan;
+    plan.parentPath = "screen.inventory";
+    plan.collectionPath = "player.items";
+    plan.itemVarName = "item";
+
+    compiled.addLoopPlan(plan);
+    EXPECT_EQ(compiled.loopPlans().size(), 1u);
+    EXPECT_EQ(compiled.loopPlans()[0].collectionPath, "player.items");
+}
+
+TEST_F(CompiledTemplateTest, AddWatchedPath) {
+    compiler::CompiledTemplate compiled;
+    compiled.addWatchedPath("player.health");
+    compiled.addWatchedPath("player.name");
+    compiled.addWatchedPath("player.health"); // Duplicate
+
+    EXPECT_EQ(compiled.watchedPaths().size(), 2u);
+    EXPECT_TRUE(compiled.watchedPaths().count("player.health") > 0);
+    EXPECT_TRUE(compiled.watchedPaths().count("player.name") > 0);
+}
+
+TEST_F(CompiledTemplateTest, AddRegisteredCallback) {
+    compiler::CompiledTemplate compiled;
+    compiled.addRegisteredCallback("onClick");
+    compiled.addRegisteredCallback("onHover");
+    compiled.addRegisteredCallback("onClick"); // Duplicate
+
+    EXPECT_EQ(compiled.registeredCallbacks().size(), 2u);
+    EXPECT_TRUE(compiled.registeredCallbacks().count("onClick") > 0);
+    EXPECT_TRUE(compiled.registeredCallbacks().count("onHover") > 0);
+}
+
+TEST_F(CompiledTemplateTest, SetSourcePath) {
+    compiler::CompiledTemplate compiled;
+    compiled.setSourcePath("templates/main_menu.xml");
+    EXPECT_EQ(compiled.sourcePath(), "templates/main_menu.xml");
+}
+
+TEST_F(CompiledTemplateTest, SetCompileTime) {
+    compiler::CompiledTemplate compiled;
+    compiled.setCompileTime(42);
+    EXPECT_EQ(compiled.compileTime(), 42u);
+}
+
+TEST_F(CompiledTemplateTest, AddError) {
+    compiler::CompiledTemplate compiled;
+    compiled.addError(core::TemplateErrorInfo(
+        core::TemplateErrorType::ParserError,
+        "Test error",
+        core::SourceLocation(10, 5),
+        "test.tpl"
+    ));
+
+    EXPECT_TRUE(compiled.hasErrors());
+    EXPECT_EQ(compiled.errors().size(), 1u);
+    EXPECT_EQ(compiled.errors()[0].message, "Test error");
+}
+
+TEST_F(CompiledTemplateTest, DebugDump) {
+    compiler::CompiledTemplate compiled;
+    compiled.setSourcePath("test.tpl");
+    compiled.addBindingPlan(compiler::BindingPlan{
+        "screen.btn", "player.health", "text", false, ""
+    });
+    compiled.addEventPlan(compiler::EventPlan{
+        "screen.btn", "click", "onClick"
+    });
+
+    String dump = compiled.debugDump();
+    EXPECT_TRUE(dump.find("Compiled Template") != String::npos);
+    EXPECT_TRUE(dump.find("test.tpl") != String::npos);
+    EXPECT_TRUE(dump.find("Binding Plans") != String::npos);
+    EXPECT_TRUE(dump.find("Event Plans") != String::npos);
+}
+
+// ==================== TemplateCompiler Configuration Tests ====================
+
+class TemplateCompilerConfigTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        m_config = core::TemplateConfig::defaults();
+    }
+
+    core::TemplateConfig m_config;
+};
+
+TEST_F(TemplateCompilerConfigTest, StrictMode) {
+    compiler::TemplateCompiler compiler(m_config);
+
+    EXPECT_TRUE(compiler.isStrictMode());
+
+    compiler.setStrictMode(false);
+    EXPECT_FALSE(compiler.isStrictMode());
+}
+
+TEST_F(TemplateCompilerConfigTest, CustomConfig) {
+    core::TemplateConfig customConfig;
+    customConfig.strictMode = false;
+    customConfig.debugOutput = true;
+    customConfig.enableCache = false;
+
+    compiler::TemplateCompiler compiler(customConfig);
+    EXPECT_FALSE(compiler.isStrictMode());
+    EXPECT_FALSE(compiler.config().enableCache);
+    EXPECT_TRUE(compiler.config().debugOutput);
+}
+
+// ==================== Additional BindingContext Tests ====================
+
+class BindingContextAdvancedTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        m_ctx = std::make_unique<binder::BindingContext>(
+            mc::client::ui::kagero::state::StateStore::instance(),
+            mc::client::ui::kagero::event::EventBus::instance()
+        );
+    }
+
+    std::unique_ptr<binder::BindingContext> m_ctx;
+};
+
+TEST_F(BindingContextAdvancedTest, PathResolution) {
+    i32 health = 100;
+    String name = "Steve";
+
+    m_ctx->expose("player.health", &health);
+    m_ctx->expose("player.name", &name);
+
+    // Resolve simple paths
+    auto healthValue = m_ctx->resolveBinding("player.health");
+    EXPECT_EQ(healthValue.asInteger(), 100);
+
+    auto nameValue = m_ctx->resolveBinding("player.name");
+    EXPECT_EQ(nameValue.asString(), "Steve");
+}
+
+TEST_F(BindingContextAdvancedTest, WritableVariable) {
+    i32 level = 1;
+
+    m_ctx->exposeWritable("player.level", &level);
+
+    EXPECT_TRUE(m_ctx->hasPath("player.level"));
+    EXPECT_TRUE(m_ctx->isWritable("player.level"));
+
+    // Read
+    auto value = m_ctx->resolveBinding("player.level");
+    EXPECT_EQ(value.asInteger(), 1);
+
+    // Write
+    EXPECT_TRUE(m_ctx->setBinding("player.level", binder::Value(10)));
+    EXPECT_EQ(level, 10);
+}
+
+TEST_F(BindingContextAdvancedTest, WritableBoolVariable) {
+    bool visible = true;
+    m_ctx->exposeWritable("ui.visible", &visible);
+
+    EXPECT_TRUE(m_ctx->setBinding("ui.visible", binder::Value(false)));
+    EXPECT_FALSE(visible);
+}
+
+TEST_F(BindingContextAdvancedTest, WritableFloatVariable) {
+    f32 volume = 0.5f;
+    m_ctx->exposeWritable("settings.volume", &volume);
+
+    EXPECT_TRUE(m_ctx->setBinding("settings.volume", binder::Value(0.8f)));
+    EXPECT_FLOAT_EQ(volume, 0.8f);
+}
+
+TEST_F(BindingContextAdvancedTest, WritableStringVariable) {
+    String name = "Alex";
+    m_ctx->exposeWritable("player.name", &name);
+
+    EXPECT_TRUE(m_ctx->setBinding("player.name", binder::Value(String("Steve"))));
+    EXPECT_EQ(name, "Steve");
+}
+
+TEST_F(BindingContextAdvancedTest, NotifyChangeWithSubscriber) {
+    i32 health = 100;
+    m_ctx->expose("player.health", &health);
+
+    String changedPath;
+    binder::Value changedValue;
+    u64 subId = m_ctx->subscribe("player.health", [&](const String& path, const binder::Value& value) {
+        changedPath = path;
+        changedValue = value;
+    });
+
+    m_ctx->notifyChange("player.health", binder::Value(50));
+
+    EXPECT_EQ(changedPath, "player.health");
+    EXPECT_EQ(changedValue.asInteger(), 50);
+
+    m_ctx->unsubscribe(subId);
+}
+
+TEST_F(BindingContextAdvancedTest, MultipleSubscribers) {
+    i32 xp = 0;
+    m_ctx->expose("player.xp", &xp);
+
+    int callCount1 = 0;
+    int callCount2 = 0;
+
+    u64 sub1 = m_ctx->subscribe("player.xp", [&](const String&, const binder::Value&) {
+        callCount1++;
+    });
+    u64 sub2 = m_ctx->subscribe("player.xp", [&](const String&, const binder::Value&) {
+        callCount2++;
+    });
+
+    m_ctx->notifyChange("player.xp", binder::Value(100));
+
+    EXPECT_EQ(callCount1, 1);
+    EXPECT_EQ(callCount2, 1);
+
+    m_ctx->unsubscribe(sub1);
+    m_ctx->unsubscribe(sub2);
+}
+
+TEST_F(BindingContextAdvancedTest, CollectionOperations) {
+    // Test setCollection with integers
+    m_ctx->setCollection<i32>("numbers", {1, 2, 3, 4, 5});
+
+    auto numbers = m_ctx->resolveCollection("numbers");
+    EXPECT_EQ(numbers.size(), 5u);
+    EXPECT_EQ(numbers[0].asInteger(), 1);
+    EXPECT_EQ(numbers[4].asInteger(), 5);
+
+    // Test setCollection with strings
+    m_ctx->setCollection<String>("names", {"Alice", "Bob", "Charlie"});
+
+    auto names = m_ctx->resolveCollection("names");
+    EXPECT_EQ(names.size(), 3u);
+    EXPECT_EQ(names[0].asString(), "Alice");
+    EXPECT_EQ(names[2].asString(), "Charlie");
+}
+
+TEST_F(BindingContextAdvancedTest, NonexistentPath) {
+    auto value = m_ctx->resolveBinding("nonexistent.path");
+    EXPECT_TRUE(value.isNull());
+    EXPECT_FALSE(m_ctx->hasPath("nonexistent.path"));
+}
+
+TEST_F(BindingContextAdvancedTest, ReadOnlyCannotWrite) {
+    i32 health = 100;
+    m_ctx->expose("player.health", &health);  // Read-only
+
+    EXPECT_FALSE(m_ctx->isWritable("player.health"));
+    EXPECT_FALSE(m_ctx->setBinding("player.health", binder::Value(50)));
+    EXPECT_EQ(health, 100);  // Unchanged
+}
+
+// ==================== BindingPlan Tests ====================
+
+class BindingPlanTest : public ::testing::Test {
+};
+
+TEST_F(BindingPlanTest, DefaultConstruction) {
+    compiler::BindingPlan plan;
+    EXPECT_TRUE(plan.widgetPath.empty());
+    EXPECT_TRUE(plan.statePath.empty());
+    EXPECT_TRUE(plan.attributeName.empty());
+    EXPECT_FALSE(plan.isLoopBinding);
+    EXPECT_TRUE(plan.loopVarName.empty());
+}
+
+TEST_F(BindingPlanTest, ParameterizedConstruction) {
+    compiler::BindingPlan plan("screen.grid.slot", "player.inventory[0]", "item", true, "slot");
+
+    EXPECT_EQ(plan.widgetPath, "screen.grid.slot");
+    EXPECT_EQ(plan.statePath, "player.inventory[0]");
+    EXPECT_EQ(plan.attributeName, "item");
+    EXPECT_TRUE(plan.isLoopBinding);
+    EXPECT_EQ(plan.loopVarName, "slot");
+}
+
+// ==================== EventPlan Tests ====================
+
+class EventPlanTest : public ::testing::Test {
+};
+
+TEST_F(EventPlanTest, DefaultConstruction) {
+    compiler::EventPlan plan;
+    EXPECT_TRUE(plan.widgetPath.empty());
+    EXPECT_TRUE(plan.eventName.empty());
+    EXPECT_TRUE(plan.callbackName.empty());
+}
+
+TEST_F(EventPlanTest, ParameterizedConstruction) {
+    compiler::EventPlan plan("screen.btn", "click", "onButtonClick");
+
+    EXPECT_EQ(plan.widgetPath, "screen.btn");
+    EXPECT_EQ(plan.eventName, "click");
+    EXPECT_EQ(plan.callbackName, "onButtonClick");
+}
+
+// ==================== LoopPlan Tests ====================
+
+class LoopPlanTest : public ::testing::Test {
+};
+
+TEST_F(LoopPlanTest, DefaultConstruction) {
+    compiler::LoopPlan plan;
+    EXPECT_TRUE(plan.parentPath.empty());
+    EXPECT_TRUE(plan.collectionPath.empty());
+    EXPECT_TRUE(plan.itemVarName.empty());
+    EXPECT_EQ(plan.itemBindings.size(), 0u);
+}
+
+TEST_F(LoopPlanTest, ParameterizedConstruction) {
+    compiler::LoopPlan plan("screen.inventory", "player.items", "item");
+
+    EXPECT_EQ(plan.parentPath, "screen.inventory");
+    EXPECT_EQ(plan.collectionPath, "player.items");
+    EXPECT_EQ(plan.itemVarName, "item");
+}
+
+// ==================== Documentation Example Tests ====================
+
+class DocumentationExampleTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        m_ctx = std::make_unique<binder::BindingContext>(
+            mc::client::ui::kagero::state::StateStore::instance(),
+            mc::client::ui::kagero::event::EventBus::instance()
+        );
+    }
+
+    void TearDown() override {
+        m_ctx->clear();
+    }
+
+    std::unique_ptr<binder::BindingContext> m_ctx;
+    core::TemplateConfig m_config;
+};
+
+// 文档示例 1: 编译模板
+TEST_F(DocumentationExampleTest, CompileTemplateExample) {
+    compiler::TemplateCompiler compiler;
+    compiler.setStrictMode(true);
+
+    auto compiled = compiler.compile(R"(
+        <screen id="main">
+            <text id="title" text="Welcome"/>
+            <button id="btn_start" text="Start" on:click="onStart"/>
+        </screen>
+    )");
+
+    ASSERT_TRUE(compiled);
+    EXPECT_FALSE(compiled->hasErrors());
+    EXPECT_TRUE(compiled->isValid());
+    EXPECT_NE(compiled->astRoot(), nullptr);
+}
+
+// 文档示例 2: 绑定上下文使用
+TEST_F(DocumentationExampleTest, BindingContextExample) {
+    // 暴露只读变量
+    String playerName = "Steve";
+    m_ctx->expose("player.name", &playerName);
+
+    // 暴露可写变量
+    i32 health = 100;
+    m_ctx->exposeWritable("player.health", &health);
+
+    // 验证读取
+    auto nameValue = m_ctx->resolveBinding("player.name");
+    EXPECT_TRUE(nameValue.isString());
+    EXPECT_EQ(nameValue.asString(), "Steve");
+
+    auto healthValue = m_ctx->resolveBinding("player.health");
+    EXPECT_TRUE(healthValue.isInteger());
+    EXPECT_EQ(healthValue.asInteger(), 100);
+
+    // 验证写入
+    EXPECT_TRUE(m_ctx->setBinding("player.health", binder::Value(50)));
+    EXPECT_EQ(health, 50);
+
+    // 验证只读变量不能写入
+    EXPECT_FALSE(m_ctx->setBinding("player.name", binder::Value("Alex")));
+}
+
+// 文档示例 3: 暴露简单回调
+TEST_F(DocumentationExampleTest, SimpleCallbackExample) {
+    bool simpleCallbackCalled = false;
+
+    m_ctx->exposeSimpleCallback("onCancel", [&]() {
+        simpleCallbackCalled = true;
+    });
+
+    EXPECT_TRUE(m_ctx->hasCallback("onCancel"));
+    EXPECT_TRUE(m_ctx->invokeCallback("onCancel", nullptr, mc::client::ui::kagero::event::Event()));
+    EXPECT_TRUE(simpleCallbackCalled);
+}
+
+// 文档示例 4: 状态订阅
+TEST_F(DocumentationExampleTest, StateSubscriptionExample) {
+    i32 health = 100;
+    m_ctx->exposeWritable("player.health", &health);
+
+    String changedPath;
+    binder::Value newValue;
+
+    u64 subId = m_ctx->subscribe("player.health",
+        [&](const String& path, const binder::Value& value) {
+            changedPath = path;
+            newValue = value;
+        });
+
+    m_ctx->notifyChange("player.health", binder::Value(75));
+
+    EXPECT_EQ(changedPath, "player.health");
+    EXPECT_TRUE(newValue.isInteger());
+    EXPECT_EQ(newValue.asInteger(), 75);
+
+    m_ctx->unsubscribe(subId);
+}
+
+// 文档示例 5: 循环变量
+TEST_F(DocumentationExampleTest, LoopVariableExample) {
+    m_ctx->setLoopVariable("item", binder::Value(42));
+
+    // 验证循环变量访问
+    auto value = m_ctx->resolveBinding("$item");
+    EXPECT_TRUE(value.isInteger());
+    EXPECT_EQ(value.asInteger(), 42);
+
+    // 清除循环变量
+    m_ctx->clearLoopVariable("item");
+    EXPECT_FALSE(m_ctx->hasLoopVariable("item"));
+}
+
+// 文档示例 6: 集合解析
+TEST_F(DocumentationExampleTest, CollectionExample) {
+    // 设置集合
+    std::vector<binder::Value> items;
+    items.emplace_back(binder::Value("Item1"));
+    items.emplace_back(binder::Value("Item2"));
+    items.emplace_back(binder::Value("Item3"));
+
+    m_ctx->setCollectionValue("inventory.items", items);
+
+    // 解析集合
+    auto resolved = m_ctx->resolveCollection("inventory.items");
+    EXPECT_EQ(resolved.size(), 3u);
+    EXPECT_EQ(resolved[0].asString(), "Item1");
+    EXPECT_EQ(resolved[1].asString(), "Item2");
+    EXPECT_EQ(resolved[2].asString(), "Item3");
+}
+
+// 文档示例 7: 完整模板编译流程
+TEST_F(DocumentationExampleTest, FullCompileWorkflow) {
+    compiler::TemplateCompiler compiler;
+    compiler.setStrictMode(true);
+
+    // 编译复杂模板
+    auto compiled = compiler.compile(R"(
+        <screen id="main" width="800" height="600">
+            <text id="title" text="Game Title" x="400" y="50"/>
+            <container id="content">
+                <text id="playerName" bind:text="player.name"/>
+                <text id="healthText" bind:text="player.health"/>
+                <button id="startBtn" text="Start" on:click="onStart"/>
+                <button id="cancelBtn" text="Cancel" on:click="onCancel"/>
+            </container>
+        </screen>
+    )");
+
+    ASSERT_TRUE(compiled);
+    EXPECT_FALSE(compiled->hasErrors());
+    EXPECT_TRUE(compiled->isValid());
+
+    // 验证编译结果
+    EXPECT_GT(compiled->bindingPlans().size(), 0u);
+    EXPECT_GT(compiled->eventPlans().size(), 0u);
+    EXPECT_GT(compiled->watchedPaths().size(), 0u);
+    EXPECT_GT(compiled->registeredCallbacks().size(), 0u);
+}
+
+// 文档示例 8: UpdateScheduler 使用
+TEST_F(DocumentationExampleTest, UpdateSchedulerWorkflow) {
+    runtime::UpdateScheduler scheduler;
+
+    std::vector<String> executedPaths;
+
+    scheduler.setUpdateCallback([&executedPaths](const String& path) -> bool {
+        executedPaths.push_back(path);
+        return true;
+    });
+
+    // 调度不同优先级的更新
+    scheduler.schedule("player.health", runtime::UpdateScheduler::Priority::High);
+    scheduler.schedule("player.name", runtime::UpdateScheduler::Priority::Normal);
+    scheduler.schedule("ui.stats", runtime::UpdateScheduler::Priority::Low);
+
+    EXPECT_TRUE(scheduler.hasPending());
+    EXPECT_EQ(scheduler.pendingCount(), 3u);
+
+    // 执行高优先级任务
+    u32 highExecuted = scheduler.executeHighPriority();
+    EXPECT_EQ(highExecuted, 1u);
+    EXPECT_EQ(executedPaths.size(), 1u);
+    EXPECT_EQ(executedPaths[0], "player.health");
+
+    // 执行所有剩余任务
+    u32 remaining = scheduler.executePending();
+    EXPECT_EQ(remaining, 2u);
+    EXPECT_EQ(executedPaths.size(), 3u);
+}
+
+// 文档示例 9: 类型转换测试
+TEST_F(DocumentationExampleTest, TypeConversionExample) {
+    // 测试各种类型的暴露和转换
+    bool boolVal = true;
+    i32 intVal = 42;
+    f32 floatVal = 3.14f;
+    String strVal = "hello";
+
+    m_ctx->exposeWritable("bool.val", &boolVal);
+    m_ctx->exposeWritable("int.val", &intVal);
+    m_ctx->exposeWritable("float.val", &floatVal);
+    m_ctx->exposeWritable("str.val", &strVal);
+
+    // 验证类型
+    EXPECT_TRUE(m_ctx->resolveBinding("bool.val").isBool());
+    EXPECT_TRUE(m_ctx->resolveBinding("int.val").isInteger());
+    EXPECT_TRUE(m_ctx->resolveBinding("float.val").isFloat());
+    EXPECT_TRUE(m_ctx->resolveBinding("str.val").isString());
+
+    // 验证写入类型转换
+    m_ctx->setBinding("int.val", binder::Value(100));
+    EXPECT_EQ(intVal, 100);
+
+    m_ctx->setBinding("float.val", binder::Value(2.71f));
+    EXPECT_FLOAT_EQ(floatVal, 2.71f);
+
+    m_ctx->setBinding("str.val", binder::Value(String("world")));
+    EXPECT_EQ(strVal, "world");
+}

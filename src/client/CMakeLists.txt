@@ -88,6 +88,7 @@ add_executable(minecraft-client
     ui/kagero/template/binder/BindingContext.cpp
     ui/kagero/template/compiler/TemplateCompiler.cpp
     ui/kagero/template/runtime/TemplateInstance.cpp
+    ui/kagero/template/runtime/UpdateScheduler.cpp
     ui/kagero/template/bindings/BuiltinWidgets.cpp
     ui/kagero/template/bindings/BuiltinEvents.cpp
     ui/kagero/template/TemplateSystem.cpp

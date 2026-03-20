@@ -54,6 +54,9 @@
 #include "core/TemplateConfig.hpp"
 #include "core/TemplateError.hpp"
 
+// 模板系统入口函数
+#include "TemplateSystem.hpp"
+
 // AST和解析器
 #include "parser/Ast.hpp"
 #include "parser/AstVisitor.hpp"
@@ -86,17 +89,6 @@
  * - bindings: 内置Widget和事件注册
  */
 namespace mc::client::ui::kagero::tpl {
-
-/**
- * @brief 初始化模板系统
- *
- * 必须在使用模板系统前调用。
- * 初始化内置Widget工厂和事件处理器。
- */
-inline void initializeTemplateSystem() {
-    bindings::BuiltinWidgets::instance().initialize();
-    bindings::BuiltinEvents::instance().initialize();
-}
 
 /**
  * @brief 模板系统版本信息

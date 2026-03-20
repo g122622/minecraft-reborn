@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <any>
 #include <typeindex>
+#include <type_traits>
 #include <vector>
 
 namespace mc::client::ui::kagero::tpl::binder {
@@ -72,7 +73,11 @@ public:
     bool operator!=(const Value& other) const { return !(*this == other); }
 
     // 获取属性（用于路径解析）
+    // 对于简单类型返回空值，扩展时可以支持对象类型
     [[nodiscard]] Value getProperty(const String& name) const;
+
+    // 设置属性（用于构建对象）
+    void setProperty(const String& name, const Value& value);
 
     // 获取数组元素
     [[nodiscard]] Value getElement(size_t index) const;
@@ -190,7 +195,19 @@ public:
         var.typeName = typeid(T).name();
         var.isWritable = true;
         var.readFunc = [ptr]() -> Value { return Value(*ptr); };
-        var.writeFunc = [ptr](const Value& v) { *ptr = static_cast<T>(v.toFloat()); };
+        var.writeFunc = [ptr](const Value& v) {
+            if constexpr (std::is_same_v<T, bool>) {
+                *ptr = v.toBool();
+            } else if constexpr (std::is_integral_v<T>) {
+                *ptr = static_cast<T>(v.toInteger());
+            } else if constexpr (std::is_floating_point_v<T>) {
+                *ptr = static_cast<T>(v.toFloat());
+            } else if constexpr (std::is_same_v<T, String>) {
+                *ptr = v.asString();
+            } else {
+                *ptr = static_cast<T>(v.toFloat());
+            }
+        };
         var.onUpdate = std::move(onUpdate);
         m_exposedVars[path] = std::move(var);
     }
@@ -212,7 +229,17 @@ public:
         var.isWritable = true;
         var.readFunc = [&reactive]() -> Value { return Value(reactive.get()); };
         var.writeFunc = [&reactive](const Value& v) {
-            reactive.set(static_cast<T>(v.toFloat()));
+            if constexpr (std::is_same_v<T, bool>) {
+                reactive.set(v.toBool());
+            } else if constexpr (std::is_integral_v<T>) {
+                reactive.set(static_cast<T>(v.toInteger()));
+            } else if constexpr (std::is_floating_point_v<T>) {
+                reactive.set(static_cast<T>(v.toFloat()));
+            } else if constexpr (std::is_same_v<T, String>) {
+                reactive.set(v.asString());
+            } else {
+                reactive.set(static_cast<T>(v.toFloat()));
+            }
         };
         m_exposedVars[path] = std::move(var);
 

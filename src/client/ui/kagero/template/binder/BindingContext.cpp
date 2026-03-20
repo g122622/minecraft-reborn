@@ -136,9 +136,18 @@ Value Value::arrayGet(size_t index) const {
 
 Value Value::getProperty(const String& name) const {
     // 对于简单值类型，不支持属性访问
-    // 扩展时可以支持对象类型
+    // 当前的设计是：属性访问通过 BindingContext 的路径解析来处理
+    // 例如 "player.health" 会直接在 BindingContext 中查找完整路径
+    // 只有数组类型可以通过 getElement 访问
     (void)name;
     return Value();
+}
+
+void Value::setProperty(const String& name, const Value& value) {
+    // 对于简单值类型，不支持属性设置
+    // 这是一个占位实现，可以扩展为支持对象类型
+    (void)name;
+    (void)value;
 }
 
 Value Value::getElement(size_t index) const {

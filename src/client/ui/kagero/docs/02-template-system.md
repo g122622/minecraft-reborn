@@ -7,7 +7,7 @@ Kagero 模板系统提供声明式的 UI 定义方式，支持零内联脚本、
 模板系统包含以下核心组件：
 
 ```
-tpl/
+template/
 ├── core/           # 核心配置和错误处理
 │   ├── TemplateConfig.hpp
 │   └── TemplateError.hpp
@@ -17,7 +17,7 @@ tpl/
 │   └── Ast.hpp
 ├── binder/         # 绑定上下文
 │   └── BindingContext.hpp
-├── compiler/       # 模板编译器
+├── compiler/       # 模板编译器  
 │   └── TemplateCompiler.hpp
 ├── runtime/        # 运行时实例
 │   └── TemplateInstance.hpp

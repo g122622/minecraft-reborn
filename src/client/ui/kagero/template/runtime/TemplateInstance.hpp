@@ -2,6 +2,7 @@
 
 #include "../compiler/TemplateCompiler.hpp"
 #include "../binder/BindingContext.hpp"
+#include "UpdateScheduler.hpp"
 #include "../../widget/Widget.hpp"
 #include "../../widget/IWidgetContainer.hpp"
 #include <memory>
@@ -10,8 +11,7 @@
 
 namespace mc::client::ui::kagero::tpl::runtime {
 
-// 前向声明
-class UpdateScheduler;
+// 前向声明已移至 UpdateScheduler.hpp
 
 /**
  * @brief Widget工厂函数类型
@@ -340,168 +340,6 @@ private:
 
     // 订阅ID
     std::vector<u64> m_subscriptionIds;
-};
-
-/**
- * @brief 更新调度器
- *
- * 管理模板实例的增量更新，避免频繁刷新整个模板。
- * 支持批量更新、延迟更新和优先级调度。
- */
-class UpdateScheduler {
-public:
-    /**
-     * @brief 更新优先级
-     */
-    enum class Priority : u8 {
-        High = 0,       ///< 高优先级（立即更新）
-        Normal = 1,     ///< 普通优先级（下一帧更新）
-        Low = 2         ///< 低优先级（批量更新）
-    };
-
-    /**
-     * @brief 更新任务
-     */
-    struct UpdateTask {
-        String path;                ///< 状态路径
-        Priority priority;          ///< 优先级
-        u64 timestamp;              ///< 创建时间戳
-        bool cancelled = false;     ///< 是否取消
-
-        UpdateTask(String p, Priority pri, u64 ts)
-            : path(std::move(p)), priority(pri), timestamp(ts) {}
-    };
-
-    /**
-     * @brief 构造函数
-     */
-    UpdateScheduler();
-
-    /**
-     * @brief 析构函数
-     */
-    ~UpdateScheduler();
-
-    // 禁止拷贝
-    UpdateScheduler(const UpdateScheduler&) = delete;
-    UpdateScheduler& operator=(const UpdateScheduler&) = delete;
-
-    // ========== 任务调度 ==========
-
-    /**
-     * @brief 调度更新任务
-     *
-     * @param path 状态路径
-     * @param priority 优先级
-     * @return 任务ID
-     */
-    u64 schedule(const String& path, Priority priority = Priority::Normal);
-
-    /**
-     * @brief 取消更新任务
-     */
-    void cancel(u64 taskId);
-
-    /**
-     * @brief 取消所有指定路径的任务
-     */
-    void cancelByPath(const String& path);
-
-    /**
-     * @brief 取消所有任务
-     */
-    void cancelAll();
-
-    // ========== 更新执行 ==========
-
-    /**
-     * @brief 执行所有待处理任务
-     *
-     * @param instance 模板实例
-     * @return 执行的任务数量
-     */
-    u32 executePending(TemplateInstance* instance);
-
-    /**
-     * @brief 执行高优先级任务
-     */
-    u32 executeHighPriority(TemplateInstance* instance);
-
-    /**
-     * @brief 执行普通优先级任务
-     */
-    u32 executeNormalPriority(TemplateInstance* instance);
-
-    /**
-     * @brief 执行低优先级任务
-     */
-    u32 executeLowPriority(TemplateInstance* instance);
-
-    /**
-     * @brief 执行批量更新（合并相同路径的更新）
-     */
-    u32 executeBatch(TemplateInstance* instance);
-
-    // ========== 配置 ==========
-
-    /**
-     * @brief 设置批量更新延迟（毫秒）
-     */
-    void setBatchDelay(u32 delayMs) { m_batchDelayMs = delayMs; }
-
-    /**
-     * @brief 设置最大批量大小
-     */
-    void setMaxBatchSize(u32 size) { m_maxBatchSize = size; }
-
-    /**
-     * @brief 设置是否启用延迟更新
-     */
-    void setDeferredUpdate(bool enabled) { m_deferredUpdate = enabled; }
-
-    // ========== 状态查询 ==========
-
-    /**
-     * @brief 获取待处理任务数量
-     */
-    [[nodiscard]] u32 pendingCount() const;
-
-    /**
-     * @brief 检查是否有待处理任务
-     */
-    [[nodiscard]] bool hasPending() const { return pendingCount() > 0; }
-
-    /**
-     * @brief 获取指定优先级的待处理任务数量
-     */
-    [[nodiscard]] u32 pendingCount(Priority priority) const;
-
-    /**
-     * @brief 获取当前时间戳
-     */
-    [[nodiscard]] u64 currentTimestamp() const;
-
-private:
-    /**
-     * @brief 执行指定优先级的任务
-     */
-    u32 executePriority(TemplateInstance* instance, Priority priority);
-
-    /**
-     * @brief 去重路径
-     */
-    void deduplicatePaths();
-
-private:
-    std::vector<std::unique_ptr<UpdateTask>> m_tasks;
-    std::unordered_map<String, std::vector<u64>> m_pathToTasks;
-    u64 m_nextTaskId = 1;
-    u64 m_nextTimestamp = 0;
-
-    // 配置
-    u32 m_batchDelayMs = 16;    ///< 批量更新延迟（默认16ms）
-    u32 m_maxBatchSize = 100;   ///< 最大批量大小
-    bool m_deferredUpdate = true; ///< 是否启用延迟更新
 };
 
 } // namespace mc::client::ui::kagero::tpl::runtime
