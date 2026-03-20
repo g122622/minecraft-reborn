@@ -36,7 +36,7 @@ public:
     [[nodiscard]] f32 alpha() const override { return m_alpha; }
 
 private:
-    paint::Color m_color = paint::WHITE;
+    paint::Color m_color = paint::WHITE_COLOR;
     paint::PaintStyle m_style = paint::PaintStyle::Fill;
     paint::StrokeCap m_cap = paint::StrokeCap::Butt;
     paint::StrokeJoin m_join = paint::StrokeJoin::Miter;

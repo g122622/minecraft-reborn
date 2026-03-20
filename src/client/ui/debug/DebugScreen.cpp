@@ -10,6 +10,9 @@
 #include "../../renderer/trident/sky/CelestialCalculations.hpp"
 #include "../../world/ClientWorld.hpp"
 #include "../../world/entity/ClientEntityManager.hpp"
+#include "../TridentCanvas.hpp"
+#include "../kagero/paint/PaintContext.hpp"
+#include "../minecraft/screens/DebugScreenWidget.hpp"
 #include <iomanip>
 #include <sstream>
 #include <spdlog/spdlog.h>
@@ -23,12 +26,57 @@ DebugScreen::DebugScreen()
     m_cpuInfo = util::PlatformInfo::getCpuInfo();
 }
 
+DebugScreen::~DebugScreen() = default;
+
 Result<void> DebugScreen::initialize(GuiRenderer* guiRenderer) {
     if (guiRenderer == nullptr) {
         return Error(ErrorCode::NullPointer, "GuiRenderer is null");
     }
 
     m_guiRenderer = guiRenderer;
+
+    // 创建 TridentCanvas
+    m_canvas = std::make_unique<ui::TridentCanvas>(*guiRenderer, *guiRenderer->font());
+
+    // 创建 PaintContext
+    m_paintContext = std::make_unique<ui::kagero::widget::PaintContext>(*m_canvas);
+
+    // 创建 DebugScreenWidget
+    m_widget = std::make_unique<ui::minecraft::DebugScreenWidget>();
+
+    // 设置文本宽度测量回调
+    m_widget->setTextWidthCallback([this](const String& text) -> f32 {
+        if (m_guiRenderer) {
+            // 将 String (std::u32string) 转换为 std::string (UTF-8)
+            std::string utf8;
+            utf8.reserve(text.size() * 4);
+            for (char32_t c : text) {
+                if (c < 0x80) {
+                    utf8.push_back(static_cast<char>(c));
+                } else if (c < 0x800) {
+                    utf8.push_back(static_cast<char>(0xC0 | (c >> 6)));
+                    utf8.push_back(static_cast<char>(0x80 | (c & 0x3F)));
+                } else if (c < 0x10000) {
+                    utf8.push_back(static_cast<char>(0xE0 | (c >> 12)));
+                    utf8.push_back(static_cast<char>(0x80 | ((c >> 6) & 0x3F)));
+                    utf8.push_back(static_cast<char>(0x80 | (c & 0x3F)));
+                } else {
+                    utf8.push_back(static_cast<char>(0xF0 | (c >> 18)));
+                    utf8.push_back(static_cast<char>(0x80 | ((c >> 12) & 0x3F)));
+                    utf8.push_back(static_cast<char>(0x80 | ((c >> 6) & 0x3F)));
+                    utf8.push_back(static_cast<char>(0x80 | (c & 0x3F)));
+                }
+            }
+            return m_guiRenderer->getTextWidth(utf8);
+        }
+        return static_cast<f32>(text.size() * 6);  // 默认宽度估计
+    });
+
+    // 设置行高（字体高度 + 2）
+    if (m_guiRenderer) {
+        m_widget->setLineHeight(static_cast<i32>(m_guiRenderer->getFontHeight()) + 2);
+    }
+
     m_initialized = true;
 
     // 初始化时获取CPU信息
@@ -47,15 +95,62 @@ void DebugScreen::update(f32 deltaTime) {
 }
 
 void DebugScreen::render() {
-    if (!m_visible || m_guiRenderer == nullptr) return;
+    if (!m_visible || m_guiRenderer == nullptr || !m_widget || !m_canvas || !m_paintContext) return;
 
-    f32 screenWidth = static_cast<f32>(m_guiRenderer->screenWidth());
+    // 更新 canvas 尺寸
+    m_canvas->resize(
+        static_cast<i32>(m_guiRenderer->screenWidth()),
+        static_cast<i32>(m_guiRenderer->screenHeight())
+    );
+    m_canvas->beginFrame();
 
-    // 渲染左侧面板
-    renderPanel(m_leftLines, 2.0f, false);
+    // 转换 std::string 到 String (kagero 使用 String = std::u32string)
+    auto toString32 = [](const std::string& str) -> String {
+        String result;
+        result.reserve(str.size());
+        for (unsigned char c : str) {
+            if (c < 0x80) {
+                result.push_back(static_cast<char32_t>(c));
+            } else {
+                // UTF-8 解码
+                char32_t codepoint = 0;
+                if ((c & 0xE0) == 0xC0) {
+                    codepoint = c & 0x1F;
+                    result.push_back(codepoint);
+                } else if ((c & 0xF0) == 0xE0) {
+                    codepoint = c & 0x0F;
+                    result.push_back(codepoint);
+                } else if ((c & 0xF8) == 0xF0) {
+                    codepoint = c & 0x07;
+                    result.push_back(codepoint);
+                }
+            }
+        }
+        return result;
+    };
 
-    // 渲染右侧面板
-    renderPanel(m_rightLines, screenWidth - 2.0f, true);
+    // 转换文本行
+    std::vector<String> leftLines;
+    leftLines.reserve(m_leftLines.size());
+    for (const auto& line : m_leftLines) {
+        leftLines.push_back(toString32(line));
+    }
+
+    std::vector<String> rightLines;
+    rightLines.reserve(m_rightLines.size());
+    for (const auto& line : m_rightLines) {
+        rightLines.push_back(toString32(line));
+    }
+
+    // 更新 widget 数据
+    m_widget->setData(leftLines, rightLines,
+                      m_guiRenderer->screenWidth(),
+                      m_guiRenderer->screenHeight());
+
+    // 绘制
+    m_widget->paint(*m_paintContext);
+
+    m_canvas->endFrame();
 }
 
 void DebugScreen::updateFps(f32 deltaTime) {

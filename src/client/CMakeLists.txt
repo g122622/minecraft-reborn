@@ -122,6 +122,7 @@ add_executable(minecraft-client
     ui/minecraft/screens/ContainerScreen.cpp
     ui/minecraft/screens/PauseScreen.cpp
     ui/minecraft/screens/OptionsScreen.cpp
+    ui/minecraft/screens/DebugScreenWidget.cpp
     # 客户端实体管理
     world/entity/ClientEntity.cpp
     world/entity/ClientEntityManager.cpp

@@ -37,8 +37,8 @@ struct Color {
     }
 };
 
-inline constexpr Color WHITE{1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr Color BLACK{0.0f, 0.0f, 0.0f, 1.0f};
-inline constexpr Color TRANSPARENT{0.0f, 0.0f, 0.0f, 0.0f};
+inline constexpr Color WHITE_COLOR{1.0f, 1.0f, 1.0f, 1.0f};
+inline constexpr Color BLACK_COLOR{0.0f, 0.0f, 0.0f, 1.0f};
+inline constexpr Color TRANSPARENT_COLOR{0.0f, 0.0f, 0.0f, 0.0f};
 
 } // namespace mc::client::ui::kagero::paint

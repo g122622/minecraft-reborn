@@ -8,6 +8,7 @@
 #include <string>
 #include <chrono>
 #include <vector>
+#include <memory>
 
 namespace mc {
 
@@ -20,6 +21,19 @@ namespace client {
 class ClientWorld;
 class ClientEntityManager;
 class NetworkClient;
+
+// UI 前向声明
+namespace ui {
+class TridentCanvas;
+}
+
+namespace ui::kagero::widget {
+class PaintContext;
+}
+
+namespace ui::minecraft {
+class DebugScreenWidget;
+}
 
 /**
  * @brief GPU信息结构
@@ -74,7 +88,7 @@ struct HeightmapInfo {
 class DebugScreen {
 public:
     DebugScreen();
-    ~DebugScreen() = default;
+    ~DebugScreen();
 
     /**
      * @brief 初始化调试屏幕
@@ -290,6 +304,11 @@ private:
     static constexpr u32 COLOR_GRAY = Colors::MC_GRAY;
     static constexpr u32 COLOR_YELLOW = Colors::MC_YELLOW;
     static constexpr u32 COLOR_GREEN = Colors::MC_GREEN;
+
+    // kagero UI 组件
+    std::unique_ptr<ui::minecraft::DebugScreenWidget> m_widget;
+    std::unique_ptr<ui::TridentCanvas> m_canvas;
+    std::unique_ptr<ui::kagero::widget::PaintContext> m_paintContext;
 };
 
 } // namespace client
