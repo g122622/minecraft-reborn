@@ -191,7 +191,8 @@ public:
      */
     explicit Computed(ComputeFunc compute)
         : m_compute(std::move(compute))
-        , m_cachedValue(m_compute()) {}
+        , m_cachedValue(m_compute())
+        , m_dirty(false) {}  // 初始已计算，不需要重新计算
 
     /**
      * @brief 获取计算值
@@ -221,7 +222,7 @@ public:
 private:
     ComputeFunc m_compute;
     T m_cachedValue;
-    bool m_dirty = true;
+    bool m_dirty = false;
 };
 
 /**

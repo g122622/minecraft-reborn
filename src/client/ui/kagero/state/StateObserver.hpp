@@ -98,26 +98,53 @@ public:
      * @brief 析构时自动移除观察
      */
     ~AutoObserver() {
-        m_reactive.removeObserver(m_observerId);
+        if (m_observerId != 0) {
+            m_reactive.removeObserver(m_observerId);
+        }
     }
 
     // 禁止拷贝
     AutoObserver(const AutoObserver&) = delete;
     AutoObserver& operator=(const AutoObserver&) = delete;
 
-    // 允许移动
+    /**
+     * @brief 移动构造函数
+     *
+     * @note 移动后需要重新注册观察者，因为回调 lambda 捕获了 this 指针
+     */
     AutoObserver(AutoObserver&& other) noexcept
         : m_reactive(other.m_reactive)
         , m_callback(std::move(other.m_callback))
-        , m_observerId(other.m_observerId) {
+        , m_observerId(0) {
+        // 重新注册观察者，因为回调 lambda 捕获的是 this 指针
+        m_observerId = m_reactive.observe([this](const T& oldValue, const T& newValue) {
+            if (m_callback) {
+                m_callback(newValue);
+            }
+        });
+        // 移除旧观察者
+        other.m_reactive.removeObserver(other.m_observerId);
         other.m_observerId = 0;
     }
 
     AutoObserver& operator=(AutoObserver&& other) noexcept {
         if (this != &other) {
-            m_reactive.removeObserver(m_observerId);
+            // 移除当前观察者
+            if (m_observerId != 0) {
+                m_reactive.removeObserver(m_observerId);
+            }
+
             m_callback = std::move(other.m_callback);
-            m_observerId = other.m_observerId;
+
+            // 重新注册观察者
+            m_observerId = m_reactive.observe([this](const T& oldValue, const T& newValue) {
+                if (m_callback) {
+                    m_callback(newValue);
+                }
+            });
+
+            // 移除旧观察者
+            other.m_reactive.removeObserver(other.m_observerId);
             other.m_observerId = 0;
         }
         return *this;

@@ -115,6 +115,11 @@ add_executable(mc_tests
     client/ui/kagero/layout/FlexLayoutAlgorithmTest.cpp
     client/ui/kagero/layout/GridLayoutTest.cpp
     client/ui/kagero/layout/AnchorLayoutTest.cpp
+    # Kagero UI状态系统测试
+    client/ui/kagero/state/StateStoreTest.cpp
+    client/ui/kagero/state/ReactiveStateTest.cpp
+    client/ui/kagero/state/StateBindingTest.cpp
+    client/ui/kagero/state/StateObserverTest.cpp
 )
 
 # 添加服务端源文件

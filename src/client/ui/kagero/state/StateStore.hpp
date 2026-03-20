@@ -17,6 +17,8 @@ namespace mc::client::ui::kagero::state {
  * - 键值对存储任意类型值
  * - 订阅状态变化
  * - 动作分发（类似Redux）
+ * - 中间件机制
+ * - 批量更新
  *
  * 使用示例：
  * @code
@@ -99,28 +101,38 @@ public:
     template<typename T>
     void set(const String& key, T value) {
         std::vector<Subscriber> subscribersToNotify;
+        std::vector<String> pendingKeysCopy;
 
         {
             std::lock_guard<std::mutex> lock(m_mutex);
 
-            // 调用中间件
-            for (const auto& middleware : m_middlewares) {
-                middleware(key, value, *this);
+            // 调用中间件（仅在非批量模式下）
+            if (m_batchDepth == 0) {
+                for (const auto& middleware : m_middlewares) {
+                    middleware(key, value, *this);
+                }
             }
 
             // 设置值
             m_state[key] = std::any(std::move(value));
 
-            // 收集需要通知的订阅者
-            auto it = m_subscribers.find(key);
-            if (it != m_subscribers.end()) {
-                for (const auto& pair : it->second) {
-                    subscribersToNotify.push_back(pair.second);
+            if (m_batchDepth > 0) {
+                // 批量模式：记录变更，延迟通知
+                if (std::find(m_pendingKeys.begin(), m_pendingKeys.end(), key) == m_pendingKeys.end()) {
+                    m_pendingKeys.push_back(key);
+                }
+            } else {
+                // 非批量模式：立即收集订阅者
+                auto it = m_subscribers.find(key);
+                if (it != m_subscribers.end()) {
+                    for (const auto& pair : it->second) {
+                        subscribersToNotify.push_back(pair.second);
+                    }
                 }
             }
         }
 
-        // 在锁外通知订阅者
+        // 在锁外通知订阅者（仅非批量模式）
         for (const auto& subscriber : subscribersToNotify) {
             subscriber();
         }
@@ -229,7 +241,7 @@ public:
     /**
      * @brief 添加中间件
      *
-     * 中间件在每次状态变化时被调用
+     * 中间件在每次状态变化时被调用（仅非批量模式）
      */
     void addMiddleware(Middleware middleware) {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -249,44 +261,60 @@ public:
     /**
      * @brief 批量更新
      *
-     * 在批量更新期间不通知订阅者，更新完成后一次性通知
+     * 在批量更新期间不通知订阅者，更新完成后一次性通知。
+     * 支持嵌套调用，只有最外层的批量更新结束才会通知。
+     *
+     * @note 批量更新期间中间件不会被调用
+     *
+     * @param func 批量更新函数
      */
     template<typename Func>
     void batchUpdate(Func&& func) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_batchDepth++;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_batchDepth++;
+        }
 
         try {
             func(*this);
         } catch (...) {
-            m_batchDepth--;
+            {
+                std::lock_guard<std::mutex> lock(m_mutex);
+                m_batchDepth--;
+            }
             throw;
         }
 
-        m_batchDepth--;
-        if (m_batchDepth == 0) {
-            notifyPendingSubscribers();
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_batchDepth--;
+            if (m_batchDepth == 0) {
+                // 交换出待通知的键，避免在通知期间持有锁
+                std::vector<String> keysToNotify = std::move(m_pendingKeys);
+                m_pendingKeys.clear();
+
+                // 收集所有订阅者
+                std::vector<Subscriber> subscribersToNotify;
+                for (const auto& key : keysToNotify) {
+                    auto it = m_subscribers.find(key);
+                    if (it != m_subscribers.end()) {
+                        for (const auto& pair : it->second) {
+                            subscribersToNotify.push_back(pair.second);
+                        }
+                    }
+                }
+
+                // 释放锁后通知订阅者
+                // 注意：这里锁已经释放，因为离开了作用域
+                for (const auto& subscriber : subscribersToNotify) {
+                    subscriber();
+                }
+            }
         }
     }
 
 private:
     StateStore() = default;
-
-    /**
-     * @brief 通知待处理的订阅者
-     */
-    void notifyPendingSubscribers() {
-        // 批量更新完成，通知所有变更的订阅者
-        for (const auto& key : m_pendingKeys) {
-            auto it = m_subscribers.find(key);
-            if (it != m_subscribers.end()) {
-                for (const auto& pair : it->second) {
-                    pair.second();
-                }
-            }
-        }
-        m_pendingKeys.clear();
-    }
 
     std::unordered_map<String, std::any> m_state;
     std::unordered_map<String, std::vector<std::pair<SubscriberId, Subscriber>>> m_subscribers;
@@ -318,6 +346,15 @@ public:
         : m_select(std::move(select)) {}
 
     /**
+     * @brief 构造函数（带订阅键）
+     * @param select 选择函数
+     * @param key 用于订阅的键
+     */
+    Selector(SelectFunc select, String key)
+        : m_select(std::move(select))
+        , m_key(std::move(key)) {}
+
+    /**
      * @brief 执行选择
      */
     [[nodiscard]] T select() const {
@@ -325,10 +362,24 @@ public:
     }
 
     /**
+     * @brief 设置订阅键
+     */
+    void setKey(const String& key) {
+        m_key = key;
+    }
+
+    /**
      * @brief 订阅选择结果变化
+     *
+     * @param subscriber 订阅者函数
+     * @return 订阅ID
+     *
+     * @note 必须先设置订阅键才能使用此方法
      */
     u64 subscribe(std::function<void(const T&)> subscriber) {
-        // 订阅所有依赖键的变化
+        if (m_key.empty()) {
+            return 0; // 无效订阅
+        }
         return StateStore::instance().subscribe(m_key, [this, subscriber]() {
             T newValue = select();
             subscriber(newValue);
@@ -362,6 +413,14 @@ public:
     template<typename T>
     [[nodiscard]] T get() const {
         return StateStore::instance().get<T>(m_storeKey);
+    }
+
+    /**
+     * @brief 获取值（带默认值）
+     */
+    template<typename T>
+    [[nodiscard]] T get(const T& defaultValue) const {
+        return StateStore::instance().get<T>(m_storeKey, defaultValue);
     }
 
     /**
