@@ -182,12 +182,19 @@ private:
      */
     struct ScreenWrapper {
         ScreenItem item;
-        bool isWidgetScreen;  // true = Screen*, false = IScreen*
+        bool modal = true;  // 在 onOpenScreen 中从 Screen::isModal() 初始化
 
         // 公共状态
         bool visible = true;
         bool active = true;
-        bool modal = true;
+
+        /**
+         * @brief 检查是否为 Widget Screen
+         * @note 从 variant 索引推导，无需存储
+         */
+        [[nodiscard]] bool isWidgetScreen() const {
+            return item.index() == 0;
+        }
     };
 
     std::vector<ScreenWrapper> m_screens;

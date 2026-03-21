@@ -94,14 +94,16 @@ public:
     void paint(kagero::widget::PaintContext& ctx) override;
 
     /**
-     * @brief 设置可见性
+     * @brief 设置HUD可见性
+     * @note 使用基类的可见性功能
      */
-    void setHudVisible(bool visible) { m_visible = visible; }
+    void setHudVisible(bool visible) { setVisible(visible); }
 
     /**
-     * @brief 检查是否可见
+     * @brief 检查HUD是否可见
+     * @note 使用基类的可见性功能
      */
-    [[nodiscard]] bool isHudVisible() const { return m_visible; }
+    [[nodiscard]] bool isHudVisible() const { return isVisible(); }
 
 private:
     /**
@@ -143,7 +145,6 @@ private:
     renderer::trident::gui::GuiRenderer* m_gui = nullptr;
     renderer::trident::item::ItemRenderer* m_itemRenderer = nullptr;
     Player* m_player = nullptr;
-    bool m_visible = true;
 };
 
 } // namespace mc::client::ui::minecraft::widgets

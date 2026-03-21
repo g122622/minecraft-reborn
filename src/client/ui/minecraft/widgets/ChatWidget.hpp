@@ -227,10 +227,6 @@ private:
 
     // 命令回调
     CommandCallback m_commandCallback;
-
-    // 命令历史
-    std::vector<String> m_commandHistory;
-    size_t m_historyIndex = 0;
 };
 
 } // namespace mc::client::ui::minecraft::widgets

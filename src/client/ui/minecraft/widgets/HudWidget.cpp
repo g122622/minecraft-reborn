@@ -49,7 +49,6 @@ namespace {
 
 HudWidget::HudWidget()
     : Widget("hud")
-    , m_visible(true)
 {
     setVisible(true);
     setActive(true);
@@ -60,7 +59,7 @@ HudWidget::HudWidget()
 // ============================================================================
 
 void HudWidget::paint(kagero::widget::PaintContext& ctx) {
-    if (!m_visible || m_player == nullptr) {
+    if (!isVisible() || m_player == nullptr) {
         return;
     }
 

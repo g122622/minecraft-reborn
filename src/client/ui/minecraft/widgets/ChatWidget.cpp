@@ -32,6 +32,7 @@ void ChatWidget::close() {
     m_open = false;
     m_commandMode = false;
     clearInput();
+    m_history.resetInputNavigation();  // 重置历史导航
     setActive(false);  // 关闭时取消激活
 }
 
@@ -115,26 +116,13 @@ bool ChatWidget::onKey(i32 key, i32 scanCode, i32 action, i32 mods) {
             return true;
 
         case GLFW_KEY_UP:
-            // 浏览命令历史
-            if (!m_commandHistory.empty()) {
-                if (m_historyIndex > 0) {
-                    --m_historyIndex;
-                    setInput(m_commandHistory[m_historyIndex]);
-                }
-            }
+            // 浏览命令历史（使用 ChatHistory 的方法）
+            setInput(m_history.getPreviousInput());
             return true;
 
         case GLFW_KEY_DOWN:
-            // 浏览命令历史
-            if (!m_commandHistory.empty()) {
-                if (m_historyIndex < m_commandHistory.size() - 1) {
-                    ++m_historyIndex;
-                    setInput(m_commandHistory[m_historyIndex]);
-                } else if (m_historyIndex == m_commandHistory.size() - 1) {
-                    ++m_historyIndex;
-                    clearInput();
-                }
-            }
+            // 浏览命令历史（使用 ChatHistory 的方法）
+            setInput(m_history.getNextInput());
             return true;
 
         case GLFW_KEY_A:
@@ -330,9 +318,8 @@ void ChatWidget::sendInput() {
         return;
     }
 
-    // 添加到命令历史
-    m_commandHistory.push_back(m_input);
-    m_historyIndex = m_commandHistory.size();
+    // 添加到输入历史（使用 ChatHistory 的方法，已包含大小限制和去重）
+    m_history.addToInputHistory(m_input);
 
     // 调用回调
     if (m_commandCallback) {

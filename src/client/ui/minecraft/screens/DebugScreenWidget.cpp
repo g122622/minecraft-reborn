@@ -6,6 +6,7 @@
 #include "common/world/time/GameTime.hpp"
 #include "common/resource/ResourceLocation.hpp"
 #include "common/core/BlockRaycastResult.hpp"
+#include "common/math/MathUtils.hpp"
 #include "client/network/NetworkClient.hpp"
 #include "client/renderer/Camera.hpp"
 #include "client/world/ClientWorld.hpp"
@@ -298,8 +299,7 @@ void DebugScreenWidget::buildRightDebugText() {
 }
 
 std::pair<std::string, std::string> DebugScreenWidget::getFacingDirection(f32 yaw) const {
-    while (yaw > 180.0f) yaw -= 360.0f;
-    while (yaw < -180.0f) yaw += 360.0f;
+    yaw = math::wrapDegrees(yaw);
 
     if (yaw >= -45.0f && yaw < 45.0f) {
         return {"South", "Towards positive Z"};

@@ -20,7 +20,6 @@ void ScreenStackWidget::push(std::unique_ptr<Screen> screen) {
 
     ScreenWrapper wrapper;
     wrapper.item = std::move(screen);
-    wrapper.isWidgetScreen = true;
     wrapper.visible = true;
     wrapper.active = true;
     wrapper.modal = true;  // 默认模态
@@ -38,7 +37,6 @@ void ScreenStackWidget::pushIScreen(std::unique_ptr<IScreen> screen) {
 
     ScreenWrapper wrapper;
     wrapper.item = std::move(screen);
-    wrapper.isWidgetScreen = false;
     wrapper.visible = true;
     wrapper.active = true;
     wrapper.modal = true;  // IScreen 默认模态
@@ -74,7 +72,7 @@ Screen* ScreenStackWidget::top() {
         return nullptr;
     }
     auto& wrapper = m_screens.back();
-    if (wrapper.isWidgetScreen) {
+    if (wrapper.isWidgetScreen()) {
         return std::get<std::unique_ptr<Screen>>(wrapper.item).get();
     }
     return nullptr;
@@ -85,7 +83,7 @@ const Screen* ScreenStackWidget::top() const {
         return nullptr;
     }
     const auto& wrapper = m_screens.back();
-    if (wrapper.isWidgetScreen) {
+    if (wrapper.isWidgetScreen()) {
         return std::get<std::unique_ptr<Screen>>(wrapper.item).get();
     }
     return nullptr;
@@ -96,7 +94,7 @@ IScreen* ScreenStackWidget::topIScreen() {
         return nullptr;
     }
     auto& wrapper = m_screens.back();
-    if (!wrapper.isWidgetScreen) {
+    if (!wrapper.isWidgetScreen()) {
         return std::get<std::unique_ptr<IScreen>>(wrapper.item).get();
     }
     return nullptr;
@@ -107,14 +105,14 @@ const IScreen* ScreenStackWidget::topIScreen() const {
         return nullptr;
     }
     const auto& wrapper = m_screens.back();
-    if (!wrapper.isWidgetScreen) {
+    if (!wrapper.isWidgetScreen()) {
         return std::get<std::unique_ptr<IScreen>>(wrapper.item).get();
     }
     return nullptr;
 }
 
 void ScreenStackWidget::onOpenScreen(ScreenWrapper& wrapper) {
-    if (wrapper.isWidgetScreen) {
+    if (wrapper.isWidgetScreen()) {
         auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
         if (screen) {
             screen->onOpen();
@@ -129,7 +127,7 @@ void ScreenStackWidget::onOpenScreen(ScreenWrapper& wrapper) {
 }
 
 void ScreenStackWidget::onCloseScreen(ScreenWrapper& wrapper) {
-    if (wrapper.isWidgetScreen) {
+    if (wrapper.isWidgetScreen()) {
         auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
         if (screen) {
             screen->onClose();
@@ -143,13 +141,8 @@ void ScreenStackWidget::onCloseScreen(ScreenWrapper& wrapper) {
 }
 
 bool ScreenStackWidget::isScreenModal(const ScreenWrapper& wrapper) const {
-    if (wrapper.isWidgetScreen) {
-        auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
-        return screen ? screen->isModal() : true;
-    } else {
-        // IScreen 默认模态
-        return true;
-    }
+    // 直接使用缓存的 modal 值（在 onOpenScreen 中初始化）
+    return wrapper.modal;
 }
 
 void ScreenStackWidget::paint(kagero::widget::PaintContext& ctx) {
@@ -159,7 +152,7 @@ void ScreenStackWidget::paint(kagero::widget::PaintContext& ctx) {
             continue;
         }
 
-        if (wrapper.isWidgetScreen) {
+        if (wrapper.isWidgetScreen()) {
             auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
             if (screen) {
                 screen->paint(ctx);
@@ -182,7 +175,7 @@ void ScreenStackWidget::tick(f32 dt) {
             continue;
         }
 
-        if (wrapper.isWidgetScreen) {
+        if (wrapper.isWidgetScreen()) {
             auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
             if (screen) {
                 screen->tick(dt);
@@ -205,7 +198,7 @@ bool ScreenStackWidget::onClick(i32 mouseX, i32 mouseY, i32 button) {
         }
 
         bool handled = false;
-        if (wrapper.isWidgetScreen) {
+        if (wrapper.isWidgetScreen()) {
             auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
             if (screen) {
                 handled = screen->onClick(mouseX, mouseY, button);
@@ -226,7 +219,7 @@ bool ScreenStackWidget::onClick(i32 mouseX, i32 mouseY, i32 button) {
         }
 
         // 如果屏幕是模态的，阻止事件向下传播
-        if (isScreenModal(wrapper)) {
+        if (wrapper.modal) {
             return false;
         }
     }
@@ -242,7 +235,7 @@ bool ScreenStackWidget::onRelease(i32 mouseX, i32 mouseY, i32 button) {
         if (!m_screens.empty()) {
             const auto& wrapper = m_screens.back();
             if (wrapper.visible && wrapper.active) {
-                if (wrapper.isWidgetScreen) {
+                if (wrapper.isWidgetScreen()) {
                     auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
                     if (screen) {
                         return screen->onRelease(mouseX, mouseY, button);
@@ -263,7 +256,7 @@ bool ScreenStackWidget::onDrag(i32 mouseX, i32 mouseY, i32 deltaX, i32 deltaY) {
     if (m_isDragging && !m_screens.empty()) {
         const auto& wrapper = m_screens.back();
         if (wrapper.visible && wrapper.active) {
-            if (wrapper.isWidgetScreen) {
+            if (wrapper.isWidgetScreen()) {
                 auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
                 if (screen) {
                     return screen->onDrag(mouseX, mouseY, deltaX, deltaY);
@@ -288,7 +281,7 @@ bool ScreenStackWidget::onScroll(i32 mouseX, i32 mouseY, f64 delta) {
         }
 
         bool handled = false;
-        if (wrapper.isWidgetScreen) {
+        if (wrapper.isWidgetScreen()) {
             auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
             if (screen) {
                 handled = screen->onScroll(mouseX, mouseY, delta);
@@ -303,7 +296,7 @@ bool ScreenStackWidget::onScroll(i32 mouseX, i32 mouseY, f64 delta) {
         if (handled) {
             return true;
         }
-        if (isScreenModal(wrapper)) {
+        if (wrapper.modal) {
             return false;
         }
     }
@@ -319,7 +312,7 @@ bool ScreenStackWidget::onKey(i32 key, i32 scanCode, i32 action, i32 mods) {
         }
 
         bool handled = false;
-        if (wrapper.isWidgetScreen) {
+        if (wrapper.isWidgetScreen()) {
             auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
             if (screen) {
                 handled = screen->onKey(key, scanCode, action, mods);
@@ -334,7 +327,7 @@ bool ScreenStackWidget::onKey(i32 key, i32 scanCode, i32 action, i32 mods) {
         if (handled) {
             return true;
         }
-        if (isScreenModal(wrapper)) {
+        if (wrapper.modal) {
             return false;
         }
     }
@@ -350,7 +343,7 @@ bool ScreenStackWidget::onChar(u32 codePoint) {
         }
 
         bool handled = false;
-        if (wrapper.isWidgetScreen) {
+        if (wrapper.isWidgetScreen()) {
             auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
             if (screen) {
                 handled = screen->onChar(codePoint);
@@ -365,7 +358,7 @@ bool ScreenStackWidget::onChar(u32 codePoint) {
         if (handled) {
             return true;
         }
-        if (isScreenModal(wrapper)) {
+        if (wrapper.modal) {
             return false;
         }
     }
@@ -375,7 +368,7 @@ bool ScreenStackWidget::onChar(u32 codePoint) {
 void ScreenStackWidget::onResize(i32 width, i32 height) {
     // 通知所有屏幕尺寸变化
     for (const auto& wrapper : m_screens) {
-        if (wrapper.isWidgetScreen) {
+        if (wrapper.isWidgetScreen()) {
             auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
             if (screen) {
                 screen->setBounds(kagero::Rect(0, 0, width, height));
@@ -392,7 +385,7 @@ void ScreenStackWidget::onResize(i32 width, i32 height) {
 bool ScreenStackWidget::shouldPauseGame() const {
     // 检查是否有暂停屏幕
     for (const auto& wrapper : m_screens) {
-        if (!wrapper.isWidgetScreen) {
+        if (!wrapper.isWidgetScreen()) {
             auto* screen = std::get<std::unique_ptr<IScreen>>(wrapper.item).get();
             if (screen && screen->isPauseScreen()) {
                 return true;
