@@ -95,6 +95,21 @@ public:
      */
     void drawGradientRect(const Rect& bounds, u32 startColor, u32 endColor, bool vertical = true);
 
+    // ==================== 文本测量 ====================
+
+    /**
+     * @brief 获取文本宽度
+     * @param text 文本内容
+     * @return 文本宽度（像素）
+     */
+    [[nodiscard]] f32 getTextWidth(const String& text) const;
+
+    /**
+     * @brief 获取字体高度
+     * @return 字体高度（像素）
+     */
+    [[nodiscard]] u32 getFontHeight() const;
+
     // ==================== 裁剪方法 ====================
 
     /**

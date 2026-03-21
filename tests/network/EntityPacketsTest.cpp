@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "network/EntityPackets.hpp"
+#include "network/packet/EntityPackets.hpp"
 
 using namespace mc::network;
 using mc::u8;

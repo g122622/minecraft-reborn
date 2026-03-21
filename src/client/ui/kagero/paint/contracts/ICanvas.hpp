@@ -61,6 +61,21 @@ public:
 
     [[nodiscard]] virtual i32 width() const = 0;
     [[nodiscard]] virtual i32 height() const = 0;
+
+    // ==================== 文本测量 ====================
+
+    /**
+     * @brief 获取文本宽度
+     * @param text 文本内容
+     * @return 文本宽度（像素）
+     */
+    [[nodiscard]] virtual f32 getTextWidth(const String& text) const = 0;
+
+    /**
+     * @brief 获取字体高度
+     * @return 字体高度（像素）
+     */
+    [[nodiscard]] virtual u32 getFontHeight() const = 0;
 };
 
 } // namespace mc::client::ui::kagero::paint

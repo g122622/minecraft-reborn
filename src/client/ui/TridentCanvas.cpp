@@ -462,6 +462,14 @@ i32 TridentCanvas::height() const {
     return m_height;
 }
 
+f32 TridentCanvas::getTextWidth(const String& text) const {
+    return m_font.getStringWidth(text);
+}
+
+u32 TridentCanvas::getFontHeight() const {
+    return m_font.getFontHeight();
+}
+
 void TridentCanvas::resize(i32 width, i32 height) {
     m_width = width;
     m_height = height;

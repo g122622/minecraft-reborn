@@ -107,6 +107,11 @@ public:
     [[nodiscard]] i32 width() const override;
     [[nodiscard]] i32 height() const override;
 
+    // ==================== 文本测量 ====================
+
+    [[nodiscard]] f32 getTextWidth(const String& text) const override;
+    [[nodiscard]] u32 getFontHeight() const override;
+
     // ==================== 扩展接口 ====================
 
     /**

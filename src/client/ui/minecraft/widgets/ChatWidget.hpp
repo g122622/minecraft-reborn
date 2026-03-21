@@ -1,36 +1,26 @@
 #pragma once
 
-#include "ChatHistory.hpp"
-#include "client/input/InputManager.hpp"
+#include "../../kagero/widget/ContainerWidget.hpp"
+#include "../../kagero/paint/PaintContext.hpp"
+#include "../../../chat/ChatHistory.hpp"
 #include <functional>
-#include <memory>
-
-namespace mc::client {
-class Font;
-}
+#include <chrono>
 
 namespace mc::client::renderer::trident::gui {
 class GuiRenderer;
 }
 
 namespace mc::client {
-// 引入GuiRenderer到mc::client命名空间（向后兼容）
-using GuiRenderer = renderer::trident::gui::GuiRenderer;
+class Font;
 }
 
-namespace mc::client {
+namespace mc::client::ui::minecraft::widgets {
+
+// 引入 ChatHistory 类型
+using ChatHistory = mc::client::chat::ChatHistory;
 
 /**
- * @brief 聊天屏幕状态
- */
-enum class ChatState {
-    Closed,         ///< 聊天框关闭（仅显示最近消息）
-    Open,           ///< 聊天框打开（可以输入）
-    OpenCommand     ///< 聊天框打开，输入命令（以 / 开头）
-};
-
-/**
- * @brief 聊天屏幕
+ * @brief 聊天Widget
  *
  * 处理聊天框的显示和交互，包括：
  * - 消息显示
@@ -40,31 +30,30 @@ enum class ChatState {
  *
  * 参考 MC 的 ChatScreen 实现
  */
-class ChatScreen {
+class ChatWidget : public kagero::widget::ContainerWidget {
 public:
     /**
-     * @brief 命令发送回调
+     * @brief 命令发送回调类型
      */
     using CommandCallback = std::function<void(const String&)>;
 
-    ChatScreen() = default;
-    ~ChatScreen() = default;
-
-    // 禁止拷贝
-    ChatScreen(const ChatScreen&) = delete;
-    ChatScreen& operator=(const ChatScreen&) = delete;
+    ChatWidget();
+    ~ChatWidget() override = default;
 
     // ========== 初始化 ==========
 
     /**
-     * @brief 初始化聊天屏幕
-     * @param font 字体
+     * @brief 设置字体
      */
-    void initialize(Font* font);
+    void setFont(Font* font) { m_font = font; }
+
+    /**
+     * @brief 设置GUI渲染器
+     */
+    void setGuiRenderer(renderer::trident::gui::GuiRenderer* gui) { m_gui = gui; }
 
     /**
      * @brief 设置命令回调
-     * @param callback 发送命令时的回调
      */
     void setCommandCallback(CommandCallback callback) { m_commandCallback = std::move(callback); }
 
@@ -73,12 +62,7 @@ public:
     /**
      * @brief 获取当前状态
      */
-    [[nodiscard]] ChatState state() const { return m_state; }
-
-    /**
-     * @brief 检查是否打开
-     */
-    [[nodiscard]] bool isOpen() const { return m_state != ChatState::Closed; }
+    [[nodiscard]] bool isOpen() const { return m_open; }
 
     /**
      * @brief 打开聊天框
@@ -96,42 +80,32 @@ public:
      */
     void toggle();
 
-    // ========== 输入处理 ==========
+    // ========== Widget接口 ==========
+
+    /**
+     * @brief 绘制聊天框
+     */
+    void paint(kagero::widget::PaintContext& ctx) override;
+
+    /**
+     * @brief 每帧更新
+     */
+    void tick(f32 dt) override;
+
+    /**
+     * @brief 处理键盘按键
+     */
+    bool onKey(i32 key, i32 scanCode, i32 action, i32 mods) override;
 
     /**
      * @brief 处理字符输入
-     * @param codepoint Unicode码点
-     * @return 是否处理了输入
      */
-    bool onCharInput(u32 codepoint);
-
-    /**
-     * @brief 处理按键
-     * @param key GLFW键码
-     * @param action GLFW动作
-     * @param mods 修饰键
-     * @return 是否处理了按键
-     */
-    bool onKeyInput(i32 key, i32 action, i32 mods);
+    bool onChar(u32 codePoint) override;
 
     /**
      * @brief 处理鼠标点击
-     * @param x 鼠标X坐标
-     * @param y 鼠标Y坐标
-     * @param button 鼠标按键
-     * @return 是否处理了点击
      */
-    bool onMouseClick(f64 x, f64 y, i32 button);
-
-    // ========== 渲染 ==========
-
-    /**
-     * @brief 渲染聊天框
-     * @param gui GUI渲染器
-     * @param screenWidth 屏幕宽度
-     * @param screenHeight 屏幕高度
-     */
-    void render(GuiRenderer& gui, f32 screenWidth, f32 screenHeight);
+    bool onClick(i32 mouseX, i32 mouseY, i32 button) override;
 
     // ========== 消息 ==========
 
@@ -168,16 +142,6 @@ public:
      */
     void clearInput();
 
-    /**
-     * @brief 获取光标位置
-     */
-    [[nodiscard]] size_t cursorPosition() const { return m_cursorPos; }
-
-    /**
-     * @brief 设置光标位置
-     */
-    void setCursorPosition(size_t pos);
-
 private:
     // ========== 内部方法 ==========
 
@@ -203,15 +167,11 @@ private:
 
     /**
      * @brief 移动光标
-     * @param offset 偏移量（负数向前，正数向后）
-     * @param selecting 是否选择
      */
     void moveCursor(i32 offset, bool selecting = false);
 
     /**
      * @brief 移动光标到行首/行尾
-     * @param start 是否移动到行首
-     * @param selecting 是否选择
      */
     void moveCursorToEdge(bool start, bool selecting = false);
 
@@ -228,24 +188,17 @@ private:
     /**
      * @brief 更新光标闪烁
      */
-    void updateCursorBlink();
-
-    // ========== 渲染辅助 ==========
+    void updateCursorBlink(f32 dt);
 
     /**
      * @brief 渲染消息列表
      */
-    void renderMessages(GuiRenderer& gui, f32 screenWidth, f32 screenHeight);
+    void renderMessages(kagero::widget::PaintContext& ctx);
 
     /**
      * @brief 渲染输入框
      */
-    void renderInputBox(GuiRenderer& gui, f32 screenWidth, f32 screenHeight);
-
-    /**
-     * @brief 渲染光标
-     */
-    void renderCursor(GuiRenderer& gui, f32 x, f32 y);
+    void renderInputBox(kagero::widget::PaintContext& ctx);
 
     // ========== 成员变量 ==========
 
@@ -255,28 +208,29 @@ private:
     size_t m_selectionStart = 0;
     size_t m_selectionEnd = 0;
     bool m_hasSelection = false;
-    ChatState m_state = ChatState::Closed;
+    bool m_open = false;
+    bool m_commandMode = false;
 
     Font* m_font = nullptr;
+    renderer::trident::gui::GuiRenderer* m_gui = nullptr;
 
     // 光标闪烁
-    std::chrono::steady_clock::time_point m_lastBlinkTime;
+    f32 m_cursorBlinkTimer = 0.0f;
     bool m_cursorVisible = true;
-    static constexpr float CURSOR_BLINK_RATE = 0.5f;
+    static constexpr f32 CURSOR_BLINK_RATE = 0.5f;
 
     // 输入框尺寸
     static constexpr f32 INPUT_BOX_HEIGHT = 20.0f;
     static constexpr f32 INPUT_BOX_PADDING = 4.0f;
-    static constexpr f32 CHAT_WIDTH_RATIO = 0.4f;  ///< 屏幕宽度的40%
-    static constexpr f32 MESSAGE_FADE_START = 3.0f; ///< 消息开始淡出的时间
+    static constexpr f32 CHAT_WIDTH_RATIO = 0.4f;
+    static constexpr f32 MESSAGE_FADE_START = 3.0f;
 
     // 命令回调
     CommandCallback m_commandCallback;
 
-    // 鼠标拖拽
-    bool m_isDragging = false;
-    f64 m_dragStartX = 0;
-    f64 m_dragStartY = 0;
+    // 命令历史
+    std::vector<String> m_commandHistory;
+    size_t m_historyIndex = 0;
 };
 
-} // namespace mc::client
+} // namespace mc::client::ui::minecraft::widgets

@@ -7,7 +7,7 @@
 #include <functional>
 #include <chrono>
 
-namespace mc::client {
+namespace mc::client::chat {
 
 /**
  * @brief 聊天消息
@@ -106,4 +106,4 @@ private:
     String m_savedInput;  ///< 导航时保存的当前输入
 };
 
-} // namespace mc::client
+} // namespace mc::client::chat

@@ -13,11 +13,18 @@
 #include "client/renderer/trident/chunk/ChunkMesher.hpp"
 #include "client/renderer/trident/chunk/ChunkRenderer.hpp"
 #include "client/renderer/trident/entity/EntityRendererManager.hpp"
+#include "client/renderer/trident/gui/GuiRenderer.hpp"
+#include "client/renderer/util/GpuInfo.hpp"
 #include "client/resource/ResourceManager.hpp"
 #include "client/resource/TextureAtlasBuilder.hpp"
-#include "client/ui/hud/HudRenderer.hpp"
+#include "client/ui/Font.hpp"
 #include "client/ui/screen/ScreenManager.hpp"
 #include "client/ui/screen/CraftingScreen.hpp"
+#include "client/ui/minecraft/widgets/CrosshairWidget.hpp"
+#include "client/ui/minecraft/widgets/HudWidget.hpp"
+#include "client/ui/minecraft/widgets/ChatWidget.hpp"
+#include "client/ui/minecraft/widgets/ScreenStackWidget.hpp"
+#include "client/ui/minecraft/screens/DebugScreenWidget.hpp"
 #include "minecraft-reborn/version.h"
 
 #include <spdlog/spdlog.h>
@@ -305,6 +312,13 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
             }
             // 更新相机宽高比
             app->m_camera.setAspectRatio(static_cast<f32>(width) / static_cast<f32>(height));
+            // 更新 KageroEngine 尺寸
+            if (app->m_kageroEngine) {
+                app->m_kageroEngine->resize(width, height);
+            }
+            if (app->m_canvas) {
+                app->m_canvas->resize(width, height);
+            }
         }
     }, this);
 
@@ -507,132 +521,130 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
     spdlog::info("Controls: WASD to move, Space to jump/fly up, Shift to sneak/fly down, mouse to look");
     spdlog::info("Press F to toggle flying, F3 to toggle debug screen, ALT to toggle mouse capture");
 
-    // 初始化调试屏幕
+    // 初始化 Kagero UI 引擎
     if (m_renderer->isGuiRendererInitialized()) {
-        auto debugResult = m_debugScreen.initialize(&m_renderer->guiRenderer());
-        if (debugResult.failed()) {
-            spdlog::warn("Failed to initialize debug screen: {}", debugResult.error().toString());
+        auto* guiFont = m_renderer->guiRenderer().font();
+        if (guiFont == nullptr) {
+            spdlog::error("Failed to get GUI font for KageroEngine");
         } else {
-            m_debugScreen.setCamera(&m_camera);
-            m_debugScreen.setWorld(&m_world);
-            m_debugScreen.setEntityManager(&m_world.entityManager());
-            m_debugScreen.setNetworkClient(m_networkClient.get());
-            m_debugScreen.setRenderDistance(m_settings.renderDistance.get());
+            // 创建 TridentCanvas
+            m_canvas = std::make_unique<ui::TridentCanvas>(
+                m_renderer->guiRenderer(),
+                *guiFont
+            );
+            m_canvas->resize(m_window.width(), m_window.height());
 
-            // 设置GPU信息
-            auto* context = m_renderer->context();
-            if (context != nullptr) {
-                DebugGpuInfo gpuInfo;
-                gpuInfo.name = context->deviceProperties().deviceName;
-                gpuInfo.apiMajorVersion = VK_API_VERSION_MAJOR(context->deviceProperties().apiVersion);
-                gpuInfo.apiMinorVersion = VK_API_VERSION_MINOR(context->deviceProperties().apiVersion);
-                gpuInfo.driverVersion = std::to_string(VK_API_VERSION_MAJOR(context->deviceProperties().driverVersion)) + "." +
-                                        std::to_string(VK_API_VERSION_MINOR(context->deviceProperties().driverVersion)) + "." +
-                                        std::to_string(VK_API_VERSION_PATCH(context->deviceProperties().driverVersion));
+            // 创建 KageroEngine
+            m_kageroEngine = std::make_unique<ui::kagero::KageroEngine>();
+            ui::kagero::KageroConfig kageroConfig;
+            kageroConfig.screenWidth = m_window.width();
+            kageroConfig.screenHeight = m_window.height();
+            auto kageroInitResult = m_kageroEngine->initialize(*m_canvas, kageroConfig);
+            if (kageroInitResult.failed()) {
+                spdlog::error("Failed to initialize KageroEngine: {}", kageroInitResult.error().toString());
+            } else {
+                spdlog::info("KageroEngine initialized");
 
-                // 计算显存
-                u64 dedicatedVideoMemory = 0;
-                u64 sharedSystemMemory = 0;
-                for (u32 i = 0; i < context->memoryProperties().memoryHeapCount; ++i) {
-                    const auto& heap = context->memoryProperties().memoryHeaps[i];
-                    if (heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) {
-                        dedicatedVideoMemory += heap.size;
-                    } else {
-                        sharedSystemMemory += heap.size;
+                // 层 Z=0: 准星
+                auto crosshairWidget = std::make_unique<ui::minecraft::widgets::CrosshairWidget>();
+                m_crosshairLayerId = m_kageroEngine->addLayer(std::move(crosshairWidget), 0);
+
+                // 层 Z=10: HUD
+                auto hudWidget = std::make_unique<ui::minecraft::widgets::HudWidget>();
+                hudWidget->setGuiRenderer(&m_renderer->guiRenderer());
+                hudWidget->setItemRenderer(&m_renderer->itemRenderer());
+                if (m_player) {
+                    hudWidget->setPlayer(m_player.get());
+                }
+                m_hudLayerId = m_kageroEngine->addLayer(std::move(hudWidget), 10);
+
+                // 层 Z=20: 聊天框
+                auto chatWidget = std::make_unique<ui::minecraft::widgets::ChatWidget>();
+                chatWidget->setFont(guiFont);
+                chatWidget->setGuiRenderer(&m_renderer->guiRenderer());
+                chatWidget->setCommandCallback([this](const String& input) {
+                    handleChatCommand(input);
+                });
+                m_chatLayerId = m_kageroEngine->addLayer(std::move(chatWidget), 20);
+
+                // 层 Z=30: Screen 栈
+                auto screenStackWidget = std::make_unique<ui::minecraft::widgets::ScreenStackWidget>();
+                screenStackWidget->setGuiRenderer(&m_renderer->guiRenderer());
+
+                // 设置 ScreenManager 后端
+                ScreenManager::instance().setScreenStackWidget(screenStackWidget.get());
+
+                m_screenStackLayerId = m_kageroEngine->addLayer(std::move(screenStackWidget), 30);
+
+                // 层 Z=100: 调试屏幕
+                auto debugWidget = std::make_unique<ui::minecraft::DebugScreenWidget>();
+                debugWidget->setTextWidthCallback([this](const std::string& text) -> f32 {
+                    return m_renderer->guiRenderer().getTextWidth(text);
+                });
+                debugWidget->setLineHeight(static_cast<i32>(m_renderer->guiRenderer().getFontHeight()) + 2);
+                debugWidget->setCamera(&m_camera);
+                debugWidget->setWorld(&m_world);
+                debugWidget->setEntityManager(&m_world.entityManager());
+                debugWidget->setNetworkClient(m_networkClient.get());
+                debugWidget->setRenderDistance(m_settings.renderDistance.get());
+                if (m_player) {
+                    debugWidget->setPlayer(m_player.get());
+                }
+
+                // 设置GPU信息
+                {
+                    auto* context = m_renderer->context();
+                    if (context != nullptr) {
+                        DebugGpuInfo gpuInfo = getGpuInfo(
+                            context->deviceProperties(),
+                            context->memoryProperties());
+
+                        debugWidget->setGpuInfo(gpuInfo);
+                        debugWidget->setVersion("Minecraft Reborn 0.1.0");
+                        debugWidget->setRendererInfo(gpuInfo.name);
                     }
                 }
-                gpuInfo.dedicatedVideoMB = dedicatedVideoMemory / (1024 * 1024);
-                gpuInfo.sharedSystemMB = sharedSystemMemory / (1024 * 1024);
+                m_debugScreenLayerId = m_kageroEngine->addLayer(std::move(debugWidget), 100);
 
-                // 厂商名称
-                switch (context->deviceProperties().vendorID) {
-                    case 0x10DE: gpuInfo.vendor = "NVIDIA"; break;
-                    case 0x1002:
-                    case 0x1022: gpuInfo.vendor = "AMD"; break;
-                    case 0x8086:
-                    case 0x8087: gpuInfo.vendor = "Intel"; break;
-                    case 0x13B5: gpuInfo.vendor = "ARM"; break;
-                    case 0x1010: gpuInfo.vendor = "Apple"; break;
-                    case 0x5143: gpuInfo.vendor = "Qualcomm"; break;
-                    default: gpuInfo.vendor = "Unknown"; break;
-                }
-
-                m_debugScreen.setGpuInfo(gpuInfo);
-                m_debugScreen.setVersion("Minecraft Reborn 0.1.0");
-                m_debugScreen.setRendererInfo(gpuInfo.name);
+                spdlog::info("KageroEngine layers configured: crosshair={}, hud={}, chat={}, screenStack={}, debug={}",
+                             m_crosshairLayerId, m_hudLayerId, m_chatLayerId, m_screenStackLayerId, m_debugScreenLayerId);
             }
-
-            spdlog::info("Debug screen initialized");
         }
 
-        // 初始化准星渲染器
-        auto crosshairResult = m_crosshair.initialize(&m_renderer->guiRenderer());
-        if (crosshairResult.failed()) {
-            spdlog::warn("Failed to initialize crosshair: {}", crosshairResult.error().toString());
-        } else {
-            spdlog::info("Crosshair initialized");
-        }
-
-        // 初始化HUD渲染器（ItemRenderer已在TridentEngine中初始化）
-        if (m_hudRenderer.initialize(&m_renderer->itemRenderer())) {
-            spdlog::info("HUD renderer initialized");
-        } else {
-            spdlog::warn("Failed to initialize HUD renderer");
-        }
-
-        // 初始化聊天屏幕
-        m_chatScreen.initialize(m_renderer->guiRenderer().font());
-        m_chatScreen.setCommandCallback([this](const String& input) {
-            handleChatCommand(input);
-        });
-        spdlog::info("Chat screen initialized");
-
-        // 设置字符输入回调
+        // 设置字符输入回调 - 通过 KageroEngine 分发
         m_input.setCharCallback([this](u32 codepoint) {
-            if (m_chatScreen.isOpen()) {
-                m_chatScreen.onCharInput(codepoint);
+            if (m_kageroEngine && m_kageroEngine->handleChar(codepoint)) {
                 return;
             }
-
-            ScreenManager::instance().onChar(codepoint);
         });
 
-        // 设置键盘事件回调（用于聊天框输入）
+        // 设置键盘事件回调 - 通过 KageroEngine 分发
         m_input.setKeyEventCallback([this](i32 key, i32 action, i32 mods) {
-            if (m_chatScreen.isOpen()) {
-                m_chatScreen.onKeyInput(key, action, mods);
+            // F3 切换调试屏幕
+            if (key == GLFW_KEY_F3 && action == GLFW_PRESS) {
+                m_debugScreenVisible = !m_debugScreenVisible;
+                if (m_kageroEngine) {
+                    m_kageroEngine->setLayerVisible(m_debugScreenLayerId, m_debugScreenVisible);
+                }
                 return;
             }
 
-            ScreenManager::instance().onKey(key, 0, action, mods);
+            if (m_kageroEngine && m_kageroEngine->handleKey(key, 0, action, mods)) {
+                return;
+            }
+
+            // 游戏输入处理
             if (action == GLFW_PRESS && !ScreenManager::instance().hasScreen()) {
                 captureMouseAfterScreens(m_input, m_mouseCaptured);
             }
         });
 
-        // 设置GUI渲染回调
+        // 设置GUI渲染回调 - 完全通过 KageroEngine
         m_renderer->setGuiRenderCallback([this]() {
-            // 先渲染准星
-            m_crosshair.render();
-            // 渲染HUD（快捷栏、生命值、饥饿值等）
-            if (m_player) {
-                if (m_hudRenderer.isVisible()) {
-                    m_hudRenderer.render(m_renderer->guiRenderer(), *m_player,
-                                         m_player->inventory(),
-                                         static_cast<f32>(m_window.width()),
-                                         static_cast<f32>(m_window.height()));
-                }
-            }
-            // 渲染聊天屏幕（消息列表和输入框）
-            m_chatScreen.render(m_renderer->guiRenderer(),
-                                static_cast<f32>(m_window.width()),
-                                static_cast<f32>(m_window.height()));
-            ScreenManager::instance().render(static_cast<i32>(m_input.mouseX()),
-                                             static_cast<i32>(m_input.mouseY()),
-                                             0.0f);
-            // 再渲染调试屏幕
-            if (m_debugScreenVisible) {
-                m_debugScreen.render();
+            if (m_kageroEngine) {
+                m_canvas->beginFrame();
+                m_kageroEngine->render();
+                m_canvas->endFrame();
             }
         });
     }
@@ -737,40 +749,49 @@ void ClientApplication::handleEvents()
     m_input.update();
 
     // 处理聊天框键盘输入（优先于游戏输入）
-    if (m_chatScreen.isOpen()) {
-        // 聊天框打开时，只处理聊天相关按键
-        // ESC 关闭聊天框
+    // 检查聊天框是否打开
+    auto* chatWidget = m_kageroEngine ?
+        static_cast<ui::minecraft::widgets::ChatWidget*>(m_kageroEngine->getLayer(m_chatLayerId)) : nullptr;
+    if (chatWidget && chatWidget->isOpen()) {
+        // 聊天框打开时，ESC 关闭聊天框
         if (m_input.isKeyJustPressed(GLFW_KEY_ESCAPE)) {
-            m_chatScreen.close();
+            chatWidget->close();
             m_input.setMouseLocked(true);
             m_mouseCaptured = true;
         }
         return;
     }
 
-    if (ScreenManager::instance().hasScreen()) {
+    // 处理 Screen 栈事件
+    auto* screenStack = m_kageroEngine ?
+        static_cast<ui::minecraft::widgets::ScreenStackWidget*>(m_kageroEngine->getLayer(m_screenStackLayerId)) : nullptr;
+    if (screenStack && screenStack->hasScreen()) {
         if (m_input.isMouseButtonJustPressed(GLFW_MOUSE_BUTTON_LEFT)) {
-            ScreenManager::instance().onClick(static_cast<i32>(m_input.mouseX()),
-                                              static_cast<i32>(m_input.mouseY()),
-                                              GLFW_MOUSE_BUTTON_LEFT);
+            m_kageroEngine->handleClick(
+                static_cast<i32>(m_input.mouseX()),
+                static_cast<i32>(m_input.mouseY()),
+                GLFW_MOUSE_BUTTON_LEFT);
         }
         if (m_input.isMouseButtonJustPressed(GLFW_MOUSE_BUTTON_RIGHT)) {
-            ScreenManager::instance().onClick(static_cast<i32>(m_input.mouseX()),
-                                              static_cast<i32>(m_input.mouseY()),
-                                              GLFW_MOUSE_BUTTON_RIGHT);
+            m_kageroEngine->handleClick(
+                static_cast<i32>(m_input.mouseX()),
+                static_cast<i32>(m_input.mouseY()),
+                GLFW_MOUSE_BUTTON_RIGHT);
         }
         if (m_input.isMouseButtonJustReleased(GLFW_MOUSE_BUTTON_LEFT)) {
-            ScreenManager::instance().onRelease(static_cast<i32>(m_input.mouseX()),
-                                                static_cast<i32>(m_input.mouseY()),
-                                                GLFW_MOUSE_BUTTON_LEFT);
+            m_kageroEngine->handleRelease(
+                static_cast<i32>(m_input.mouseX()),
+                static_cast<i32>(m_input.mouseY()),
+                GLFW_MOUSE_BUTTON_LEFT);
         }
         if (m_input.isMouseButtonJustReleased(GLFW_MOUSE_BUTTON_RIGHT)) {
-            ScreenManager::instance().onRelease(static_cast<i32>(m_input.mouseX()),
-                                                static_cast<i32>(m_input.mouseY()),
-                                                GLFW_MOUSE_BUTTON_RIGHT);
+            m_kageroEngine->handleRelease(
+                static_cast<i32>(m_input.mouseX()),
+                static_cast<i32>(m_input.mouseY()),
+                GLFW_MOUSE_BUTTON_RIGHT);
         }
 
-        if (!ScreenManager::instance().hasScreen()) {
+        if (!screenStack->hasScreen()) {
             captureMouseAfterScreens(m_input, m_mouseCaptured);
         }
         return;
@@ -784,20 +805,24 @@ void ClientApplication::handleEvents()
 
     // T 键打开聊天框
     if (m_input.isKeyJustPressed(GLFW_KEY_T)) {
-        m_chatScreen.open(false);
-        if (m_mouseCaptured) {
-            m_input.setMouseLocked(false);
-            m_mouseCaptured = false;
+        if (chatWidget) {
+            chatWidget->open(false);
+            if (m_mouseCaptured) {
+                m_input.setMouseLocked(false);
+                m_mouseCaptured = false;
+            }
         }
         return;
     }
 
     // / 键打开命令框
     if (m_input.isKeyJustPressed(GLFW_KEY_SLASH)) {
-        m_chatScreen.open(true);
-        if (m_mouseCaptured) {
-            m_input.setMouseLocked(false);
-            m_mouseCaptured = false;
+        if (chatWidget) {
+            chatWidget->open(true);
+            if (m_mouseCaptured) {
+                m_input.setMouseLocked(false);
+                m_mouseCaptured = false;
+            }
         }
         return;
     }
@@ -892,8 +917,25 @@ void ClientApplication::update(f32 deltaTime)
         }
     }
 
-    // 更新调试屏幕
-    m_debugScreen.update(deltaTime);
+    // 更新 ScreenStackWidget 的 partialTick 和鼠标位置（用于 IScreen::render）
+    auto* screenStack = m_kageroEngine ?
+        static_cast<ui::minecraft::widgets::ScreenStackWidget*>(m_kageroEngine->getLayer(m_screenStackLayerId)) : nullptr;
+    if (screenStack) {
+        screenStack->setPartialTick(0.0f);  // TODO: 使用实际的 partialTick
+        screenStack->setMousePosition(
+            static_cast<i32>(m_input.mouseX()),
+            static_cast<i32>(m_input.mouseY())
+        );
+    }
+
+    // 更新 KageroEngine
+    if (m_kageroEngine) {
+        m_kageroEngine->update(deltaTime);
+    }
+
+    // 更新调试屏幕数据
+    auto* debugWidget = m_kageroEngine ?
+        static_cast<ui::minecraft::DebugScreenWidget*>(m_kageroEngine->getLayer(m_debugScreenLayerId)) : nullptr;
 
     // 执行射线检测
     if (m_player && m_mouseCaptured) {
@@ -914,10 +956,14 @@ void ClientApplication::update(f32 deltaTime)
         m_raycastResult = mc::raycastBlocks(context, blockReader);
 
         // 更新调试屏幕的目标方块
-        m_debugScreen.setTargetBlock(&m_raycastResult);
+        if (debugWidget) {
+            debugWidget->setTargetBlock(&m_raycastResult);
+        }
     } else {
         // 没有玩家时清除目标方块
-        m_debugScreen.setTargetBlock(nullptr);
+        if (debugWidget) {
+            debugWidget->setTargetBlock(nullptr);
+        }
     }
 
     handleBlockInteractionInput(deltaTime);
@@ -1095,7 +1141,11 @@ void ClientApplication::setupSettingCallbacks()
     // 渲染距离变更
     m_settings.renderDistance.onChange([this](i32 value) {
         spdlog::info("Render distance changed to: {}", value);
-        m_debugScreen.setRenderDistance(value);
+        auto* debugWidget = m_kageroEngine ?
+            static_cast<ui::minecraft::DebugScreenWidget*>(m_kageroEngine->getLayer(m_debugScreenLayerId)) : nullptr;
+        if (debugWidget) {
+            debugWidget->setRenderDistance(value);
+        }
         // 世界更新时会使用新值
     });
 
@@ -1129,10 +1179,12 @@ void ClientApplication::setupSettingCallbacks()
 void ClientApplication::setupInputBindings()
 {
     m_input.bindKeyAction(GLFW_KEY_ESCAPE, "exit");
-    m_input.bindKeyAction(GLFW_KEY_F3, "toggle_debug");
 
     m_input.bindActionCallback("exit", [this]() {
-        if (m_chatScreen.isOpen()) {
+        auto* chatWidget = m_kageroEngine ?
+            static_cast<ui::minecraft::widgets::ChatWidget*>(m_kageroEngine->getLayer(m_chatLayerId)) : nullptr;
+
+        if (chatWidget && chatWidget->isOpen()) {
             return;
         }
 
@@ -1144,11 +1196,6 @@ void ClientApplication::setupInputBindings()
 
         spdlog::info("Exit key pressed");
         stop();
-    });
-
-    m_input.bindActionCallback("toggle_debug", [this]() {
-        m_debugScreenVisible = !m_debugScreenVisible;
-        m_debugScreen.setVisible(m_debugScreenVisible);
     });
 }
 
@@ -1789,23 +1836,29 @@ void ClientApplication::handleChatCommand(const String& input)
         return;
     }
 
+    // 获取 ChatWidget
+    auto* chatWidget = m_kageroEngine ?
+        static_cast<ui::minecraft::widgets::ChatWidget*>(m_kageroEngine->getLayer(m_chatLayerId)) : nullptr;
+
     // 添加到聊天历史
-    m_chatScreen.addMessage(input, 0xFFFFFFFF);
+    if (chatWidget) {
+        chatWidget->addMessage(input, 0xFFFFFFFF);
+    }
 
     // 检查是否为命令（以 / 开头）
     if (input[0] == '/') {
         String command = input.substr(1);
 
-        // TODO: 连接到 CommandDispatcher 执行命令
-        // 目前只显示命令被接收
-        spdlog::info("Chat command received: {}", command);
+        spdlog::info("Chat command received: {}", std::string(command.begin(), command.end()));
 
         // 发送到服务端
         if (m_networkClient && m_networkClient->isLoggedIn()) {
             m_networkClient->sendChatMessage(input);
         } else {
             // 本地回显
-            m_chatScreen.addSystemMessage("Command executed locally (not connected to server)");
+            if (chatWidget) {
+                chatWidget->addSystemMessage("Command executed locally (not connected to server)");
+            }
         }
     } else {
         // 普通聊天消息，发送到服务端
@@ -1813,7 +1866,9 @@ void ClientApplication::handleChatCommand(const String& input)
             m_networkClient->sendChatMessage(input);
         } else {
             // 本地回显
-            m_chatScreen.addSystemMessage("Message sent locally (not connected to server)");
+            if (chatWidget) {
+                chatWidget->addSystemMessage("Message sent locally (not connected to server)");
+            }
         }
     }
 }

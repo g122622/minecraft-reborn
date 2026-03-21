@@ -3,8 +3,22 @@
 #include "Screen.hpp"
 #include "../../kagero/paint/PaintContext.hpp"
 #include "../../kagero/Types.hpp"
+#include "../../../renderer/util/GpuInfo.hpp"
 #include <vector>
 #include <functional>
+#include <chrono>
+
+namespace mc {
+class Player;
+class BlockRaycastResult;
+}
+
+namespace mc::client {
+class Camera;
+class ClientWorld;
+class ClientEntityManager;
+class NetworkClient;
+}
 
 namespace mc::client::ui::minecraft {
 
@@ -23,70 +37,172 @@ public:
      * @param text 要测量宽度的文本
      * @return 文本宽度（像素）
      */
-    using TextWidthCallback = std::function<f32(const String& text)>;
+    using TextWidthCallback = std::function<f32(const std::string& text)>;
 
     DebugScreenWidget();
     ~DebugScreenWidget() override = default;
 
-    /**
-     * @brief 设置调试数据
-     * @param leftLines 左侧面板文本行
-     * @param rightLines 右侧面板文本行
-     * @param screenWidth 屏幕宽度
-     * @param screenHeight 屏幕高度
-     */
-    void setData(const std::vector<String>& leftLines,
-                 const std::vector<String>& rightLines,
-                 f32 screenWidth, f32 screenHeight);
+    // ========== 数据提供者设置 ==========
 
     /**
-     * @brief 设置文本宽度测量回调
-     * @param callback 测量文本宽度的回调函数
+     * @brief 设置相机
      */
-    void setTextWidthCallback(TextWidthCallback callback);
+    void setCamera(const mc::client::Camera* camera) { m_camera = camera; }
 
     /**
-     * @brief 清空数据
+     * @brief 设置世界
      */
-    void clearData();
+    void setWorld(const mc::client::ClientWorld* world) { m_world = world; }
+
+    /**
+     * @brief 设置实体管理器
+     */
+    void setEntityManager(const mc::client::ClientEntityManager* manager) { m_entityManager = manager; }
+
+    /**
+     * @brief 设置网络客户端
+     */
+    void setNetworkClient(const mc::client::NetworkClient* client) { m_networkClient = client; }
+
+    /**
+     * @brief 设置目标方块
+     */
+    void setTargetBlock(const mc::BlockRaycastResult* result) { m_targetBlock = result; }
+
+    /**
+     * @brief 设置玩家
+     */
+    void setPlayer(const mc::Player* player) { m_player = player; }
+
+    /**
+     * @brief 设置GPU信息
+     */
+    void setGpuInfo(const DebugGpuInfo& info);
+
+    /**
+     * @brief 设置渲染距离
+     */
+    void setRenderDistance(i32 distance) { m_renderDistance = distance; }
+
+    /**
+     * @brief 设置版本字符串
+     */
+    void setVersion(const std::string& version) { m_version = version; }
+
+    /**
+     * @brief 设置渲染器信息
+     */
+    void setRendererInfo(const std::string& info) { m_rendererInfo = info; }
+
+    // ========== Widget接口 ==========
+
+    /**
+     * @brief 每帧更新（收集数据）
+     */
+    void tick(f32 dt) override;
 
     /**
      * @brief 绘制调试屏幕
-     * @param ctx 绘图上下文
      */
     void paint(kagero::widget::PaintContext& ctx) override;
 
     /**
+     * @brief 设置文本宽度测量回调
+     */
+    void setTextWidthCallback(TextWidthCallback callback);
+
+    /**
      * @brief 设置字体高度（行高）
-     * @param lineHeight 行高（像素）
      */
     void setLineHeight(i32 lineHeight) { m_lineHeight = lineHeight; }
 
 private:
     /**
+     * @brief 更新FPS统计
+     */
+    void updateFps(f32 dt);
+
+    /**
+     * @brief 更新系统信息（每秒更新一次）
+     */
+    void updateSystemInfo();
+
+    /**
+     * @brief 构建左侧调试文本
+     */
+    void buildLeftDebugText();
+
+    /**
+     * @brief 构建右侧调试文本
+     */
+    void buildRightDebugText();
+
+    /**
+     * @brief 获取方向名称
+     */
+    std::pair<std::string, std::string> getFacingDirection(f32 yaw) const;
+
+    /**
      * @brief 计算文本最大宽度
      */
     void measureTexts();
 
-    // 左侧文本行
-    std::vector<String> m_leftLines;
-    // 右侧文本行
-    std::vector<String> m_rightLines;
-    // 最大宽度（用于背景）
+    // ========== 数据提供者 ==========
+    const mc::client::Camera* m_camera = nullptr;
+    const mc::client::ClientWorld* m_world = nullptr;
+    const mc::client::ClientEntityManager* m_entityManager = nullptr;
+    const mc::client::NetworkClient* m_networkClient = nullptr;
+    const mc::BlockRaycastResult* m_targetBlock = nullptr;
+    const mc::Player* m_player = nullptr;
+
+    // ========== 调试数据 ==========
+    std::string m_version = "Minecraft Reborn 0.1.0";
+    std::string m_rendererInfo = "Vulkan";
+    i32 m_renderDistance = 12;
+
+    // FPS统计
+    f32 m_fps = 0.0f;
+    f32 m_frameTime = 0.0f;
+    f32 m_fpsAccumulator = 0.0f;
+    u32 m_frameCount = 0;
+    f32 m_fpsUpdateTimer = 0.0f;
+    static constexpr f32 FPS_UPDATE_INTERVAL = 0.5f;
+
+    // 系统信息更新定时器
+    f32 m_systemInfoTimer = 0.0f;
+    static constexpr f32 SYSTEM_INFO_UPDATE_INTERVAL = 1.0f;
+
+    // GPU信息
+    std::string m_gpuVendor;
+    std::string m_gpuName;
+    std::string m_gpuDriverVersion;
+    u64 m_dedicatedVideoMB = 0;
+    u64 m_sharedSystemMB = 0;
+    u32 m_apiMajorVersion = 0;
+    u32 m_apiMinorVersion = 0;
+    bool m_gpuInfoSet = false;
+
+    // 服务端信息
+    f32 m_serverTickTimeMs = 0.0f;
+    f32 m_serverTps = 20.0f;
+
+    // 内存信息
+    u64 m_processMemoryMB = 0;
+    u32 m_memoryPercent = 0;
+    u64 m_totalMemoryMB = 0;
+
+    // ========== 渲染数据 ==========
+    std::vector<std::string> m_leftLines;
+    std::vector<std::string> m_rightLines;
     f32 m_leftMaxWidth = 0.0f;
     f32 m_rightMaxWidth = 0.0f;
-    // 屏幕尺寸
-    f32 m_screenWidth = 0.0f;
-    f32 m_screenHeight = 0.0f;
-    // 字体高度（行高）
-    i32 m_lineHeight = 11;  // 默认字体高度+2
-    // 文本宽度测量回调
+    i32 m_lineHeight = 11;
     TextWidthCallback m_textWidthCallback;
 
-    // 颜色常量（与原版 DebugScreen 保持一致）
-    static constexpr u32 BG_COLOR = 0xA0303030;       // 半透明深灰背景
-    static constexpr u32 TEXT_COLOR = 0xFFFFFFFF;     // 白色文本
-    static constexpr u32 SHADOW_COLOR = 0xFF3F3F3F;   // 深灰阴影
+    // 颜色常量
+    static constexpr u32 BG_COLOR = 0xA0303030;
+    static constexpr u32 TEXT_COLOR = 0xFFFFFFFF;
+    static constexpr u32 SHADOW_COLOR = 0xFF3F3F3F;
 };
 
 } // namespace mc::client::ui::minecraft

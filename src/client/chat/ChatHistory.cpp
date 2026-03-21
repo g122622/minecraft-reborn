@@ -1,6 +1,6 @@
 #include "ChatHistory.hpp"
 
-namespace mc::client {
+namespace mc::client::chat {
 
 void ChatHistory::addMessage(const String& message, u32 color, bool permanent) {
     m_messages.emplace_front(message, color, permanent);
@@ -12,7 +12,7 @@ void ChatHistory::addMessage(const String& message, u32 color, bool permanent) {
 }
 
 void ChatHistory::addSystemMessage(const String& message) {
-    // 系统消息使用黄色
+    // 系统消息使用灰色
     addMessage(message, 0xFFAAAAAA, false);
 }
 
@@ -101,4 +101,4 @@ void ChatHistory::clearInputHistory() {
     m_savedInput.clear();
 }
 
-} // namespace mc::client
+} // namespace mc::client::chat

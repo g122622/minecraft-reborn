@@ -1,6 +1,7 @@
 #pragma once
 
 #include "screen/IScreen.hpp"
+#include "client/ui/minecraft/widgets/ScreenStackWidget.hpp"
 #include <memory>
 #include <vector>
 #include <functional>
@@ -11,6 +12,7 @@ namespace mc::client {
  * @brief 屏幕管理器
  *
  * 管理屏幕栈，处理屏幕切换和事件分发。
+ * 委托给 ScreenStackWidget 进行实际管理。
  *
  * 屏幕栈：
  * - 支持屏幕堆叠（如聊天界面覆盖在游戏界面上）
@@ -33,6 +35,12 @@ public:
      * @return 屏幕管理器实例引用
      */
     static ScreenManager& instance();
+
+    /**
+     * @brief 设置 ScreenStackWidget 后端
+     * @param stackWidget ScreenStackWidget 实例
+     */
+    void setScreenStackWidget(ui::minecraft::widgets::ScreenStackWidget* stackWidget);
 
     /**
      * @brief 打开屏幕
@@ -59,23 +67,27 @@ public:
      * @return 栈顶屏幕，如果栈空返回nullptr
      */
     [[nodiscard]] IScreen* getCurrentScreen() {
-        return m_screens.empty() ? nullptr : m_screens.back().get();
+        return m_stackWidget ? m_stackWidget->topIScreen() : nullptr;
     }
     [[nodiscard]] const IScreen* getCurrentScreen() const {
-        return m_screens.empty() ? nullptr : m_screens.back().get();
+        return m_stackWidget ? m_stackWidget->topIScreen() : nullptr;
     }
 
     /**
      * @brief 检查是否有打开的屏幕
      * @return 如果有屏幕返回true
      */
-    [[nodiscard]] bool hasScreen() const { return !m_screens.empty(); }
+    [[nodiscard]] bool hasScreen() const {
+        return m_stackWidget ? m_stackWidget->hasScreen() : false;
+    }
 
     /**
      * @brief 获取屏幕栈深度
      * @return 屏幕数量
      */
-    [[nodiscard]] size_t getScreenCount() const { return m_screens.size(); }
+    [[nodiscard]] size_t getScreenCount() const {
+        return m_stackWidget ? m_stackWidget->screenCount() : 0;
+    }
 
     /**
      * @brief 每帧更新
@@ -172,14 +184,8 @@ private:
     ScreenManager(const ScreenManager&) = delete;
     ScreenManager& operator=(const ScreenManager&) = delete;
 
-    std::vector<std::unique_ptr<IScreen>> m_screens;
+    ui::minecraft::widgets::ScreenStackWidget* m_stackWidget = nullptr;
     std::function<void(IScreen*)> m_onScreenChange;
-
-    // 拖动状态
-    bool m_isDragging = false;
-    i32 m_dragButton = 0;
-    i32 m_lastMouseX = 0;
-    i32 m_lastMouseY = 0;
 };
 
 } // namespace mc::client

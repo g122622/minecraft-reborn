@@ -15,10 +15,8 @@
 #include "../renderer/trident/core/TridentEngine.hpp"
 #include "../world/ClientWorld.hpp"
 #include "../network/NetworkClient.hpp"
-#include "../ui/debug/DebugScreen.hpp"
-#include "../ui/crosshair/CrosshairRenderer.hpp"
-#include "../ui/hud/HudRenderer.hpp"
-#include "../ui/chat/ChatScreen.hpp"
+#include "../ui/kagero/KageroEngine.hpp"
+#include "../ui/TridentCanvas.hpp"
 #include "server/application/IntegratedServer.hpp"
 
 #include <string>
@@ -183,18 +181,19 @@ private:
     // 玩家实体
     std::unique_ptr<Player> m_player;
 
-    // 调试屏幕
-    DebugScreen m_debugScreen;
+    // 调试屏幕可见性
     bool m_debugScreenVisible = true;
 
-    // 准星渲染器
-    CrosshairRenderer m_crosshair;
+    // Kagero UI引擎
+    std::unique_ptr<ui::kagero::KageroEngine> m_kageroEngine;
+    std::unique_ptr<ui::TridentCanvas> m_canvas;
 
-    // HUD渲染器
-    HudRenderer m_hudRenderer;
-
-    // 聊天屏幕
-    ChatScreen m_chatScreen;
+    // Kagero 层 ID
+    size_t m_crosshairLayerId = 0;
+    size_t m_hudLayerId = 0;
+    size_t m_chatLayerId = 0;
+    size_t m_screenStackLayerId = 0;
+    size_t m_debugScreenLayerId = 0;
 
     // 射线检测结果
     BlockRaycastResult m_raycastResult;

@@ -65,21 +65,16 @@ add_executable(minecraft-client
     # 世界
     world/ClientWorld.cpp
     network/NetworkClient.cpp
+    # 聊天系统
+    chat/ChatHistory.cpp
     # UI (平台无关)
     ui/FontTextureAtlas.cpp
     ui/Font.cpp
     ui/FontRenderer.cpp
     ui/DefaultAsciiFont.cpp
     ui/TridentCanvas.cpp
-    ui/debug/DebugScreen.cpp
-    ui/crosshair/CrosshairRenderer.cpp
-    ui/hud/HudRenderer.cpp
-    ui/inventory/InventoryScreen.cpp
-    ui/inventory/SlotRenderer.cpp
     ui/screen/ScreenManager.cpp
     ui/screen/CraftingScreen.cpp
-    ui/chat/ChatHistory.cpp
-    ui/chat/ChatScreen.cpp
     # UI Kagero模板系统
     ui/kagero/template/parser/Ast.cpp
     ui/kagero/template/parser/AstVisitor.cpp
@@ -103,7 +98,11 @@ add_executable(minecraft-client
     ui/kagero/paint/PaintContext.cpp
     ui/kagero/paint/TextureImage.cpp
     ui/kagero/widget/ContainerWidget.cpp
+    # UI Kagero 引擎
+    ui/kagero/KageroEngine.cpp
+    # UI Kagero widgets
     # Minecraft UI业务层
+    ui/minecraft/widgets/CrosshairWidget.cpp
     ui/minecraft/MinecraftUIContext.cpp
     ui/minecraft/resources/GuiTextureAtlas.cpp
     ui/minecraft/resources/GuiSprite.cpp
@@ -115,6 +114,9 @@ add_executable(minecraft-client
     ui/minecraft/widgets/HungerBarWidget.cpp
     ui/minecraft/widgets/ExperienceBar.cpp
     ui/minecraft/widgets/Viewport3DWidget.cpp
+    ui/minecraft/widgets/HudWidget.cpp
+    ui/minecraft/widgets/ChatWidget.cpp
+    ui/minecraft/widgets/ScreenStackWidget.cpp
     ui/minecraft/screens/Screen.cpp
     ui/minecraft/screens/ScreenManager.cpp
     ui/minecraft/screens/MainMenuScreen.cpp

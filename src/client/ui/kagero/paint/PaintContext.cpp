@@ -112,6 +112,14 @@ void PaintContext::drawGradientRect(const Rect& bounds, u32 startColor, u32 endC
     m_canvas.drawGradientRect(bounds, startColor, endColor, vertical);
 }
 
+f32 PaintContext::getTextWidth(const String& text) const {
+    return m_canvas.getTextWidth(text);
+}
+
+u32 PaintContext::getFontHeight() const {
+    return m_canvas.getFontHeight();
+}
+
 i32 PaintContext::pushClip(const Rect& rect) {
     i32 saveCount = m_canvas.save();
     m_canvas.clipRect(rect);
