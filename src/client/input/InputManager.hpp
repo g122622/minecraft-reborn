@@ -19,7 +19,7 @@ namespace mc::client {
 class InputManager {
 public:
     InputManager() = default;
-    ~InputManager() = default;
+    ~InputManager();
 
     // 禁止拷贝
     InputManager(const InputManager&) = delete;

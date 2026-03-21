@@ -1,0 +1,158 @@
+#include <gtest/gtest.h>
+
+#include "client/resource/ItemTextureAtlas.hpp"
+#include "common/item/BlockItem.hpp"
+#include "common/item/ItemRegistry.hpp"
+#include "common/resource/IResourcePack.hpp"
+#include "common/world/block/VanillaBlocks.hpp"
+
+#include <algorithm>
+#include <unordered_map>
+
+namespace mc::client {
+
+namespace {
+
+class MemoryResourcePack final : public IResourcePack {
+public:
+    Result<void> initialize() override { return {}; }
+
+    const PackMetadata& metadata() const override { return m_metadata; }
+
+    bool hasResource(StringView resourcePath) const override {
+        return m_resources.find(String(resourcePath)) != m_resources.end();
+    }
+
+    Result<std::vector<u8>> readResource(StringView resourcePath) const override {
+        auto it = m_resources.find(String(resourcePath));
+        if (it == m_resources.end()) {
+            return Error(ErrorCode::NotFound, "Resource not found");
+        }
+        return it->second;
+    }
+
+    Result<std::vector<String>> listResources(StringView directory, StringView extension) const override {
+        std::vector<String> results;
+        const String prefix(directory);
+        const String ext(extension);
+
+        for (const auto& [path, _] : m_resources) {
+            const bool prefixMatched = path.find(prefix) != String::npos;
+            const bool extensionMatched = ext.empty() || (path.size() >= ext.size() && path.substr(path.size() - ext.size()) == ext);
+            if (prefixMatched && extensionMatched) {
+                results.push_back(path);
+            }
+        }
+
+        return results;
+    }
+
+    String name() const override {
+        return "MemoryResourcePack";
+    }
+
+    void addResource(const String& path, const std::vector<u8>& data) {
+        m_resources[path] = data;
+    }
+
+private:
+    PackMetadata m_metadata{6, "test"};
+    std::unordered_map<String, std::vector<u8>> m_resources;
+};
+
+const std::vector<u8>& oneByOnePng() {
+    static const std::vector<u8> bytes = {
+        137, 80, 78, 71, 13, 10, 26, 10,
+        0, 0, 0, 13, 73, 72, 68, 82,
+        0, 0, 0, 1, 0, 0, 0, 1,
+        8, 4, 0, 0, 0, 181, 28, 12, 2,
+        0, 0, 0, 11, 73, 68, 65, 84,
+        120, 218, 99, 252, 255, 31, 0, 3,
+        3, 2, 0, 239, 156, 7, 219,
+        0, 0, 0, 0, 73, 69, 78, 68,
+        174, 66, 96, 130
+    };
+    return bytes;
+}
+
+Item* getOrRegisterSimpleItem(const ResourceLocation& id) {
+    Item* existing = ItemRegistry::instance().getItem(id);
+    if (existing != nullptr) {
+        return existing;
+    }
+
+    return &ItemRegistry::instance().registerItem(id, ItemProperties());
+}
+
+Item* getOrRegisterBlockItem(const ResourceLocation& id, const Block& block) {
+    Item* existing = ItemRegistry::instance().getItem(id);
+    if (existing != nullptr) {
+        return existing;
+    }
+
+    return &ItemRegistry::instance().registerItem<BlockItem>(id, block, ItemProperties());
+}
+
+} // namespace
+
+TEST(ItemTextureAtlasTest, LoadItemTextureWithoutPngSuffixInLocation) {
+    auto* item = getOrRegisterSimpleItem(ResourceLocation("minecraft:copilot_test_item"));
+    ASSERT_NE(item, nullptr);
+
+    MemoryResourcePack pack;
+    pack.addResource("assets/minecraft/textures/item/copilot_test_item.png", oneByOnePng());
+
+    ItemTextureAtlas atlas;
+    std::vector<IResourcePack*> packs = {&pack};
+    auto result = atlas.loadFromResourcePacks(packs);
+
+    ASSERT_TRUE(result.success());
+    EXPECT_NE(atlas.getItemTexture(item->itemId()), nullptr);
+    EXPECT_NE(atlas.getItemTexture(ResourceLocation("minecraft", "textures/item/copilot_test_item")), nullptr);
+    EXPECT_NE(atlas.getItemTexture(ResourceLocation("minecraft", "item/copilot_test_item")), nullptr);
+}
+
+TEST(ItemTextureAtlasTest, BlockItemCanLoadFromItemTexturePath) {
+    VanillaBlocks::initialize();
+    ASSERT_NE(VanillaBlocks::STONE, nullptr);
+
+    auto* blockItem = getOrRegisterBlockItem(
+        ResourceLocation("minecraft:copilot_test_block_item"),
+        *VanillaBlocks::STONE);
+    ASSERT_NE(blockItem, nullptr);
+
+    MemoryResourcePack pack;
+    pack.addResource("assets/minecraft/textures/item/copilot_test_block_item.png", oneByOnePng());
+
+    ItemTextureAtlas atlas;
+    std::vector<IResourcePack*> packs = {&pack};
+    auto result = atlas.loadFromResourcePacks(packs);
+
+    ASSERT_TRUE(result.success());
+    EXPECT_NE(atlas.getItemTexture(blockItem->itemId()), nullptr);
+    EXPECT_NE(atlas.getItemTexture(ResourceLocation("minecraft", "item/copilot_test_block_item")), nullptr);
+}
+
+TEST(ItemTextureAtlasTest, BlockItemFallsBackToBlockTexturePath) {
+    VanillaBlocks::initialize();
+    ASSERT_NE(VanillaBlocks::STONE, nullptr);
+
+    auto* blockItem = getOrRegisterBlockItem(
+        ResourceLocation("minecraft:copilot_test_block_fallback"),
+        *VanillaBlocks::STONE);
+    ASSERT_NE(blockItem, nullptr);
+
+    MemoryResourcePack pack;
+    pack.addResource("assets/minecraft/textures/block/stone.png", oneByOnePng());
+
+    ItemTextureAtlas atlas;
+    std::vector<IResourcePack*> packs = {&pack};
+    auto result = atlas.loadFromResourcePacks(packs);
+
+    ASSERT_TRUE(result.success());
+    EXPECT_NE(atlas.getItemTexture(blockItem->itemId()), nullptr);
+    EXPECT_NE(atlas.getItemTexture(ResourceLocation("minecraft", "block/stone")), nullptr);
+    EXPECT_NE(atlas.getItemTexture(ResourceLocation("minecraft", "textures/block/stone")), nullptr);
+}
+
+} // namespace mc::client

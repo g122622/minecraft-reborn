@@ -6,7 +6,6 @@
 #include "common/entity/inventory/PlayerInventory.hpp"
 #include "common/item/ItemStack.hpp"
 #include "common/item/Item.hpp"
-#include <spdlog/spdlog.h>
 
 namespace mc::client::ui::minecraft::widgets {
 
@@ -44,8 +43,6 @@ namespace {
     constexpr f32 TOOLTIP_PADDING = 4.0f;
     constexpr f32 TOOLTIP_OFFSET_Y = 12.0f;
 
-    // 调试日志计数器（避免每帧输出）
-    static int s_debugLogCount = 0;
 }
 
 // ============================================================================
@@ -66,35 +63,6 @@ HudWidget::HudWidget()
 void HudWidget::paint(kagero::widget::PaintContext& ctx) {
     if (!isVisible() || m_player == nullptr) {
         return;
-    }
-
-    // 首次绘制时输出调试信息
-    if (s_debugLogCount < 1) {
-        s_debugLogCount++;
-        spdlog::info("[HUD] First paint - iconsAtlas={}, widgetsAtlas={}",
-                    m_iconsAtlas ? "set" : "null",
-                    m_widgetsAtlas ? "set" : "null");
-        if (m_iconsAtlas) {
-            spdlog::info("[HUD] iconsAtlas: spriteCount={}, hasTexture={}, atlasSize={}x{}",
-                        m_iconsAtlas->spriteCount(),
-                        m_iconsAtlas->hasTexture(),
-                        m_iconsAtlas->atlasWidth(),
-                        m_iconsAtlas->atlasHeight());
-            const auto* heart = m_iconsAtlas->getSprite("heart_full");
-            if (heart) {
-                spdlog::info("[HUD] heart_full sprite: u0={}, v0={}, u1={}, v1={}, w={}, h={}",
-                            heart->u0, heart->v0, heart->u1, heart->v1, heart->width, heart->height);
-            } else {
-                spdlog::info("[HUD] heart_full sprite not found!");
-            }
-        }
-        if (m_widgetsAtlas) {
-            spdlog::info("[HUD] widgetsAtlas: spriteCount={}, hasTexture={}, atlasSize={}x{}",
-                        m_widgetsAtlas->spriteCount(),
-                        m_widgetsAtlas->hasTexture(),
-                        m_widgetsAtlas->atlasWidth(),
-                        m_widgetsAtlas->atlasHeight());
-        }
     }
 
     // 渲染经验条（在快捷栏下方）
@@ -129,12 +97,12 @@ void HudWidget::renderHotbar(kagero::widget::PaintContext& ctx,
         }
     } else {
         // 后备：纯色绘制
-        ctx.drawFilledRect(kagero::Rect{static_cast<i32>(hotbarX), static_cast<i32>(hotbarY),
-                                         static_cast<i32>(HOTBAR_WIDTH), static_cast<i32>(HOTBAR_HEIGHT)},
-                           HudColors::HOTBAR_BACKGROUND);
-        ctx.drawBorder(kagero::Rect{static_cast<i32>(hotbarX), static_cast<i32>(hotbarY),
-                                     static_cast<i32>(HOTBAR_WIDTH), static_cast<i32>(HOTBAR_HEIGHT)},
-                       1.0f, HudColors::HOTBAR_BORDER);
+        // ctx.drawFilledRect(kagero::Rect{static_cast<i32>(hotbarX), static_cast<i32>(hotbarY),
+        //                                  static_cast<i32>(HOTBAR_WIDTH), static_cast<i32>(HOTBAR_HEIGHT)},
+        //                    HudColors::HOTBAR_BACKGROUND);
+        // ctx.drawBorder(kagero::Rect{static_cast<i32>(hotbarX), static_cast<i32>(hotbarY),
+        //                              static_cast<i32>(HOTBAR_WIDTH), static_cast<i32>(HOTBAR_HEIGHT)},
+        //                1.0f, HudColors::HOTBAR_BORDER);
     }
 
     // 绘制槽位
@@ -157,10 +125,6 @@ void HudWidget::renderHotbar(kagero::widget::PaintContext& ctx,
                                                  static_cast<i32>(SLOT_SIZE + 2), static_cast<i32>(SLOT_SIZE + 2)},
                                    HudColors::HOTBAR_SLOT_HIGHLIGHT);
             }
-        } else {
-            ctx.drawFilledRect(kagero::Rect{static_cast<i32>(slotX), static_cast<i32>(slotY),
-                                             static_cast<i32>(SLOT_SIZE), static_cast<i32>(SLOT_SIZE)},
-                               HudColors::HOTBAR_SLOT);
         }
 
         // 绘制物品（如果有）

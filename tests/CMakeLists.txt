@@ -68,6 +68,7 @@ add_executable(mc_tests
     client/renderer/entity/test_entity_renderer_manager.cpp
     client/renderer/test_gui_item_color.cpp
     client/resource/test_entity_texture_loader.cpp
+    client/resource/ItemTextureAtlasTest.cpp
     client/resource/test_resource_manager_cloud_texture.cpp
     network/EntityPacketsTest.cpp
     network/LocalServerConnectionTest.cpp
@@ -289,6 +290,7 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/client/resource/BlockModelLoader.cpp
         ${CMAKE_SOURCE_DIR}/src/client/resource/BlockStateLoader.cpp
         ${CMAKE_SOURCE_DIR}/src/client/resource/TextureAtlasBuilder.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/resource/ItemTextureAtlas.cpp
         # 资源包兼容层
         ${CMAKE_SOURCE_DIR}/src/common/resource/compat/PackFormat.cpp
         ${CMAKE_SOURCE_DIR}/src/common/resource/compat/ResourceMapper.cpp
@@ -325,6 +327,7 @@ target_link_libraries(mc_tests
         nlohmann_json::nlohmann_json
         glm::glm
         spdlog::spdlog
+        Vulkan::Vulkan
 )
 
 if(WIN32)
