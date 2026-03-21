@@ -14,6 +14,9 @@
 #include "client/renderer/trident/chunk/ChunkRenderer.hpp"
 #include "client/renderer/trident/entity/EntityRendererManager.hpp"
 #include "client/renderer/trident/gui/GuiRenderer.hpp"
+#include "client/renderer/trident/gui/GuiSpriteAtlas.hpp"
+#include "client/renderer/trident/gui/GuiSpriteRegistry.hpp"
+#include "client/renderer/trident/gui/GuiTextureLoader.hpp"
 #include "client/renderer/util/GpuInfo.hpp"
 #include "client/resource/ResourceManager.hpp"
 #include "client/resource/TextureAtlasBuilder.hpp"
@@ -527,6 +530,161 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         if (guiFont == nullptr) {
             spdlog::error("Failed to get GUI font for KageroEngine");
         } else {
+            // 初始化 GUI 精灵图集（双图集架构）
+            // 重要：纹理加载顺序 - 先初始化图集，再加载纹理（设置正确尺寸），最后注册精灵
+
+            // icons.png: 心形、饥饿、盔甲、经验条等
+            m_iconsAtlas = std::make_unique<renderer::trident::gui::GuiSpriteAtlas>();
+            auto iconsAtlasResult = m_iconsAtlas->initialize(
+                m_renderer->context()->device(),
+                m_renderer->context()->physicalDevice(),
+                m_renderer->commandPool(),
+                m_renderer->graphicsQueue()
+            );
+            if (iconsAtlasResult.failed()) {
+                spdlog::warn("Failed to initialize icons atlas: {}. Using fallback colors.",
+                             iconsAtlasResult.error().toString());
+                m_iconsAtlas.reset();
+            }
+
+            // widgets.png: 快捷栏、按钮等
+            m_widgetsAtlas = std::make_unique<renderer::trident::gui::GuiSpriteAtlas>();
+            auto widgetsAtlasResult = m_widgetsAtlas->initialize(
+                m_renderer->context()->device(),
+                m_renderer->context()->physicalDevice(),
+                m_renderer->commandPool(),
+                m_renderer->graphicsQueue()
+            );
+            if (widgetsAtlasResult.failed()) {
+                spdlog::warn("Failed to initialize widgets atlas: {}. Using fallback colors.",
+                             widgetsAtlasResult.error().toString());
+                m_widgetsAtlas.reset();
+            }
+
+            // 准备纹理加载器
+            renderer::trident::gui::GuiTextureLoader textureLoader;
+            bool hasTextureLoader = false;
+
+            // 从资源包加载纹理
+            if (m_resourceManager && m_resourceManager->resourcePackCount() > 0) {
+                spdlog::info("[GUI] ResourceManager has {} resource packs", m_resourceManager->resourcePackCount());
+
+                // 添加启用的资源包到加载器
+                auto enabledPacks = m_resourcePackList.getEnabledPacks();
+                spdlog::info("[GUI] ResourcePackList has {} enabled packs", enabledPacks.size());
+                for (const auto& pack : enabledPacks) {
+                    if (pack) {
+                        spdlog::info("[GUI] Adding enabled resource pack: {}", pack->name());
+                        textureLoader.addResourcePack(pack);
+                        hasTextureLoader = true;
+                    }
+                }
+
+                // 如果没有从设置启用的资源包，使用资源管理器中的资源包
+                if (!hasTextureLoader) {
+                    spdlog::info("[GUI] No enabled packs from settings, using ResourceManager packs");
+                    // 获取资源管理器中所有资源包
+                    for (size_t i = 0; i < m_resourceManager->resourcePackCount(); ++i) {
+                        auto* pack = m_resourceManager->getResourcePack(i);
+                        if (pack) {
+                            spdlog::info("[GUI] Adding ResourceManager pack [{}]: {}", i, pack->name());
+                            // 注意：这里使用空删除器，因为资源包生命周期由ResourceManager管理
+                            textureLoader.addResourcePack(
+                                std::shared_ptr<mc::IResourcePack>(pack, [](mc::IResourcePack*) {}));
+                            hasTextureLoader = true;
+                        }
+                    }
+                }
+            } else {
+                spdlog::info("[GUI] ResourceManager is null or has no resource packs");
+            }
+
+            // 加载纹理并注册精灵
+            // 关键顺序：先加载纹理（设置正确的图集尺寸），再注册精灵（计算正确的UV）
+            if (hasTextureLoader) {
+                spdlog::info("[GUI] TextureLoader has {} resource packs", textureLoader.resourcePackCount());
+
+                // 加载 icons.png 到 iconsAtlas
+                if (m_iconsAtlas) {
+                    spdlog::info("[GUI] Loading icons.png to iconsAtlas...");
+                    auto loadResult = textureLoader.loadGuiTexture(*m_iconsAtlas, "minecraft:textures/gui/icons.png");
+                    if (loadResult.failed()) {
+                        spdlog::warn("[GUI] Failed to load icons.png: {}. Using default textures.", loadResult.error().toString());
+                        (void)m_iconsAtlas->loadDefaultTextures();
+                    } else {
+                        spdlog::info("[GUI] Loaded icons.png from resource pack ({}x{})",
+                                    m_iconsAtlas->atlasWidth(), m_iconsAtlas->atlasHeight());
+                    }
+                    // 纹理加载后注册精灵（使用正确的图集尺寸计算UV）
+                    renderer::trident::gui::GuiSpriteRegistry::registerIconsSprites(*m_iconsAtlas);
+                    spdlog::info("[GUI] Icons atlas: {} sprites registered, texture={}",
+                                m_iconsAtlas->spriteCount(),
+                                m_iconsAtlas->hasTexture() ? "yes" : "no");
+
+                    // 注册图集到 GuiRenderer 并设置槽位
+                    auto iconsSlotResult = m_renderer->guiRenderer().registerAtlas(
+                        "icons", m_iconsAtlas->imageView(), m_iconsAtlas->sampler());
+                    if (iconsSlotResult.success()) {
+                        m_iconsAtlas->setAtlasSlot(static_cast<u8>(iconsSlotResult.value()));
+                        spdlog::info("[GUI] Icons atlas registered at slot {}", iconsSlotResult.value());
+                    } else {
+                        spdlog::warn("[GUI] Failed to register icons atlas: {}", iconsSlotResult.error().toString());
+                    }
+                }
+
+                // 加载 widgets.png 到 widgetsAtlas
+                if (m_widgetsAtlas) {
+                    spdlog::info("[GUI] Loading widgets.png to widgetsAtlas...");
+                    auto loadResult = textureLoader.loadGuiTexture(*m_widgetsAtlas, "minecraft:textures/gui/widgets.png");
+                    if (loadResult.failed()) {
+                        spdlog::warn("[GUI] Failed to load widgets.png: {}. Using default textures.", loadResult.error().toString());
+                        (void)m_widgetsAtlas->loadDefaultTextures();
+                    } else {
+                        spdlog::info("[GUI] Loaded widgets.png from resource pack ({}x{})",
+                                    m_widgetsAtlas->atlasWidth(), m_widgetsAtlas->atlasHeight());
+                    }
+                    // 纹理加载后注册精灵（使用正确的图集尺寸计算UV）
+                    renderer::trident::gui::GuiSpriteRegistry::registerWidgetsSprites(*m_widgetsAtlas);
+                    spdlog::info("[GUI] Widgets atlas: {} sprites registered, texture={}",
+                                m_widgetsAtlas->spriteCount(),
+                                m_widgetsAtlas->hasTexture() ? "yes" : "no");
+
+                    // 注册图集到 GuiRenderer 并设置槽位
+                    auto widgetsSlotResult = m_renderer->guiRenderer().registerAtlas(
+                        "widgets", m_widgetsAtlas->imageView(), m_widgetsAtlas->sampler());
+                    if (widgetsSlotResult.success()) {
+                        m_widgetsAtlas->setAtlasSlot(static_cast<u8>(widgetsSlotResult.value()));
+                        spdlog::info("[GUI] Widgets atlas registered at slot {}", widgetsSlotResult.value());
+                    } else {
+                        spdlog::warn("[GUI] Failed to register widgets atlas: {}", widgetsSlotResult.error().toString());
+                    }
+                }
+            } else {
+                // 无资源包，使用默认纹理
+                if (m_iconsAtlas) {
+                    (void)m_iconsAtlas->loadDefaultTextures();
+                    // 使用默认256x256尺寸注册精灵
+                    renderer::trident::gui::GuiSpriteRegistry::registerIconsSprites(*m_iconsAtlas);
+                    // 注册图集到 GuiRenderer
+                    auto iconsSlotResult = m_renderer->guiRenderer().registerAtlas(
+                        "icons", m_iconsAtlas->imageView(), m_iconsAtlas->sampler());
+                    if (iconsSlotResult.success()) {
+                        m_iconsAtlas->setAtlasSlot(static_cast<u8>(iconsSlotResult.value()));
+                    }
+                }
+                if (m_widgetsAtlas) {
+                    (void)m_widgetsAtlas->loadDefaultTextures();
+                    // 使用默认256x256尺寸注册精灵
+                    renderer::trident::gui::GuiSpriteRegistry::registerWidgetsSprites(*m_widgetsAtlas);
+                    // 注册图集到 GuiRenderer
+                    auto widgetsSlotResult = m_renderer->guiRenderer().registerAtlas(
+                        "widgets", m_widgetsAtlas->imageView(), m_widgetsAtlas->sampler());
+                    if (widgetsSlotResult.success()) {
+                        m_widgetsAtlas->setAtlasSlot(static_cast<u8>(widgetsSlotResult.value()));
+                    }
+                }
+            }
+
             // 创建 TridentCanvas
             m_canvas = std::make_unique<ui::TridentCanvas>(
                 m_renderer->guiRenderer(),
@@ -553,6 +711,12 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
                 auto hudWidget = std::make_unique<ui::minecraft::widgets::HudWidget>();
                 hudWidget->setGuiRenderer(&m_renderer->guiRenderer());
                 hudWidget->setItemRenderer(&m_renderer->itemRenderer());
+                if (m_iconsAtlas) {
+                    hudWidget->setIconsAtlas(m_iconsAtlas.get());
+                }
+                if (m_widgetsAtlas) {
+                    hudWidget->setWidgetsAtlas(m_widgetsAtlas.get());
+                }
                 if (m_player) {
                     hudWidget->setPlayer(m_player.get());
                 }

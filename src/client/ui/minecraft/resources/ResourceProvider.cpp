@@ -11,13 +11,8 @@ ResourceProvider::ResourceProvider(Font& font, renderer::trident::gui::GuiRender
 
 void ResourceProvider::loadGuiTextureAtlas(const String& path) {
     // TODO: 从资源路径加载纹理图集
-    // 需要通过实际的纹理加载器加载
-    // 然后注册精灵到 atlas
+    // 需要通过GuiTextureLoader加载
     (void)path;
-}
-
-const GuiTextureAtlas& ResourceProvider::atlas() const {
-    return m_atlas;
 }
 
 } // namespace mc::client::ui::minecraft

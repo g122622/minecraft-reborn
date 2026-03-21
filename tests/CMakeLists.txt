@@ -337,6 +337,11 @@ target_include_directories(mc_tests
         ${CMAKE_SOURCE_DIR}/include
 )
 
+target_compile_definitions(mc_tests
+    PRIVATE
+        MC_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
 mc_set_compiler_warnings(mc_tests)
 
 # 资源测试可执行文件
@@ -488,4 +493,29 @@ if(MC_BUILD_CLIENT)
     set_target_properties(mc_trident_tests PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     )
+
+    # GUI纹理系统测试（纯数据结构测试，不需要Vulkan）
+    # 这些测试放在主测试套件中，避免Vulkan依赖
+    target_sources(mc_tests
+        PRIVATE
+            # GuiSprite 和 GuiNinePatch 测试
+            ${CMAKE_CURRENT_SOURCE_DIR}/client/renderer/trident/gui/GuiSpriteTest.cpp
+            # GuiSpriteManager 测试（不依赖Vulkan）
+            ${CMAKE_CURRENT_SOURCE_DIR}/client/renderer/trident/gui/GuiSpriteManagerTest.cpp
+            # GuiSpriteParser JSON解析测试（不需要资源包）
+            ${CMAKE_CURRENT_SOURCE_DIR}/client/renderer/trident/gui/GuiSpriteParserTest.cpp
+            # 源文件（GuiSprite.hpp 是纯头文件）
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/gui/GuiSpriteManager.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/gui/GuiSpriteParser.cpp
+    )
+
+    # GUI纹理系统测试（需要Vulkan的测试暂时禁用）
+    # GuiTextureAtlas 依赖 GuiRenderer 和 Vulkan，而其功能已被 GuiSpriteManager 测试覆盖
+    # 如果需要测试 GuiTextureAtlas 的 Vulkan 功能，可以添加回：
+    # target_sources(mc_trident_tests
+    #     PRIVATE
+    #         ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/gui/GuiTextureAtlas.cpp
+    #         ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/gui/GuiSpriteRegistry.cpp
+    #         ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/gui/GuiTextureLoader.cpp
+    # )
 endif()

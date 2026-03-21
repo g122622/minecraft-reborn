@@ -102,6 +102,9 @@ Result<void> GuiRenderer::initialize(
         }
     }
 
+    m_textureLayoutsInitialized = false;
+    m_fontTextureInShaderReadLayout = false;
+
     m_initialized = true;
     return {};
 }
@@ -195,6 +198,8 @@ void GuiRenderer::destroy() {
     }
 
     m_fontRenderer.destroy();
+    m_textureLayoutsInitialized = false;
+    m_fontTextureInShaderReadLayout = false;
     m_initialized = false;
 }
 
@@ -220,10 +225,9 @@ void GuiRenderer::beginFrame(f32 screenW, f32 screenH) {
 
 void GuiRenderer::prepareFrame(VkCommandBuffer commandBuffer) {
     // 首次使用时初始化纹理布局
-    static bool texturesInitialized = false;
-    if (!texturesInitialized) {
+    if (!m_textureLayoutsInitialized) {
         initializeTextureLayouts(commandBuffer);
-        texturesInitialized = true;
+        m_textureLayoutsInitialized = true;
     }
 
     // 在渲染通道外更新字体纹理
@@ -325,13 +329,14 @@ void GuiRenderer::fillRect(f32 x, f32 y, f32 width, f32 height, u32 color) {
     u32 baseIndex = static_cast<u32>(m_vertices.size());
 
     // 四个顶点
-    // 注意：使用负UV作为”纯色矩形”标记，片段着色器将跳过字体纹理采样。
+    // 注意：使用负UV作为”纯色矩形”标记，片段着色器将跳过纹理采样。
     // 否则会错误地使用字体纹理alpha，导致准星/背景矩形不可见。
+    // 纯色矩形使用槽位0（字体槽位），但不会采样纹理
     constexpr f32 SOLID_RECT_UV = -1.0f;
-    m_vertices.emplace_back(x, y, SOLID_RECT_UV, SOLID_RECT_UV, color);                  // 左上
-    m_vertices.emplace_back(x + width, y, SOLID_RECT_UV, SOLID_RECT_UV, color);          // 右上
-    m_vertices.emplace_back(x + width, y + height, SOLID_RECT_UV, SOLID_RECT_UV, color); // 右下
-    m_vertices.emplace_back(x, y + height, SOLID_RECT_UV, SOLID_RECT_UV, color);         // 左下
+    m_vertices.emplace_back(x, y, SOLID_RECT_UV, SOLID_RECT_UV, color, FONT_ATLAS_SLOT);                  // 左上
+    m_vertices.emplace_back(x + width, y, SOLID_RECT_UV, SOLID_RECT_UV, color, FONT_ATLAS_SLOT);          // 右上
+    m_vertices.emplace_back(x + width, y + height, SOLID_RECT_UV, SOLID_RECT_UV, color, FONT_ATLAS_SLOT); // 右下
+    m_vertices.emplace_back(x, y + height, SOLID_RECT_UV, SOLID_RECT_UV, color, FONT_ATLAS_SLOT);         // 左下
 
     // 两个三角形
     m_indices.push_back(baseIndex + 0);
@@ -345,16 +350,20 @@ void GuiRenderer::fillRect(f32 x, f32 y, f32 width, f32 height, u32 color) {
 
 void GuiRenderer::drawTexturedRect(f32 x, f32 y, f32 width, f32 height,
                                      f32 u0, f32 v0, f32 u1, f32 v1, u32 color) {
+    // 默认使用物品图集槽位
+    drawTexturedRect(x, y, width, height, u0, v0, u1, v1, color, ITEM_ATLAS_SLOT);
+}
+
+void GuiRenderer::drawTexturedRect(f32 x, f32 y, f32 width, f32 height,
+                                     f32 u0, f32 v0, f32 u1, f32 v1,
+                                     u32 color, u8 atlasSlot) {
     u32 baseIndex = static_cast<u32>(m_vertices.size());
 
-    // 物品纹理模式：alpha < 255 表示使用物品纹理采样（alpha=255是字体模式）
-    // 默认 ITEM_TEXTURE_COLOR = 0xFEFFFFFF，确保走物品分支且可见
-
-    // 四个顶点，设置纹理坐标
-    m_vertices.emplace_back(x, y, u0, v0, color);                  // 左上
-    m_vertices.emplace_back(x + width, y, u1, v0, color);          // 右上
-    m_vertices.emplace_back(x + width, y + height, u1, v1, color); // 右下
-    m_vertices.emplace_back(x, y + height, u0, v1, color);         // 左下
+    // 四个顶点，设置纹理坐标和图集槽位
+    m_vertices.emplace_back(x, y, u0, v0, color, atlasSlot);                  // 左上
+    m_vertices.emplace_back(x + width, y, u1, v0, color, atlasSlot);          // 右上
+    m_vertices.emplace_back(x + width, y + height, u1, v1, color, atlasSlot); // 右下
+    m_vertices.emplace_back(x, y + height, u0, v1, color, atlasSlot);         // 左下
 
     // 两个三角形
     m_indices.push_back(baseIndex + 0);
@@ -372,10 +381,10 @@ void GuiRenderer::fillGradientRect(f32 x, f32 y, f32 width, f32 height,
 
     // 四个顶点，顶部和底部不同颜色
     constexpr f32 SOLID_RECT_UV = -1.0f;
-    m_vertices.emplace_back(x, y, SOLID_RECT_UV, SOLID_RECT_UV, colorTop);                  // 左上
-    m_vertices.emplace_back(x + width, y, SOLID_RECT_UV, SOLID_RECT_UV, colorTop);          // 右上
-    m_vertices.emplace_back(x + width, y + height, SOLID_RECT_UV, SOLID_RECT_UV, colorBottom); // 右下
-    m_vertices.emplace_back(x, y + height, SOLID_RECT_UV, SOLID_RECT_UV, colorBottom);      // 左下
+    m_vertices.emplace_back(x, y, SOLID_RECT_UV, SOLID_RECT_UV, colorTop, FONT_ATLAS_SLOT);                  // 左上
+    m_vertices.emplace_back(x + width, y, SOLID_RECT_UV, SOLID_RECT_UV, colorTop, FONT_ATLAS_SLOT);          // 右上
+    m_vertices.emplace_back(x + width, y + height, SOLID_RECT_UV, SOLID_RECT_UV, colorBottom, FONT_ATLAS_SLOT); // 右下
+    m_vertices.emplace_back(x, y + height, SOLID_RECT_UV, SOLID_RECT_UV, colorBottom, FONT_ATLAS_SLOT);      // 左下
 
     m_indices.push_back(baseIndex + 0);
     m_indices.push_back(baseIndex + 1);
@@ -392,10 +401,10 @@ void GuiRenderer::fillGradientRectHorizontal(f32 x, f32 y, f32 width, f32 height
 
     // 四个顶点，左侧和右侧不同颜色
     constexpr f32 SOLID_RECT_UV = -1.0f;
-    m_vertices.emplace_back(x, y, SOLID_RECT_UV, SOLID_RECT_UV, colorLeft);                  // 左上
-    m_vertices.emplace_back(x + width, y, SOLID_RECT_UV, SOLID_RECT_UV, colorRight);         // 右上
-    m_vertices.emplace_back(x + width, y + height, SOLID_RECT_UV, SOLID_RECT_UV, colorRight); // 右下
-    m_vertices.emplace_back(x, y + height, SOLID_RECT_UV, SOLID_RECT_UV, colorLeft);         // 左下
+    m_vertices.emplace_back(x, y, SOLID_RECT_UV, SOLID_RECT_UV, colorLeft, FONT_ATLAS_SLOT);                  // 左上
+    m_vertices.emplace_back(x + width, y, SOLID_RECT_UV, SOLID_RECT_UV, colorRight, FONT_ATLAS_SLOT);         // 右上
+    m_vertices.emplace_back(x + width, y + height, SOLID_RECT_UV, SOLID_RECT_UV, colorRight, FONT_ATLAS_SLOT); // 右下
+    m_vertices.emplace_back(x, y + height, SOLID_RECT_UV, SOLID_RECT_UV, colorLeft, FONT_ATLAS_SLOT);         // 左下
 
     m_indices.push_back(baseIndex + 0);
     m_indices.push_back(baseIndex + 1);
@@ -520,13 +529,20 @@ Result<void> GuiRenderer::createPipeline(VkRenderPass renderPass) {
     colorAttr.format = VK_FORMAT_R8G8B8A8_UNORM;
     colorAttr.offset = offsetof(GuiVertex, color);
 
-    VkVertexInputAttributeDescription attributeDescs[] = {positionAttr, texCoordAttr, colorAttr};
+    // 图集槽位属性
+    VkVertexInputAttributeDescription atlasSlotAttr = {};
+    atlasSlotAttr.binding = 0;
+    atlasSlotAttr.location = 3;
+    atlasSlotAttr.format = VK_FORMAT_R8_UINT;
+    atlasSlotAttr.offset = offsetof(GuiVertex, atlasSlot);
+
+    VkVertexInputAttributeDescription attributeDescs[] = {positionAttr, texCoordAttr, colorAttr, atlasSlotAttr};
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexInputInfo.vertexBindingDescriptionCount = 1;
     vertexInputInfo.pVertexBindingDescriptions = &bindingDesc;
-    vertexInputInfo.vertexAttributeDescriptionCount = 3;
+    vertexInputInfo.vertexAttributeDescriptionCount = 4;  // position, texCoord, color, atlasSlot
     vertexInputInfo.pVertexAttributeDescriptions = attributeDescs;
 
     // 输入装配
@@ -620,23 +636,24 @@ Result<void> GuiRenderer::createPipeline(VkRenderPass renderPass) {
 Result<void> GuiRenderer::createDescriptors() {
     VkDevice device = m_device;
 
-    // 描述符集布局（两个采样器：字体纹理和物品纹理）
-    VkDescriptorSetLayoutBinding bindings[2] = {};
-    // Binding 0: 字体纹理 (R8)
-    bindings[0].binding = 0;
-    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[0].descriptorCount = 1;
-    bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    // Binding 1: 物品纹理图集 (RGBA)
-    bindings[1].binding = 1;
-    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[1].descriptorCount = 1;
-    bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    // 描述符集布局（16个采样器：字体、物品、14个GUI图集）
+    // 槽位 0: 字体纹理 (R8)
+    // 槽位 1: 物品纹理图集 (RGBA)
+    // 槽位 2-15: GUI纹理图集 (RGBA)
+    constexpr u32 MAX_SAMPLERS = 16;
+    std::array<VkDescriptorSetLayoutBinding, MAX_SAMPLERS> bindings = {};
+
+    for (u32 i = 0; i < MAX_SAMPLERS; ++i) {
+        bindings[i].binding = i;
+        bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        bindings[i].descriptorCount = 1;
+        bindings[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    }
 
     VkDescriptorSetLayoutCreateInfo layoutInfo = {};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = 2;
-    layoutInfo.pBindings = bindings;
+    layoutInfo.bindingCount = MAX_SAMPLERS;
+    layoutInfo.pBindings = bindings.data();
 
     if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS) {
         return Error(ErrorCode::InitializationFailed, "Failed to create descriptor set layout");
@@ -645,7 +662,7 @@ Result<void> GuiRenderer::createDescriptors() {
     // 描述符池
     VkDescriptorPoolSize poolSize = {};
     poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSize.descriptorCount = 2;  // 两个采样器
+    poolSize.descriptorCount = MAX_SAMPLERS;  // 16个采样器
 
     VkDescriptorPoolCreateInfo poolInfo = {};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -906,7 +923,9 @@ void GuiRenderer::updateFontTexture(VkCommandBuffer commandBuffer) {
     // 转换图像布局到 TRANSFER_DST
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    barrier.oldLayout = m_fontTextureInShaderReadLayout
+        ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        : VK_IMAGE_LAYOUT_UNDEFINED;
     barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -916,11 +935,11 @@ void GuiRenderer::updateFontTexture(VkCommandBuffer commandBuffer) {
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = 1;
-    barrier.srcAccessMask = 0;
+    barrier.srcAccessMask = m_fontTextureInShaderReadLayout ? VK_ACCESS_SHADER_READ_BIT : 0;
     barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 
     vkCmdPipelineBarrier(commandBuffer,
-                          VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                          m_fontTextureInShaderReadLayout ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                           VK_PIPELINE_STAGE_TRANSFER_BIT,
                           0, 0, nullptr, 0, nullptr, 1, &barrier);
 
@@ -950,6 +969,8 @@ void GuiRenderer::updateFontTexture(VkCommandBuffer commandBuffer) {
                           VK_PIPELINE_STAGE_TRANSFER_BIT,
                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                           0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+    m_fontTextureInShaderReadLayout = true;
 }
 
 void GuiRenderer::initializeTextureLayouts(VkCommandBuffer commandBuffer) {
@@ -974,6 +995,8 @@ void GuiRenderer::initializeTextureLayouts(VkCommandBuffer commandBuffer) {
                               VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                               VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                               0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+        m_fontTextureInShaderReadLayout = true;
     }
 
     // 初始化物品占位纹理布局
@@ -1092,6 +1115,96 @@ void GuiRenderer::setItemTextureAtlas(VkImageView itemView, VkSampler itemSample
     descriptorWrite.pImageInfo = &itemImageInfo;
 
     vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+}
+
+void GuiRenderer::setGuiTextureAtlas(VkImageView guiView, VkSampler guiSampler) {
+    if (!m_initialized || guiView == VK_NULL_HANDLE || guiSampler == VK_NULL_HANDLE) {
+        return;
+    }
+
+    m_guiTextureView = guiView;
+    m_guiSampler = guiSampler;
+
+    // 更新 binding 2 的描述符
+    VkDescriptorImageInfo guiImageInfo = {};
+    guiImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    guiImageInfo.imageView = guiView;
+    guiImageInfo.sampler = guiSampler;
+
+    VkWriteDescriptorSet descriptorWrite = {};
+    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet = m_descriptorSet;
+    descriptorWrite.dstBinding = 2;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pImageInfo = &guiImageInfo;
+
+    vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
+}
+
+Result<u32> GuiRenderer::registerAtlas(const String& name, VkImageView view, VkSampler sampler) {
+    if (!m_initialized) {
+        return Error(ErrorCode::NotInitialized, "GuiRenderer not initialized");
+    }
+
+    if (view == VK_NULL_HANDLE || sampler == VK_NULL_HANDLE) {
+        return Error(ErrorCode::NullPointer, "ImageView or Sampler is null");
+    }
+
+    // 检查是否已注册
+    auto it = m_atlasSlots.find(name);
+    if (it != m_atlasSlots.end()) {
+        // 更新现有图集
+        u32 slot = it->second;
+        updateAtlasDescriptor(slot, view, sampler);
+        return slot;
+    }
+
+    // 分配新槽位
+    if (m_nextGuiSlot >= 16) {  // 最大16个槽位
+        return Error(ErrorCode::CapacityExceeded,
+            "Maximum atlas slots reached. Consider consolidating atlases.");
+    }
+
+    u32 slot = m_nextGuiSlot++;
+    m_atlasSlots[name] = slot;
+
+    // 更新描述符
+    updateAtlasDescriptor(slot, view, sampler);
+
+    spdlog::info("[GuiRenderer] Registered atlas '{}' at slot {}", name, slot);
+    return slot;
+}
+
+std::optional<u32> GuiRenderer::getAtlasSlot(const String& name) const {
+    auto it = m_atlasSlots.find(name);
+    if (it != m_atlasSlots.end()) {
+        return it->second;
+    }
+    return std::nullopt;
+}
+
+void GuiRenderer::updateAtlasDescriptor(u32 binding, VkImageView view, VkSampler sampler) {
+    if (m_descriptorSet == VK_NULL_HANDLE) {
+        return;
+    }
+
+    VkDescriptorImageInfo imageInfo = {};
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = view;
+    imageInfo.sampler = sampler;
+
+    VkWriteDescriptorSet descriptorWrite = {};
+    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet = m_descriptorSet;
+    descriptorWrite.dstBinding = binding;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pImageInfo = &imageInfo;
+
+    vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
 }
 
 // ============================================================================

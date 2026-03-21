@@ -13,6 +13,7 @@
 #include "../resource/ResourceManager.hpp"
 #include "../resource/BlockModelCache.hpp"
 #include "../renderer/trident/core/TridentEngine.hpp"
+#include "../renderer/trident/gui/GuiSpriteAtlas.hpp"
 #include "../world/ClientWorld.hpp"
 #include "../network/NetworkClient.hpp"
 #include "../ui/kagero/KageroEngine.hpp"
@@ -166,6 +167,10 @@ private:
     ResourcePackList m_resourcePackList;
     std::unique_ptr<ResourceManager> m_resourceManager;
     BlockModelCache m_modelCache;
+
+    // GUI精灵图集（双图集架构：icons和widgets分离）
+    std::unique_ptr<renderer::trident::gui::GuiSpriteAtlas> m_iconsAtlas;   // 心形、饥饿、盔甲、经验条等
+    std::unique_ptr<renderer::trident::gui::GuiSpriteAtlas> m_widgetsAtlas; // 快捷栏、按钮等
 
     // 相机
     Camera m_camera;

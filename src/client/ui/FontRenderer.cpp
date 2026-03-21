@@ -205,34 +205,36 @@ void FontRenderer::addGlyphVertices(const Glyph& glyph, f32 x, f32 y, u32 color,
     // 添加4个顶点
     // 注意：现在不翻转纹理坐标V轴，屏幕Y轴向下与纹理V轴向下一致
     // 所以屏幕上方（小Y）对应纹理顶部（小V），屏幕下方（大Y）对应纹理底部（大V）
+    // 字体使用槽位0（FONT_ATLAS_SLOT）
+    constexpr u8 FONT_SLOT = 0;
     u32 baseIndex = static_cast<u32>(m_vertices.size());
 
     // 左上（屏幕Y小，对应纹理V小，即v0）
     m_vertices.emplace_back(
         glyphLeft + italicOffset, glyphTop,
         glyph.u0, glyph.v0,  // 使用v0（顶部）
-        color
+        color, FONT_SLOT
     );
 
     // 右上
     m_vertices.emplace_back(
         glyphRight + italicOffset, glyphTop,
         glyph.u1, glyph.v0,  // 使用v0（顶部）
-        color
+        color, FONT_SLOT
     );
 
     // 右下（屏幕Y大，对应纹理V大，即v1）
     m_vertices.emplace_back(
         glyphRight, glyphBottom,
         glyph.u1, glyph.v1,  // 使用v1（底部）
-        color
+        color, FONT_SLOT
     );
 
     // 左下
     m_vertices.emplace_back(
         glyphLeft, glyphBottom,
         glyph.u0, glyph.v1,  // 使用v1（底部）
-        color
+        color, FONT_SLOT
     );
 
     // 添加两个三角形（6个索引）
@@ -250,19 +252,23 @@ void FontRenderer::addDecoration(f32 x, f32 y, f32 width, u32 color,
     u32 baseIndex = static_cast<u32>(m_vertices.size());
     f32 fontHeight = static_cast<f32>(m_font->getFontHeight()) * m_scale;
 
+    // 装饰线使用槽位0（FONT_ATLAS_SLOT），但UV为负表示纯色
+    constexpr u8 FONT_SLOT = 0;
+    constexpr f32 SOLID_RECT_UV = -1.0f;
+
     // 删除线
     if (strikethrough) {
         f32 strikeY = y + fontHeight * 0.5f;
         f32 strikeHeight = 1.0f * m_scale;
 
         // 左上
-        m_vertices.emplace_back(x, strikeY, 0.0f, 0.0f, color);
+        m_vertices.emplace_back(x, strikeY, SOLID_RECT_UV, SOLID_RECT_UV, color, FONT_SLOT);
         // 右上
-        m_vertices.emplace_back(x + width, strikeY, 0.0f, 0.0f, color);
+        m_vertices.emplace_back(x + width, strikeY, SOLID_RECT_UV, SOLID_RECT_UV, color, FONT_SLOT);
         // 右下
-        m_vertices.emplace_back(x + width, strikeY + strikeHeight, 0.0f, 0.0f, color);
+        m_vertices.emplace_back(x + width, strikeY + strikeHeight, SOLID_RECT_UV, SOLID_RECT_UV, color, FONT_SLOT);
         // 左下
-        m_vertices.emplace_back(x, strikeY + strikeHeight, 0.0f, 0.0f, color);
+        m_vertices.emplace_back(x, strikeY + strikeHeight, SOLID_RECT_UV, SOLID_RECT_UV, color, FONT_SLOT);
 
         m_indices.push_back(baseIndex + 0);
         m_indices.push_back(baseIndex + 1);
@@ -280,13 +286,13 @@ void FontRenderer::addDecoration(f32 x, f32 y, f32 width, u32 color,
         f32 underlineHeight = 1.0f * m_scale;
 
         // 左上
-        m_vertices.emplace_back(x, underlineY, 0.0f, 0.0f, color);
+        m_vertices.emplace_back(x, underlineY, SOLID_RECT_UV, SOLID_RECT_UV, color, FONT_SLOT);
         // 右上
-        m_vertices.emplace_back(x + width, underlineY, 0.0f, 0.0f, color);
+        m_vertices.emplace_back(x + width, underlineY, SOLID_RECT_UV, SOLID_RECT_UV, color, FONT_SLOT);
         // 右下
-        m_vertices.emplace_back(x + width, underlineY + underlineHeight, 0.0f, 0.0f, color);
+        m_vertices.emplace_back(x + width, underlineY + underlineHeight, SOLID_RECT_UV, SOLID_RECT_UV, color, FONT_SLOT);
         // 左下
-        m_vertices.emplace_back(x, underlineY + underlineHeight, 0.0f, 0.0f, color);
+        m_vertices.emplace_back(x, underlineY + underlineHeight, SOLID_RECT_UV, SOLID_RECT_UV, color, FONT_SLOT);
 
         m_indices.push_back(baseIndex + 0);
         m_indices.push_back(baseIndex + 1);

@@ -41,7 +41,13 @@ add_executable(minecraft-client
     renderer/trident/sky/SkyRenderer.cpp
     renderer/trident/sky/CelestialCalculations.cpp
     renderer/trident/gui/GuiRenderer.cpp
+    renderer/trident/gui/GuiAtlasRegistry.cpp
     renderer/trident/gui/GuiTextureAtlas.cpp
+    renderer/trident/gui/GuiSpriteAtlas.cpp
+    renderer/trident/gui/GuiSpriteManager.cpp
+    renderer/trident/gui/GuiSpriteParser.cpp
+    renderer/trident/gui/GuiSpriteRegistry.cpp
+    renderer/trident/gui/GuiTextureLoader.cpp
     renderer/trident/item/ItemRenderer.cpp
     renderer/trident/entity/EntityRenderer.cpp
     renderer/trident/entity/EntityRendererManager.cpp
@@ -104,8 +110,6 @@ add_executable(minecraft-client
     # Minecraft UI业务层
     ui/minecraft/widgets/CrosshairWidget.cpp
     ui/minecraft/MinecraftUIContext.cpp
-    ui/minecraft/resources/GuiTextureAtlas.cpp
-    ui/minecraft/resources/GuiSprite.cpp
     ui/minecraft/resources/ResourceProvider.cpp
     ui/minecraft/widgets/SlotWidget.cpp
     ui/minecraft/widgets/InventorySlot.cpp

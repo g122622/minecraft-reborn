@@ -1,7 +1,8 @@
 #pragma once
 
-#include "GuiTextureAtlas.hpp"
+#include "client/renderer/trident/gui/GuiTextureAtlas.hpp"
 #include <optional>
+#include <memory>
 
 namespace mc::client {
 class Font;
@@ -35,9 +36,10 @@ public:
     void loadGuiTextureAtlas(const String& path);
 
     /**
-     * @brief 获取纹理图集
+     * @brief 获取纹理图集（可变）
      */
-    [[nodiscard]] const GuiTextureAtlas& atlas() const;
+    [[nodiscard]] renderer::trident::gui::GuiTextureAtlas& atlas() { return m_atlas; }
+    [[nodiscard]] const renderer::trident::gui::GuiTextureAtlas& atlas() const { return m_atlas; }
 
     /**
      * @brief 获取字体
@@ -54,7 +56,7 @@ public:
 private:
     Font& m_font;
     renderer::trident::gui::GuiRenderer& m_renderer;
-    GuiTextureAtlas m_atlas;
+    renderer::trident::gui::GuiTextureAtlas m_atlas;
 };
 
 } // namespace mc::client::ui::minecraft

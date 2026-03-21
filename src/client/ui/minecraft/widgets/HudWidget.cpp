@@ -1,10 +1,12 @@
 #include "HudWidget.hpp"
 #include "client/renderer/trident/gui/GuiRenderer.hpp"
+#include "client/renderer/trident/gui/GuiSpriteAtlas.hpp"
 #include "client/renderer/trident/item/ItemRenderer.hpp"
 #include "common/entity/Player.hpp"
 #include "common/entity/inventory/PlayerInventory.hpp"
 #include "common/item/ItemStack.hpp"
 #include "common/item/Item.hpp"
+#include <spdlog/spdlog.h>
 
 namespace mc::client::ui::minecraft::widgets {
 
@@ -41,6 +43,9 @@ namespace {
     // 物品提示
     constexpr f32 TOOLTIP_PADDING = 4.0f;
     constexpr f32 TOOLTIP_OFFSET_Y = 12.0f;
+
+    // 调试日志计数器（避免每帧输出）
+    static int s_debugLogCount = 0;
 }
 
 // ============================================================================
@@ -61,6 +66,35 @@ HudWidget::HudWidget()
 void HudWidget::paint(kagero::widget::PaintContext& ctx) {
     if (!isVisible() || m_player == nullptr) {
         return;
+    }
+
+    // 首次绘制时输出调试信息
+    if (s_debugLogCount < 1) {
+        s_debugLogCount++;
+        spdlog::info("[HUD] First paint - iconsAtlas={}, widgetsAtlas={}",
+                    m_iconsAtlas ? "set" : "null",
+                    m_widgetsAtlas ? "set" : "null");
+        if (m_iconsAtlas) {
+            spdlog::info("[HUD] iconsAtlas: spriteCount={}, hasTexture={}, atlasSize={}x{}",
+                        m_iconsAtlas->spriteCount(),
+                        m_iconsAtlas->hasTexture(),
+                        m_iconsAtlas->atlasWidth(),
+                        m_iconsAtlas->atlasHeight());
+            const auto* heart = m_iconsAtlas->getSprite("heart_full");
+            if (heart) {
+                spdlog::info("[HUD] heart_full sprite: u0={}, v0={}, u1={}, v1={}, w={}, h={}",
+                            heart->u0, heart->v0, heart->u1, heart->v1, heart->width, heart->height);
+            } else {
+                spdlog::info("[HUD] heart_full sprite not found!");
+            }
+        }
+        if (m_widgetsAtlas) {
+            spdlog::info("[HUD] widgetsAtlas: spriteCount={}, hasTexture={}, atlasSize={}x{}",
+                        m_widgetsAtlas->spriteCount(),
+                        m_widgetsAtlas->hasTexture(),
+                        m_widgetsAtlas->atlasWidth(),
+                        m_widgetsAtlas->atlasHeight());
+        }
     }
 
     // 渲染经验条（在快捷栏下方）
@@ -87,15 +121,21 @@ void HudWidget::renderHotbar(kagero::widget::PaintContext& ctx,
     f32 hotbarX = (screenWidth - HOTBAR_WIDTH) / 2.0f;
     f32 hotbarY = screenHeight - HOTBAR_HEIGHT - HOTBAR_OFFSET_Y;
 
-    // 绘制背景
-    ctx.drawFilledRect(kagero::Rect{static_cast<i32>(hotbarX), static_cast<i32>(hotbarY),
+    // 尝试使用纹理绘制快捷栏背景（使用 widgetsAtlas）
+    if (m_widgetsAtlas != nullptr && m_widgetsAtlas->hasSprite("hotbar_bg")) {
+        auto image = m_widgetsAtlas->createTextureImage("hotbar_bg");
+        if (image.isValid()) {
+            ctx.drawImage(image, static_cast<i32>(hotbarX), static_cast<i32>(hotbarY));
+        }
+    } else {
+        // 后备：纯色绘制
+        ctx.drawFilledRect(kagero::Rect{static_cast<i32>(hotbarX), static_cast<i32>(hotbarY),
+                                         static_cast<i32>(HOTBAR_WIDTH), static_cast<i32>(HOTBAR_HEIGHT)},
+                           HudColors::HOTBAR_BACKGROUND);
+        ctx.drawBorder(kagero::Rect{static_cast<i32>(hotbarX), static_cast<i32>(hotbarY),
                                      static_cast<i32>(HOTBAR_WIDTH), static_cast<i32>(HOTBAR_HEIGHT)},
-                       HudColors::HOTBAR_BACKGROUND);
-
-    // 绘制边框
-    ctx.drawBorder(kagero::Rect{static_cast<i32>(hotbarX), static_cast<i32>(hotbarY),
-                                 static_cast<i32>(HOTBAR_WIDTH), static_cast<i32>(HOTBAR_HEIGHT)},
-                   1.0f, HudColors::HOTBAR_BORDER);
+                       1.0f, HudColors::HOTBAR_BORDER);
+    }
 
     // 绘制槽位
     const auto& inventory = m_player->inventory();
@@ -105,11 +145,18 @@ void HudWidget::renderHotbar(kagero::widget::PaintContext& ctx,
         f32 slotX = hotbarX + i * SLOT_SPACING + 1.0f;
         f32 slotY = hotbarY + 2.0f;
 
-        // 选中槽位高亮
+        // 选中槽位高亮 - 使用纹理或纯色（使用 widgetsAtlas）
         if (i == selectedSlot) {
-            ctx.drawFilledRect(kagero::Rect{static_cast<i32>(slotX - 1), static_cast<i32>(slotY - 1),
-                                             static_cast<i32>(SLOT_SIZE + 2), static_cast<i32>(SLOT_SIZE + 2)},
-                               HudColors::HOTBAR_SLOT_HIGHLIGHT);
+            if (m_widgetsAtlas != nullptr && m_widgetsAtlas->hasSprite("hotbar_selection")) {
+                auto image = m_widgetsAtlas->createTextureImage("hotbar_selection");
+                if (image.isValid()) {
+                    ctx.drawImage(image, static_cast<i32>(slotX - 1), static_cast<i32>(slotY - 1));
+                }
+            } else {
+                ctx.drawFilledRect(kagero::Rect{static_cast<i32>(slotX - 1), static_cast<i32>(slotY - 1),
+                                                 static_cast<i32>(SLOT_SIZE + 2), static_cast<i32>(SLOT_SIZE + 2)},
+                                   HudColors::HOTBAR_SLOT_HIGHLIGHT);
+            }
         } else {
             ctx.drawFilledRect(kagero::Rect{static_cast<i32>(slotX), static_cast<i32>(slotY),
                                              static_cast<i32>(SLOT_SIZE), static_cast<i32>(SLOT_SIZE)},
@@ -155,20 +202,25 @@ void HudWidget::renderHealth(kagero::widget::PaintContext& ctx) {
         f32 armorX = healthX;
         f32 armorY = healthY - ARMOR_SIZE - 2.0f;
         for (i32 i = 0; i < 10; ++i) {
-            drawArmor(ctx, armorX + i * ARMOR_SPACING, armorY, i < armor / 2);
+            bool full = i < armor / 2;
+            drawArmor(ctx, armorX + i * ARMOR_SPACING, armorY, full);
         }
     }
 
     // 绘制心形（每行最多10颗）
     for (i32 i = 0; i < 10; ++i) {
         f32 heartX = healthX + i * HEART_SPACING;
-        bool full = (i * 2 + 2) <= health;
-        bool half = !full && (i * 2 + 1) <= health;
 
+        // 计算当前心的状态
+        i32 heartPoints = static_cast<i32>(health) - i * 2;
+        bool full = heartPoints >= 2;
+        bool half = heartPoints == 1;
+
+        // 吸收心显示为黄色
         if (absorption > 0 && i < absorption / 2) {
-            drawHeart(ctx, heartX, healthY, true, true);
+            drawHeart(ctx, heartX, healthY, full, half, true);
         } else {
-            drawHeart(ctx, heartX, healthY, full || half, false);
+            drawHeart(ctx, heartX, healthY, full, half, false);
         }
     }
 }
@@ -187,7 +239,10 @@ void HudWidget::renderHunger(kagero::widget::PaintContext& ctx) {
     // 绘制饥饿图标（从右到左）
     for (i32 i = 0; i < 10; ++i) {
         f32 hungerIconX = hungerX + (9 - i) * HUNGER_SPACING;
-        drawHunger(ctx, hungerIconX, hungerY, i < food / 2);
+        i32 foodPoints = food - i * 2;
+        bool full = foodPoints >= 2;
+        bool half = foodPoints == 1;
+        drawHunger(ctx, hungerIconX, hungerY, full, half);
     }
 }
 
@@ -203,17 +258,8 @@ void HudWidget::renderExperience(kagero::widget::PaintContext& ctx) {
     i32 level = m_player->experienceLevel();
     f32 progress = m_player->experienceProgress();
 
-    // 绘制背景
-    ctx.drawFilledRect(kagero::Rect{static_cast<i32>(xpX), static_cast<i32>(xpY),
-                                     static_cast<i32>(XP_BAR_WIDTH), static_cast<i32>(XP_BAR_HEIGHT)},
-                       HudColors::XP_BACKGROUND);
-
-    // 绘制进度条
-    if (progress > 0.0f) {
-        ctx.drawFilledRect(kagero::Rect{static_cast<i32>(xpX), static_cast<i32>(xpY),
-                                         static_cast<i32>(XP_BAR_WIDTH * progress), static_cast<i32>(XP_BAR_HEIGHT)},
-                           HudColors::XP_FOREGROUND);
-    }
+    // 绘制经验条（使用纹理或纯色）
+    drawExperienceBar(ctx, xpX, xpY, progress, XP_BAR_WIDTH, XP_BAR_HEIGHT);
 
     // 绘制等级文字（在经验条上方居中）
     if (level > 0) {
@@ -231,11 +277,42 @@ void HudWidget::renderExperience(kagero::widget::PaintContext& ctx) {
 // 私有方法
 // ============================================================================
 
-void HudWidget::drawHeart(kagero::widget::PaintContext& ctx, f32 x, f32 y, bool full, bool absorbing) {
-    // 使用矩形绘制心形（简化版本）
-    // 实际版本应该使用纹理图标
+void HudWidget::drawHeart(kagero::widget::PaintContext& ctx, f32 x, f32 y, bool full, bool half, bool absorbing) {
+    // 尝试使用纹理绘制（使用 iconsAtlas）
+    if (m_iconsAtlas != nullptr) {
+        String spriteId;
+        if (absorbing) {
+            // 吸收心（黄色）
+            if (full) {
+                spriteId = "heart_absorbing_full";
+            } else if (half) {
+                spriteId = "heart_absorbing_half";
+            } else {
+                spriteId = "heart_empty";
+            }
+        } else {
+            // 正常心（红色）
+            if (full) {
+                spriteId = "heart_full";
+            } else if (half) {
+                spriteId = "heart_half";
+            } else {
+                spriteId = "heart_empty";
+            }
+        }
+
+        if (m_iconsAtlas->hasSprite(spriteId)) {
+            auto image = m_iconsAtlas->createTextureImage(spriteId);
+            if (image.isValid()) {
+                ctx.drawImage(image, static_cast<i32>(x), static_cast<i32>(y));
+                return;
+            }
+        }
+    }
+
+    // 后备：纯色绘制
     u32 color = absorbing ? HudColors::HEALTH_YELLOW : HudColors::HEALTH_RED;
-    if (full) {
+    if (full || half) {
         ctx.drawFilledRect(kagero::Rect{static_cast<i32>(x), static_cast<i32>(y),
                                          static_cast<i32>(HEART_SIZE), static_cast<i32>(HEART_SIZE)},
                            color);
@@ -246,20 +323,84 @@ void HudWidget::drawHeart(kagero::widget::PaintContext& ctx, f32 x, f32 y, bool 
     }
 }
 
-void HudWidget::drawHunger(kagero::widget::PaintContext& ctx, f32 x, f32 y, bool full) {
-    // 使用矩形绘制饥饿图标（简化版本）
-    u32 color = full ? HudColors::HUNGER_FULL : HudColors::HUNGER_EMPTY;
+void HudWidget::drawHunger(kagero::widget::PaintContext& ctx, f32 x, f32 y, bool full, bool half) {
+    // 尝试使用纹理绘制（使用 iconsAtlas）
+    if (m_iconsAtlas != nullptr) {
+        String spriteId;
+        if (full) {
+            spriteId = "hunger_full";
+        } else if (half) {
+            spriteId = "hunger_half";
+        } else {
+            spriteId = "hunger_empty";
+        }
+
+        if (m_iconsAtlas->hasSprite(spriteId)) {
+            auto image = m_iconsAtlas->createTextureImage(spriteId);
+            if (image.isValid()) {
+                ctx.drawImage(image, static_cast<i32>(x), static_cast<i32>(y));
+                return;
+            }
+        }
+    }
+
+    // 后备：纯色绘制
+    u32 color = (full || half) ? HudColors::HUNGER_FULL : HudColors::HUNGER_EMPTY;
     ctx.drawFilledRect(kagero::Rect{static_cast<i32>(x), static_cast<i32>(y),
                                      static_cast<i32>(HUNGER_SIZE), static_cast<i32>(HUNGER_SIZE)},
                        color);
 }
 
 void HudWidget::drawArmor(kagero::widget::PaintContext& ctx, f32 x, f32 y, bool full) {
-    // 使用矩形绘制盔甲图标（简化版本）
+    // 尝试使用纹理绘制（使用 iconsAtlas）
+    if (m_iconsAtlas != nullptr) {
+        String spriteId = full ? "armor_full" : "armor_empty";
+
+        if (m_iconsAtlas->hasSprite(spriteId)) {
+            auto image = m_iconsAtlas->createTextureImage(spriteId);
+            if (image.isValid()) {
+                ctx.drawImage(image, static_cast<i32>(x), static_cast<i32>(y));
+                return;
+            }
+        }
+    }
+
+    // 后备：纯色绘制
     u32 color = full ? HudColors::HEALTH_RED : HudColors::HEALTH_EMPTY;
     ctx.drawFilledRect(kagero::Rect{static_cast<i32>(x), static_cast<i32>(y),
                                      static_cast<i32>(ARMOR_SIZE), static_cast<i32>(ARMOR_SIZE)},
                        color);
+}
+
+void HudWidget::drawExperienceBar(kagero::widget::PaintContext& ctx, f32 x, f32 y, f32 progress, f32 width, f32 height) {
+    // 尝试使用纹理绘制经验条背景（使用 iconsAtlas）
+    if (m_iconsAtlas != nullptr && m_iconsAtlas->hasSprite("xp_bar_empty")) {
+        auto emptyImage = m_iconsAtlas->createTextureImage("xp_bar_empty", static_cast<i32>(width), static_cast<i32>(height));
+        if (emptyImage.isValid()) {
+            ctx.drawImage(emptyImage, static_cast<i32>(x), static_cast<i32>(y));
+        }
+
+        // 绘制进度部分
+        if (progress > 0.0f && m_iconsAtlas->hasSprite("xp_bar_full")) {
+            auto fullImage = m_iconsAtlas->createTextureImage("xp_bar_full", static_cast<i32>(width * progress), static_cast<i32>(height));
+            if (fullImage.isValid()) {
+                // 使用裁剪绘制进度条
+                ctx.drawImage(fullImage, static_cast<i32>(x), static_cast<i32>(y));
+            }
+        }
+        return;
+    }
+
+    // 后备：纯色绘制
+    ctx.drawFilledRect(kagero::Rect{static_cast<i32>(x), static_cast<i32>(y),
+                                     static_cast<i32>(width), static_cast<i32>(height)},
+                       HudColors::XP_BACKGROUND);
+
+    if (progress > 0.0f) {
+        ctx.drawFilledRect(kagero::Rect{static_cast<i32>(x), static_cast<i32>(y),
+                                         static_cast<i32>(width * progress), static_cast<i32>(height)},
+                           HudColors::XP_FOREGROUND);
+    }
 }
 
 } // namespace mc::client::ui::minecraft::widgets

@@ -11,6 +11,7 @@ class ItemStack;
 
 namespace mc::client::renderer::trident::gui {
 class GuiRenderer;
+class GuiSpriteAtlas;
 }
 
 namespace mc::client::renderer::trident::item {
@@ -84,6 +85,16 @@ public:
     void setItemRenderer(renderer::trident::item::ItemRenderer* renderer) { m_itemRenderer = renderer; }
 
     /**
+     * @brief 设置icons精灵图集（心形、饥饿、盔甲、经验条等）
+     */
+    void setIconsAtlas(renderer::trident::gui::GuiSpriteAtlas* atlas) { m_iconsAtlas = atlas; }
+
+    /**
+     * @brief 设置widgets精灵图集（快捷栏、按钮等）
+     */
+    void setWidgetsAtlas(renderer::trident::gui::GuiSpriteAtlas* atlas) { m_widgetsAtlas = atlas; }
+
+    /**
      * @brief 设置玩家
      */
     void setPlayer(Player* player) { m_player = player; }
@@ -129,21 +140,49 @@ private:
 
     /**
      * @brief 绘制心形图标
+     * @param ctx 绘制上下文
+     * @param x X坐标
+     * @param y Y坐标
+     * @param full 是否满心
+     * @param half 是否半心
+     * @param absorbing 是否吸收心（黄色）
      */
-    void drawHeart(kagero::widget::PaintContext& ctx, f32 x, f32 y, bool full, bool absorbing);
+    void drawHeart(kagero::widget::PaintContext& ctx, f32 x, f32 y, bool full, bool half, bool absorbing);
 
     /**
      * @brief 绘制饥饿图标
+     * @param ctx 绘制上下文
+     * @param x X坐标
+     * @param y Y坐标
+     * @param full 是否满饥饿
+     * @param half 是否半饥饿
      */
-    void drawHunger(kagero::widget::PaintContext& ctx, f32 x, f32 y, bool full);
+    void drawHunger(kagero::widget::PaintContext& ctx, f32 x, f32 y, bool full, bool half);
 
     /**
      * @brief 绘制盔甲图标
+     * @param ctx 绘制上下文
+     * @param x X坐标
+     * @param y Y坐标
+     * @param full 是否满盔甲
      */
     void drawArmor(kagero::widget::PaintContext& ctx, f32 x, f32 y, bool full);
 
+    /**
+     * @brief 绘制经验条
+     * @param ctx 绘制上下文
+     * @param x X坐标
+     * @param y Y坐标
+     * @param progress 进度 (0.0-1.0)
+     * @param width 宽度
+     * @param height 高度
+     */
+    void drawExperienceBar(kagero::widget::PaintContext& ctx, f32 x, f32 y, f32 progress, f32 width, f32 height);
+
     renderer::trident::gui::GuiRenderer* m_gui = nullptr;
     renderer::trident::item::ItemRenderer* m_itemRenderer = nullptr;
+    renderer::trident::gui::GuiSpriteAtlas* m_iconsAtlas = nullptr;   // 心形、饥饿、盔甲、经验条
+    renderer::trident::gui::GuiSpriteAtlas* m_widgetsAtlas = nullptr; // 快捷栏、按钮
     Player* m_player = nullptr;
 };
 

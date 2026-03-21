@@ -155,12 +155,13 @@ void TridentCanvas::drawImage(const kagero::paint::IImage& image, f32 x, f32 y) 
     const f32 w = static_cast<f32>(textureImage->width());
     const f32 h = static_cast<f32>(textureImage->height());
 
-    // 绘制纹理矩形
+    // 绘制纹理矩形，传递图集槽位
     m_renderer.drawTexturedRect(
         x, y, w, h,
         textureImage->u0(), textureImage->v0(),
         textureImage->u1(), textureImage->v1(),
-        kagero::paint::TextureImage::DEFAULT_TINT
+        kagero::paint::TextureImage::DEFAULT_TINT,
+        textureImage->atlasSlot()
     );
 }
 
@@ -194,7 +195,8 @@ void TridentCanvas::drawImageRect(const kagero::paint::IImage& image, const kage
         static_cast<f32>(dst.width),
         static_cast<f32>(dst.height),
         u0, v0, u1, v1,
-        kagero::paint::TextureImage::DEFAULT_TINT
+        kagero::paint::TextureImage::DEFAULT_TINT,
+        textureImage->atlasSlot()
     );
 }
 
@@ -267,9 +269,12 @@ void TridentCanvas::drawImageNine(const kagero::paint::IImage& image, const kage
     const f32 x2 = x + dstLeftW + dstCenterW;
     const f32 x3 = x + dstW;
 
+    // 获取图集槽位
+    const u8 atlasSlot = textureImage->atlasSlot();
+
     // 绘制函数
     auto drawRegion = [&](f32 dx, f32 dy, f32 dw, f32 dh, f32 su0, f32 sv0, f32 su1, f32 sv1) {
-        m_renderer.drawTexturedRect(dx, dy, dw, dh, su0, sv0, su1, sv1, tint);
+        m_renderer.drawTexturedRect(dx, dy, dw, dh, su0, sv0, su1, sv1, tint, atlasSlot);
     };
 
     // 行 0: 上边
