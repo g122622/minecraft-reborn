@@ -792,10 +792,11 @@ void IntegratedServer::handleBlockInteraction(const u8* data, size_t size) {
     const f64 distanceSquared = dx * dx + dy * dy + dz * dz;
 
     if (distanceSquared > 36.0) {
-        spdlog::warn("[Mining] Out-of-range interaction accepted in integrated server: distanceSq={}, target=({}, {}, {}), eye=({}, {}, {})",
+        spdlog::warn("[Mining] Out-of-range interaction rejected: distanceSq={}, target=({}, {}, {}), eye=({}, {}, {})",
                      distanceSquared,
                      packet.x(), packet.y(), packet.z(),
                      eyeX, eyeY, eyeZ);
+        return;
     }
 
     ChunkCoord chunkX = static_cast<ChunkCoord>(std::floor(static_cast<f64>(packet.x()) / 16.0));

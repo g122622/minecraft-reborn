@@ -164,6 +164,9 @@ void BreakProgressRenderer::cleanup() {
         m_pipelineLayout = VK_NULL_HANDLE;
     }
 
+    // 清理纹理资源
+    DestroyStageTextures::instance().cleanup();
+
     m_initialized = false;
     spdlog::info("BreakProgressRenderer: Cleaned up");
 }
@@ -178,33 +181,44 @@ void BreakProgressRenderer::updateMesh(const Vector3& cameraPos) {
     m_progressEntries.clear();
 
     auto visibleProgress = manager.getVisibleProgress(cameraPos);
-    // 转换 pair 格式到 ProgressEntry 格式
+
+    // 转换 pair 格式到 ProgressEntry 格式，并计算偏移量
     m_progressEntries.reserve(visibleProgress.size());
-    for (const auto& [pos, stage] : visibleProgress) {
-        m_progressEntries.push_back({pos, stage});
+    for (size_t i = 0; i < visibleProgress.size(); ++i) {
+        const auto& [pos, stage] = visibleProgress[i];
+        m_progressEntries.push_back({
+            pos,
+            stage,
+            static_cast<u32>(i * VERTICES_PER_CUBE),  // vertexOffset
+            static_cast<u32>(i * INDICES_PER_CUBE)     // indexOffset
+        });
     }
 
     // 如果没有进度，直接返回
     if (m_progressEntries.empty()) {
+        m_vertexCount = 0;
+        m_indexCount = 0;
         return;
     }
 
-    // 检查是否需要扩展缓冲区
+    // 计算所需缓冲区大小
     size_t requiredVertices = m_progressEntries.size() * VERTICES_PER_CUBE;
     size_t requiredIndices = m_progressEntries.size() * INDICES_PER_CUBE;
 
-    // TODO: 动态调整缓冲区大小
-    // 当前使用固定大小的缓冲区，超出部分会被裁剪
+    // 确保缓冲区容量足够
+    if (!ensureBufferCapacity(requiredVertices, requiredIndices)) {
+        spdlog::error("BreakProgressRenderer: Failed to ensure buffer capacity");
+        return;
+    }
 
-    // 生成顶点数据
+    // 生成顶点数据（局部坐标）
     std::vector<Vertex> vertices;
     std::vector<u32> indices;
     vertices.reserve(requiredVertices);
     indices.reserve(requiredIndices);
 
-    u32 vertexOffset = 0;
-    for (const auto& entry : m_progressEntries) {
-        generateCubeMesh(entry.position, vertices, indices, vertexOffset);
+    for (size_t i = 0; i < m_progressEntries.size(); ++i) {
+        generateCubeMesh(i, vertices, indices);
     }
 
     // 更新缓冲区
@@ -252,11 +266,28 @@ void BreakProgressRenderer::render(VkCommandBuffer commandBuffer,
     // 绑定索引缓冲区
     vkCmdBindIndexBuffer(commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-    // 为每个破坏进度设置推送常量并绘制
-    // TODO: 批量绘制，当前为简化实现逐个绘制
+    // 推送常量结构体（与着色器匹配）
+    struct PushConstants {
+        f32 blockPosX, blockPosY, blockPosZ;
+        f32 damageStage;
+    };
 
-    // 绘制所有
-    vkCmdDrawIndexed(commandBuffer, static_cast<u32>(m_indexCount), 1, 0, 0, 0);
+    // 为每个破坏进度设置推送常量并绘制
+    for (const auto& entry : m_progressEntries) {
+        PushConstants pc;
+        pc.blockPosX = static_cast<f32>(entry.position.x);
+        pc.blockPosY = static_cast<f32>(entry.position.y);
+        pc.blockPosZ = static_cast<f32>(entry.position.z);
+        pc.damageStage = static_cast<f32>(entry.stage);
+
+        vkCmdPushConstants(commandBuffer, m_pipelineLayout,
+                          VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                          0, sizeof(PushConstants), &pc);
+
+        // 绘制单个方块的破坏覆盖层
+        vkCmdDrawIndexed(commandBuffer, static_cast<u32>(INDICES_PER_CUBE), 1,
+                        entry.indexOffset, static_cast<i32>(entry.vertexOffset), 0);
+    }
 }
 
 // ============================================================================
@@ -385,11 +416,17 @@ bool BreakProgressRenderer::createPipeline() {
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    // 禁用面剔除 - 破坏覆盖层需要渲染所有面
+    rasterizer.cullMode = VK_CULL_MODE_NONE;
     rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    // 深度偏移：让破坏覆盖层渲染在方块表面之前
+    // 参考 MC 1.16.5: GL11.glPolygonOffset(-1.0f, -10.0f)
+    // OpenGL factor -> Vulkan slopeFactor, OpenGL units -> Vulkan constantFactor
+    // 注意：Vulkan 中 constantFactor 单位是 r（最小深度变化），需要乘以适当值
     rasterizer.depthBiasEnable = VK_TRUE;
-    rasterizer.depthBiasConstantFactor = -1.0f;
-    rasterizer.depthBiasSlopeFactor = -1.0f;
+    rasterizer.depthBiasConstantFactor = -0.01f;  // 恒定偏移，单位是深度缓冲精度
+    rasterizer.depthBiasSlopeFactor = -1.0f;      // 斜率相关偏移
+    rasterizer.depthBiasClamp = 0.0f;
 
     // 多重采样
     VkPipelineMultisampleStateCreateInfo multisampling{};
@@ -622,8 +659,8 @@ bool BreakProgressRenderer::createDescriptorSets() {
 bool BreakProgressRenderer::uploadTextureAtlas() {
     auto& textures = DestroyStageTextures::instance();
 
-    // 初始化纹理资源
-    if (!textures.initialize()) {
+    // 初始化纹理资源（使用 ResourceManager 加载资源包纹理）
+    if (!textures.initialize(m_config.resourceManager)) {
         spdlog::error("BreakProgressRenderer: Failed to initialize destroy stage textures");
         return false;
     }
@@ -854,19 +891,15 @@ bool BreakProgressRenderer::uploadTextureAtlas() {
 // 私有方法 - 网格生成
 // ============================================================================
 
-void BreakProgressRenderer::generateCubeMesh(const BlockPos& pos,
+void BreakProgressRenderer::generateCubeMesh(size_t cubeIndex,
                                                std::vector<Vertex>& vertices,
-                                               std::vector<u32>& indices,
-                                               u32& vertexOffset) {
-    // 生成立方体顶点（相对于方块位置）
-    // 立方体稍微放大以避免z-fighting
-
-    f32 x0 = static_cast<f32>(pos.x) - 0.001f;
-    f32 y0 = static_cast<f32>(pos.y) - 0.001f;
-    f32 x1 = static_cast<f32>(pos.x) + 1.001f;
-    f32 y1 = static_cast<f32>(pos.y) + 1.001f;
-    f32 z0 = static_cast<f32>(pos.z) - 0.001f;
-    f32 z1 = static_cast<f32>(pos.z) + 1.001f;
+                                               std::vector<u32>& indices) {
+    // 生成立方体顶点（局部坐标 0-1 范围）
+    // 方块位置通过 push constants 传入着色器
+    // 立方体稍微放大以避免 z-fighting
+    constexpr f32 EXPAND = 0.005f;
+    constexpr f32 x0 = -EXPAND, y0 = -EXPAND, z0 = -EXPAND;
+    constexpr f32 x1 = 1.0f + EXPAND, y1 = 1.0f + EXPAND, z1 = 1.0f + EXPAND;
 
     // 6个面，每面4个顶点
     // 底面 (y = y0)
@@ -906,8 +939,9 @@ void BreakProgressRenderer::generateCubeMesh(const BlockPos& pos,
     vertices.push_back({x0, y1, z0, 0.0f, 1.0f});
 
     // 每面6个索引（2个三角形）
+    u32 baseVertex = static_cast<u32>(cubeIndex * VERTICES_PER_CUBE);
     for (u32 i = 0; i < 6; ++i) {
-        u32 base = vertexOffset + i * 4;
+        u32 base = baseVertex + i * 4;
         indices.push_back(base + 0);
         indices.push_back(base + 1);
         indices.push_back(base + 2);
@@ -915,8 +949,6 @@ void BreakProgressRenderer::generateCubeMesh(const BlockPos& pos,
         indices.push_back(base + 2);
         indices.push_back(base + 3);
     }
-
-    vertexOffset += VERTICES_PER_CUBE;
 }
 
 void BreakProgressRenderer::updateVertexBuffer(const std::vector<Vertex>& vertices) {
@@ -941,6 +973,125 @@ void BreakProgressRenderer::updateIndexBuffer(const std::vector<u32>& indices) {
     vkMapMemory(m_config.device, m_indexBufferMemory, 0, size, 0, &data);
     memcpy(data, indices.data(), size);
     vkUnmapMemory(m_config.device, m_indexBufferMemory);
+}
+
+bool BreakProgressRenderer::ensureBufferCapacity(size_t requiredVertices, size_t requiredIndices) {
+    // 如果容量足够，直接返回
+    if (requiredVertices <= m_maxVertices && requiredIndices <= m_maxIndices) {
+        return true;
+    }
+
+    // 计算新的容量（扩大1.5倍或至少满足需求）
+    size_t newVertexCount = std::max(requiredVertices, m_maxVertices * 3 / 2);
+    size_t newIndexCount = std::max(requiredIndices, m_maxIndices * 3 / 2);
+
+    // 设置最小容量
+    newVertexCount = std::max(newVertexCount, DEFAULT_MAX_CUBES * VERTICES_PER_CUBE);
+    newIndexCount = std::max(newIndexCount, DEFAULT_MAX_CUBES * INDICES_PER_CUBE);
+
+    spdlog::debug("BreakProgressRenderer: Resizing buffers from ({}, {}) to ({}, {})",
+                  m_maxVertices, m_maxIndices, newVertexCount, newIndexCount);
+
+    return recreateBuffers(newVertexCount, newIndexCount);
+}
+
+bool BreakProgressRenderer::recreateBuffers(size_t vertexCount, size_t indexCount) {
+    VkDevice device = m_config.device;
+
+    // 等待设备空闲
+    vkDeviceWaitIdle(device);
+
+    // 销毁旧缓冲区
+    if (m_vertexBuffer != VK_NULL_HANDLE) {
+        vkDestroyBuffer(device, m_vertexBuffer, nullptr);
+        m_vertexBuffer = VK_NULL_HANDLE;
+    }
+    if (m_vertexBufferMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, m_vertexBufferMemory, nullptr);
+        m_vertexBufferMemory = VK_NULL_HANDLE;
+    }
+    if (m_indexBuffer != VK_NULL_HANDLE) {
+        vkDestroyBuffer(device, m_indexBuffer, nullptr);
+        m_indexBuffer = VK_NULL_HANDLE;
+    }
+    if (m_indexBufferMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, m_indexBufferMemory, nullptr);
+        m_indexBufferMemory = VK_NULL_HANDLE;
+    }
+
+    // 查找合适的内存类型
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(m_config.physicalDevice, &memProperties);
+
+    u32 memoryTypeIndex = UINT32_MAX;
+    for (u32 i = 0; i < memProperties.memoryTypeCount; ++i) {
+        if ((memProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) &&
+            (memProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+            memoryTypeIndex = i;
+            break;
+        }
+    }
+
+    if (memoryTypeIndex == UINT32_MAX) {
+        spdlog::error("BreakProgressRenderer: Failed to find suitable memory type");
+        return false;
+    }
+
+    // 创建顶点缓冲区
+    VkBufferCreateInfo vertexBufferInfo{};
+    vertexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    vertexBufferInfo.size = vertexCount * sizeof(Vertex);
+    vertexBufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    vertexBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(device, &vertexBufferInfo, nullptr, &m_vertexBuffer) != VK_SUCCESS) {
+        spdlog::error("BreakProgressRenderer: Failed to create vertex buffer");
+        return false;
+    }
+
+    VkMemoryRequirements memReqs;
+    vkGetBufferMemoryRequirements(device, m_vertexBuffer, &memReqs);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memReqs.size;
+    allocInfo.memoryTypeIndex = memoryTypeIndex;
+
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &m_vertexBufferMemory) != VK_SUCCESS) {
+        spdlog::error("BreakProgressRenderer: Failed to allocate vertex buffer memory");
+        return false;
+    }
+
+    vkBindBufferMemory(device, m_vertexBuffer, m_vertexBufferMemory, 0);
+
+    // 创建索引缓冲区
+    VkBufferCreateInfo indexBufferInfo{};
+    indexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    indexBufferInfo.size = indexCount * sizeof(u32);
+    indexBufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+    indexBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(device, &indexBufferInfo, nullptr, &m_indexBuffer) != VK_SUCCESS) {
+        spdlog::error("BreakProgressRenderer: Failed to create index buffer");
+        return false;
+    }
+
+    vkGetBufferMemoryRequirements(device, m_indexBuffer, &memReqs);
+    allocInfo.allocationSize = memReqs.size;
+
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &m_indexBufferMemory) != VK_SUCCESS) {
+        spdlog::error("BreakProgressRenderer: Failed to allocate index buffer memory");
+        return false;
+    }
+
+    vkBindBufferMemory(device, m_indexBuffer, m_indexBufferMemory, 0);
+
+    m_maxVertices = vertexCount;
+    m_maxIndices = indexCount;
+
+    spdlog::debug("BreakProgressRenderer: Buffers resized (vertices: {}, indices: {})",
+                  m_maxVertices, m_maxIndices);
+    return true;
 }
 
 } // namespace block

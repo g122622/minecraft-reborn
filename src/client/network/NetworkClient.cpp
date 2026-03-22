@@ -1036,8 +1036,12 @@ void NetworkClient::handleEntityMetadata(network::PacketDeserializer& deser) {
         return;
     }
 
-    // TODO: 处理实体元数据
-    spdlog::debug("Received EntityMetadata for entity {}", packet.entityId());
+    spdlog::debug("Received EntityMetadata for entity {}, metadata size: {}",
+                  packet.entityId(), packet.metadata().size());
+
+    if (m_callbacks.onEntityMetadata) {
+        m_callbacks.onEntityMetadata(packet.entityId(), packet.metadata());
+    }
 }
 
 void NetworkClient::handleEntityAnimation(network::PacketDeserializer& deser) {

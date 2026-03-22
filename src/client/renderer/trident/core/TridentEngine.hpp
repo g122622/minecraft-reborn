@@ -485,8 +485,11 @@ public:
 
     /**
      * @brief 初始化破坏进度渲染器
+     *
+     * @param resourceManager 资源管理器（允许为空；为空时使用程序生成的默认纹理）
+     * @return 成功或错误
      */
-    [[nodiscard]] Result<void> initializeBreakProgressRenderer();
+    [[nodiscard]] Result<void> initializeBreakProgressRenderer(ResourceManager* resourceManager = nullptr);
 
     /**
      * @brief 重新加载云纹理

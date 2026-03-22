@@ -8,6 +8,8 @@
 #include <memory>
 
 namespace mc {
+class ResourceManager;
+
 namespace client {
 namespace renderer {
 
@@ -56,6 +58,7 @@ public:
         VkDescriptorSetLayout cameraLayout = VK_NULL_HANDLE;
         VkDescriptorSetLayout fogLayout = VK_NULL_HANDLE;
         u32 maxFramesInFlight = 2;
+        ResourceManager* resourceManager = nullptr;  ///< 资源管理器（用于加载破坏纹理）
     };
 
     /**
@@ -128,6 +131,8 @@ private:
     struct ProgressEntry {
         BlockPos position;  // 方块位置
         u8 stage;           // 破坏阶段 (0-9)
+        u32 vertexOffset;   // 该方块在顶点缓冲区中的起始偏移
+        u32 indexOffset;    // 该方块在索引缓冲区中的起始偏移（以索引为单位）
     };
 
     /**
@@ -154,15 +159,35 @@ private:
      * @brief 生成立方体顶点数据
      *
      * 生成一个稍大于1的立方体（防止z-fighting）
+     * 使用局部坐标（0-1范围），方块位置通过push constants传入
      *
-     * @param pos 方块位置
+     * @param cubeIndex 立方体索引（用于计算索引偏移）
      * @param vertices 输出顶点数组
      * @param indices 输出索引数组
      */
-    void generateCubeMesh(const BlockPos& pos,
+    void generateCubeMesh(size_t cubeIndex,
                           std::vector<Vertex>& vertices,
-                          std::vector<u32>& indices,
-                          u32& vertexOffset);
+                          std::vector<u32>& indices);
+
+    /**
+     * @brief 确保缓冲区容量足够
+     *
+     * 如果当前缓冲区容量不足，重新创建更大的缓冲区。
+     *
+     * @param requiredVertices 所需顶点容量
+     * @param requiredIndices 所需索引容量
+     * @return 成功返回 true
+     */
+    [[nodiscard]] bool ensureBufferCapacity(size_t requiredVertices, size_t requiredIndices);
+
+    /**
+     * @brief 重新创建缓冲区
+     *
+     * @param vertexCount 新的顶点容量
+     * @param indexCount 新的索引容量
+     * @return 成功返回 true
+     */
+    [[nodiscard]] bool recreateBuffers(size_t vertexCount, size_t indexCount);
 
     /**
      * @brief 更新顶点缓冲区

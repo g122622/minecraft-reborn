@@ -105,6 +105,9 @@ struct NetworkClientCallbacks {
 
     // 方块破坏动画事件
     std::function<void(u32 breakerEntityId, i32 x, i32 y, i32 z, i8 stage)> onBlockBreakAnim;
+
+    // 实体元数据事件
+    std::function<void(u32 entityId, const std::vector<u8>& metadata)> onEntityMetadata;
 };
 
 // ============================================================================

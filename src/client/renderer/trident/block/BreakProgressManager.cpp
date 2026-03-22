@@ -162,11 +162,13 @@ void BreakProgressManager::clearRemoteProgress() {
 // ============================================================================
 
 u8 BreakProgressManager::getDamageStage(const BlockPos& pos) const {
-    u8 maxStage = 255;
+    u8 maxStage = 0;
+    bool hasProgress = false;
 
     // 检查本地进度
     if (m_localBreaking && m_localBreakPos == pos) {
-        maxStage = std::max(maxStage, m_localDamageStage);
+        maxStage = m_localDamageStage;
+        hasProgress = true;
     }
 
     // 检查远程进度
@@ -175,14 +177,15 @@ u8 BreakProgressManager::getDamageStage(const BlockPos& pos) const {
         for (EntityId breakerId : posIt->second) {
             auto entityIt = m_remoteProgressByEntity.find(breakerId);
             if (entityIt != m_remoteProgressByEntity.end()) {
-                if (maxStage == 255 || entityIt->second.damageStage > maxStage) {
+                if (!hasProgress || entityIt->second.damageStage > maxStage) {
                     maxStage = entityIt->second.damageStage;
                 }
+                hasProgress = true;
             }
         }
     }
 
-    return maxStage;
+    return hasProgress ? maxStage : 255;
 }
 
 std::vector<const BlockBreakProgress*>

@@ -34,8 +34,12 @@ void main() {
     // inPosition 已经是相对于方块中心的顶点（0-1范围）
     vec3 worldPos = inPosition + pc.blockPos;
 
-    gl_Position = camera.viewProjection * vec4(worldPos, 1.0);
+    // 计算视图空间位置用于正确的距离计算
+    vec4 viewPos = camera.view * vec4(worldPos, 1.0);
+
+    gl_Position = camera.projection * viewPos;
     fragTexCoord = inTexCoord;
     fragWorldPos = worldPos;
-    fragViewDistance = length(gl_Position.xyz);
+    // 使用视图空间距离（到相机的实际距离）
+    fragViewDistance = length(viewPos.xyz);
 }

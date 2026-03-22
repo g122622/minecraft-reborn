@@ -1,9 +1,12 @@
 #include "DestroyStageTextures.hpp"
+#include "ResourceManager.hpp"
 #include "common/resource/IResourcePack.hpp"
 #include "common/resource/ResourceLocation.hpp"
+#include "common/core/Result.hpp"
 #include <spdlog/spdlog.h>
 #include <random>
 #include <cmath>
+#include <algorithm>
 
 namespace mc {
 namespace client {
@@ -23,6 +26,10 @@ DestroyStageTextures& DestroyStageTextures::instance() {
 // ============================================================================
 
 bool DestroyStageTextures::initialize() {
+    return initialize(nullptr);
+}
+
+bool DestroyStageTextures::initialize(ResourceManager* resourceManager) {
     if (m_initialized) {
         return true;
     }
@@ -31,8 +38,21 @@ bool DestroyStageTextures::initialize() {
 
     // 尝试从资源包加载，失败则使用程序生成
     for (size_t i = 0; i < STAGE_COUNT; ++i) {
-        if (!loadTextureFromResourcePack(i, m_textures[i])) {
-            spdlog::debug("DestroyStageTextures: Using generated texture for stage {}", i);
+        bool loaded = false;
+
+        // 尝试从 ResourceManager 加载
+        if (resourceManager) {
+            loaded = loadTextureFromResourcePack(resourceManager, i, m_textures[i]);
+            if (loaded) {
+                spdlog::info("DestroyStageTextures: Loaded texture for stage {} from resource pack", i);
+            }
+        } else {
+            spdlog::warn("DestroyStageTextures: No ResourceManager provided, skipping resource pack loading for stage {}", i);
+        }
+
+        // 如果加载失败，使用程序生成
+        if (!loaded) {
+            spdlog::warn("DestroyStageTextures: Using generated texture for stage {}", i);
             generateDefaultTexture(i, m_textures[i]);
         }
     }
@@ -167,28 +187,100 @@ void DestroyStageTextures::generateDefaultTexture(size_t stage, std::vector<u8>&
     }
 }
 
-bool DestroyStageTextures::loadTextureFromResourcePack(size_t stage, std::vector<u8>& data) {
-    // 构建纹理路径
-    // 现代 MC 1.13+ 路径: textures/block/destroy_stage_X.png
-    // 旧版 MC 1.12 路径: textures/blocks/destroy_stage_X.png
+bool DestroyStageTextures::loadTextureFromResourcePack(ResourceManager* resourceManager,
+                                                         size_t stage,
+                                                         std::vector<u8>& data) {
+    if (!resourceManager) {
+        spdlog::warn("DestroyStageTextures: No ResourceManager provided, cannot load texture for stage {}", stage);
+        return false;
+    }
 
-    std::string modernPath = fmt::format("textures/block/destroy_stage_{}.png", stage);
-    std::string legacyPath = fmt::format("textures/blocks/destroy_stage_{}.png", stage);
+    // 构建资源位置
+    // 现代 MC 1.13+ 路径: textures/block/destroy_stage_X
+    // 旧版 MC 1.12 路径: textures/blocks/destroy_stage_X
+    // ResourceLocation 会自动添加 .png 后缀
 
-    // TODO: 从资源管理器加载纹理
-    // 当前资源系统尚未完全实现纹理加载，暂时返回false使用程序生成
-    // 未来实现：
-    // auto& resourceManager = ResourceManager::instance();
-    // if (auto* pack = resourceManager.getActivePack()) {
-    //     if (pack->hasResource(modernPath)) {
-    //         return pack->loadTexture(modernPath, data, TEXTURE_SIZE, TEXTURE_SIZE);
-    //     }
-    //     if (pack->hasResource(legacyPath)) {
-    //         return pack->loadTexture(legacyPath, data, TEXTURE_SIZE, TEXTURE_SIZE);
-    //     }
-    // }
+    std::vector<u8> rawData;
+    u32 srcWidth = 0, srcHeight = 0;
 
-    return false;
+    // 尝试现代路径
+    ResourceLocation modernLoc("minecraft", fmt::format("textures/block/destroy_stage_{}", stage));
+    auto result = resourceManager->loadTextureRGBA(modernLoc);
+
+    if (result.success()) {
+        auto& decoded = result.value();
+        if (decoded.width > 0 && decoded.height > 0 && !decoded.pixels.empty()) {
+            rawData = std::move(decoded.pixels);
+            srcWidth = decoded.width;
+            srcHeight = decoded.height;
+        }
+    }
+
+    if (rawData.empty()) {
+        spdlog::debug("DestroyStageTextures: Failed to load texture for stage {} from modern path, trying legacy path", stage);
+
+        // 尝试旧版路径
+        ResourceLocation legacyLoc("minecraft", fmt::format("textures/blocks/destroy_stage_{}", stage));
+        result = resourceManager->loadTextureRGBA(legacyLoc);
+
+        if (result.success()) {
+            auto& decoded = result.value();
+            if (decoded.width > 0 && decoded.height > 0 && !decoded.pixels.empty()) {
+                rawData = std::move(decoded.pixels);
+                srcWidth = decoded.width;
+                srcHeight = decoded.height;
+            }
+        }
+    }
+
+    if (rawData.empty()) {
+        return false;
+    }
+
+    // MC 原版破坏纹理格式：灰度图，白色=裂纹可见，alpha=255
+    // 我们需要的格式：RGB=(0,0,0), Alpha=裂纹强度
+    // 转换：将灰度值（亮度）转换为 alpha 通道
+
+    // 处理纹理：缩放并转换格式
+    data.resize(TEXTURE_SIZE * TEXTURE_SIZE * 4);
+
+    float xRatio = static_cast<float>(srcWidth) / TEXTURE_SIZE;
+    float yRatio = static_cast<float>(srcHeight) / TEXTURE_SIZE;
+
+    for (u32 y = 0; y < TEXTURE_SIZE; ++y) {
+        for (u32 x = 0; x < TEXTURE_SIZE; ++x) {
+            u32 srcX = static_cast<u32>(x * xRatio);
+            u32 srcY = static_cast<u32>(y * yRatio);
+            srcX = std::min(srcX, srcWidth - 1);
+            srcY = std::min(srcY, srcHeight - 1);
+
+            size_t srcIdx = (srcY * srcWidth + srcX) * 4;
+            size_t dstIdx = (y * TEXTURE_SIZE + x) * 4;
+
+            // 读取源像素的灰度值（取RGB的平均值或直接取红色通道）
+            u8 r = rawData[srcIdx + 0];
+            u8 g = rawData[srcIdx + 1];
+            u8 b = rawData[srcIdx + 2];
+            // u8 a = rawData[srcIdx + 3];  // 原始alpha通常为255，忽略
+
+            // 计算灰度（亮度）
+            // 白色像素(255) -> 裂纹可见(alpha=高)
+            // 黑色像素(0) -> 无裂纹(alpha=低)
+            u8 gray = static_cast<u8>((static_cast<u32>(r) + g + b) / 3);
+
+            // 转换为我们需要的格式：
+            // RGB = (0, 0, 0) 黑色
+            // Alpha = 灰度值（白色=高alpha=更明显的裂纹）
+            data[dstIdx + 0] = 0;  // R
+            data[dstIdx + 1] = 0;  // G
+            data[dstIdx + 2] = 0;  // B
+            data[dstIdx + 3] = gray;  // A = 裂纹强度
+        }
+    }
+
+    spdlog::info("DestroyStageTextures: Loaded and converted texture for stage {} ({}x{} -> 16x16)",
+                 stage, srcWidth, srcHeight);
+    return true;
 }
 
 void DestroyStageTextures::buildAtlas() {

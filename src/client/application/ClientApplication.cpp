@@ -465,7 +465,7 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         }
 
         // 初始化破坏进度渲染器
-        auto breakProgressInitResult = m_renderer->initializeBreakProgressRenderer();
+        auto breakProgressInitResult = m_renderer->initializeBreakProgressRenderer(m_resourceManager.get());
         if (breakProgressInitResult.failed()) {
             spdlog::warn("Failed to initialize break progress renderer: {}", breakProgressInitResult.error().toString());
         }

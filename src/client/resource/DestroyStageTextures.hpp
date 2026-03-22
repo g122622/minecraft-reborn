@@ -6,6 +6,11 @@
 #include <memory>
 
 namespace mc {
+
+// 前向声明
+class ResourceManager;
+struct DecodedTexture;
+
 namespace client {
 namespace renderer {
 
@@ -42,6 +47,16 @@ public:
      * @return 成功返回 true，失败返回 false
      */
     [[nodiscard]] bool initialize();
+
+    /**
+     * @brief 初始化纹理资源（带 ResourceManager）
+     *
+     * 尝试从 ResourceManager 加载纹理，失败则使用程序生成纹理。
+     *
+     * @param resourceManager 资源管理器指针
+     * @return 成功返回 true，失败返回 false
+     */
+    [[nodiscard]] bool initialize(ResourceManager* resourceManager);
 
     /**
      * @brief 清理资源
@@ -120,11 +135,14 @@ private:
     /**
      * @brief 从资源包加载纹理
      *
+     * @param resourceManager 资源管理器指针
      * @param stage 破坏阶段 (0-9)
      * @param data 输出纹理数据
      * @return 成功返回 true
      */
-    [[nodiscard]] bool loadTextureFromResourcePack(size_t stage, std::vector<u8>& data);
+    [[nodiscard]] bool loadTextureFromResourcePack(ResourceManager* resourceManager,
+                                                    size_t stage,
+                                                    std::vector<u8>& data);
 
     /**
      * @brief 构建纹理图集

@@ -1605,7 +1605,7 @@ const weather::WeatherRenderer& TridentEngine::weatherRenderer() const {
     return *m_weatherRenderer;
 }
 
-Result<void> TridentEngine::initializeBreakProgressRenderer() {
+Result<void> TridentEngine::initializeBreakProgressRenderer(ResourceManager* resourceManager) {
     if (m_breakProgressRendererInitialized) {
         return {};
     }
@@ -1625,6 +1625,7 @@ Result<void> TridentEngine::initializeBreakProgressRenderer() {
     config.cameraLayout = cameraDescriptorLayout();
     config.fogLayout = fogDescriptorLayout();
     config.maxFramesInFlight = MAX_FRAMES_IN_FLIGHT;
+    config.resourceManager = resourceManager;
 
     if (!m_breakProgressRenderer->initialize(config)) {
         m_breakProgressRenderer.reset();
