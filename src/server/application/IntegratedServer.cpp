@@ -16,6 +16,7 @@
 #include "common/network/packet/Packet.hpp"
 #include "common/network/sync/ChunkSync.hpp"
 #include "common/network/packet/GameStateChangePacket.hpp"
+#include "common/network/packet/BlockBreakAnimPacket.hpp"
 #include "common/world/WorldConstants.hpp"
 #include "common/world/chunk/ChunkLoadTicket.hpp"
 #include "common/util/Direction.hpp"
@@ -380,6 +381,9 @@ void IntegratedServer::tick() {
 
     // 同步实体位置到客户端
     syncEntityPositions();
+
+    // 更新玩家挖掘进度（广播破坏动画）
+    tickPlayerMining();
 
     // 处理网络数据包
     {
@@ -762,16 +766,12 @@ void IntegratedServer::handleBlockInteraction(const u8* data, size_t size) {
     }
 
     const auto& packet = result.value();
-    // spdlog::info("[Mining] Server received action={} pos=({}, {}, {}) face={} playerPos=({}, {}, {})",
-    //              static_cast<i32>(packet.action()),
-    //              packet.x(),
-    //              packet.y(),
-    //              packet.z(),
-    //              static_cast<i32>(packet.face()),
-    //              player->x,
-    //              player->y,
-    //              player->z);
+    BlockPos pos(packet.x(), packet.y(), packet.z());
 
+    // 处理挖掘动作
+    updatePlayerMining(pos, packet.action());
+
+    // 只有 StopDestroyBlock 会实际破坏方块
     if (packet.action() != network::BlockInteractionAction::StopDestroyBlock) {
         return;
     }
@@ -1393,6 +1393,23 @@ void IntegratedServer::sendToClient(const u8* data, size_t size) {
     }
 }
 
+void IntegratedServer::sendBlockBreakAnim(EntityId breakerId, i32 x, i32 y, i32 z, i8 stage) {
+    network::BlockBreakAnimPacket packet;
+    packet.setBreakerEntityId(breakerId);
+    packet.setPosition(BlockPos(x, y, z));
+    packet.setStage(stage);
+
+    auto result = packet.serialize();
+    if (result.failed()) {
+        spdlog::error("Failed to serialize BlockBreakAnim packet: {}", result.error().message());
+        return;
+    }
+
+    auto fullPacket = core::ConnectionManager::encapsulatePacket(
+        network::PacketType::BlockBreakAnim, result.value());
+    sendToClient(fullPacket.data(), fullPacket.size());
+}
+
 void IntegratedServer::sendTimeUpdate() {
     if (!m_serverCore) return;
     auto* player = getPlayerData();
@@ -1715,6 +1732,142 @@ void IntegratedServer::syncEntityPositions() {
     }
     for (EntityId id : toRemove) {
         m_entityTrackData.erase(id);
+    }
+}
+
+// ============================================================================
+// 挖掘进度追踪
+// ============================================================================
+
+void IntegratedServer::updatePlayerMining(const BlockPos& pos,
+                                          network::BlockInteractionAction action) {
+    switch (action) {
+        case network::BlockInteractionAction::StartDestroyBlock:
+            // 开始挖掘
+            m_playerMining.position = pos;
+            m_playerMining.progress = 0.0f;
+            m_playerMining.lastStage = 255;  // 255 表示未广播过
+            m_playerMining.active = true;
+            m_playerMining.startTick = tickCount();
+            break;
+
+        case network::BlockInteractionAction::AbortDestroyBlock:
+            // 中止挖掘
+            if (m_playerMining.active) {
+                // 发送移除破坏效果的包
+                sendBlockBreakAnim(m_clientPlayerId,
+                                   m_playerMining.position.x,
+                                   m_playerMining.position.y,
+                                   m_playerMining.position.z,
+                                   -1);  // -1 表示移除
+                m_playerMining.active = false;
+                m_playerMining.progress = 0.0f;
+                m_playerMining.lastStage = 255;
+            }
+            break;
+
+        case network::BlockInteractionAction::StopDestroyBlock:
+            // 完成挖掘
+            if (m_playerMining.active) {
+                // 发送移除破坏效果的包
+                sendBlockBreakAnim(m_clientPlayerId,
+                                   m_playerMining.position.x,
+                                   m_playerMining.position.y,
+                                   m_playerMining.position.z,
+                                   -1);
+                m_playerMining.active = false;
+                m_playerMining.progress = 0.0f;
+                m_playerMining.lastStage = 255;
+            }
+            break;
+    }
+}
+
+void IntegratedServer::tickPlayerMining() {
+    if (!m_playerMining.active) {
+        return;
+    }
+
+    // 检查方块是否仍然存在
+    ChunkCoord chunkX = world::toChunkCoord(m_playerMining.position.x);
+    ChunkCoord chunkZ = world::toChunkCoord(m_playerMining.position.z);
+    const ChunkData* chunk = m_chunkManager ? m_chunkManager->getChunk(chunkX, chunkZ) : nullptr;
+
+    if (!chunk) {
+        // 区块未加载，中止挖掘
+        m_playerMining.active = false;
+        return;
+    }
+
+    const i32 localX = world::toLocalCoord(m_playerMining.position.x);
+    const i32 localZ = world::toLocalCoord(m_playerMining.position.z);
+    const BlockState* state = chunk->getBlock(localX, m_playerMining.position.y, localZ);
+
+    if (!state || state->isAir()) {
+        // 方块已被破坏或不存在，停止挖掘
+        m_playerMining.active = false;
+        return;
+    }
+
+    // 获取玩家手持物品以计算挖掘速度
+    ItemStack heldItemCopy;
+    {
+        std::lock_guard<std::mutex> lock(m_clientDataMutex);
+        heldItemCopy = m_clientData.inventory.getSelectedStack();
+    }
+    const ItemStack* heldItem = heldItemCopy.isEmpty() ? nullptr : &heldItemCopy;
+
+    // 计算挖掘速度（简化版本，后续可以扩展为完整的挖掘速度计算）
+    f32 hardness = state->hardness();
+    if (hardness < 0.0f) {
+        // 不可破坏方块
+        return;
+    }
+
+    // 获取挖掘速度倍率
+    f32 miningSpeed = 1.0f;
+    if (heldItem && heldItem->getItem()) {
+        miningSpeed = heldItem->getDestroySpeed(*state);
+    }
+
+    // 计算每 tick 的进度增量
+    // 参考 MC 1.16.5: damage = miningSpeed / hardness / 30 (如果没有工具则 / 100)
+    f32 damagePerTick;
+    if (miningSpeed > 1.0f) {
+        damagePerTick = miningSpeed / hardness / 30.0f;
+    } else {
+        damagePerTick = miningSpeed / hardness / 100.0f;
+    }
+
+    // 创造模式瞬间破坏
+    auto* player = getPlayerData();
+    if (player && player->gameMode == GameMode::Creative) {
+        damagePerTick = 1.0f;
+    }
+
+    // 更新进度
+    m_playerMining.progress += damagePerTick;
+
+    // 广播破坏进度
+    broadcastMiningProgress();
+}
+
+void IntegratedServer::broadcastMiningProgress() {
+    if (!m_playerMining.active) {
+        return;
+    }
+
+    // 计算破坏阶段 (0-9)
+    u8 stage = static_cast<u8>(std::min(9.0f, m_playerMining.progress * 10.0f));
+
+    // 仅在阶段变化时广播
+    if (stage != m_playerMining.lastStage) {
+        sendBlockBreakAnim(m_clientPlayerId,
+                           m_playerMining.position.x,
+                           m_playerMining.position.y,
+                           m_playerMining.position.z,
+                           static_cast<i8>(stage));
+        m_playerMining.lastStage = stage;
     }
 }
 

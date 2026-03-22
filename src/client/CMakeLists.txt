@@ -34,6 +34,9 @@ add_executable(minecraft-client
     renderer/trident/particle/ParticleManager.cpp
     renderer/trident/particle/particles/RainParticle.cpp
     renderer/trident/particle/particles/SnowParticle.cpp
+    # 方块破坏效果
+    renderer/trident/block/BreakProgressManager.cpp
+    renderer/trident/block/BreakProgressRenderer.cpp
     # 子渲染器
     renderer/trident/chunk/ChunkRenderer.cpp
     renderer/trident/chunk/ChunkMesher.cpp
@@ -69,6 +72,7 @@ add_executable(minecraft-client
     resource/BlockModelCache.cpp
     resource/ItemTextureAtlas.cpp
     resource/EntityTextureLoader.cpp
+    resource/DestroyStageTextures.cpp
     # 世界
     world/ClientWorld.cpp
     network/NetworkClient.cpp

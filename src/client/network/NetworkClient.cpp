@@ -3,6 +3,7 @@
 #include "common/network/packet/EntityPackets.hpp"
 #include "common/network/packet/GameStateChangePacket.hpp"
 #include "common/network/packet/PlayerAbilitiesPacket.hpp"
+#include "common/network/packet/BlockBreakAnimPacket.hpp"
 #include <chrono>
 #include <spdlog/spdlog.h>
 
@@ -611,6 +612,11 @@ void NetworkClient::processPacket(const u8* data, size_t size) {
             break;
         }
 
+        case network::PacketType::BlockBreakAnim: {
+            handleBlockBreakAnim(bodyDeser);
+            break;
+        }
+
         default:
             spdlog::debug("Unhandled packet type: {}", static_cast<int>(packetType));
             break;
@@ -1196,6 +1202,28 @@ void NetworkClient::handleLightUpdate(network::PacketDeserializer& deser) {
             packet.skyLight(),
             packet.blockLight(),
             packet.trustEdges()
+        );
+    }
+}
+
+void NetworkClient::handleBlockBreakAnim(network::PacketDeserializer& deser) {
+    const u8* data = deser.data();
+    size_t size = deser.size();
+
+    network::BlockBreakAnimPacket packet;
+    auto result = packet.deserialize(data, size);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize BlockBreakAnim packet: {}", result.error().message());
+        return;
+    }
+
+    if (m_callbacks.onBlockBreakAnim) {
+        m_callbacks.onBlockBreakAnim(
+            packet.breakerEntityId(),
+            packet.position().x,
+            packet.position().y,
+            packet.position().z,
+            packet.stage()
         );
     }
 }

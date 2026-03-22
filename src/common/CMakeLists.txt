@@ -40,6 +40,7 @@ add_library(mc_common STATIC
     network/packet/EntityMetadataSerializer.cpp
     network/packet/GameStateChangePacket.cpp
     network/packet/PlayerAbilitiesPacket.cpp
+    network/packet/BlockBreakAnimPacket.cpp
 
     # Network - Sync
     network/sync/ChunkSync.cpp

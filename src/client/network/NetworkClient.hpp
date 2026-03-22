@@ -102,6 +102,9 @@ struct NetworkClientCallbacks {
                        const std::vector<u8>& skyLight,
                        const std::vector<u8>& blockLight,
                        bool trustEdges)> onLightUpdate;
+
+    // 方块破坏动画事件
+    std::function<void(u32 breakerEntityId, i32 x, i32 y, i32 z, i8 stage)> onBlockBreakAnim;
 };
 
 // ============================================================================
@@ -207,6 +210,9 @@ private:
 
     // 光照更新包处理
     void handleLightUpdate(network::PacketDeserializer& deser);
+
+    // 方块破坏动画包处理
+    void handleBlockBreakAnim(network::PacketDeserializer& deser);
 
     // ASIO 网络
     asio::io_context m_ioContext;

@@ -68,6 +68,10 @@ namespace item {
 class ItemRenderer;
 }
 
+namespace block {
+class BreakProgressRenderer;
+}
+
 /**
  * @brief GUI 渲染回调类型
  *
@@ -418,6 +422,13 @@ public:
     [[nodiscard]] const weather::WeatherRenderer& weatherRenderer() const;
     [[nodiscard]] bool isWeatherRendererInitialized() const { return m_weatherRendererInitialized; }
 
+    /**
+     * @brief 获取破坏进度渲染器
+     */
+    [[nodiscard]] block::BreakProgressRenderer& breakProgressRenderer();
+    [[nodiscard]] const block::BreakProgressRenderer& breakProgressRenderer() const;
+    [[nodiscard]] bool isBreakProgressRendererInitialized() const { return m_breakProgressRendererInitialized; }
+
     // ========================================================================
     // 子渲染器初始化
     // ========================================================================
@@ -471,6 +482,11 @@ public:
      * @brief 初始化天气渲染器
      */
     [[nodiscard]] Result<void> initializeWeatherRenderer();
+
+    /**
+     * @brief 初始化破坏进度渲染器
+     */
+    [[nodiscard]] Result<void> initializeBreakProgressRenderer();
 
     /**
      * @brief 重新加载云纹理
@@ -545,6 +561,7 @@ private:
     std::unique_ptr<cloud::CloudRenderer> m_cloudRenderer;
     std::unique_ptr<particle::ParticleManager> m_particleManager;
     std::unique_ptr<weather::WeatherRenderer> m_weatherRenderer;
+    std::unique_ptr<block::BreakProgressRenderer> m_breakProgressRenderer;
 
     // 实体渲染管线（独立于区块管线）
     std::unique_ptr<EntityPipeline> m_entityPipeline;
@@ -569,6 +586,7 @@ private:
     bool m_cloudRendererInitialized = false;
     bool m_particleManagerInitialized = false;
     bool m_weatherRendererInitialized = false;
+    bool m_breakProgressRendererInitialized = false;
 
     // 内部方法
     [[nodiscard]] Result<void> recreateSwapchain();

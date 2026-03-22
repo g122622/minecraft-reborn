@@ -159,6 +159,11 @@ private:
     void handleKeepAlive(const u8* data, size_t size);
     void handleChatMessage(const u8* data, size_t size);
 
+    // 挖掘进度处理
+    void updatePlayerMining(const BlockPos& pos, network::BlockInteractionAction action);
+    void tickPlayerMining();
+    void broadcastMiningProgress();
+
     // 发送数据包
     void sendLoginResponse(bool success, PlayerId playerId, const String& username, const String& message);
     void sendKeepAlive(u64 timestamp);
@@ -174,6 +179,7 @@ private:
     void sendTimeUpdate();
     void sendWeatherUpdate();
     void sendInitialWeatherState();
+    void sendBlockBreakAnim(EntityId breakerId, i32 x, i32 y, i32 z, i8 stage);
     void openCraftingTableMenu();
 
     /**
@@ -247,6 +253,16 @@ private:
         bool needsFullUpdate = true;
     };
     std::unordered_map<EntityId, EntityTrackData> m_entityTrackData;
+
+    // 玩家挖掘状态追踪
+    struct PlayerMiningState {
+        BlockPos position;          ///< 挖掘位置
+        f32 progress = 0.0f;        ///< 当前进度 (0.0 - 1.0)
+        u8 lastStage = 255;         ///< 上次广播的阶段 (用于检测变化)
+        bool active = false;        ///< 是否正在挖掘
+        u64 startTick = 0;          ///< 开始tick
+    };
+    PlayerMiningState m_playerMining;
 
     // 掉落表管理器
     loot::LootTableManager m_lootTableManager;

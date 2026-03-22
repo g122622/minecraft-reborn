@@ -56,6 +56,8 @@ set(SHADER_SOURCES
     weather.frag
     particle.vert
     particle.frag
+    break_overlay.vert
+    break_overlay.frag
 )
 
 # 输出目录

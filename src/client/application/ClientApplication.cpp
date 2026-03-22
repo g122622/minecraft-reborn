@@ -18,6 +18,7 @@
 #include "client/renderer/trident/gui/GuiTextureLoader.hpp"
 #include "client/renderer/trident/gui/GuiTextureManager.hpp"
 #include "client/renderer/trident/item/ItemRenderer.hpp"
+#include "client/renderer/trident/block/BreakProgressManager.hpp"
 #include "client/renderer/util/GpuInfo.hpp"
 #include "client/resource/ResourceManager.hpp"
 #include "client/resource/TextureAtlasBuilder.hpp"
@@ -461,6 +462,12 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         auto weatherInitResult = m_renderer->initializeWeatherRenderer();
         if (weatherInitResult.failed()) {
             spdlog::warn("Failed to initialize weather renderer: {}", weatherInitResult.error().toString());
+        }
+
+        // 初始化破坏进度渲染器
+        auto breakProgressInitResult = m_renderer->initializeBreakProgressRenderer();
+        if (breakProgressInitResult.failed()) {
+            spdlog::warn("Failed to initialize break progress renderer: {}", breakProgressInitResult.error().toString());
         }
     }
 
@@ -1096,6 +1103,12 @@ void ClientApplication::update(f32 deltaTime)
         m_networkClient->poll();
     }
 
+    // 更新破坏进度管理器
+    {
+        using namespace mc::client::renderer::trident::block;
+        BreakProgressManager::instance().tick(deltaTime, m_world.gameTime());
+    }
+
     // 更新玩家物理
     if (m_player) {
         // 应用物理（重力、碰撞检测）
@@ -1701,6 +1714,24 @@ void ClientApplication::setupNetworkCallbacks()
         m_world.onLightUpdate(chunkX, chunkZ, sectionY, skyLight, blockLight, trustEdges);
     };
 
+    // ========== 方块破坏动画回调 ==========
+    callbacks.onBlockBreakAnim = [this](u32 breakerEntityId, i32 x, i32 y, i32 z, i8 stage) {
+        // 使用 BreakProgressManager 更新远程玩家的挖掘进度
+        using namespace mc::client::renderer::trident::block;
+        auto& manager = BreakProgressManager::instance();
+
+        BlockPos pos(x, y, z);
+        u64 currentTick = m_world.gameTime();  // 使用世界时间
+
+        if (stage < 0) {
+            // stage = -1 表示移除破坏效果
+            manager.removeRemoteProgress(static_cast<EntityId>(breakerEntityId));
+        } else {
+            // stage = 0-9 表示破坏阶段
+            manager.updateRemoteProgress(static_cast<EntityId>(breakerEntityId), pos, stage, currentTick);
+        }
+    };
+
     m_networkClient->setCallbacks(callbacks);
 }
 
@@ -1726,6 +1757,11 @@ void ClientApplication::handleBlockInteractionInput(f32 deltaTime)
         sendBlockInteraction(network::BlockInteractionAction::AbortDestroyBlock,
                              m_breakingBlockPos,
                              m_breakingBlockFace);
+
+        // 清除本地破坏进度
+        using namespace mc::client::renderer::trident::block;
+        BreakProgressManager::instance().stopBreaking();
+
         m_breakingBlockActive = false;
         m_breakingBlockProgress = 0.0f;
         m_breakingBlockFace = Direction::None;
@@ -1762,6 +1798,11 @@ void ClientApplication::handleBlockInteractionInput(f32 deltaTime)
         m_breakingBlockFace = currentTargetFace;
         m_breakingBlockActive = true;
         m_breakingBlockProgress = 0.0f;
+
+        // 开始挖掘 - 更新 BreakProgressManager
+        using namespace mc::client::renderer::trident::block;
+        BreakProgressManager::instance().startBreaking(m_breakingBlockPos);
+
         sendBlockInteraction(network::BlockInteractionAction::StartDestroyBlock,
                              m_breakingBlockPos,
                              m_breakingBlockFace);
@@ -1781,6 +1822,10 @@ void ClientApplication::handleBlockInteractionInput(f32 deltaTime)
             return;
         }
 
+        // 创造模式直接破坏
+        using namespace mc::client::renderer::trident::block;
+        BreakProgressManager::instance().stopBreaking();
+
         sendBlockInteraction(network::BlockInteractionAction::StopDestroyBlock,
                              m_breakingBlockPos,
                              m_breakingBlockFace);
@@ -1793,7 +1838,17 @@ void ClientApplication::handleBlockInteractionInput(f32 deltaTime)
     m_breakingBlockProgress += deltaTime * constants::TICK_RATE *
         calculateBlockBreakingDelta(*m_player, *targetState);
 
+    // 更新本地破坏进度
+    {
+        using namespace mc::client::renderer::trident::block;
+        BreakProgressManager::instance().updateLocalProgress(m_breakingBlockPos, m_breakingBlockProgress);
+    }
+
     if (m_breakingBlockProgress >= 1.0f) {
+        // 方块被破坏
+        using namespace mc::client::renderer::trident::block;
+        BreakProgressManager::instance().stopBreaking();
+
         sendBlockInteraction(network::BlockInteractionAction::StopDestroyBlock,
                              m_breakingBlockPos,
                              m_breakingBlockFace);

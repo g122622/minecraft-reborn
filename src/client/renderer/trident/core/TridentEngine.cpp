@@ -27,6 +27,7 @@
 #include "../entity/EntityRendererManager.hpp"
 #include "../entity/EntityTextureAtlas.hpp"
 #include "../entity/EntityPipeline.hpp"
+#include "../block/BreakProgressRenderer.hpp"
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -226,6 +227,12 @@ void TridentEngine::destroy() {
     if (m_weatherRenderer) {
         m_weatherRenderer->destroy();
         m_weatherRenderer.reset();
+    }
+
+    // 销毁破坏进度渲染器
+    if (m_breakProgressRenderer) {
+        m_breakProgressRenderer->cleanup();
+        m_breakProgressRenderer.reset();
     }
 
     // 销毁粒子管理器
@@ -551,6 +558,26 @@ Result<void> TridentEngine::render() {
                 );
             }
         );
+    }
+
+    // 5.5 渲染破坏进度覆盖层
+    if (m_breakProgressRendererInitialized && m_breakProgressRenderer) {
+        // 更新网格数据
+        glm::vec3 cameraPos(0.0f);
+        if (m_frameContext.camera) {
+            cameraPos = m_frameContext.camera->position();
+        }
+        m_breakProgressRenderer->updateMesh(Vector3(cameraPos.x, cameraPos.y, cameraPos.z));
+
+        // 渲染
+        if (m_breakProgressRenderer->hasProgressToRender()) {
+            VkDescriptorSet cameraSet = m_uniformManager->cameraDescriptorSet(m_frameContext.frameIndex);
+            VkDescriptorSet fogSet = VK_NULL_HANDLE;
+            if (m_fogManagerInitialized && m_fogManager) {
+                fogSet = m_fogManager->descriptorSet(m_frameContext.frameIndex);
+            }
+            m_breakProgressRenderer->render(cmd, cameraSet, fogSet);
+        }
     }
 
     // 6. 调用实体渲染回调
@@ -1576,6 +1603,48 @@ weather::WeatherRenderer& TridentEngine::weatherRenderer() {
 
 const weather::WeatherRenderer& TridentEngine::weatherRenderer() const {
     return *m_weatherRenderer;
+}
+
+Result<void> TridentEngine::initializeBreakProgressRenderer() {
+    if (m_breakProgressRendererInitialized) {
+        return {};
+    }
+
+    spdlog::info("Initializing break progress renderer...");
+
+    if (!m_breakProgressRenderer) {
+        m_breakProgressRenderer = std::make_unique<block::BreakProgressRenderer>();
+    }
+
+    block::BreakProgressRenderer::Config config;
+    config.device = device();
+    config.physicalDevice = physicalDevice();
+    config.commandPool = commandPool();
+    config.graphicsQueue = graphicsQueue();
+    config.renderPass = renderPass();
+    config.cameraLayout = cameraDescriptorLayout();
+    config.fogLayout = fogDescriptorLayout();
+    config.maxFramesInFlight = MAX_FRAMES_IN_FLIGHT;
+
+    if (!m_breakProgressRenderer->initialize(config)) {
+        m_breakProgressRenderer.reset();
+        return Error(ErrorCode::InitializationFailed, "Failed to initialize break progress renderer");
+    }
+
+    m_breakProgressRendererInitialized = true;
+    spdlog::info("Break progress renderer initialized");
+    return {};
+}
+
+block::BreakProgressRenderer& TridentEngine::breakProgressRenderer() {
+    if (!m_breakProgressRenderer) {
+        m_breakProgressRenderer = std::make_unique<block::BreakProgressRenderer>();
+    }
+    return *m_breakProgressRenderer;
+}
+
+const block::BreakProgressRenderer& TridentEngine::breakProgressRenderer() const {
+    return *m_breakProgressRenderer;
 }
 
 Result<void> TridentEngine::updateTextureAtlas(const AtlasBuildResult& atlasResult) {
