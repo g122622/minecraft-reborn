@@ -1241,6 +1241,43 @@ Result<void> TridentEngine::initializeItemRenderer(ResourceManager* resourceMana
 
     spdlog::info("Initializing item renderer...");
 
+    if (!m_itemTextureAtlasInitialized) {
+        if (!m_itemTextureAtlas.isValid()) {
+            auto createResult = m_itemTextureAtlas.create(
+                device(),
+                physicalDevice(),
+                commandPool(),
+                graphicsQueue(),
+                4096,
+                4096);
+            if (createResult.failed()) {
+                return createResult.error();
+            }
+        }
+
+        std::vector<IResourcePack*> resourcePacks;
+        resourcePacks.reserve(resourceManager->resourcePackCount());
+        for (size_t i = 0; i < resourceManager->resourcePackCount(); ++i) {
+            IResourcePack* pack = resourceManager->getResourcePack(i);
+            if (pack != nullptr) {
+                resourcePacks.push_back(pack);
+            }
+        }
+
+        auto loadResult = m_itemTextureAtlas.loadFromResourcePacks(resourcePacks);
+        if (loadResult.failed()) {
+            return loadResult.error();
+        }
+
+        auto uploadResult = m_itemTextureAtlas.upload();
+        if (uploadResult.failed()) {
+            return uploadResult.error();
+        }
+
+        m_itemTextureAtlasInitialized = true;
+        spdlog::info("Item texture atlas initialized: {} mapped items", m_itemTextureAtlas.textureCount());
+    }
+
     // 创建物品渲染器
     m_itemRendererPtr = std::make_unique<item::ItemRenderer>();
     auto result = m_itemRendererPtr->initialize(resourceManager, &m_itemTextureAtlas);

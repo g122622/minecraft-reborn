@@ -54,7 +54,7 @@ void ItemRenderer::renderItem(gui::GuiRenderer& gui, const Item* item, f32 x, f3
     const TextureRegion* region = getItemTextureRegion(item);
     if (region == nullptr) {
         // 没有找到纹理，绘制占位符
-        // 使用半透明红色矩形表示缺失纹理
+        // 使用半透明纯色矩形表示缺失纹理
         gui.fillRect(x, y, size, size, 0x80FF0000);
         return;
     }
@@ -85,39 +85,43 @@ const TextureRegion* ItemRenderer::getItemTextureRegion(const Item* item) const 
         return nullptr;
     }
 
-    // 首先检查是否为方块物品
-    const BlockItem* blockItem = dynamic_cast<const BlockItem*>(item);
-    if (blockItem != nullptr) {
-        // 方块物品使用方块纹理图集
-        const Block& block = blockItem->block();
-        const ResourceLocation& blockId = block.blockLocation();
+    // 统一优先使用物品图集，避免将方块图集UV错误用于GUI物品图集采样。
+    if (m_itemTextureAtlas != nullptr) {
+        if (const TextureRegion* region = m_itemTextureAtlas->getItemTexture(item->itemId())) {
+            return region;
+        }
 
-        // 获取方块纹理（使用侧面的默认纹理）
-        // 方块纹理位置格式: minecraft:block/stone
-        ResourceLocation textureLoc(blockId.namespace_(), "block/" + blockId.path());
+        const ResourceLocation& itemId = item->itemLocation();
+        const ResourceLocation itemPath(itemId.namespace_(), "item/" + itemId.path());
+        if (const TextureRegion* region = m_itemTextureAtlas->getItemTexture(itemPath)) {
+            return region;
+        }
 
-        if (m_resourceManager != nullptr) {
-            const TextureRegion* region = m_resourceManager->getTextureRegion(textureLoc);
-            if (region != nullptr) {
-                return region;
-            }
+        const ResourceLocation itemTexturePath(itemId.namespace_(), "textures/item/" + itemId.path());
+        if (const TextureRegion* region = m_itemTextureAtlas->getItemTexture(itemTexturePath)) {
+            return region;
         }
     }
 
-    // 非方块物品使用物品纹理图集
-    if (m_itemTextureAtlas != nullptr) {
-        const TextureRegion* region = m_itemTextureAtlas->getItemTexture(item->itemId());
-        if (region != nullptr) {
-            return region;
+    // 首先检查是否为方块物品
+    const BlockItem* blockItem = dynamic_cast<const BlockItem*>(item);
+    if (blockItem != nullptr) {
+        // 方块物品：尝试方块纹理路径别名（ItemTextureAtlas 在加载时会建立别名）
+        const ResourceLocation& blockId = blockItem->block().blockLocation();
+        if (m_itemTextureAtlas != nullptr) {
+            const ResourceLocation blockPath(blockId.namespace_(), "block/" + blockId.path());
+            if (const TextureRegion* region = m_itemTextureAtlas->getItemTexture(blockPath)) {
+                return region;
+            }
+
+            const ResourceLocation blockTexturePath(blockId.namespace_(), "textures/block/" + blockId.path());
+            if (const TextureRegion* region = m_itemTextureAtlas->getItemTexture(blockTexturePath)) {
+                return region;
+            }
         }
 
-        // 尝试使用资源位置查找
-        const ResourceLocation& itemId = item->itemLocation();
-        ResourceLocation textureLoc(itemId.namespace_(), "item/" + itemId.path());
-        region = m_itemTextureAtlas->getItemTexture(textureLoc);
-        if (region != nullptr) {
-            return region;
-        }
+        // 注意：不要回退到方块图集UV。
+        // GUI物品绘制固定采样“物品图集”，若返回方块图集的UV会导致采样错位。
     }
 
     return nullptr;

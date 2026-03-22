@@ -41,7 +41,13 @@ add_executable(minecraft-client
     renderer/trident/sky/SkyRenderer.cpp
     renderer/trident/sky/CelestialCalculations.cpp
     renderer/trident/gui/GuiRenderer.cpp
+    renderer/trident/gui/GuiAtlasRegistry.cpp
     renderer/trident/gui/GuiTextureAtlas.cpp
+    renderer/trident/gui/GuiSpriteAtlas.cpp
+    renderer/trident/gui/GuiSpriteManager.cpp
+    renderer/trident/gui/GuiSpriteParser.cpp
+    renderer/trident/gui/GuiSpriteRegistry.cpp
+    renderer/trident/gui/GuiTextureLoader.cpp
     renderer/trident/item/ItemRenderer.cpp
     renderer/trident/entity/EntityRenderer.cpp
     renderer/trident/entity/EntityRendererManager.cpp
@@ -65,20 +71,64 @@ add_executable(minecraft-client
     # 世界
     world/ClientWorld.cpp
     network/NetworkClient.cpp
+    # 聊天系统
+    chat/ChatHistory.cpp
     # UI (平台无关)
     ui/FontTextureAtlas.cpp
     ui/Font.cpp
     ui/FontRenderer.cpp
     ui/DefaultAsciiFont.cpp
-    ui/debug/DebugScreen.cpp
-    ui/crosshair/CrosshairRenderer.cpp
-    ui/hud/HudRenderer.cpp
-    ui/inventory/InventoryScreen.cpp
-    ui/inventory/SlotRenderer.cpp
+    ui/TridentCanvas.cpp
     ui/screen/ScreenManager.cpp
     ui/screen/CraftingScreen.cpp
-    ui/chat/ChatHistory.cpp
-    ui/chat/ChatScreen.cpp
+    # UI Kagero模板系统
+    ui/kagero/template/parser/Ast.cpp
+    ui/kagero/template/parser/AstVisitor.cpp
+    ui/kagero/template/parser/Lexer.cpp
+    ui/kagero/template/parser/Parser.cpp
+    ui/kagero/template/binder/BindingContext.cpp
+    ui/kagero/template/compiler/TemplateCompiler.cpp
+    ui/kagero/template/runtime/TemplateInstance.cpp
+    ui/kagero/template/runtime/UpdateScheduler.cpp
+    ui/kagero/template/bindings/BuiltinWidgets.cpp
+    ui/kagero/template/bindings/BuiltinEvents.cpp
+    ui/kagero/template/TemplateSystem.cpp
+    # UI Kagero布局系统
+    ui/kagero/layout/core/LayoutEngine.cpp
+    ui/kagero/layout/algorithms/FlexLayout.cpp
+    ui/kagero/layout/algorithms/GridLayout.cpp
+    ui/kagero/layout/algorithms/AnchorLayout.cpp
+    ui/kagero/layout/integration/WidgetLayoutAdaptor.cpp
+    # UI Kagero Paint抽象
+    ui/kagero/paint/Geometry.cpp
+    ui/kagero/paint/PaintContext.cpp
+    ui/kagero/paint/TextureImage.cpp
+    ui/kagero/widget/ContainerWidget.cpp
+    # UI Kagero 引擎
+    ui/kagero/KageroEngine.cpp
+    # UI Kagero widgets
+    # Minecraft UI业务层
+    ui/minecraft/widgets/CrosshairWidget.cpp
+    ui/minecraft/MinecraftUIContext.cpp
+    ui/minecraft/resources/ResourceProvider.cpp
+    ui/minecraft/widgets/SlotWidget.cpp
+    ui/minecraft/widgets/InventorySlot.cpp
+    ui/minecraft/widgets/HotbarWidget.cpp
+    ui/minecraft/widgets/HealthBarWidget.cpp
+    ui/minecraft/widgets/HungerBarWidget.cpp
+    ui/minecraft/widgets/ExperienceBar.cpp
+    ui/minecraft/widgets/Viewport3DWidget.cpp
+    ui/minecraft/widgets/HudWidget.cpp
+    ui/minecraft/widgets/ChatWidget.cpp
+    ui/minecraft/widgets/ScreenStackWidget.cpp
+    ui/minecraft/screens/Screen.cpp
+    ui/minecraft/screens/ScreenManager.cpp
+    ui/minecraft/screens/MainMenuScreen.cpp
+    ui/minecraft/screens/InventoryScreen.cpp
+    ui/minecraft/screens/ContainerScreen.cpp
+    ui/minecraft/screens/PauseScreen.cpp
+    ui/minecraft/screens/OptionsScreen.cpp
+    ui/minecraft/screens/DebugScreenWidget.cpp
     # 客户端实体管理
     world/entity/ClientEntity.cpp
     world/entity/ClientEntityManager.cpp

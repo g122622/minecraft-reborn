@@ -1,0 +1,300 @@
+#pragma once
+
+#include "StateStore.hpp"
+#include "ReactiveState.hpp"
+#include <functional>
+#include <memory>
+
+namespace mc::client::ui::kagero::state {
+
+/**
+ * @brief 状态绑定工具
+ *
+ * 提供状态与组件之间的绑定功能
+ */
+namespace binding {
+
+/**
+ * @brief 创建状态绑定
+ *
+ * @tparam T 状态类型
+ * @param key 状态键
+ * @return 绑定点
+ */
+template<typename T>
+StateBindingPoint bind(const String& key) {
+    return StateBindingPoint(key);
+}
+
+/**
+ * @brief 双向绑定到 Reactive 状态
+ *
+ * @tparam T 状态类型
+ * @param reactive 响应式状态引用
+ * @param key 存储键
+ * @return 绑定点
+ *
+ * @note 双向绑定会自动同步 Reactive 和 StateStore 的值。
+ *       当 Reactive 变化时，StateStore 会更新；
+ *       当 StateStore 变化时，Reactive 会更新。
+ *       使用值比较来避免循环更新。
+ */
+template<typename T>
+StateBindingPoint bindReactive(Reactive<T>& reactive, const String& key) {
+    // 创建双向同步
+    StateStore::instance().set(key, reactive.get());
+
+    // 使用 shared_ptr 来共享旧值，避免捕获局部引用
+    auto lastStoreValue = std::make_shared<T>(reactive.get());
+
+    // 从 Reactive 到 Store（复制 key 到 lambda 中）
+    String keyCopy = key;
+    reactive.observe([keyCopy, lastStoreValue](const T& /*oldValue*/, const T& newValue) {
+        // 避免循环：如果新值与上次存储的值相同，跳过更新
+        if (newValue != *lastStoreValue) {
+            *lastStoreValue = newValue;
+            StateStore::instance().set(keyCopy, newValue);
+        }
+    });
+
+    // 从 Store 到 Reactive
+    String keyCopy2 = key;
+    StateStore::instance().subscribe(key, [&reactive, lastStoreValue, keyCopy2]() {
+        T value = StateStore::instance().get<T>(keyCopy2);
+        // 避免循环：如果新值与 Reactive 当前值相同，跳过更新
+        if (value != reactive.get() && value != *lastStoreValue) {
+            *lastStoreValue = value;
+            reactive.set(value);
+        }
+    });
+
+    return StateBindingPoint(key);
+}
+
+/**
+ * @brief 创建计算属性
+ *
+ * @tparam T 结果类型
+ * @tparam Func 计算函数类型
+ * @param compute 计算函数
+ * @return 计算属性
+ */
+template<typename T, typename Func>
+Computed<T> computed(Func&& compute) {
+    return Computed<T>(std::forward<Func>(compute));
+}
+
+/**
+ * @brief 监视状态变化（带旧值和新值）
+ *
+ * @tparam T 状态类型
+ * @param key 状态键
+ * @param callback 回调函数，接收旧值和新值
+ * @return 订阅ID
+ */
+template<typename T>
+u64 watch(const String& key, std::function<void(const T&, const T&)> callback) {
+    // 使用 shared_ptr 来持久化旧值
+    auto oldValue = std::make_shared<T>(StateStore::instance().get<T>(key));
+
+    return StateStore::instance().subscribe(key, [key, callback, oldValue]() {
+        T newValue = StateStore::instance().get<T>(key);
+        if (*oldValue != newValue) {
+            callback(*oldValue, newValue);
+            *oldValue = newValue;
+        }
+    });
+}
+
+/**
+ * @brief 监视多个状态变化
+ *
+ * @param keys 状态键列表
+ * @param callback 回调函数
+ * @return 订阅ID列表
+ */
+inline std::vector<u64> watchAll(const std::vector<String>& keys, std::function<void()> callback) {
+    std::vector<u64> ids;
+    ids.reserve(keys.size());
+    for (const auto& key : keys) {
+        ids.push_back(StateStore::instance().subscribe(key, callback));
+    }
+    return ids;
+}
+
+/**
+ * @brief 取消监视
+ */
+inline void unwatch(u64 id) {
+    StateStore::instance().unsubscribe(id);
+}
+
+/**
+ * @brief 取消多个监视
+ */
+inline void unwatchAll(const std::vector<u64>& ids) {
+    for (u64 id : ids) {
+        StateStore::instance().unsubscribe(id);
+    }
+}
+
+} // namespace binding
+
+/**
+ * @brief 状态作用域
+ *
+ * 用于管理一组相关的状态绑定，在作用域结束时自动取消所有订阅
+ */
+class StateScope {
+public:
+    StateScope() = default;
+
+    ~StateScope() {
+        clear();
+    }
+
+    // 禁止拷贝
+    StateScope(const StateScope&) = delete;
+    StateScope& operator=(const StateScope&) = delete;
+
+    // 允许移动
+    StateScope(StateScope&& other) noexcept
+        : m_subscriptions(std::move(other.m_subscriptions)) {}
+
+    StateScope& operator=(StateScope&& other) noexcept {
+        if (this != &other) {
+            clear();
+            m_subscriptions = std::move(other.m_subscriptions);
+        }
+        return *this;
+    }
+
+    /**
+     * @brief 订阅状态变化
+     */
+    u64 subscribe(const String& key, std::function<void()> callback) {
+        u64 id = StateStore::instance().subscribe(key, std::move(callback));
+        m_subscriptions.push_back(id);
+        return id;
+    }
+
+    /**
+     * @brief 监视状态变化
+     */
+    template<typename T>
+    u64 watch(const String& key, std::function<void(const T&, const T&)> callback) {
+        u64 id = binding::watch<T>(key, std::move(callback));
+        m_subscriptions.push_back(id);
+        return id;
+    }
+
+    /**
+     * @brief 取消所有订阅
+     */
+    void clear() {
+        for (u64 id : m_subscriptions) {
+            StateStore::instance().unsubscribe(id);
+        }
+        m_subscriptions.clear();
+    }
+
+    /**
+     * @brief 获取订阅数量
+     */
+    [[nodiscard]] size_t size() const { return m_subscriptions.size(); }
+
+private:
+    std::vector<u64> m_subscriptions;
+};
+
+/**
+ * @brief 状态上下文
+ *
+ * 提供组件级别的状态管理，包括响应式状态的创建和生命周期管理
+ */
+class StateContext {
+public:
+    /**
+     * @brief 响应式状态包装器基类
+     */
+    class IReactiveHolder {
+    public:
+        virtual ~IReactiveHolder() = default;
+    };
+
+    /**
+     * @brief 响应式状态包装器模板
+     */
+    template<typename T>
+    class ReactiveHolder : public IReactiveHolder {
+    public:
+        explicit ReactiveHolder(T initialValue)
+            : reactive(std::move(initialValue)) {}
+
+        Reactive<T> reactive;
+    };
+
+    StateContext() = default;
+
+    /**
+     * @brief 获取状态值
+     */
+    template<typename T>
+    [[nodiscard]] T get(const String& key) const {
+        return StateStore::instance().get<T>(key);
+    }
+
+    /**
+     * @brief 设置状态值
+     */
+    template<typename T>
+    void set(const String& key, T value) {
+        StateStore::instance().set(key, std::move(value));
+    }
+
+    /**
+     * @brief 创建或获取响应式状态
+     *
+     * @tparam T 状态类型
+     * @param key 状态键
+     * @param initialValue 初始值
+     * @return 响应式状态的引用
+     *
+     * @note 生命周期由 StateContext 管理
+     */
+    template<typename T>
+    Reactive<T>& reactive(const String& key, T initialValue = T{}) {
+        auto it = m_reactives.find(key);
+        if (it != m_reactives.end()) {
+            auto* holder = dynamic_cast<ReactiveHolder<T>*>(it->second.get());
+            if (holder) {
+                return holder->reactive;
+            }
+            // 类型不匹配，重新创建
+        }
+
+        auto holder = std::make_unique<ReactiveHolder<T>>(std::move(initialValue));
+        auto* ptr = holder.get();
+        m_reactives[key] = std::move(holder);
+        return ptr->reactive;
+    }
+
+    /**
+     * @brief 获取状态作用域
+     */
+    StateScope& scope() { return m_scope; }
+
+    /**
+     * @brief 清除所有响应式状态
+     */
+    void clear() {
+        m_reactives.clear();
+        m_scope.clear();
+    }
+
+private:
+    std::unordered_map<String, std::unique_ptr<IReactiveHolder>> m_reactives;
+    StateScope m_scope;
+};
+
+} // namespace mc::client::ui::kagero::state

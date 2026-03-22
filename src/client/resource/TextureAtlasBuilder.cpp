@@ -154,7 +154,7 @@ Result<AtlasBuildResult> TextureAtlasBuilder::build() {
 
     // 尝试打包
     bool success = false;
-    for (int attempt = 0; attempt < 2; ++attempt) {
+    while (true) {
         skyline.clear();
         skyline.push_back({0, 0, actualWidth});
         placed.clear();
@@ -182,11 +182,16 @@ Result<AtlasBuildResult> TextureAtlasBuilder::build() {
         if (success) break;
 
         // 尝试增大尺寸
+        bool expanded = false;
         if (actualWidth < m_maxWidth) {
-            actualWidth *= 2;
+            actualWidth = std::min(actualWidth * 2, m_maxWidth);
+            expanded = true;
         } else if (actualHeight < m_maxHeight) {
-            actualHeight *= 2;
-        } else {
+            actualHeight = std::min(actualHeight * 2, m_maxHeight);
+            expanded = true;
+        }
+
+        if (!expanded) {
             break;
         }
     }

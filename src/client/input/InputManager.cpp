@@ -2,15 +2,38 @@
 
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
+#include <unordered_map>
 
 namespace mc::client {
+
+namespace {
+
+std::unordered_map<GLFWwindow*, InputManager*> g_inputManagers;
+
+InputManager* getInputManager(GLFWwindow* window)
+{
+    auto it = g_inputManagers.find(window);
+    if (it != g_inputManagers.end()) {
+        return it->second;
+    }
+    return nullptr;
+}
+
+} // namespace
+
+InputManager::~InputManager()
+{
+    if (m_window != nullptr) {
+        g_inputManagers.erase(m_window);
+    }
+}
 
 void InputManager::initialize(GLFWwindow* window)
 {
     m_window = window;
+    g_inputManagers[window] = this;
 
     // 设置回调
-    glfwSetWindowUserPointer(window, this);
     glfwSetKeyCallback(window, keyCallback);
     glfwSetCursorPosCallback(window, mouseCallback);
     glfwSetMouseButtonCallback(window, mouseButtonCallback);
@@ -131,7 +154,7 @@ void InputManager::bindActionCallback(const String& action, ActionCallback callb
 
 void InputManager::keyCallback(GLFWwindow* window, int key, int /*scancode*/, int action, int /*mods*/)
 {
-    auto* input = static_cast<InputManager*>(glfwGetWindowUserPointer(window));
+    auto* input = getInputManager(window);
     if (input && key >= 0) {
         input->handleKey(key, action);
     }
@@ -139,7 +162,7 @@ void InputManager::keyCallback(GLFWwindow* window, int key, int /*scancode*/, in
 
 void InputManager::mouseCallback(GLFWwindow* window, double xpos, double ypos)
 {
-    auto* input = static_cast<InputManager*>(glfwGetWindowUserPointer(window));
+    auto* input = getInputManager(window);
     if (input) {
         input->handleMouseMove(xpos, ypos);
     }
@@ -147,7 +170,7 @@ void InputManager::mouseCallback(GLFWwindow* window, double xpos, double ypos)
 
 void InputManager::mouseButtonCallback(GLFWwindow* window, int button, int action, int /*mods*/)
 {
-    auto* input = static_cast<InputManager*>(glfwGetWindowUserPointer(window));
+    auto* input = getInputManager(window);
     if (input && button >= 0) {
         input->handleMouseButton(button, action);
     }
@@ -155,7 +178,7 @@ void InputManager::mouseButtonCallback(GLFWwindow* window, int button, int actio
 
 void InputManager::scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 {
-    auto* input = static_cast<InputManager*>(glfwGetWindowUserPointer(window));
+    auto* input = getInputManager(window);
     if (input) {
         input->handleScroll(xoffset, yoffset);
     }
@@ -215,7 +238,7 @@ void InputManager::handleScroll(f64 x, f64 y)
 
 void InputManager::charCallback(GLFWwindow* window, unsigned int codepoint)
 {
-    auto* input = static_cast<InputManager*>(glfwGetWindowUserPointer(window));
+    auto* input = getInputManager(window);
     if (input) {
         input->handleCharInput(codepoint);
     }

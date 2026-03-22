@@ -4,9 +4,12 @@
 #include "client/ui/Font.hpp"
 #include "client/ui/FontRenderer.hpp"
 #include "common/core/Result.hpp"
+#include "GuiAtlasRegistry.hpp"
 #include <vulkan/vulkan.h>
 #include <memory>
 #include <vector>
+#include <unordered_map>
+#include <optional>
 
 // 前向声明
 namespace mc::client {
@@ -24,13 +27,25 @@ namespace mc::client::renderer::trident::gui {
  * - 纹理
  *
  * 使用正交投影渲染到屏幕空间。
+ *
+ * ## 多图集支持
+ *
+ * 渲染器支持多个纹理图集，通过GuiAtlasRegistry管理：
+ * - 槽位 0: 字体纹理（固定）
+ * - 槽位 1: 物品纹理图集（固定）
+ * - 槽位 2+: GUI纹理图集（icons、widgets等）
+ *
+ * 每个顶点携带atlasSlot字段，指定使用哪个图集纹理。
  */
 class GuiRenderer {
 public:
-    // 物品纹理颜色（alpha=254）：
-    // - alpha==255 时片段着色器走字体采样分支
-    // - alpha<255 时走物品采样分支
+    /// 物品纹理颜色（用于向后兼容）
     static constexpr u32 ITEM_TEXTURE_COLOR = 0xFEFFFFFF;
+
+    /// 默认图集槽位常量
+    static constexpr u32 FONT_ATLAS_SLOT = 0;
+    static constexpr u32 ITEM_ATLAS_SLOT = 1;
+    static constexpr u32 DEFAULT_GUI_ATLAS_SLOT = 2;
 
     GuiRenderer();
     ~GuiRenderer();
@@ -150,7 +165,7 @@ public:
     /**
      * @brief 绘制纹理矩形（使用物品纹理图集）
      *
-     * 绲制物品/图标纹理。UV坐标指定纹理图集中的区域。
+     * 绘制物品/图标纹理。UV坐标指定纹理图集中的区域。
      *
      * @param x 左上角X
      * @param y 左上角Y
@@ -167,7 +182,27 @@ public:
                           u32 color = ITEM_TEXTURE_COLOR);
 
     /**
-     * @brief 绘制渐变矩形
+     * @brief 绘制纹理矩形（指定图集槽位）
+     *
+     * 使用指定的图集槽位绘制纹理。
+     *
+     * @param x 左上角X
+     * @param y 左上角Y
+     * @param width 宽度
+     * @param height 高度
+     * @param u0 纹理左上角U
+     * @param v0 纹理左上角V
+     * @param u1 纹理右下角U
+     * @param v1 纹理右下角V
+     * @param color 颜色（ARGB）
+     * @param atlasSlot 图集槽位ID
+     */
+    void drawTexturedRect(f32 x, f32 y, f32 width, f32 height,
+                          f32 u0, f32 v0, f32 u1, f32 v1,
+                          u32 color, u8 atlasSlot);
+
+    /**
+     * @brief 绘制渐变矩形（垂直）
      * @param x 左上角X
      * @param y 左上角Y
      * @param width 宽度
@@ -177,6 +212,18 @@ public:
      */
     void fillGradientRect(f32 x, f32 y, f32 width, f32 height,
                           u32 colorTop, u32 colorBottom);
+
+    /**
+     * @brief 绘制渐变矩形（水平）
+     * @param x 左上角X
+     * @param y 左上角Y
+     * @param width 宽度
+     * @param height 高度
+     * @param colorLeft 左侧颜色
+     * @param colorRight 右侧颜色
+     */
+    void fillGradientRectHorizontal(f32 x, f32 y, f32 width, f32 height,
+                                     u32 colorLeft, u32 colorRight);
 
     /**
      * @brief 绘制矩形边框
@@ -214,6 +261,41 @@ public:
      * @param itemSampler 物品纹理采样器
      */
     void setItemTextureAtlas(VkImageView itemView, VkSampler itemSampler);
+
+    /**
+     * @brief 设置GUI纹理图集
+     *
+     * GUI纹理图集用于渲染HUD元素、按钮等。binding=2的纹理采样器。
+     *
+     * @param guiView GUI纹理图集的图像视图
+     * @param guiSampler GUI纹理采样器
+     * @deprecated 使用 registerAtlas 替代
+     */
+    void setGuiTextureAtlas(VkImageView guiView, VkSampler guiSampler);
+
+    /**
+     * @brief 注册GUI纹理图集
+     *
+     * 将图集注册到指定槽位，用于渲染HUD元素等。
+     *
+     * @param name 图集名称（用于调试和查询）
+     * @param view Vulkan 图像视图
+     * @param sampler Vulkan 采样器
+     * @return 分配的槽位ID（>=2），失败返回错误
+     */
+    [[nodiscard]] Result<u32> registerAtlas(const String& name, VkImageView view, VkSampler sampler);
+
+    /**
+     * @brief 获取图集槽位ID
+     * @param name 图集名称
+     * @return 槽位ID，不存在返回 nullopt
+     */
+    [[nodiscard]] std::optional<u32> getAtlasSlot(const String& name) const;
+
+    /**
+     * @brief 检查是否有GUI纹理图集
+     */
+    [[nodiscard]] bool hasGuiTextureAtlas() const { return m_guiTextureView != VK_NULL_HANDLE; }
 
 private:
     /**
@@ -257,6 +339,14 @@ private:
      * @brief 上传顶点和索引数据到GPU
      */
     void uploadBufferData(VkCommandBuffer commandBuffer);
+
+    /**
+     * @brief 更新图集描述符
+     * @param binding 描述符绑定位点
+     * @param view Vulkan 图像视图
+     * @param sampler Vulkan 采样器
+     */
+    void updateAtlasDescriptor(u32 binding, VkImageView view, VkSampler sampler);
 
     // ========== Vulkan 辅助函数 ==========
 
@@ -304,6 +394,14 @@ private:
     VkDeviceMemory m_itemPlaceholderMemory = VK_NULL_HANDLE;
     VkImageView m_itemPlaceholderView = VK_NULL_HANDLE;
 
+    // GUI纹理图集（向后兼容）
+    VkImageView m_guiTextureView = VK_NULL_HANDLE;
+    VkSampler m_guiSampler = VK_NULL_HANDLE;
+
+    // 多图集支持
+    std::unordered_map<String, u32> m_atlasSlots;
+    u32 m_nextGuiSlot = DEFAULT_GUI_ATLAS_SLOT;
+
     VkSampler m_sampler = VK_NULL_HANDLE;
 
     // 字体
@@ -322,6 +420,8 @@ private:
     // 状态
     bool m_initialized = false;
     bool m_inFrame = false;
+    bool m_textureLayoutsInitialized = false;
+    bool m_fontTextureInShaderReadLayout = false;
 };
 
 } // namespace mc::client::renderer::trident::gui

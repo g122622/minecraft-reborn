@@ -67,16 +67,46 @@ struct EmptyGlyph : public Glyph {
 /**
  * @brief 字形顶点 (用于UI渲染)
  *
- * 2D屏幕空间顶点，包含位置、UV和颜色
+ * 2D屏幕空间顶点，包含位置、UV、颜色和图集槽位。
+ *
+ * ## 图集槽位说明
+ *
+ * 槽位ID用于在片段着色器中选择正确的纹理采样器：
+ * - 槽位 0: 字体纹理
+ * - 槽位 1: 物品纹理图集
+ * - 槽位 2+: GUI纹理图集（icons、widgets等）
+ *
+ * 通过在顶点数据中嵌入槽位ID，单个绘制调用可以使用多个纹理图集。
+ * 片段着色器根据槽位ID选择对应的采样器进行纹理采样。
  */
 struct GuiVertex {
-    f32 x, y;       // 屏幕坐标 (像素)
-    f32 u, v;       // 纹理坐标
-    u32 color;      // RGBA颜色
+    f32 x, y;       ///< 屏幕坐标 (像素)
+    f32 u, v;       ///< 纹理坐标
+    u32 color;      ///< ARGB颜色
+    u8 atlasSlot;   ///< 图集槽位ID (0-15)
+    u8 padding[3];  ///< 对齐填充
 
-    GuiVertex() = default;
-    GuiVertex(f32 px, f32 py, f32 pu, f32 pv, u32 col)
-        : x(px), y(py), u(pu), v(pv), color(col) {}
+    GuiVertex() : x(0), y(0), u(0), v(0), color(0xFFFFFFFF), atlasSlot(0), padding{0, 0, 0} {}
+
+    /**
+     * @brief 构造顶点（使用默认槽位0）
+     * @param px X坐标
+     * @param py Y坐标
+     * @param pu U纹理坐标
+     * @param pv V纹理坐标
+     * @param col ARGB颜色
+     * @param slot 图集槽位ID (默认0)
+     */
+    GuiVertex(f32 px, f32 py, f32 pu, f32 pv, u32 col, u8 slot = 0)
+        : x(px), y(py), u(pu), v(pv), color(col), atlasSlot(slot), padding{0, 0, 0} {}
+
+    /**
+     * @brief 计算顶点结构大小
+     * @return 顶点字节数
+     */
+    [[nodiscard]] static constexpr size_t stride() {
+        return sizeof(GuiVertex);
+    }
 };
 
 /**

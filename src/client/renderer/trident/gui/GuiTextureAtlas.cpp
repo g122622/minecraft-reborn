@@ -309,6 +309,51 @@ const GuiTextureRegion* GuiTextureAtlas::getRegion(const String& textureId) cons
 }
 
 // ============================================================================
+// 精灵管理
+// ============================================================================
+
+void GuiTextureAtlas::registerSprite(const GuiSprite& sprite) {
+    if (sprite.id.empty()) {
+        return;
+    }
+    m_sprites[sprite.id] = sprite;
+}
+
+void GuiTextureAtlas::registerSprite(const String& id, i32 x, i32 y,
+                                      i32 width, i32 height,
+                                      i32 atlasWidth, i32 atlasHeight) {
+    GuiSprite sprite(id, x, y, width, height, atlasWidth, atlasHeight);
+    m_sprites[id] = sprite;
+}
+
+void GuiTextureAtlas::registerSprites(const std::vector<GuiSprite>& sprites) {
+    for (const auto& sprite : sprites) {
+        registerSprite(sprite);
+    }
+}
+
+const GuiSprite* GuiTextureAtlas::getSprite(const String& id) const {
+    auto it = m_sprites.find(id);
+    if (it != m_sprites.end()) {
+        return &it->second;
+    }
+    return nullptr;
+}
+
+bool GuiTextureAtlas::hasSprite(const String& id) const {
+    return m_sprites.find(id) != m_sprites.end();
+}
+
+void GuiTextureAtlas::clearSprites() {
+    m_sprites.clear();
+}
+
+void GuiTextureAtlas::setAtlasSize(i32 width, i32 height) {
+    m_atlasWidth = width;
+    m_atlasHeight = height;
+}
+
+// ============================================================================
 // Vulkan 辅助方法
 // ============================================================================
 

@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "common/network/LocalConnection.hpp"
+#include "common/network/connection/LocalConnection.hpp"
 #include "common/core/Types.hpp"
 #include <thread>
 #include <vector>

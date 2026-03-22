@@ -2,6 +2,7 @@
 #include "TextureAtlasBuilder.hpp"
 #include "../renderer/trident/util/VulkanUtils.hpp"
 #include "../../common/resource/IResourcePack.hpp"
+#include "../../common/resource/compat/TextureMapper.hpp"
 #include "../../common/item/Item.hpp"
 #include "../../common/item/ItemRegistry.hpp"
 #include "../../common/item/BlockItem.hpp"
@@ -9,9 +10,79 @@
 
 // stb_image - only header, implementation in TextureAtlasBuilder.cpp
 #include <stb_image.h>
+#include <algorithm>
 #include <cstring>
 
 namespace mc::client {
+
+namespace {
+
+Result<void> loadTexturePixels(
+    IResourcePack& pack,
+    const ResourceLocation& location,
+    std::vector<u8>& outPixels,
+    u32& outWidth,
+    u32& outHeight)
+{
+    const auto readResult = pack.readResource(location.toFilePath("png"));
+    if (readResult.failed()) {
+        return readResult.error();
+    }
+
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    stbi_uc* pixels = stbi_load_from_memory(
+        readResult.value().data(),
+        static_cast<int>(readResult.value().size()),
+        &width,
+        &height,
+        &channels,
+        4);
+
+    if (pixels == nullptr || width <= 0 || height <= 0) {
+        if (pixels != nullptr) {
+            stbi_image_free(pixels);
+        }
+        return Error(ErrorCode::TextureLoadFailed,
+                     "Failed to decode item texture: " + location.toString());
+    }
+
+    outWidth = static_cast<u32>(width);
+    outHeight = static_cast<u32>(height);
+    outPixels.assign(pixels, pixels + (static_cast<size_t>(outWidth) * static_cast<size_t>(outHeight) * 4));
+    stbi_image_free(pixels);
+    return {};
+}
+
+std::vector<u8> resizeNearestRGBA(
+    const std::vector<u8>& srcPixels,
+    u32 srcWidth,
+    u32 srcHeight,
+    u32 dstWidth,
+    u32 dstHeight)
+{
+    std::vector<u8> dstPixels(static_cast<size_t>(dstWidth) * static_cast<size_t>(dstHeight) * 4, 0);
+
+    for (u32 y = 0; y < dstHeight; ++y) {
+        const u32 srcY = (y * srcHeight) / dstHeight;
+        for (u32 x = 0; x < dstWidth; ++x) {
+            const u32 srcX = (x * srcWidth) / dstWidth;
+
+            const size_t srcIndex = (static_cast<size_t>(srcY) * srcWidth + srcX) * 4;
+            const size_t dstIndex = (static_cast<size_t>(y) * dstWidth + x) * 4;
+
+            dstPixels[dstIndex + 0] = srcPixels[srcIndex + 0];
+            dstPixels[dstIndex + 1] = srcPixels[srcIndex + 1];
+            dstPixels[dstIndex + 2] = srcPixels[srcIndex + 2];
+            dstPixels[dstIndex + 3] = srcPixels[srcIndex + 3];
+        }
+    }
+
+    return dstPixels;
+}
+
+} // namespace
 
 ItemTextureAtlas::ItemTextureAtlas() = default;
 
@@ -28,6 +99,8 @@ ItemTextureAtlas::ItemTextureAtlas(ItemTextureAtlas&& other) noexcept
     , m_imageMemory(other.m_imageMemory)
     , m_imageView(other.m_imageView)
     , m_sampler(other.m_sampler)
+    , m_imageWidth(other.m_imageWidth)
+    , m_imageHeight(other.m_imageHeight)
     , m_width(other.m_width)
     , m_height(other.m_height)
     , m_uploaded(other.m_uploaded)
@@ -43,6 +116,8 @@ ItemTextureAtlas::ItemTextureAtlas(ItemTextureAtlas&& other) noexcept
     other.m_imageMemory = VK_NULL_HANDLE;
     other.m_imageView = VK_NULL_HANDLE;
     other.m_sampler = VK_NULL_HANDLE;
+    other.m_imageWidth = 0;
+    other.m_imageHeight = 0;
     other.m_width = 0;
     other.m_height = 0;
     other.m_uploaded = false;
@@ -59,6 +134,8 @@ ItemTextureAtlas& ItemTextureAtlas::operator=(ItemTextureAtlas&& other) noexcept
         m_imageMemory = other.m_imageMemory;
         m_imageView = other.m_imageView;
         m_sampler = other.m_sampler;
+        m_imageWidth = other.m_imageWidth;
+        m_imageHeight = other.m_imageHeight;
         m_width = other.m_width;
         m_height = other.m_height;
         m_uploaded = other.m_uploaded;
@@ -74,6 +151,8 @@ ItemTextureAtlas& ItemTextureAtlas::operator=(ItemTextureAtlas&& other) noexcept
         other.m_imageMemory = VK_NULL_HANDLE;
         other.m_imageView = VK_NULL_HANDLE;
         other.m_sampler = VK_NULL_HANDLE;
+        other.m_imageWidth = 0;
+        other.m_imageHeight = 0;
         other.m_width = 0;
         other.m_height = 0;
         other.m_uploaded = false;
@@ -165,6 +244,8 @@ void ItemTextureAtlas::destroy() {
     m_physicalDevice = VK_NULL_HANDLE;
     m_commandPool = VK_NULL_HANDLE;
     m_graphicsQueue = VK_NULL_HANDLE;
+    m_imageWidth = 0;
+    m_imageHeight = 0;
     m_width = 0;
     m_height = 0;
     m_uploaded = false;
@@ -176,33 +257,101 @@ void ItemTextureAtlas::destroy() {
 Result<void> ItemTextureAtlas::loadFromResourcePacks(
     const std::vector<std::shared_ptr<IResourcePack>>& resourcePacks)
 {
+    std::vector<IResourcePack*> packs;
+    packs.reserve(resourcePacks.size());
+    for (const auto& pack : resourcePacks) {
+        if (pack != nullptr) {
+            packs.push_back(pack.get());
+        }
+    }
+
+    return loadFromResourcePacks(packs);
+}
+
+Result<void> ItemTextureAtlas::loadFromResourcePacks(
+    const std::vector<IResourcePack*>& resourcePacks)
+{
     if (resourcePacks.empty()) {
         spdlog::warn("ItemTextureAtlas: No resource packs provided");
         return {};
     }
 
-    TextureAtlasBuilder builder;
-    builder.setMaxSize(m_width, m_height);
+    m_uploaded = false;
+    m_regionsByItemId.clear();
+    m_regionsByLocation.clear();
 
-    // Iterate all items and load non-block item textures
-    ItemRegistry::instance().forEachItem([this, &builder, &resourcePacks](Item& item) {
-        // Skip block items (they use block texture atlas)
-        const BlockItem* blockItem = dynamic_cast<const BlockItem*>(&item);
-        if (blockItem != nullptr) {
-            return;
+    TextureAtlasBuilder builder;
+    const u32 atlasWidth = (m_width > 0) ? m_width : 1024;
+    const u32 atlasHeight = (m_height > 0) ? m_height : 1024;
+    builder.setMaxSize(atlasWidth, atlasHeight);
+
+    const auto& textureMapper = resource::compat::TextureMapper::instance();
+
+    auto tryLoadToBuilder = [&](const ResourceLocation& atlasKey,
+                                const std::vector<ResourceLocation>& sourceCandidates) -> bool {
+        std::vector<ResourceLocation> expandedCandidates;
+        expandedCandidates.reserve(sourceCandidates.size() * 2);
+        for (const auto& candidate : sourceCandidates) {
+            expandedCandidates.push_back(candidate);
+
+            const auto variants = textureMapper.getPathVariants(candidate.path());
+            for (const auto& variantPath : variants) {
+                if (variantPath == candidate.path()) {
+                    continue;
+                }
+                expandedCandidates.emplace_back(candidate.namespace_(), variantPath);
+            }
         }
 
-        // Build texture path: textures/item/<item_name>.png
-        const ResourceLocation& itemId = item.itemLocation();
-        String texturePath = "textures/item/" + itemId.path() + ".png";
-
-        // Try to load texture from resource packs
-        for (const auto& pack : resourcePacks) {
-            auto result = builder.addTexture(*pack, ResourceLocation(itemId.namespace_(), texturePath));
-            if (result.success()) {
-                spdlog::debug("ItemTextureAtlas: Loaded texture for item {}", itemId.toString());
-                break;
+        for (auto packIt = resourcePacks.rbegin(); packIt != resourcePacks.rend(); ++packIt) {
+            IResourcePack* pack = *packIt;
+            if (pack == nullptr) {
+                continue;
             }
+
+            for (const auto& sourceLoc : expandedCandidates) {
+                std::vector<u8> pixels;
+                u32 width = 0;
+                u32 height = 0;
+                const auto loadResult = loadTexturePixels(*pack, sourceLoc, pixels, width, height);
+                if (loadResult.success()) {
+                    constexpr u32 MAX_ICON_SIZE = 64;
+                    if (width > MAX_ICON_SIZE || height > MAX_ICON_SIZE) {
+                        const u32 dstWidth = std::min(width, MAX_ICON_SIZE);
+                        const u32 dstHeight = std::min(height, MAX_ICON_SIZE);
+                        pixels = resizeNearestRGBA(pixels, width, height, dstWidth, dstHeight);
+                        width = dstWidth;
+                        height = dstHeight;
+                    }
+
+                    builder.addTexture(atlasKey, pixels, width, height);
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    };
+
+    // 遍历所有物品并尝试加载纹理。
+    // 规则：优先 textures/item/<item>，若是方块物品再回退到 block 纹理。
+    ItemRegistry::instance().forEachItem([&](Item& item) {
+        const ResourceLocation& itemId = item.itemLocation();
+        const ResourceLocation atlasKey(itemId.namespace_(), "textures/item/" + itemId.path());
+
+        std::vector<ResourceLocation> sourceCandidates;
+        sourceCandidates.emplace_back(itemId.namespace_(), "textures/item/" + itemId.path());
+        sourceCandidates.emplace_back(itemId.namespace_(), "textures/items/" + itemId.path());
+
+        const BlockItem* blockItem = dynamic_cast<const BlockItem*>(&item);
+        if (blockItem != nullptr) {
+            const ResourceLocation& blockId = blockItem->block().blockLocation();
+            sourceCandidates.emplace_back(blockId.namespace_(), "textures/block/" + blockId.path());
+            sourceCandidates.emplace_back(blockId.namespace_(), "textures/blocks/" + blockId.path());
+        }
+
+        if (tryLoadToBuilder(atlasKey, sourceCandidates)) {
+            spdlog::debug("ItemTextureAtlas: Loaded texture for item {}", itemId.toString());
         }
     });
 
@@ -216,6 +365,7 @@ Result<void> ItemTextureAtlas::loadFromResourcePacks(
     const auto& atlas = atlasResult.value();
     if (atlas.pixels.empty()) {
         spdlog::info("ItemTextureAtlas: No item textures loaded");
+        m_pixels.clear();
         return {};
     }
 
@@ -231,21 +381,31 @@ Result<void> ItemTextureAtlas::loadFromResourcePacks(
 
     // Map item ID to texture region
     ItemRegistry::instance().forEachItem([this, &atlas](Item& item) {
-        const BlockItem* blockItem = dynamic_cast<const BlockItem*>(&item);
-        if (blockItem != nullptr) {
+        const ResourceLocation& itemId = item.itemLocation();
+        const ResourceLocation atlasKey(itemId.namespace_(), "textures/item/" + itemId.path());
+        auto it = atlas.regions.find(atlasKey);
+        if (it == atlas.regions.end()) {
             return;
         }
 
-        const ResourceLocation& itemId = item.itemLocation();
-        auto it = atlas.regions.find(ResourceLocation(itemId.namespace_(),
-                                     "textures/item/" + itemId.path() + ".png"));
-        if (it != atlas.regions.end()) {
-            m_regionsByItemId[item.itemId()] = it->second;
+        const TextureRegion& region = it->second;
+        m_regionsByItemId[item.itemId()] = region;
+
+        m_regionsByLocation[atlasKey] = region;
+        m_regionsByLocation[ResourceLocation(itemId.namespace_(), "item/" + itemId.path())] = region;
+        m_regionsByLocation[ResourceLocation(itemId.namespace_(), "textures/items/" + itemId.path())] = region;
+
+        const BlockItem* blockItem = dynamic_cast<const BlockItem*>(&item);
+        if (blockItem != nullptr) {
+            const ResourceLocation& blockId = blockItem->block().blockLocation();
+            m_regionsByLocation[ResourceLocation(blockId.namespace_(), "block/" + blockId.path())] = region;
+            m_regionsByLocation[ResourceLocation(blockId.namespace_(), "textures/block/" + blockId.path())] = region;
+            m_regionsByLocation[ResourceLocation(blockId.namespace_(), "textures/blocks/" + blockId.path())] = region;
         }
     });
 
-    spdlog::info("ItemTextureAtlas: Loaded {} item textures ({}x{})",
-                 atlas.regions.size(), m_width, m_height);
+    spdlog::info("ItemTextureAtlas: Loaded {} textures mapped to {} items ({}x{})",
+                 atlas.regions.size(), m_regionsByItemId.size(), m_width, m_height);
 
     return {};
 }
@@ -255,8 +415,25 @@ Result<void> ItemTextureAtlas::upload() {
         return {};
     }
 
-    if (m_image == VK_NULL_HANDLE) {
-        // Need to recreate image (size may have changed)
+    const bool needRecreateImage =
+        (m_image == VK_NULL_HANDLE) ||
+        (m_imageWidth != m_width) ||
+        (m_imageHeight != m_height);
+
+    if (needRecreateImage) {
+        if (m_imageView != VK_NULL_HANDLE) {
+            vkDestroyImageView(m_device, m_imageView, nullptr);
+            m_imageView = VK_NULL_HANDLE;
+        }
+        if (m_image != VK_NULL_HANDLE) {
+            vkDestroyImage(m_device, m_image, nullptr);
+            m_image = VK_NULL_HANDLE;
+        }
+        if (m_imageMemory != VK_NULL_HANDLE) {
+            vkFreeMemory(m_device, m_imageMemory, nullptr);
+            m_imageMemory = VK_NULL_HANDLE;
+        }
+
         auto imageResult = createImage();
         if (!imageResult.success()) {
             return imageResult.error();
@@ -320,14 +497,21 @@ Result<void> ItemTextureAtlas::upload() {
     std::memcpy(mappedData, m_pixels.data(), m_pixels.size());
     vkUnmapMemory(m_device, stagingMemory);
 
+    const VkImageLayout uploadOldLayout = (needRecreateImage || !m_uploaded)
+        ? VK_IMAGE_LAYOUT_UNDEFINED
+        : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    const VkPipelineStageFlags uploadSrcStage = (needRecreateImage || !m_uploaded)
+        ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
+        : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
     // Use single-time command to upload texture
     VkCommandBuffer cmd = beginSingleTimeCommands();
 
     // Transition image layout to transfer destination
     transitionImageLayout(cmd,
-                          VK_IMAGE_LAYOUT_UNDEFINED,
+                          uploadOldLayout,
                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                          VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                          uploadSrcStage,
                           VK_PIPELINE_STAGE_TRANSFER_BIT);
 
     // Copy buffer to image
@@ -436,6 +620,8 @@ Result<void> ItemTextureAtlas::createImage() {
     }
 
     vkBindImageMemory(m_device, m_image, m_imageMemory, 0);
+    m_imageWidth = m_width;
+    m_imageHeight = m_height;
 
     return {};
 }

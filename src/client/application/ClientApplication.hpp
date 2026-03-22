@@ -13,12 +13,11 @@
 #include "../resource/ResourceManager.hpp"
 #include "../resource/BlockModelCache.hpp"
 #include "../renderer/trident/core/TridentEngine.hpp"
+#include "../renderer/trident/gui/GuiSpriteAtlas.hpp"
 #include "../world/ClientWorld.hpp"
 #include "../network/NetworkClient.hpp"
-#include "../ui/debug/DebugScreen.hpp"
-#include "../ui/crosshair/CrosshairRenderer.hpp"
-#include "../ui/hud/HudRenderer.hpp"
-#include "../ui/chat/ChatScreen.hpp"
+#include "../ui/kagero/KageroEngine.hpp"
+#include "../ui/TridentCanvas.hpp"
 #include "server/application/IntegratedServer.hpp"
 
 #include <string>
@@ -169,6 +168,10 @@ private:
     std::unique_ptr<ResourceManager> m_resourceManager;
     BlockModelCache m_modelCache;
 
+    // GUI精灵图集（双图集架构：icons和widgets分离）
+    std::unique_ptr<renderer::trident::gui::GuiSpriteAtlas> m_iconsAtlas;   // 心形、饥饿、盔甲、经验条等
+    std::unique_ptr<renderer::trident::gui::GuiSpriteAtlas> m_widgetsAtlas; // 快捷栏、按钮等
+
     // 相机
     Camera m_camera;
     CameraController m_cameraController;
@@ -183,18 +186,19 @@ private:
     // 玩家实体
     std::unique_ptr<Player> m_player;
 
-    // 调试屏幕
-    DebugScreen m_debugScreen;
+    // 调试屏幕可见性
     bool m_debugScreenVisible = true;
 
-    // 准星渲染器
-    CrosshairRenderer m_crosshair;
+    // Kagero UI引擎
+    std::unique_ptr<ui::kagero::KageroEngine> m_kageroEngine;
+    std::unique_ptr<ui::TridentCanvas> m_canvas;
 
-    // HUD渲染器
-    HudRenderer m_hudRenderer;
-
-    // 聊天屏幕
-    ChatScreen m_chatScreen;
+    // Kagero 层 ID
+    size_t m_crosshairLayerId = 0;
+    size_t m_hudLayerId = 0;
+    size_t m_chatLayerId = 0;
+    size_t m_screenStackLayerId = 0;
+    size_t m_debugScreenLayerId = 0;
 
     // 射线检测结果
     BlockRaycastResult m_raycastResult;

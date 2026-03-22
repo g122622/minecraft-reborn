@@ -1,0 +1,398 @@
+#include "ScreenStackWidget.hpp"
+#include "client/renderer/trident/gui/GuiRenderer.hpp"
+#include "common/screen/IScreen.hpp"
+#include <spdlog/spdlog.h>
+
+namespace mc::client::ui::minecraft::widgets {
+
+ScreenStackWidget::ScreenStackWidget()
+    : ContainerWidget()
+{
+    setId("screen_stack");
+    setVisible(true);
+    setActive(true);
+}
+
+void ScreenStackWidget::push(std::unique_ptr<Screen> screen) {
+    if (screen == nullptr) {
+        return;
+    }
+
+    ScreenWrapper wrapper;
+    wrapper.item = std::move(screen);
+    wrapper.visible = true;
+    wrapper.active = true;
+    wrapper.modal = true;  // 默认模态
+
+    onOpenScreen(wrapper);
+    m_screens.push_back(std::move(wrapper));
+
+    spdlog::debug("ScreenStackWidget::push(Screen): screen count = {}", m_screens.size());
+}
+
+void ScreenStackWidget::pushIScreen(std::unique_ptr<IScreen> screen) {
+    if (screen == nullptr) {
+        return;
+    }
+
+    ScreenWrapper wrapper;
+    wrapper.item = std::move(screen);
+    wrapper.visible = true;
+    wrapper.active = true;
+    wrapper.modal = true;  // IScreen 默认模态
+
+    onOpenScreen(wrapper);
+    m_screens.push_back(std::move(wrapper));
+
+    spdlog::debug("ScreenStackWidget::pushIScreen: screen count = {}", m_screens.size());
+}
+
+void ScreenStackWidget::pop() {
+    if (m_screens.empty()) {
+        return;
+    }
+
+    onCloseScreen(m_screens.back());
+    m_screens.pop_back();
+
+    spdlog::debug("ScreenStackWidget::pop: screen count = {}", m_screens.size());
+}
+
+void ScreenStackWidget::clear() {
+    while (!m_screens.empty()) {
+        onCloseScreen(m_screens.back());
+        m_screens.pop_back();
+    }
+
+    spdlog::debug("ScreenStackWidget::clear: all screens closed");
+}
+
+Screen* ScreenStackWidget::top() {
+    if (m_screens.empty()) {
+        return nullptr;
+    }
+    auto& wrapper = m_screens.back();
+    if (wrapper.isWidgetScreen()) {
+        return std::get<std::unique_ptr<Screen>>(wrapper.item).get();
+    }
+    return nullptr;
+}
+
+const Screen* ScreenStackWidget::top() const {
+    if (m_screens.empty()) {
+        return nullptr;
+    }
+    const auto& wrapper = m_screens.back();
+    if (wrapper.isWidgetScreen()) {
+        return std::get<std::unique_ptr<Screen>>(wrapper.item).get();
+    }
+    return nullptr;
+}
+
+IScreen* ScreenStackWidget::topIScreen() {
+    if (m_screens.empty()) {
+        return nullptr;
+    }
+    auto& wrapper = m_screens.back();
+    if (!wrapper.isWidgetScreen()) {
+        return std::get<std::unique_ptr<IScreen>>(wrapper.item).get();
+    }
+    return nullptr;
+}
+
+const IScreen* ScreenStackWidget::topIScreen() const {
+    if (m_screens.empty()) {
+        return nullptr;
+    }
+    const auto& wrapper = m_screens.back();
+    if (!wrapper.isWidgetScreen()) {
+        return std::get<std::unique_ptr<IScreen>>(wrapper.item).get();
+    }
+    return nullptr;
+}
+
+void ScreenStackWidget::onOpenScreen(ScreenWrapper& wrapper) {
+    if (wrapper.isWidgetScreen()) {
+        auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
+        if (screen) {
+            screen->onOpen();
+            wrapper.modal = screen->isModal();
+        }
+    } else {
+        auto* screen = std::get<std::unique_ptr<IScreen>>(wrapper.item).get();
+        if (screen) {
+            screen->init();
+        }
+    }
+}
+
+void ScreenStackWidget::onCloseScreen(ScreenWrapper& wrapper) {
+    if (wrapper.isWidgetScreen()) {
+        auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
+        if (screen) {
+            screen->onClose();
+        }
+    } else {
+        auto* screen = std::get<std::unique_ptr<IScreen>>(wrapper.item).get();
+        if (screen) {
+            screen->onClose();
+        }
+    }
+}
+
+bool ScreenStackWidget::isScreenModal(const ScreenWrapper& wrapper) const {
+    // 直接使用缓存的 modal 值（在 onOpenScreen 中初始化）
+    return wrapper.modal;
+}
+
+void ScreenStackWidget::paint(kagero::widget::PaintContext& ctx) {
+    // 从底层到顶层渲染所有屏幕
+    for (const auto& wrapper : m_screens) {
+        if (!wrapper.visible) {
+            continue;
+        }
+
+        if (wrapper.isWidgetScreen()) {
+            auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
+            if (screen) {
+                screen->paint(ctx);
+            }
+        } else {
+            // IScreen 使用 GuiRenderer 直接渲染
+            auto* screen = std::get<std::unique_ptr<IScreen>>(wrapper.item).get();
+            if (screen && m_guiRenderer) {
+                // IScreen 有自己的 render() 方法，使用 GuiRenderer
+                screen->render(m_mouseX, m_mouseY, m_partialTick);
+            }
+        }
+    }
+}
+
+void ScreenStackWidget::tick(f32 dt) {
+    // 更新所有屏幕
+    for (const auto& wrapper : m_screens) {
+        if (!wrapper.visible || !wrapper.active) {
+            continue;
+        }
+
+        if (wrapper.isWidgetScreen()) {
+            auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
+            if (screen) {
+                screen->tick(dt);
+            }
+        } else {
+            auto* screen = std::get<std::unique_ptr<IScreen>>(wrapper.item).get();
+            if (screen) {
+                screen->tick(dt);
+            }
+        }
+    }
+}
+
+bool ScreenStackWidget::onClick(i32 mouseX, i32 mouseY, i32 button) {
+    // 从顶层开始处理
+    for (auto it = m_screens.rbegin(); it != m_screens.rend(); ++it) {
+        const auto& wrapper = *it;
+        if (!wrapper.visible || !wrapper.active) {
+            continue;
+        }
+
+        bool handled = false;
+        if (wrapper.isWidgetScreen()) {
+            auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
+            if (screen) {
+                handled = screen->onClick(mouseX, mouseY, button);
+            }
+        } else {
+            auto* screen = std::get<std::unique_ptr<IScreen>>(wrapper.item).get();
+            if (screen) {
+                handled = screen->onClick(mouseX, mouseY, button);
+            }
+        }
+
+        if (handled) {
+            m_isDragging = true;
+            m_dragButton = button;
+            m_lastMouseX = mouseX;
+            m_lastMouseY = mouseY;
+            return true;
+        }
+
+        // 如果屏幕是模态的，阻止事件向下传播
+        if (wrapper.modal) {
+            return false;
+        }
+    }
+    return false;
+}
+
+bool ScreenStackWidget::onRelease(i32 mouseX, i32 mouseY, i32 button) {
+    if (m_isDragging && m_dragButton == button) {
+        m_isDragging = false;
+        m_dragButton = 0;
+
+        // 发送释放事件到顶层屏幕
+        if (!m_screens.empty()) {
+            const auto& wrapper = m_screens.back();
+            if (wrapper.visible && wrapper.active) {
+                if (wrapper.isWidgetScreen()) {
+                    auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
+                    if (screen) {
+                        return screen->onRelease(mouseX, mouseY, button);
+                    }
+                } else {
+                    auto* screen = std::get<std::unique_ptr<IScreen>>(wrapper.item).get();
+                    if (screen) {
+                        return screen->onRelease(mouseX, mouseY, button);
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+bool ScreenStackWidget::onDrag(i32 mouseX, i32 mouseY, i32 deltaX, i32 deltaY) {
+    if (m_isDragging && !m_screens.empty()) {
+        const auto& wrapper = m_screens.back();
+        if (wrapper.visible && wrapper.active) {
+            if (wrapper.isWidgetScreen()) {
+                auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
+                if (screen) {
+                    return screen->onDrag(mouseX, mouseY, deltaX, deltaY);
+                }
+            } else {
+                auto* screen = std::get<std::unique_ptr<IScreen>>(wrapper.item).get();
+                if (screen) {
+                    return screen->onDrag(mouseX, mouseY, deltaX, deltaY);
+                }
+            }
+        }
+    }
+    return false;
+}
+
+bool ScreenStackWidget::onScroll(i32 mouseX, i32 mouseY, f64 delta) {
+    // 从顶层开始处理
+    for (auto it = m_screens.rbegin(); it != m_screens.rend(); ++it) {
+        const auto& wrapper = *it;
+        if (!wrapper.visible || !wrapper.active) {
+            continue;
+        }
+
+        bool handled = false;
+        if (wrapper.isWidgetScreen()) {
+            auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
+            if (screen) {
+                handled = screen->onScroll(mouseX, mouseY, delta);
+            }
+        } else {
+            auto* screen = std::get<std::unique_ptr<IScreen>>(wrapper.item).get();
+            if (screen) {
+                handled = screen->onScroll(mouseX, mouseY, delta);
+            }
+        }
+
+        if (handled) {
+            return true;
+        }
+        if (wrapper.modal) {
+            return false;
+        }
+    }
+    return false;
+}
+
+bool ScreenStackWidget::onKey(i32 key, i32 scanCode, i32 action, i32 mods) {
+    // 从顶层开始处理
+    for (auto it = m_screens.rbegin(); it != m_screens.rend(); ++it) {
+        const auto& wrapper = *it;
+        if (!wrapper.visible || !wrapper.active) {
+            continue;
+        }
+
+        bool handled = false;
+        if (wrapper.isWidgetScreen()) {
+            auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
+            if (screen) {
+                handled = screen->onKey(key, scanCode, action, mods);
+            }
+        } else {
+            auto* screen = std::get<std::unique_ptr<IScreen>>(wrapper.item).get();
+            if (screen) {
+                handled = screen->onKey(key, scanCode, action, mods);
+            }
+        }
+
+        if (handled) {
+            return true;
+        }
+        if (wrapper.modal) {
+            return false;
+        }
+    }
+    return false;
+}
+
+bool ScreenStackWidget::onChar(u32 codePoint) {
+    // 从顶层开始处理
+    for (auto it = m_screens.rbegin(); it != m_screens.rend(); ++it) {
+        const auto& wrapper = *it;
+        if (!wrapper.visible || !wrapper.active) {
+            continue;
+        }
+
+        bool handled = false;
+        if (wrapper.isWidgetScreen()) {
+            auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
+            if (screen) {
+                handled = screen->onChar(codePoint);
+            }
+        } else {
+            auto* screen = std::get<std::unique_ptr<IScreen>>(wrapper.item).get();
+            if (screen) {
+                handled = screen->onChar(codePoint);
+            }
+        }
+
+        if (handled) {
+            return true;
+        }
+        if (wrapper.modal) {
+            return false;
+        }
+    }
+    return false;
+}
+
+void ScreenStackWidget::onResize(i32 width, i32 height) {
+    // 通知所有屏幕尺寸变化
+    for (const auto& wrapper : m_screens) {
+        if (wrapper.isWidgetScreen()) {
+            auto* screen = std::get<std::unique_ptr<Screen>>(wrapper.item).get();
+            if (screen) {
+                screen->setBounds(kagero::Rect(0, 0, width, height));
+            }
+        } else {
+            auto* screen = std::get<std::unique_ptr<IScreen>>(wrapper.item).get();
+            if (screen) {
+                screen->onResize(width, height);
+            }
+        }
+    }
+}
+
+bool ScreenStackWidget::shouldPauseGame() const {
+    // 检查是否有暂停屏幕
+    for (const auto& wrapper : m_screens) {
+        if (!wrapper.isWidgetScreen()) {
+            auto* screen = std::get<std::unique_ptr<IScreen>>(wrapper.item).get();
+            if (screen && screen->isPauseScreen()) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+} // namespace mc::client::ui::minecraft::widgets

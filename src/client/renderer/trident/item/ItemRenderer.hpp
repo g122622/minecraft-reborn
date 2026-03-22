@@ -29,8 +29,8 @@ namespace client::renderer::trident::item {
  * 负责在GUI中渲染物品图标。
  *
  * 纹理来源：
- * - 方块物品：使用方块纹理图集（ResourceManager.getTextureRegion()）
- * - 非方块物品：使用物品纹理图集（ItemTextureAtlas）
+ * - 统一使用物品纹理图集（ItemTextureAtlas）
+ * - 方块物品纹理在构建图集时回退到 block 纹理并建立别名
  *
  * 用法：
  * @code

@@ -1,0 +1,510 @@
+#pragma once
+
+#include "../Types.hpp"
+#include <string>
+#include <vector>
+#include <functional>
+#include <memory>
+
+namespace mc::client::ui::kagero::widget {
+
+// 前向声明
+class IWidgetContainer;
+class PaintContext;
+
+/**
+ * @brief Widget基类
+ *
+ * 所有UI组件的基类，提供：
+ * - 生命周期管理（init, tick, paint）
+ * - 事件处理（click, drag, scroll, key, char）
+ * - 布局属性（position, size, anchor）
+ * - 状态管理（visible, active, hovered, focused）
+ *
+ * 参考MC 1.16.5 Widget.java实现
+ *
+ * 使用示例：
+ * @code
+ * class MyButton : public Widget {
+ * public:
+ *     void paint(PaintContext& ctx) override {
+ *         ctx.drawFilledRect(bounds(), getBackgroundColor());
+ *         ctx.drawBorder(bounds(), 1.0f, isHovered() ? hoverColor : borderColor);
+ *     }
+ *
+ *     bool onClick(i32 mouseX, i32 mouseY, i32 button) override {
+ *         if (button == 0) {
+ *             // 处理左键点击
+ *             return true;
+ *         }
+ *         return false;
+ *     }
+ * };
+ * @endcode
+ */
+class Widget {
+public:
+    using Ptr = std::unique_ptr<Widget>;
+    using WeakPtr = Widget*;
+
+    /**
+     * @brief 构造函数
+     */
+    Widget() = default;
+
+    /**
+     * @brief 构造函数（带ID）
+     * @param id 组件ID
+     */
+    explicit Widget(String id) : m_id(std::move(id)) {}
+
+    /**
+     * @brief 虚析构函数
+     */
+    virtual ~Widget() = default;
+
+    // 禁止拷贝
+    Widget(const Widget&) = delete;
+    Widget& operator=(const Widget&) = delete;
+
+    // 允许移动
+    Widget(Widget&&) noexcept = default;
+    Widget& operator=(Widget&&) noexcept = default;
+
+    // ==================== 生命周期 ====================
+
+    /**
+     * @brief 初始化组件
+     *
+     * 在组件被添加到屏幕或容器时调用一次
+     */
+    virtual void init() {}
+
+    /**
+     * @brief 每帧更新
+     * @param dt 增量时间（秒）
+     */
+    virtual void tick(f32 dt) {
+        (void)dt;
+    }
+
+    /**
+     * @brief 绘制组件
+     *
+     * 子类应重写此方法实现绘制逻辑。
+     * 悬停状态由事件系统在渲染前通过 updateHover() 更新，
+     * paint() 只负责纯粹的绘制操作。
+     *
+     * @param ctx 绘图上下文
+     */
+    virtual void paint(PaintContext& ctx) {
+        (void)ctx;
+    }
+
+    /**
+     * @brief 窗口尺寸改变时调用
+     * @param width 新宽度
+     * @param height 新高度
+     */
+    virtual void onResize(i32 width, i32 height) {
+        (void)width;
+        (void)height;
+    }
+
+    // ==================== 事件处理 ====================
+
+    /**
+     * @brief 鼠标点击事件
+     * @param mouseX 鼠标X坐标
+     * @param mouseY 鼠标Y坐标
+     * @param button 鼠标按钮
+     * @return 如果事件被处理返回true
+     */
+    virtual bool onClick(i32 mouseX, i32 mouseY, i32 button) {
+        (void)mouseX;
+        (void)mouseY;
+        (void)button;
+        return false;
+    }
+
+    /**
+     * @brief 鼠标释放事件
+     * @param mouseX 鼠标X坐标
+     * @param mouseY 鼠标Y坐标
+     * @param button 鼠标按钮
+     * @return 如果事件被处理返回true
+     */
+    virtual bool onRelease(i32 mouseX, i32 mouseY, i32 button) {
+        (void)mouseX;
+        (void)mouseY;
+        (void)button;
+        return false;
+    }
+
+    /**
+     * @brief 鼠标拖动事件
+     * @param mouseX 鼠标X坐标
+     * @param mouseY 鼠标Y坐标
+     * @param deltaX X方向移动量
+     * @param deltaY Y方向移动量
+     * @return 如果事件被处理返回true
+     */
+    virtual bool onDrag(i32 mouseX, i32 mouseY, i32 deltaX, i32 deltaY) {
+        (void)mouseX;
+        (void)mouseY;
+        (void)deltaX;
+        (void)deltaY;
+        return false;
+    }
+
+    /**
+     * @brief 鼠标滚轮事件
+     * @param mouseX 鼠标X坐标
+     * @param mouseY 鼠标Y坐标
+     * @param delta 滚轮增量
+     * @return 如果事件被处理返回true
+     */
+    virtual bool onScroll(i32 mouseX, i32 mouseY, f64 delta) {
+        (void)mouseX;
+        (void)mouseY;
+        (void)delta;
+        return false;
+    }
+
+    /**
+     * @brief 键盘按键事件
+     * @param key 键码（GLFW键码）
+     * @param scanCode 扫描码
+     * @param action 动作（按下/释放/重复）
+     * @param mods 修饰键
+     * @return 如果事件被处理返回true
+     */
+    virtual bool onKey(i32 key, i32 scanCode, i32 action, i32 mods) {
+        (void)key;
+        (void)scanCode;
+        (void)action;
+        (void)mods;
+        return false;
+    }
+
+    /**
+     * @brief 字符输入事件
+     * @param codePoint Unicode码点
+     * @return 如果事件被处理返回true
+     */
+    virtual bool onChar(u32 codePoint) {
+        (void)codePoint;
+        return false;
+    }
+
+    /**
+     * @brief 鼠标进入组件
+     */
+    virtual void onMouseEnter() {}
+
+    /**
+     * @brief 鼠标离开组件
+     */
+    virtual void onMouseLeave() {}
+
+    /**
+     * @brief 获得焦点
+     */
+    virtual void onFocusGained() {}
+
+    /**
+     * @brief 失去焦点
+     */
+    virtual void onFocusLost() {}
+
+    // ==================== 布局 ====================
+
+    /**
+     * @brief 设置位置
+     * @param x X坐标
+     * @param y Y坐标
+     */
+    void setPosition(i32 x, i32 y) {
+        m_bounds.x = x;
+        m_bounds.y = y;
+        onPositionChanged();
+    }
+
+    /**
+     * @brief 设置尺寸
+     * @param width 宽度
+     * @param height 高度
+     */
+    void setSize(i32 width, i32 height) {
+        m_bounds.width = width;
+        m_bounds.height = height;
+        onSizeChanged();
+    }
+
+    /**
+     * @brief 设置边界
+     * @param rect 矩形边界
+     */
+    void setBounds(const Rect& rect) {
+        m_bounds = rect;
+        onPositionChanged();
+        onSizeChanged();
+    }
+
+    /**
+     * @brief 设置锚点
+     * @param anchor 锚点位置
+     */
+    void setAnchor(Anchor anchor) {
+        m_anchor = anchor;
+        onPositionChanged();
+    }
+
+    /**
+     * @brief 设置边距
+     * @param margin 边距
+     */
+    void setMargin(const Margin& margin) {
+        m_margin = margin;
+    }
+
+    /**
+     * @brief 设置内边距
+     * @param padding 内边距
+     */
+    void setPadding(const Padding& padding) {
+        m_padding = padding;
+    }
+
+    // ==================== 状态查询 ====================
+
+    /**
+     * @brief 检查是否可见
+     */
+    [[nodiscard]] bool isVisible() const { return m_visible; }
+
+    /**
+     * @brief 检查是否激活（可交互）
+     */
+    [[nodiscard]] bool isActive() const { return m_active; }
+
+    /**
+     * @brief 检查鼠标是否悬停
+     */
+    [[nodiscard]] bool isHovered() const { return m_hovered; }
+
+    /**
+     * @brief 检查是否获得焦点
+     */
+    [[nodiscard]] bool isFocused() const { return m_focused; }
+
+    /**
+     * @brief 检查组件是否被禁用
+     */
+    [[nodiscard]] bool isDisabled() const { return !m_active; }
+
+    /**
+     * @brief 检查点是否在组件内
+     * @param x X坐标
+     * @param y Y坐标
+     */
+    [[nodiscard]] bool contains(i32 x, i32 y) const {
+        return m_visible && m_bounds.contains(x, y);
+    }
+
+    /**
+     * @brief 检查鼠标是否在组件上
+     * @param mouseX 鼠标X坐标
+     * @param mouseY 鼠标Y坐标
+     */
+    [[nodiscard]] bool isMouseOver(i32 mouseX, i32 mouseY) const {
+        return m_active && m_visible && contains(mouseX, mouseY);
+    }
+
+    // ==================== 状态设置 ====================
+
+    /**
+     * @brief 设置可见性
+     */
+    void setVisible(bool visible) {
+        if (m_visible != visible) {
+            m_visible = visible;
+            onVisibilityChanged(visible);
+        }
+    }
+
+    /**
+     * @brief 设置激活状态
+     */
+    void setActive(bool active) {
+        if (m_active != active) {
+            m_active = active;
+            onActiveChanged(active);
+        }
+    }
+
+    /**
+     * @brief 设置焦点
+     */
+    void setFocused(bool focused) {
+        if (m_focused != focused) {
+            m_focused = focused;
+            if (focused) {
+                onFocusGained();
+            } else {
+                onFocusLost();
+            }
+        }
+    }
+
+    /**
+     * @brief 设置悬停状态（由容器调用）
+     */
+    void setHovered(bool hovered) {
+        if (m_hovered != hovered) {
+            m_hovered = hovered;
+            if (hovered) {
+                onMouseEnter();
+            } else {
+                onMouseLeave();
+            }
+        }
+    }
+
+    // ==================== 层级 ====================
+
+    /**
+     * @brief 设置Z索引
+     */
+    void setZIndex(i32 z) { m_zIndex = z; }
+
+    /**
+     * @brief 获取Z索引
+     */
+    [[nodiscard]] i32 zIndex() const { return m_zIndex; }
+
+    /**
+     * @brief 设置父容器
+     */
+    void setParent(IWidgetContainer* parent) { m_parent = parent; }
+
+    /**
+     * @brief 获取父容器
+     */
+    [[nodiscard]] IWidgetContainer* parent() const { return m_parent; }
+
+    // ==================== 属性访问 ====================
+
+    /**
+     * @brief 获取组件ID
+     */
+    [[nodiscard]] const String& id() const { return m_id; }
+
+    /**
+     * @brief 设置组件ID
+     */
+    void setId(String id) { m_id = std::move(id); }
+
+    /**
+     * @brief 获取边界
+     */
+    [[nodiscard]] const Rect& bounds() const { return m_bounds; }
+
+    /**
+     * @brief 获取X坐标
+     */
+    [[nodiscard]] i32 x() const { return m_bounds.x; }
+
+    /**
+     * @brief 获取Y坐标
+     */
+    [[nodiscard]] i32 y() const { return m_bounds.y; }
+
+    /**
+     * @brief 获取宽度
+     */
+    [[nodiscard]] i32 width() const { return m_bounds.width; }
+
+    /**
+     * @brief 获取高度
+     */
+    [[nodiscard]] i32 height() const { return m_bounds.height; }
+
+    /**
+     * @brief 获取锚点
+     */
+    [[nodiscard]] Anchor anchor() const { return m_anchor; }
+
+    /**
+     * @brief 获取边距
+     */
+    [[nodiscard]] const Margin& margin() const { return m_margin; }
+
+    /**
+     * @brief 获取内边距
+     */
+    [[nodiscard]] const Padding& padding() const { return m_padding; }
+
+    /**
+     * @brief 获取透明度
+     */
+    [[nodiscard]] f32 alpha() const { return m_alpha; }
+
+    /**
+     * @brief 设置透明度
+     */
+    void setAlpha(f32 alpha) { m_alpha = alpha; }
+
+    /**
+     * @brief 更新悬停状态
+     *
+     * 由容器调用以更新悬停状态
+     *
+     * @param mouseX 鼠标X坐标
+     * @param mouseY 鼠标Y坐标
+     */
+    void updateHover(i32 mouseX, i32 mouseY) {
+        setHovered(isMouseOver(mouseX, mouseY));
+    }
+
+protected:
+    /**
+     * @brief 位置改变时调用
+     */
+    virtual void onPositionChanged() {}
+
+    /**
+     * @brief 尺寸改变时调用
+     */
+    virtual void onSizeChanged() {}
+
+    /**
+     * @brief 可见性改变时调用
+     */
+    virtual void onVisibilityChanged(bool visible) {
+        (void)visible;
+    }
+
+    /**
+     * @brief 激活状态改变时调用
+     */
+    virtual void onActiveChanged(bool active) {
+        (void)active;
+    }
+
+    // 成员变量
+    String m_id;                    ///< 组件ID
+    Rect m_bounds;                  ///< 边界矩形
+    Anchor m_anchor = Anchor::TopLeft;  ///< 锚点
+    Margin m_margin;                ///< 边距
+    Padding m_padding;              ///< 内边距
+    bool m_visible = true;          ///< 是否可见
+    bool m_active = true;           ///< 是否激活（可交互）
+    bool m_hovered = false;         ///< 鼠标悬停
+    bool m_focused = false;         ///< 是否获得焦点
+    i32 m_zIndex = 0;               ///< Z索引
+    f32 m_alpha = 1.0f;             ///< 透明度
+    IWidgetContainer* m_parent = nullptr;  ///< 父容器
+};
+
+} // namespace mc::client::ui::kagero::widget

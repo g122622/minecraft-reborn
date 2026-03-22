@@ -68,6 +68,7 @@ add_executable(mc_tests
     client/renderer/entity/test_entity_renderer_manager.cpp
     client/renderer/test_gui_item_color.cpp
     client/resource/test_entity_texture_loader.cpp
+    client/resource/ItemTextureAtlasTest.cpp
     client/resource/test_resource_manager_cloud_texture.cpp
     network/EntityPacketsTest.cpp
     network/LocalServerConnectionTest.cpp
@@ -108,6 +109,35 @@ add_executable(mc_tests
     client/renderer/AmbientOcclusionCalculatorTest.cpp
     # NaturalSpawner 测试
     server/world/spawn/NaturalSpawnerTest.cpp
+    # Kagero UI模板系统测试
+    ui/kagero/template/template_test.cpp
+    # Kagero UI布局系统测试
+    client/ui/kagero/layout/MeasureSpecTest.cpp
+    client/ui/kagero/layout/LayoutConstraintsTest.cpp
+    client/ui/kagero/layout/FlexLayoutTest.cpp
+    client/ui/kagero/layout/LayoutEngineTest.cpp
+    client/ui/kagero/layout/FlexLayoutAlgorithmTest.cpp
+    client/ui/kagero/layout/GridLayoutTest.cpp
+    client/ui/kagero/layout/AnchorLayoutTest.cpp
+    # Kagero UI状态系统测试
+    client/ui/kagero/state/StateStoreTest.cpp
+    client/ui/kagero/state/ReactiveStateTest.cpp
+    client/ui/kagero/state/StateBindingTest.cpp
+    client/ui/kagero/state/StateObserverTest.cpp
+    # Kagero UI事件系统测试
+    ui/kagero/event/event_test.cpp
+    # Kagero UI Widget测试
+    client/ui/kagero/widget/WidgetTest.cpp
+    client/ui/kagero/widget/ButtonWidgetTest.cpp
+    client/ui/kagero/widget/TextWidgetTest.cpp
+    client/ui/kagero/widget/CheckboxWidgetTest.cpp
+    client/ui/kagero/widget/SliderWidgetTest.cpp
+    client/ui/kagero/widget/TextFieldWidgetTest.cpp
+    client/ui/kagero/widget/ContainerWidgetTest.cpp
+    client/ui/kagero/widget/ScrollableWidgetTest.cpp
+    client/ui/kagero/widget/ListWidgetTest.cpp
+    client/ui/kagero/widget/Viewport3DWidgetTest.cpp
+    client/ui/kagero/widget/SlotWidgetTest.cpp
 )
 
 # 添加服务端源文件
@@ -263,6 +293,7 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/client/resource/BlockModelLoader.cpp
         ${CMAKE_SOURCE_DIR}/src/client/resource/BlockStateLoader.cpp
         ${CMAKE_SOURCE_DIR}/src/client/resource/TextureAtlasBuilder.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/resource/ItemTextureAtlas.cpp
         # 资源包兼容层
         ${CMAKE_SOURCE_DIR}/src/common/resource/compat/PackFormat.cpp
         ${CMAKE_SOURCE_DIR}/src/common/resource/compat/ResourceMapper.cpp
@@ -270,6 +301,24 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/common/resource/compat/v1_12/ResourceMapperV112.cpp
         ${CMAKE_SOURCE_DIR}/src/common/resource/compat/v1_13/ResourceMapperV113.cpp
         ${CMAKE_SOURCE_DIR}/src/common/resource/loader/ResourceLoader.cpp
+        # Kagero UI模板系统（仅核心解析组件）
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/parser/Ast.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/parser/AstVisitor.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/parser/Lexer.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/parser/Parser.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/binder/BindingContext.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/compiler/TemplateCompiler.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/template/runtime/UpdateScheduler.cpp
+        # Kagero UI布局系统
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/layout/core/LayoutEngine.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/layout/algorithms/FlexLayout.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/layout/algorithms/GridLayout.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/layout/algorithms/AnchorLayout.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/layout/integration/WidgetLayoutAdaptor.cpp
+        # Kagero UI Widget组件
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/widget/ContainerWidget.cpp
+        ${CMAKE_SOURCE_DIR}/src/client/ui/kagero/paint/PaintContext.cpp
+        # TemplateInstance.cpp 依赖 Widget 实现，在测试中暂时排除
 )
 
 target_link_libraries(mc_tests
@@ -281,6 +330,7 @@ target_link_libraries(mc_tests
         nlohmann_json::nlohmann_json
         glm::glm
         spdlog::spdlog
+        Vulkan::Vulkan
 )
 
 if(WIN32)
@@ -291,6 +341,11 @@ target_include_directories(mc_tests
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/include
+)
+
+target_compile_definitions(mc_tests
+    PRIVATE
+        MC_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 )
 
 mc_set_compiler_warnings(mc_tests)
@@ -444,4 +499,29 @@ if(MC_BUILD_CLIENT)
     set_target_properties(mc_trident_tests PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     )
+
+    # GUI纹理系统测试（纯数据结构测试，不需要Vulkan）
+    # 这些测试放在主测试套件中，避免Vulkan依赖
+    target_sources(mc_tests
+        PRIVATE
+            # GuiSprite 和 GuiNinePatch 测试
+            ${CMAKE_CURRENT_SOURCE_DIR}/client/renderer/trident/gui/GuiSpriteTest.cpp
+            # GuiSpriteManager 测试（不依赖Vulkan）
+            ${CMAKE_CURRENT_SOURCE_DIR}/client/renderer/trident/gui/GuiSpriteManagerTest.cpp
+            # GuiSpriteParser JSON解析测试（不需要资源包）
+            ${CMAKE_CURRENT_SOURCE_DIR}/client/renderer/trident/gui/GuiSpriteParserTest.cpp
+            # 源文件（GuiSprite.hpp 是纯头文件）
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/gui/GuiSpriteManager.cpp
+            ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/gui/GuiSpriteParser.cpp
+    )
+
+    # GUI纹理系统测试（需要Vulkan的测试暂时禁用）
+    # GuiTextureAtlas 依赖 GuiRenderer 和 Vulkan，而其功能已被 GuiSpriteManager 测试覆盖
+    # 如果需要测试 GuiTextureAtlas 的 Vulkan 功能，可以添加回：
+    # target_sources(mc_trident_tests
+    #     PRIVATE
+    #         ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/gui/GuiTextureAtlas.cpp
+    #         ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/gui/GuiSpriteRegistry.cpp
+    #         ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/gui/GuiTextureLoader.cpp
+    # )
 endif()

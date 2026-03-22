@@ -391,6 +391,8 @@ private:
 
     // 客户端天气状态
     ClientWeather m_weather;
+
+    bool m_destroyed = false;
 };
 
 } // namespace mc::client

@@ -3,9 +3,11 @@
 #include "common/core/Types.hpp"
 #include "common/core/Result.hpp"
 #include "common/resource/ResourceLocation.hpp"
+#include "GuiSprite.hpp"
 #include <vulkan/vulkan.h>
 #include <unordered_map>
 #include <string>
+#include <memory>
 
 namespace mc::client::renderer::trident::gui {
 
@@ -13,9 +15,10 @@ namespace mc::client::renderer::trident::gui {
 class GuiRenderer;
 
 /**
- * @brief GUI纹理区域
+ * @brief GUI纹理区域（向后兼容）
  *
  * 定义GUI纹理图集中的单个纹理区域。
+ * @deprecated 请使用 GuiSprite 代替
  */
 struct GuiTextureRegion {
     f32 u0, v0;     ///< 左上角UV坐标
@@ -33,15 +36,19 @@ struct GuiTextureRegion {
  * - 图标
  * - 按钮纹理
  *
+ * 支持精灵（Sprite）管理，可以从资源包加载纹理并注册精灵区域。
+ *
  * 使用示例：
  * @code
  * GuiTextureAtlas atlas;
  * atlas.initialize(device, physicalDevice, commandPool, graphicsQueue);
- * atlas.loadGuiTexture("minecraft:textures/gui/container/crafting_table");
  *
- * // 渲染
- * atlas.drawTexture(gui, "minecraft:textures/gui/container/crafting_table",
- *                   x, y, 176, 166);
+ * // 注册精灵（图集尺寸256x256）
+ * atlas.registerSprite("button_normal", 0, 66, 200, 20, 256, 256);
+ * atlas.registerSprite("button_hover", 0, 86, 200, 20, 256, 256);
+ *
+ * // 绘制精灵
+ * atlas.drawSprite(gui, "button_normal", x, y, 200, 20);
  * @endcode
  */
 class GuiTextureAtlas {
@@ -148,6 +155,76 @@ public:
      */
     [[nodiscard]] bool isInitialized() const { return m_initialized; }
 
+    // ==================== 精灵管理 ====================
+
+    /**
+     * @brief 注册精灵
+     *
+     * @param sprite 精灵定义
+     */
+    void registerSprite(const GuiSprite& sprite);
+
+    /**
+     * @brief 注册精灵（便捷方法）
+     *
+     * @param id 精灵ID
+     * @param x 纹理中的X坐标（像素）
+     * @param y 纹理中的Y坐标（像素）
+     * @param width 精灵宽度（像素）
+     * @param height 精灵高度（像素）
+     * @param atlasWidth 图集总宽度（像素）
+     * @param atlasHeight 图集总高度（像素）
+     */
+    void registerSprite(const String& id, i32 x, i32 y, i32 width, i32 height,
+                        i32 atlasWidth, i32 atlasHeight);
+
+    /**
+     * @brief 批量注册精灵
+     * @param sprites 精灵列表
+     */
+    void registerSprites(const std::vector<GuiSprite>& sprites);
+
+    /**
+     * @brief 获取精灵
+     * @param id 精灵ID
+     * @return 精灵指针，如果不存在返回nullptr
+     */
+    [[nodiscard]] const GuiSprite* getSprite(const String& id) const;
+
+    /**
+     * @brief 检查精灵是否存在
+     * @param id 精灵ID
+     * @return 如果精灵存在返回true
+     */
+    [[nodiscard]] bool hasSprite(const String& id) const;
+
+    /**
+     * @brief 清除所有精灵
+     */
+    void clearSprites();
+
+    /**
+     * @brief 获取精灵数量
+     */
+    [[nodiscard]] size_t spriteCount() const { return m_sprites.size(); }
+
+    /**
+     * @brief 设置当前图集尺寸（用于UV计算）
+     * @param width 图集宽度
+     * @param height 图集高度
+     */
+    void setAtlasSize(i32 width, i32 height);
+
+    /**
+     * @brief 获取图集宽度
+     */
+    [[nodiscard]] i32 atlasWidth() const { return m_atlasWidth; }
+
+    /**
+     * @brief 获取图集高度
+     */
+    [[nodiscard]] i32 atlasHeight() const { return m_atlasHeight; }
+
 private:
     /**
      * @brief 创建默认纹理（用于无纹理资源包时）
@@ -214,9 +291,14 @@ private:
     // 图集尺寸
     u32 m_width = 0;
     u32 m_height = 0;
+    i32 m_atlasWidth = 256;   ///< 用于精灵UV计算的图集宽度
+    i32 m_atlasHeight = 256;  ///< 用于精灵UV计算的图集高度
 
-    // 纹理区域映射
+    // 纹理区域映射（向后兼容）
     std::unordered_map<String, GuiTextureRegion> m_regions;
+
+    // 精灵映射
+    std::unordered_map<String, GuiSprite> m_sprites;
 
     // 默认纹理尺寸
     static constexpr i32 DEFAULT_SLOT_SIZE = 18;

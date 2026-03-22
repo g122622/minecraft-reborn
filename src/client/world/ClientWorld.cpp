@@ -22,11 +22,16 @@ ClientWorld::~ClientWorld() {
 
 Result<void> ClientWorld::initialize(u64 seed) {
     m_seed = seed;
+    m_destroyed = false;
     spdlog::info("ClientWorld initialized with seed: {}", seed);
     return Result<void>::ok();
 }
 
 void ClientWorld::destroy() {
+    if (m_destroyed) {
+        return;
+    }
+
     // 先关闭网格构建线程池
     shutdownMeshWorkerPool();
 
@@ -38,6 +43,7 @@ void ClientWorld::destroy() {
     m_queuedChunks.clear();
 
     spdlog::info("ClientWorld destroyed");
+    m_destroyed = true;
 }
 
 void ClientWorld::update(const glm::vec3& cameraPosition, i32 renderDistance) {
