@@ -4,7 +4,7 @@
 #include "common/world/block/VanillaBlocks.hpp"
 #include "common/world/drop/DropTables.hpp"
 #include "common/world/fluid/Fluid.hpp"
-#include "common/math/ray/Raycast.hpp"
+#include "common/util/math/ray/Raycast.hpp"
 #include "common/resource/VanillaResources.hpp"
 #include "common/entity/VanillaEntities.hpp"
 #include "common/entity/inventory/Slot.hpp"

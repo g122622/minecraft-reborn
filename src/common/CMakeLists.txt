@@ -15,17 +15,17 @@ add_library(mc_common STATIC
     input/KeyBinding.cpp
 
     # Math
-    math/MathUtils.cpp
-    math/ray/Raycast.cpp
+    util/math/MathUtils.cpp
+    util/math/ray/Raycast.cpp
 
     # Math - Random
-    math/random/IRandom.cpp
-    math/random/Mt19937Random.cpp
-    math/random/Xoroshiro128ppRandom.cpp
-    math/random/Xoshiro256ppRandom.cpp
-    math/random/LcgRandom.cpp
-    math/random/UniformIntDistribution.cpp
-    math/random/UniformRealDistribution.cpp
+    util/math/random/IRandom.cpp
+    util/math/random/Mt19937Random.cpp
+    util/math/random/Xoroshiro128ppRandom.cpp
+    util/math/random/Xoshiro256ppRandom.cpp
+    util/math/random/LcgRandom.cpp
+    util/math/random/UniformIntDistribution.cpp
+    util/math/random/UniformRealDistribution.cpp
 
     # Network - Connection
     network/connection/LocalConnection.cpp

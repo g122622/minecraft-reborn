@@ -5,8 +5,8 @@
 #include "../../../living/LivingEntity.hpp"
 #include "../../../Entity.hpp"
 #include "../../../../world/IWorld.hpp"
-#include "../../../../math/random/Random.hpp"
-#include "../../../../math/Vector3.hpp"
+#include "../../../../util/math/random/Random.hpp"
+#include "../../../../util/math/Vector3.hpp"
 #include <cmath>
 #include <functional>
 

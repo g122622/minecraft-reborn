@@ -3,7 +3,7 @@
 #include "../../item/ItemRegistry.hpp"
 #include "../../item/Items.hpp"
 #include "../block/VanillaBlocks.hpp"
-#include "../../math/random/Random.hpp"
+#include "../../util/math/random/Random.hpp"
 #include <algorithm>
 #include <random>
 

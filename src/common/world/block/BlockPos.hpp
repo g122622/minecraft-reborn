@@ -2,8 +2,8 @@
 
 #include "../../core/Types.hpp"
 #include "../../core/Constants.hpp"
-#include "../../math/MathUtils.hpp"
-#include "../../math/Vector3.hpp"
+#include "../../util/math/MathUtils.hpp"
+#include "../../util/math/Vector3.hpp"
 #include "../../util/Direction.hpp"
 
 #include <cstdint>

@@ -2,7 +2,7 @@
 
 #include "../../core/Types.hpp"
 #include "../../core/Constants.hpp"
-#include "../../math/MathUtils.hpp"
+#include "../../util/math/MathUtils.hpp"
 #include "../../util/Direction.hpp"
 #include "../block/BlockPos.hpp"
 

@@ -1,6 +1,6 @@
 #include "LivingEntity.hpp"
 #include "../../core/Constants.hpp"
-#include "../../math/MathUtils.hpp"
+#include "../../util/math/MathUtils.hpp"
 #include "../../physics/PhysicsConstants.hpp"
 #include "../../physics/PhysicsEngine.hpp"
 #include <cmath>

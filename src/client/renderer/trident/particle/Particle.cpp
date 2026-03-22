@@ -1,5 +1,5 @@
 #include "Particle.hpp"
-#include "../../../../common/math/MathUtils.hpp"
+#include "../../../../common/util/math/MathUtils.hpp"
 
 namespace mc::client::renderer::trident::particle {
 

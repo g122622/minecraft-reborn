@@ -497,7 +497,7 @@ The project provides a unified random number generation module with multiple alg
 
 ### Directory Structure
 ```
-src/common/math/random/
+src/common/util/math/random/
 ├── IRandom.hpp/cpp              # Random interface with MC-style methods
 ├── Mt19937Random.hpp/cpp        # Mersenne Twister (default, highest compatibility)
 ├── Xoroshiro128ppRandom.hpp/cpp # xoroshiro128++ (small state, high performance)

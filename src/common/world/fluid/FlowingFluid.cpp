@@ -4,7 +4,7 @@
 #include "../block/BlockPos.hpp"
 #include "../block/Material.hpp"
 #include "../block/VanillaBlocks.hpp"
-#include "../../math/Vector3.hpp"
+#include "../../util/math/Vector3.hpp"
 #include "../../util/Direction.hpp"
 #include "../../physics/collision/CollisionShape.hpp"
 #include <cmath>

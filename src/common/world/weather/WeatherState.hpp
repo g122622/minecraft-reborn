@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../../core/Types.hpp"
-#include "../../math/MathUtils.hpp"
+#include "../../util/math/MathUtils.hpp"
 #include "WeatherConstants.hpp"
 
 // 使用嵌套命名空间定义，避免嵌套包含问题

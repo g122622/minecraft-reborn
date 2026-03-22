@@ -2,7 +2,7 @@
 
 #include "../../core/Types.hpp"
 #include "../../core/Result.hpp"
-#include "../../math/Vector3.hpp"
+#include "../../util/math/Vector3.hpp"
 #include "../../util/Direction.hpp"
 #include "../../world/block/BlockPos.hpp"
 #include "PacketSerializer.hpp"

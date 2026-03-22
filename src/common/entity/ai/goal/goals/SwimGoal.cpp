@@ -2,7 +2,7 @@
 #include "../../../mob/MobEntity.hpp"
 #include "../../../Entity.hpp"
 #include "../../../ai/controller/JumpController.hpp"
-#include "../../../../math/random/Random.hpp"
+#include "../../../../util/math/random/Random.hpp"
 
 namespace mc::entity::ai::goal {
 

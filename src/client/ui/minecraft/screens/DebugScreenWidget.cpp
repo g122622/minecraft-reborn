@@ -6,7 +6,7 @@
 #include "common/world/time/GameTime.hpp"
 #include "common/resource/ResourceLocation.hpp"
 #include "common/core/BlockRaycastResult.hpp"
-#include "common/math/MathUtils.hpp"
+#include "common/util/math/MathUtils.hpp"
 #include "client/network/NetworkClient.hpp"
 #include "client/renderer/Camera.hpp"
 #include "client/world/ClientWorld.hpp"

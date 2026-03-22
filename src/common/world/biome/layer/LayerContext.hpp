@@ -4,7 +4,7 @@
 #include "LayerCacheConfig.hpp"
 #include "../../../util/cache/Long2IntLRUCache.hpp"
 #include "../../gen/noise/ImprovedNoiseGenerator.hpp"
-#include "../../../math/random/Random.hpp"
+#include "../../../util/math/random/Random.hpp"
 #include <memory>
 
 namespace mc {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ImprovedNoiseGenerator.hpp"
-#include "../../../math/random/Random.hpp"
+#include "../../../util/math/random/Random.hpp"
 #include <vector>
 #include <memory>
 #include <cmath>

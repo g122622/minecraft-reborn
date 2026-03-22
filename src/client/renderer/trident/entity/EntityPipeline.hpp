@@ -2,7 +2,7 @@
 
 #include "../../../../common/core/Types.hpp"
 #include "../../../../common/core/Result.hpp"
-#include "../../../../common/math/Vector3.hpp"
+#include "../../../../common/util/math/Vector3.hpp"
 #include "model/ModelRenderer.hpp"
 #include <vulkan/vulkan.h>
 #include <memory>

@@ -3,7 +3,7 @@
 #include "common/world/gen/chunk/IChunkGenerator.hpp"
 #include "common/world/biome/BiomeRegistry.hpp"
 #include "common/world/spawn/MobSpawnInfo.hpp"
-#include "common/math/random/Random.hpp"
+#include "common/util/math/random/Random.hpp"
 
 namespace mc {
 namespace test {

@@ -1,6 +1,6 @@
 #include "ChickenEntity.hpp"
 #include "../../item/ItemStack.hpp"
-#include "../../math/random/Random.hpp"
+#include "../../util/math/random/Random.hpp"
 #include <memory>
 
 namespace mc {

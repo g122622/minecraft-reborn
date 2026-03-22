@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../math/Vector3.hpp"
+#include "../util/math/Vector3.hpp"
 #include "../util/Direction.hpp"
 #include "../world/chunk/ChunkPos.hpp"
 

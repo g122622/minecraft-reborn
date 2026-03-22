@@ -1,5 +1,5 @@
 #include "EntityMetadataSerializer.hpp"
-#include "../../math/Vector3.hpp"
+#include "../../util/math/Vector3.hpp"
 #include <cstring>
 
 namespace mc::network {

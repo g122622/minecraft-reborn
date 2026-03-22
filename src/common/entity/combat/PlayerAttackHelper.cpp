@@ -1,6 +1,6 @@
 #include "PlayerAttackHelper.hpp"
 #include "AttackContext.hpp"
-#include "../../math/MathUtils.hpp"
+#include "../../util/math/MathUtils.hpp"
 #include <cmath>
 
 namespace mc::entity::combat {

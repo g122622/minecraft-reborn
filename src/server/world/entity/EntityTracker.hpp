@@ -2,7 +2,7 @@
 
 #include "../../../common/core/Types.hpp"
 #include "../../../common/entity/Entity.hpp"
-#include "../../../common/math/Vector3.hpp"
+#include "../../../common/util/math/Vector3.hpp"
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>

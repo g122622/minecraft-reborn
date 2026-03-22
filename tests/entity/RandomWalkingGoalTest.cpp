@@ -6,7 +6,7 @@
 #include "common/entity/ai/controller/MovementController.hpp"
 #include "common/entity/ai/pathfinding/PathNavigator.hpp"
 #include "common/entity/attribute/Attributes.hpp"
-#include "common/math/random/Random.hpp"
+#include "common/util/math/random/Random.hpp"
 
 using namespace mc;
 using namespace mc::entity::ai::goal;

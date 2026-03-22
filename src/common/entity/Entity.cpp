@@ -2,8 +2,8 @@
 #include "../world/IWorld.hpp"
 #include "../physics/PhysicsEngine.hpp"
 #include "../physics/PhysicsConstants.hpp"
-#include "../math/random/Random.hpp"
-#include "../math/MathUtils.hpp"
+#include "../util/math/random/Random.hpp"
+#include "../util/math/MathUtils.hpp"
 #include "../world/block/Block.hpp"
 #include <algorithm>
 #include <sstream>

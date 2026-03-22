@@ -11,7 +11,7 @@
 #include "common/world/gen/chunk/IChunkGenerator.hpp"
 #include "common/world/biome/BiomeRegistry.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
-#include "common/math/random/Random.hpp"
+#include "common/util/math/random/Random.hpp"
 
 using namespace mc;
 

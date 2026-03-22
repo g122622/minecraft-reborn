@@ -1,6 +1,6 @@
 #include "Placement.hpp"
 #include "../chunk/IChunkGenerator.hpp"
-#include "../../../math/random/Random.hpp"
+#include "../../../util/math/random/Random.hpp"
 #include "../../block/Block.hpp"
 #include "../../block/VanillaBlocks.hpp"
 #include <cmath>

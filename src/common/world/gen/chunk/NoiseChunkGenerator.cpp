@@ -7,8 +7,8 @@
 #include "../../biome/layer/LayerUtil.hpp"
 #include "../feature/ConfiguredFeature.hpp"
 #include "../feature/ore/OreFeature.hpp"
-#include "../../../math/MathUtils.hpp"
-#include "../../../math/random/Random.hpp"
+#include "../../../util/math/MathUtils.hpp"
+#include "../../../util/math/random/Random.hpp"
 #include "common/perfetto/TraceEvents.hpp"
 #include <algorithm>
 #include <cmath>

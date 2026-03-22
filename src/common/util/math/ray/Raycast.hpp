@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Ray.hpp"
-#include "../../core/BlockRaycastResult.hpp"
-#include "../../world/IWorld.hpp"
+#include "../../../core/BlockRaycastResult.hpp"
+#include "../../../world/IWorld.hpp"
 
 namespace mc {
 

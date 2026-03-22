@@ -2,7 +2,7 @@
 #include "../spawn/WorldGenSpawner.hpp"
 #include "../../block/BlockRegistry.hpp"
 #include "../../biome/BiomeRegistry.hpp"
-#include "../../../math/random/Random.hpp"
+#include "../../../util/math/random/Random.hpp"
 #include "../../WorldConstants.hpp"
 #include <algorithm>
 

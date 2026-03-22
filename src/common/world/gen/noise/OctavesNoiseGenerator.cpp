@@ -1,5 +1,5 @@
 #include "OctavesNoiseGenerator.hpp"
-#include "../../../math/random/Random.hpp"
+#include "../../../util/math/random/Random.hpp"
 #include <cmath>
 #include <algorithm>
 

@@ -1,7 +1,7 @@
 #include "WorldCarver.hpp"
 #include "../../block/BlockRegistry.hpp"
 #include "../../block/VanillaBlocks.hpp"
-#include "../../../math/random/Random.hpp"
+#include "../../../util/math/random/Random.hpp"
 #include <cmath>
 #include <algorithm>
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../../../core/Types.hpp"
-#include "../../../math/Vector3.hpp"
+#include "../../../util/math/Vector3.hpp"
 #include "../../block/BlockPos.hpp"
 #include "TickPriority.hpp"
 #include <functional>

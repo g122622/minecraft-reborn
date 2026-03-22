@@ -2,7 +2,7 @@
 #include "../../world/IWorld.hpp"
 #include "../../world/block/BlockPos.hpp"
 #include "../../world/biome/Biome.hpp"
-#include "../../math/random/Random.hpp"
+#include "../../util/math/random/Random.hpp"
 #include <cmath>
 
 namespace mc::weather {

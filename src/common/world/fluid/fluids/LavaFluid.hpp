@@ -1,8 +1,8 @@
 #pragma once
 
 #include "../FlowingFluid.hpp"
-#include "../../../math/Vector3.hpp"
-#include "../../../math/random/IRandom.hpp"
+#include "../../../util/math/Vector3.hpp"
+#include "../../../util/math/random/IRandom.hpp"
 
 namespace mc {
 namespace fluid {

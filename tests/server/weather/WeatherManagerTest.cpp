@@ -4,7 +4,7 @@
 #include "common/world/weather/WeatherConstants.hpp"
 #include "common/world/weather/WeatherUtils.hpp"
 #include "common/world/block/BlockPos.hpp"
-#include "common/math/random/Random.hpp"
+#include "common/util/math/random/Random.hpp"
 
 using namespace mc;
 using namespace mc::server;

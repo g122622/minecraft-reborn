@@ -1,6 +1,6 @@
 #include "ItemEntity.hpp"
 #include "Player.hpp"
-#include "../math/random/Random.hpp"
+#include "../util/math/random/Random.hpp"
 #include "../physics/PhysicsConstants.hpp"
 #include "../world/entity/EntityManager.hpp"
 #include <cmath>

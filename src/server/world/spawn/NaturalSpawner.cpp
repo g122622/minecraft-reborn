@@ -11,7 +11,7 @@
 #include "../../../common/world/block/Block.hpp"
 #include "../../../common/world/block/Material.hpp"
 #include "../../../common/entity/EntitySpawnPlacementRegistry.hpp"
-#include "../../../common/math/random/Random.hpp"
+#include "../../../common/util/math/random/Random.hpp"
 #include <spdlog/spdlog.h>
 
 namespace mc::world::spawn {

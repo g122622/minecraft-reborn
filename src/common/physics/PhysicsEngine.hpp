@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../util/AxisAlignedBB.hpp"
-#include "../math/Vector3.hpp"
+#include "../util/math/Vector3.hpp"
 #include "../world/block/Block.hpp"
 #include "../world/chunk/ChunkData.hpp"
 #include "PhysicsConstants.hpp"

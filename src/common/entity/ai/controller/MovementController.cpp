@@ -3,7 +3,7 @@
 #include "../../mob/MobEntity.hpp"
 #include "../../living/LivingEntity.hpp"
 #include "../../attribute/Attributes.hpp"
-#include "../../../math/MathUtils.hpp"
+#include "../../../util/math/MathUtils.hpp"
 #include <cmath>
 
 namespace mc::entity::ai::controller {

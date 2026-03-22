@@ -3,7 +3,7 @@
 #include "Entity.hpp"
 #include "living/LivingEntity.hpp"
 #include "../world/IWorld.hpp"
-#include "../math/Vector3.hpp"
+#include "../util/math/Vector3.hpp"
 #include <functional>
 #include <type_traits>
 

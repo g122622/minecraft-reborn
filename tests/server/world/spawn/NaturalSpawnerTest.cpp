@@ -2,7 +2,7 @@
 #include "server/world/spawn/NaturalSpawner.hpp"
 #include "common/world/spawn/MobSpawnInfo.hpp"
 #include "common/entity/EntitySpawnPlacementRegistry.hpp"
-#include "common/math/random/Random.hpp"
+#include "common/util/math/random/Random.hpp"
 
 namespace mc {
 namespace test {

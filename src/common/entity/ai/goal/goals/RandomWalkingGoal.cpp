@@ -4,7 +4,7 @@
 #include "../GoalConstants.hpp"
 #include "../../../ai/pathfinding/PathNavigator.hpp"
 #include "../../../ai/controller/MovementController.hpp"
-#include "../../../../math/random/Random.hpp"
+#include "../../../../util/math/random/Random.hpp"
 #include <cmath>
 
 namespace mc::entity::ai::goal {

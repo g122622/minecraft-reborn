@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../Fluid.hpp"
-#include "../../../math/Vector3.hpp"
+#include "../../../util/math/Vector3.hpp"
 
 namespace mc {
 namespace fluid {

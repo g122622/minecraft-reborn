@@ -1,7 +1,7 @@
 #include "WeatherManager.hpp"
 #include "common/world/IWorld.hpp"
 #include "common/world/block/BlockPos.hpp"
-#include "common/math/random/Random.hpp"
+#include "common/util/math/random/Random.hpp"
 #include <algorithm>
 
 namespace mc::server {

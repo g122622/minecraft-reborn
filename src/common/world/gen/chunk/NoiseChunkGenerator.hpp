@@ -12,7 +12,7 @@
 #include "../../biome/BiomeGenerationSettings.hpp"
 #include "../../chunk/ChunkPrimer.hpp"
 #include "../../../core/Types.hpp"
-#include "../../../math/random/Random.hpp"
+#include "../../../util/math/random/Random.hpp"
 #include <memory>
 
 namespace mc {

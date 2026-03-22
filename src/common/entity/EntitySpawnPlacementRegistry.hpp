@@ -1,8 +1,8 @@
 #pragma once
 
 #include "../core/Types.hpp"
-#include "../math/Vector3.hpp"
-#include "../math/random/Random.hpp"
+#include "../util/math/Vector3.hpp"
+#include "../util/math/random/Random.hpp"
 #include "../world/chunk/IChunk.hpp"  // 包含 HeightmapType
 #include <functional>
 #include <unordered_map>

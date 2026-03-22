@@ -1,6 +1,6 @@
 #include "CanyonCarver.hpp"
 #include "../../block/BlockRegistry.hpp"
-#include "../../../math/random/Random.hpp"
+#include "../../../util/math/random/Random.hpp"
 #include "../../../core/Constants.hpp"
 #include <cmath>
 #include <algorithm>

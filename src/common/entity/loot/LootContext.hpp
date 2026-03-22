@@ -1,7 +1,7 @@
 #pragma once
 
 #include "common/core/Types.hpp"
-#include "common/math/random/Random.hpp"
+#include "common/util/math/random/Random.hpp"
 #include <functional>
 #include <memory>
 #include <unordered_map>

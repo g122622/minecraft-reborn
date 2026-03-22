@@ -2,7 +2,7 @@
 
 #include "DecorationStage.hpp"
 #include "../../../core/Types.hpp"
-#include "../../../math/random/Random.hpp"
+#include "../../../util/math/random/Random.hpp"
 #include "../../chunk/ChunkPos.hpp"
 #include <memory>
 #include <vector>

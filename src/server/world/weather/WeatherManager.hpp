@@ -4,7 +4,7 @@
 #include "common/core/Result.hpp"
 #include "common/world/weather/WeatherState.hpp"
 #include "common/world/weather/WeatherUtils.hpp"
-#include "common/math/random/Random.hpp"
+#include "common/util/math/random/Random.hpp"
 #include <memory>
 #include <functional>
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../../../../../common/core/Types.hpp"
-#include "../../../../../common/math/Vector3.hpp"
+#include "../../../../../common/util/math/Vector3.hpp"
 #include <vector>
 #include <memory>
 #include <array>

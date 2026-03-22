@@ -4,7 +4,7 @@
 #include "../../../resource/EntityTextureLoader.hpp"
 #include "../../../world/entity/ClientEntity.hpp"
 #include "../../../../common/entity/EntityRegistry.hpp"
-#include "../../../../common/math/MathUtils.hpp"
+#include "../../../../common/util/math/MathUtils.hpp"
 #include <spdlog/spdlog.h>
 
 namespace mc::client::renderer {

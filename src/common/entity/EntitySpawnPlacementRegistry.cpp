@@ -1,7 +1,7 @@
 #include "EntitySpawnPlacementRegistry.hpp"
 #include "../world/block/Block.hpp"
 #include "../world/block/Material.hpp"
-#include "../math/random/Random.hpp"
+#include "../util/math/random/Random.hpp"
 #include <spdlog/spdlog.h>
 
 namespace mc::world::spawn {

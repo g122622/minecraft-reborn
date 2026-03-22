@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
 #include "common/core/Result.hpp"
-#include "common/math/MathUtils.hpp"
-#include "common/math/Vector3.hpp"
+#include "common/util/math/MathUtils.hpp"
+#include "common/util/math/Vector3.hpp"
 #include "common/world/chunk/ChunkPos.hpp"
 
 using namespace mc;

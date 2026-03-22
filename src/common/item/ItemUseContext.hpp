@@ -1,11 +1,11 @@
 #pragma once
 
 #include "../core/Types.hpp"
-#include "../math/Vector3.hpp"
+#include "../util/math/Vector3.hpp"
 #include "../util/Direction.hpp"
 #include "../world/block/BlockPos.hpp"
 #include "../world/block/Block.hpp"
-#include "../math/ray/Raycast.hpp"
+#include "../util/math/ray/Raycast.hpp"
 
 namespace mc {
 

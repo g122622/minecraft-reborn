@@ -84,7 +84,7 @@ add_executable(mc_tests
     # 流体系统测试
     common/world/fluid/FluidTest.cpp
     # 射线检测测试
-    common/math/RaycastTest.cpp
+    common/util/math/RaycastTest.cpp
     # 实体生成回调测试
     server/ServerChunkManagerCallbackTest.cpp
     common/world/EntityManagerSpawnTest.cpp
@@ -294,7 +294,7 @@ target_sources(mc_tests
         # Trident 渲染 API 层
         ${CMAKE_SOURCE_DIR}/src/client/renderer/api/Types.cpp
         # 射线检测
-        ${CMAKE_SOURCE_DIR}/src/common/math/ray/Raycast.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/util/math/ray/Raycast.cpp
         # 设置系统
         ${CMAKE_SOURCE_DIR}/src/client/settings/ClientSettings.cpp
         # 网格构建线程池

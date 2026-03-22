@@ -3,7 +3,7 @@
 #include "../ai/controller/MovementController.hpp"
 #include "../ai/controller/JumpController.hpp"
 #include "../ai/pathfinding/PathNavigator.hpp"
-#include "../../math/random/Random.hpp"
+#include "../../util/math/random/Random.hpp"
 
 namespace mc {
 

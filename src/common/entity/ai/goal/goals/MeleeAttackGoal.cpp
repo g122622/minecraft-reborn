@@ -8,7 +8,7 @@
 #include "../GoalConstants.hpp"
 #include "../../../ai/controller/LookController.hpp"
 #include "../../../ai/pathfinding/PathNavigator.hpp"
-#include "../../../../math/random/Random.hpp"
+#include "../../../../util/math/random/Random.hpp"
 #include <cmath>
 
 namespace mc::entity::ai::goal {

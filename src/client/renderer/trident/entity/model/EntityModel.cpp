@@ -1,5 +1,5 @@
 #include "EntityModel.hpp"
-#include "../../../../../common/math/MathUtils.hpp"
+#include "../../../../../common/util/math/MathUtils.hpp"
 #include <cmath>
 
 namespace mc::client::renderer {

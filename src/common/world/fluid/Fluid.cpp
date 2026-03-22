@@ -5,7 +5,7 @@
 #include "../block/Block.hpp"
 #include "../block/BlockPos.hpp"
 #include "../../physics/collision/CollisionShape.hpp"
-#include "../../math/Vector3.hpp"
+#include "../../util/math/Vector3.hpp"
 #include "../../util/property/FluidProperties.hpp"
 #include <sstream>
 

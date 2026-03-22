@@ -2,7 +2,7 @@
 
 #include "../core/Types.hpp"
 #include "../core/Result.hpp"
-#include "../math/Vector3.hpp"
+#include "../util/math/Vector3.hpp"
 #include "../util/AxisAlignedBB.hpp"
 #include "EntityPose.hpp"
 #include "EntityDataManager.hpp"

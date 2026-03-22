@@ -4,8 +4,8 @@
 #include "../../../Entity.hpp"
 #include "../../../EntityUtils.hpp"
 #include "../GoalConstants.hpp"
-#include "../../../../math/random/Random.hpp"
-#include "../../../../math/MathUtils.hpp"
+#include "../../../../util/math/random/Random.hpp"
+#include "../../../../util/math/MathUtils.hpp"
 #include "../../../../world/IWorld.hpp"
 #include "../../controller/LookController.hpp"
 #include <cmath>
