@@ -17,6 +17,8 @@
 #include "client/renderer/trident/gui/GuiSpriteAtlas.hpp"
 #include "client/renderer/trident/gui/GuiSpriteRegistry.hpp"
 #include "client/renderer/trident/gui/GuiTextureLoader.hpp"
+#include "client/renderer/trident/gui/GuiTextureManager.hpp"
+#include "client/renderer/trident/item/ItemRenderer.hpp"
 #include "client/renderer/util/GpuInfo.hpp"
 #include "client/resource/ResourceManager.hpp"
 #include "client/resource/TextureAtlasBuilder.hpp"
@@ -384,6 +386,37 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
         auto guiInitResult = m_renderer->initializeGuiRenderer();
         if (guiInitResult.failed()) {
             spdlog::warn("Failed to initialize GUI renderer: {}", guiInitResult.error().toString());
+        }
+
+        // 初始化 GUI 纹理管理器（用于背包屏幕等容器GUI）
+        if (m_renderer->isGuiRendererInitialized()) {
+            spdlog::info("Initializing GUI texture manager...");
+            m_guiTextureManager = std::make_unique<renderer::trident::gui::GuiTextureManager>();
+            auto textureMgrInit = m_guiTextureManager->initialize(
+                m_renderer->device(),
+                m_renderer->physicalDevice(),
+                m_renderer->commandPool(),
+                m_renderer->graphicsQueue(),
+                m_resourceManager.get());
+
+            if (textureMgrInit.success()) {
+                // 加载背包纹理
+                auto loadResult = m_guiTextureManager->loadInventoryTexture();
+                if (loadResult.failed()) {
+                    spdlog::warn("Failed to load inventory texture: {}", loadResult.error().toString());
+                }
+
+                // 注册到 GuiRenderer
+                auto registerResult = m_guiTextureManager->registerToRenderer(m_renderer->guiRenderer());
+                if (registerResult.success()) {
+                    spdlog::info("GUI texture manager initialized with atlas slot {}", registerResult.value());
+                } else {
+                    spdlog::warn("Failed to register GUI texture manager: {}", registerResult.error().toString());
+                }
+            } else {
+                spdlog::warn("Failed to initialize GUI texture manager: {}", textureMgrInit.error().toString());
+                m_guiTextureManager.reset();
+            }
         }
 
         // 实体渲染器必须先初始化（创建 EntityPipeline）
@@ -993,9 +1026,21 @@ void ClientApplication::handleEvents()
 
     if (m_input.isKeyJustPressed(GLFW_KEY_E) && m_player) {
         releaseMouseForScreen(m_input, m_mouseCaptured);
-        ScreenManager::instance().openScreen(
-            std::make_unique<InventoryCraftingScreen>(
-                std::make_unique<InventoryCraftingMenu>(inventory::PLAYER_CONTAINER_ID, &m_player->inventory())));
+
+        // 创建背包屏幕并设置渲染器
+        auto inventoryScreen = std::make_unique<InventoryCraftingScreen>(
+            std::make_unique<InventoryCraftingMenu>(inventory::PLAYER_CONTAINER_ID, &m_player->inventory()));
+
+        // 设置渲染器
+        if (m_renderer && m_renderer->isGuiRendererInitialized()) {
+            inventoryScreen->setRenderers(
+                &m_renderer->guiRenderer(),
+                m_guiTextureManager.get(),
+                m_renderer->isItemRendererInitialized() ? &m_renderer->itemRenderer() : nullptr);
+            inventoryScreen->setScreenSize(static_cast<i32>(m_window.width()), static_cast<i32>(m_window.height()));
+        }
+
+        ScreenManager::instance().openScreen(std::move(inventoryScreen));
         return;
     }
 

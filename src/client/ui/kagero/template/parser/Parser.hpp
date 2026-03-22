@@ -43,7 +43,7 @@ using ast::NodeType;
  * - 条件指令: bind:visible="booleanPath"
  *
  * 使用示例：
- * @code
+ * @code 
  * Lexer lexer(source);
  * lexer.tokenize();
  *

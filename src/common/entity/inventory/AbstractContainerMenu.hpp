@@ -188,6 +188,28 @@ protected:
     void addPlayerHotbarSlots(i32 startX, i32 startY);
 
     /**
+     * @brief 添加玩家护甲槽位
+     * @param startX 起始X坐标
+     * @param startY 起始Y坐标
+     *
+     * 护甲槽位顺序（从上到下）：
+     * - 头盔：对应 PlayerInventory[36]
+     * - 胸甲：对应 PlayerInventory[37]
+     * - 护腿：对应 PlayerInventory[38]
+     * - 靴子：对应 PlayerInventory[39]
+     */
+    void addPlayerArmorSlots(i32 startX, i32 startY);
+
+    /**
+     * @brief 添加玩家副手槽位
+     * @param x X坐标
+     * @param y Y坐标
+     *
+     * 副手槽对应 PlayerInventory[40]
+     */
+    void addPlayerOffhandSlot(i32 x, i32 y);
+
+    /**
      * @brief 通知槽位变化
      * @param slotIndex 槽位索引
      * @param stack 新物品堆

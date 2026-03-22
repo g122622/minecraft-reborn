@@ -160,12 +160,20 @@ private:
 /**
  * @brief 玩家背包合成菜单 (2x2)
  *
- * 管理玩家背包中的2x2合成网格。
- * 槽位布局：
- * - 槽位 0-3: 合成网格 (2x2)
- * - 槽位 4: 结果槽位
- * - 槽位 5-32: 玩家主背包 (3x9)
- * - 槽位 33-41: 玩家快捷栏 (1x9)
+ * 管理玩家背包中的2x2合成网格、护甲槽、副手槽。
+ *
+ * 槽位布局（参考 MC 1.16.5 PlayerContainer）：
+ * - 槽位 0: 合成结果 (154, 28)
+ * - 槽位 1-4: 合成网格 (2x2) (98, 18) 到 (116, 36)
+ * - 槽位 5: 头盔 (8, 8)
+ * - 槽位 6: 胸甲 (8, 26)
+ * - 槽位 7: 护腿 (8, 44)
+ * - 槽位 8: 靴子 (8, 62)
+ * - 槽位 9-35: 玩家主背包 (3x9) (8, 84) 到 (152, 120)
+ * - 槽位 36-44: 玩家快捷栏 (1x9) (8, 142) 到 (152, 142)
+ * - 槽位 45: 副手 (77, 62)
+ *
+ * GUI尺寸: 176 x 166 像素
  */
 class InventoryCraftingMenu : public AbstractContainerMenu {
 public:
@@ -222,11 +230,33 @@ public:
 
     /**
      * @brief 槽位索引常量
+     *
+     * 布局顺序（参考 MC 1.16.5 PlayerContainer）：
+     * - 0: 合成结果
+     * - 1-4: 合成网格 (2x2)
+     * - 5-8: 护甲 (头盔、胸甲、护腿、靴子)
+     * - 9-35: 主背包 (3x9)
+     * - 36-44: 快捷栏 (1x9)
+     * - 45: 副手
      */
-    static constexpr i32 GRID_SLOT_START = 0;
-    static constexpr i32 GRID_SLOT_COUNT = 4;
-    static constexpr i32 RESULT_SLOT = 4;
-    static constexpr i32 PLAYER_INV_START = 5;
+    static constexpr i32 RESULT_SLOT = 0;           ///< 合成结果槽位
+    static constexpr i32 GRID_SLOT_START = 1;       ///< 合成网格起始槽位
+    static constexpr i32 GRID_SLOT_COUNT = 4;       ///< 合成网格槽位数量
+    static constexpr i32 GRID_SLOT_END = 4;         ///< 合成网格结束槽位
+    static constexpr i32 ARMOR_SLOT_START = 5;      ///< 护甲槽起始槽位
+    static constexpr i32 ARMOR_SLOT_COUNT = 4;      ///< 护甲槽数量
+    static constexpr i32 ARMOR_HEAD = 5;            ///< 头盔槽位
+    static constexpr i32 ARMOR_CHEST = 6;           ///< 胸甲槽位
+    static constexpr i32 ARMOR_LEGS = 7;            ///< 护腿槽位
+    static constexpr i32 ARMOR_FEET = 8;            ///< 靴子槽位
+    static constexpr i32 PLAYER_INV_START = 9;      ///< 玩家主背包起始槽位
+    static constexpr i32 PLAYER_INV_COUNT = 27;     ///< 玩家主背包槽位数量
+    static constexpr i32 PLAYER_INV_END = 35;       ///< 玩家主背包结束槽位
+    static constexpr i32 HOTBAR_START = 36;         ///< 快捷栏起始槽位
+    static constexpr i32 HOTBAR_COUNT = 9;          ///< 快捷栏槽位数量
+    static constexpr i32 HOTBAR_END = 44;           ///< 快捷栏结束槽位
+    static constexpr i32 OFFHAND_SLOT = 45;         ///< 副手槽位
+    static constexpr i32 TOTAL_SLOT_COUNT = 46;     ///< 总槽位数量
 
 private:
     /**

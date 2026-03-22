@@ -62,6 +62,33 @@ void AbstractContainerMenu::addPlayerHotbarSlots(i32 startX, i32 startY) {
     m_hotbarEnd = static_cast<i32>(m_slots.size()) - 1;
 }
 
+void AbstractContainerMenu::addPlayerArmorSlots(i32 startX, i32 startY) {
+    // 护甲槽位顺序（从上到下）：头盔、胸甲、护腿、靴子
+    // 对应 PlayerInventory 的槽位 36-39
+    constexpr i32 ARMOR_INDICES[] = {
+        InventorySlots::ARMOR_HEAD,   // 36 头盔
+        InventorySlots::ARMOR_CHEST,  // 37 胸甲
+        InventorySlots::ARMOR_LEGS,   // 38 护腿
+        InventorySlots::ARMOR_FEET    // 39 靴子
+    };
+
+    for (i32 i = 0; i < 4; ++i) {
+        i32 posX = startX;
+        i32 posY = startY + i * 18;
+        addSlot(std::make_unique<ArmorSlot>(
+            m_playerInventory,
+            ARMOR_INDICES[i],
+            posX, posY,
+            static_cast<ArmorSlot::ArmorType>(i)
+        ));
+    }
+}
+
+void AbstractContainerMenu::addPlayerOffhandSlot(i32 x, i32 y) {
+    // 副手槽对应 PlayerInventory 的槽位 40
+    addSlot(std::make_unique<Slot>(m_playerInventory, InventorySlots::OFFHAND, x, y));
+}
+
 void AbstractContainerMenu::setCarriedItem(const ItemStack& stack) {
     m_carried = stack;
 }

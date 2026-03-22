@@ -1,12 +1,21 @@
 #pragma once
 
-#include "screen/IScreen.hpp"
+#include "common/screen/IScreen.hpp"
 #include "entity/inventory/AbstractContainerMenu.hpp"
 #include "entity/inventory/ContainerTypes.hpp"
 #include "network/packet/InventoryPackets.hpp"
 #include "core/Types.hpp"
 #include <memory>
 #include <functional>
+
+namespace mc::client::renderer::trident::gui {
+class GuiRenderer;
+class GuiTextureManager;
+}
+
+namespace mc::client::renderer::trident::item {
+class ItemRenderer;
+}
 
 namespace mc::client {
 
@@ -53,6 +62,8 @@ public:
         , m_topPos(0)
         , m_imageWidth(176)
         , m_imageHeight(166)
+        , m_screenWidth(0)
+        , m_screenHeight(0)
         , m_initialized(false) {
     }
 
@@ -68,6 +79,31 @@ public:
     // 允许移动
     AbstractContainerScreen(AbstractContainerScreen&&) noexcept = default;
     AbstractContainerScreen& operator=(AbstractContainerScreen&&) noexcept = default;
+
+    /**
+     * @brief 设置渲染器
+     * @param gui GUI渲染器
+     * @param textureManager GUI纹理管理器（可选）
+     * @param itemRenderer 物品渲染器（可选）
+     */
+    void setRenderers(renderer::trident::gui::GuiRenderer* gui,
+                      renderer::trident::gui::GuiTextureManager* textureManager = nullptr,
+                      renderer::trident::item::ItemRenderer* itemRenderer = nullptr) {
+        m_gui = gui;
+        m_textureManager = textureManager;
+        m_itemRenderer = itemRenderer;
+    }
+
+    /**
+     * @brief 设置屏幕尺寸
+     * @param width 屏幕宽度
+     * @param height 屏幕高度
+     */
+    void setScreenSize(i32 width, i32 height) {
+        m_screenWidth = width;
+        m_screenHeight = height;
+        updatePosition();
+    }
 
     /**
      * @brief 初始化屏幕
@@ -86,6 +122,15 @@ public:
      * @param partialTick 部分tick时间
      */
     void render(i32 mouseX, i32 mouseY, f32 partialTick) override {
+        (void)partialTick;
+
+        if (m_gui == nullptr) {
+            return;
+        }
+
+        // 开始GUI帧
+        m_gui->beginFrame(static_cast<f32>(m_screenWidth), static_cast<f32>(m_screenHeight));
+
         // 渲染背景
         if (shouldRenderBackground()) {
             renderBackground();
@@ -192,7 +237,17 @@ public:
      */
     [[nodiscard]] i32 getImageHeight() const { return m_imageHeight; }
 
+    /**
+     * @brief 获取GUI渲染器
+     */
+    [[nodiscard]] renderer::trident::gui::GuiRenderer* getGuiRenderer() { return m_gui; }
+    [[nodiscard]] const renderer::trident::gui::GuiRenderer* getGuiRenderer() const { return m_gui; }
+
 protected:
+    // 槽位尺寸常量
+    static constexpr i32 SLOT_SIZE = 16;
+    static constexpr i32 SLOT_SPACING = 18;
+
     /**
      * @brief 子类初始化回调
      */
@@ -213,31 +268,134 @@ protected:
      * @brief 更新GUI位置（居中）
      */
     void updatePosition() {
-        // TODO: 获取屏幕尺寸并居中
-        // 暂时使用固定值
-        m_leftPos = 0;
-        m_topPos = 0;
+        // 居中计算
+        if (m_screenWidth > 0 && m_screenHeight > 0) {
+            m_leftPos = (m_screenWidth - m_imageWidth) / 2;
+            m_topPos = (m_screenHeight - m_imageHeight) / 2;
+        } else {
+            m_leftPos = 0;
+            m_topPos = 0;
+        }
     }
 
     /**
      * @brief 渲染背景暗化
      */
     virtual void renderBackground() {
-        // TODO: 渲染半透明黑色背景
+        // 半透明黑色背景 (ARGB)
+        if (m_gui != nullptr) {
+            m_gui->fillRect(0.0f, 0.0f,
+                           static_cast<f32>(m_screenWidth),
+                           static_cast<f32>(m_screenHeight),
+                           0x80000000);
+        }
     }
 
     /**
      * @brief 渲染容器背景
      */
     virtual void renderContainerBackground() {
-        // TODO: 渲染容器GUI纹理
+        // 子类实现具体的背景渲染
     }
 
     /**
      * @brief 渲染所有槽位
      */
     virtual void renderSlots() {
-        // TODO: 遍历槽位并渲染
+        if (m_menu == nullptr || m_gui == nullptr) {
+            return;
+        }
+
+        for (i32 i = 0; i < m_menu->getSlotCount(); ++i) {
+            const mc::Slot* slot = m_menu->getSlot(i);
+            if (slot != nullptr) {
+                renderSlot(*slot, m_leftPos + slot->getX(), m_topPos + slot->getY());
+            }
+        }
+    }
+
+    /**
+     * @brief 渲染单个槽位
+     * @param slot 槽位
+     * @param screenX 屏幕X坐标
+     * @param screenY 屏幕Y坐标
+     */
+    virtual void renderSlot(const mc::Slot& slot, i32 screenX, i32 screenY) {
+        if (m_gui == nullptr) {
+            return;
+        }
+
+        // 渲染槽位背景（可选，纹理中已包含槽位背景）
+        // 如果需要单独渲染槽位高亮，可以在这里添加
+
+        // 渲染物品
+        const mc::ItemStack& stack = slot.getItem();
+        if (!stack.isEmpty()) {
+            renderItemIcon(stack, screenX, screenY);
+
+            // 渲染物品数量
+            if (stack.getCount() > 1) {
+                renderItemCount(stack.getCount(), screenX + SLOT_SIZE - 2, screenY + SLOT_SIZE - 8);
+            }
+        }
+    }
+
+    /**
+     * @brief 渲染物品图标（子类可重写以使用ItemRenderer）
+     * @param stack 物品堆
+     * @param screenX 屏幕X坐标
+     * @param screenY 屏幕Y坐标
+     */
+    virtual void renderItemIcon(const mc::ItemStack& stack, i32 screenX, i32 screenY) {
+        // 默认实现：绘制占位符矩形
+        // 子类可以重写此方法，使用 ItemRenderer 渲染实际的物品图标
+        if (m_gui == nullptr) {
+            return;
+        }
+
+        (void)stack;
+        // 使用半透明颜色表示物品存在
+        m_gui->fillRect(static_cast<f32>(screenX),
+                        static_cast<f32>(screenY),
+                        static_cast<f32>(SLOT_SIZE),
+                        static_cast<f32>(SLOT_SIZE),
+                        0x80FFFFFF);
+    }
+
+    /**
+     * @brief 渲染物品数量
+     * @param count 数量
+     * @param screenX 屏幕X坐标
+     * @param screenY 屏幕Y坐标
+     */
+    void renderItemCount(i32 count, i32 screenX, i32 screenY) {
+        if (m_gui == nullptr || m_gui->font() == nullptr || count <= 1) {
+            return;
+        }
+
+        String countText = std::to_string(count);
+        m_gui->drawText(countText,
+                        static_cast<f32>(screenX),
+                        static_cast<f32>(screenY),
+                        0xFFFFFFFF, true);
+    }
+
+    /**
+     * @brief 渲染槽位高亮
+     * @param screenX 屏幕X坐标
+     * @param screenY 屏幕Y坐标
+     */
+    void renderSlotHighlight(i32 screenX, i32 screenY) {
+        if (m_gui == nullptr) {
+            return;
+        }
+
+        // 槽位高亮颜色 (ARGB，半透明白色)
+        m_gui->fillRect(static_cast<f32>(screenX),
+                        static_cast<f32>(screenY),
+                        static_cast<f32>(SLOT_SIZE),
+                        static_cast<f32>(SLOT_SIZE),
+                        0x40FFFFFF);
     }
 
     /**
@@ -254,10 +412,16 @@ protected:
      */
     virtual void renderCarriedItem(i32 mouseX, i32 mouseY) {
         const auto& carried = getCarriedItem();
-        if (!carried.isEmpty()) {
-            // TODO: 渲染鼠标跟随的物品
-            (void)mouseX;
-            (void)mouseY;
+        if (carried.isEmpty() || m_gui == nullptr) {
+            return;
+        }
+
+        // 渲染跟随鼠标的物品
+        renderItemIcon(carried, mouseX - SLOT_SIZE / 2, mouseY - SLOT_SIZE / 2);
+
+        // 渲染物品数量
+        if (carried.getCount() > 1) {
+            renderItemCount(carried.getCount(), mouseX + SLOT_SIZE / 2 - 2, mouseY + SLOT_SIZE / 2 - 8);
         }
     }
 
@@ -268,6 +432,8 @@ protected:
         mc::Slot* slot = getSlotAt(mouseX, mouseY);
         if (slot != nullptr && !slot->getItem().isEmpty()) {
             // TODO: 渲染物品提示
+            (void)mouseX;
+            (void)mouseY;
         }
     }
 
@@ -298,8 +464,8 @@ protected:
     [[nodiscard]] virtual bool isMouseOverSlot(const mc::Slot& slot, i32 mouseX, i32 mouseY) const {
         i32 slotX = m_leftPos + slot.getX();
         i32 slotY = m_topPos + slot.getY();
-        return mouseX >= slotX && mouseX < slotX + 16 &&
-               mouseY >= slotY && mouseY < slotY + 16;
+        return mouseX >= slotX && mouseX < slotX + SLOT_SIZE &&
+               mouseY >= slotY && mouseY < slotY + SLOT_SIZE;
     }
 
     /**
@@ -333,10 +499,18 @@ protected:
     std::unique_ptr<Menu> m_menu;
     ContainerClickSender m_clickSender;
     ContainerCloseSender m_closeSender;
+
+    // 渲染器
+    renderer::trident::gui::GuiRenderer* m_gui = nullptr;
+    renderer::trident::gui::GuiTextureManager* m_textureManager = nullptr;
+    renderer::trident::item::ItemRenderer* m_itemRenderer = nullptr;
+
     i32 m_leftPos;          ///< GUI左边界（居中后的位置）
     i32 m_topPos;           ///< GUI上边界
     i32 m_imageWidth;       ///< GUI纹理宽度
     i32 m_imageHeight;      ///< GUI纹理高度
+    i32 m_screenWidth;      ///< 屏幕宽度
+    i32 m_screenHeight;     ///< 屏幕高度
     bool m_initialized;     ///< 是否已初始化
 
     // 空物品堆（用于空菜单时返回）

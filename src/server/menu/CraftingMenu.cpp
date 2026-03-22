@@ -253,17 +253,39 @@ void CraftingMenu::consumeIngredients(const crafting::CraftingRecipe* recipe) {
 InventoryCraftingMenu::InventoryCraftingMenu(ContainerId id, PlayerInventory* playerInventory)
     : AbstractContainerMenu(id, playerInventory)
     , m_craftingGrid(2, 2) {
+
+    // 槽位布局（参考 MC 1.16.5 PlayerContainer）：
+    // 槽位 0: 合成结果 (154, 28)
+    // 槽位 1-4: 合成网格 (2x2) (98, 18) 到 (116, 36)
+    // 槽位 5-8: 护甲 (8, 8), (8, 26), (8, 44), (8, 62)
+    // 槽位 9-35: 主背包 (3x9) (8, 84)
+    // 槽位 36-44: 快捷栏 (1x9) (8, 142)
+    // 槽位 45: 副手 (77, 62)
+
+    // 添加结果槽位 (槽位 0)
+    addSlot(std::make_unique<ResultSlot>(&m_result, 0, 154, 28, &m_craftingGrid));
+
+    // 添加合成网格槽位 (槽位 1-4)
     for (i32 y = 0; y < 2; ++y) {
         for (i32 x = 0; x < 2; ++x) {
             const i32 index = y * 2 + x;
-            addSlot(std::make_unique<Slot>(&m_craftingGrid, index, 97 + x * 18, 18 + y * 18));
+            addSlot(std::make_unique<Slot>(&m_craftingGrid, index, 98 + x * 18, 18 + y * 18));
         }
     }
 
-    addSlot(std::make_unique<ResultSlot>(&m_result, 0, 143, 28, &m_craftingGrid));
+    // 添加护甲槽位 (槽位 5-8)
+    addPlayerArmorSlots(8, 8);
+
+    // 添加玩家主背包 (槽位 9-35)
     addPlayerInventorySlots(8, 84);
+
+    // 添加玩家快捷栏 (槽位 36-44)
     addPlayerHotbarSlots(8, 142);
 
+    // 添加副手槽位 (槽位 45)
+    addPlayerOffhandSlot(77, 62);
+
+    // 设置合成网格变化回调
     m_craftingGrid.setContentChangedCallback([this]() {
         slotsChanged(&m_craftingGrid);
     });
@@ -300,7 +322,16 @@ ItemStack InventoryCraftingMenu::quickMoveStack(i32 slotIndex, Player& player) {
     ItemStack originalStack = slot->getItem();
     ItemStack movingStack = originalStack.copy();
 
+    // 槽位布局：
+    // 0: 合成结果
+    // 1-4: 合成网格
+    // 5-8: 护甲
+    // 9-35: 主背包
+    // 36-44: 快捷栏
+    // 45: 副手
+
     if (slotIndex == RESULT_SLOT) {
+        // 结果槽位：Shift+点击移动到玩家背包
         const crafting::CraftingRecipe* recipe =
             crafting::RecipeManager::instance().findMatchingRecipe(m_craftingGrid);
         if (recipe == nullptr) {
@@ -309,8 +340,12 @@ ItemStack InventoryCraftingMenu::quickMoveStack(i32 slotIndex, Player& player) {
 
         ItemStack crafted = recipe->assemble(m_craftingGrid);
         ItemStack remaining = crafted.copy();
-        if (!moveItemToRange(remaining, PLAYER_INV_START, getSlotCount() - 1, true) || !remaining.isEmpty()) {
-            return ItemStack();
+
+        // 尝试移动到主背包，然后是快捷栏
+        if (!moveItemToRange(remaining, PLAYER_INV_START, PLAYER_INV_END, true)) {
+            if (!moveItemToRange(remaining, HOTBAR_START, HOTBAR_END, true)) {
+                return ItemStack();
+            }
         }
 
         consumeIngredients(recipe);
@@ -318,14 +353,53 @@ ItemStack InventoryCraftingMenu::quickMoveStack(i32 slotIndex, Player& player) {
         return crafted;
     }
 
-    if (slotIndex >= GRID_SLOT_START && slotIndex < GRID_SLOT_START + GRID_SLOT_COUNT) {
-        if (!moveItemToRange(movingStack, PLAYER_INV_START, getSlotCount() - 1, true)) {
+    // 合成网格槽位：Shift+点击移动到玩家背包
+    if (slotIndex >= GRID_SLOT_START && slotIndex <= GRID_SLOT_END) {
+        if (!moveItemToRange(movingStack, PLAYER_INV_START, HOTBAR_END, true)) {
             return ItemStack();
         }
-    } else if (!moveItemToRange(movingStack, GRID_SLOT_START, GRID_SLOT_START + GRID_SLOT_COUNT - 1)) {
-        return ItemStack();
+    }
+    // 护甲槽位：Shift+点击移动到主背包
+    else if (slotIndex >= ARMOR_SLOT_START && slotIndex < ARMOR_SLOT_START + ARMOR_SLOT_COUNT) {
+        if (!moveItemToRange(movingStack, PLAYER_INV_START, PLAYER_INV_END, true)) {
+            if (!moveItemToRange(movingStack, HOTBAR_START, HOTBAR_END, true)) {
+                return ItemStack();
+            }
+        }
+    }
+    // 主背包：Shift+点击移动到合成网格或护甲
+    else if (slotIndex >= PLAYER_INV_START && slotIndex <= PLAYER_INV_END) {
+        // 优先尝试移动到护甲槽
+        if (!moveItemToRange(movingStack, ARMOR_SLOT_START, ARMOR_SLOT_START + ARMOR_SLOT_COUNT - 1)) {
+            // 然后尝试移动到合成网格
+            if (!moveItemToRange(movingStack, GRID_SLOT_START, GRID_SLOT_END)) {
+                return ItemStack();
+            }
+        }
+    }
+    // 快捷栏：Shift+点击移动到主背包或合成网格
+    else if (slotIndex >= HOTBAR_START && slotIndex <= HOTBAR_END) {
+        // 优先尝试移动到护甲槽
+        if (!moveItemToRange(movingStack, ARMOR_SLOT_START, ARMOR_SLOT_START + ARMOR_SLOT_COUNT - 1)) {
+            // 然后尝试移动到主背包
+            if (!moveItemToRange(movingStack, PLAYER_INV_START, PLAYER_INV_END)) {
+                // 最后尝试移动到合成网格
+                if (!moveItemToRange(movingStack, GRID_SLOT_START, GRID_SLOT_END)) {
+                    return ItemStack();
+                }
+            }
+        }
+    }
+    // 副手槽：Shift+点击移动到主背包
+    else if (slotIndex == OFFHAND_SLOT) {
+        if (!moveItemToRange(movingStack, PLAYER_INV_START, PLAYER_INV_END, true)) {
+            if (!moveItemToRange(movingStack, HOTBAR_START, HOTBAR_END, true)) {
+                return ItemStack();
+            }
+        }
     }
 
+    // 更新槽位
     if (movingStack.isEmpty()) {
         slot->set(ItemStack());
     } else {

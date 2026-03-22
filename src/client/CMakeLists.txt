@@ -43,6 +43,7 @@ add_executable(minecraft-client
     renderer/trident/gui/GuiRenderer.cpp
     renderer/trident/gui/GuiAtlasRegistry.cpp
     renderer/trident/gui/GuiTextureAtlas.cpp
+    renderer/trident/gui/GuiTextureManager.cpp
     renderer/trident/gui/GuiSpriteAtlas.cpp
     renderer/trident/gui/GuiSpriteManager.cpp
     renderer/trident/gui/GuiSpriteParser.cpp
