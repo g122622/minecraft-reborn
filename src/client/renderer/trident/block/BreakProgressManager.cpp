@@ -1,6 +1,8 @@
 #include "BreakProgressManager.hpp"
+#include "common/util/math/MathUtils.hpp"
 #include <spdlog/spdlog.h>
 #include <algorithm>
+#include <unordered_map>
 
 namespace mc {
 namespace client {
@@ -8,18 +10,10 @@ namespace renderer {
 namespace trident {
 namespace block {
 
-// ============================================================================
-// 静态成员
-// ============================================================================
-
 BreakProgressManager& BreakProgressManager::instance() {
     static BreakProgressManager instance;
     return instance;
 }
-
-// ============================================================================
-// 初始化
-// ============================================================================
 
 void BreakProgressManager::initialize() {
     spdlog::info("BreakProgressManager: Initialized");
@@ -34,20 +28,10 @@ void BreakProgressManager::cleanup() {
     spdlog::info("BreakProgressManager: Cleaned up");
 }
 
-// ============================================================================
-// 每帧更新
-// ============================================================================
-
 void BreakProgressManager::tick(f32 deltaTime, u64 currentTick) {
     m_currentTick = currentTick;
-
-    // 清理超时的远程进度
     cleanupStaleProgress(currentTick);
 }
-
-// ============================================================================
-// 本地玩家挖掘进度
-// ============================================================================
 
 void BreakProgressManager::startBreaking(const BlockPos& pos) {
     m_localBreaking = true;
@@ -60,20 +44,12 @@ void BreakProgressManager::startBreaking(const BlockPos& pos) {
 }
 
 u8 BreakProgressManager::updateLocalProgress(const BlockPos& pos, f32 progress) {
-    // 检查位置是否匹配
     if (!m_localBreaking || m_localBreakPos != pos) {
-        // 位置不匹配，可能是新的挖掘
         startBreaking(pos);
     }
 
     m_localProgress = std::clamp(progress, 0.0f, 1.0f);
 
-    // 计算破坏阶段：progress * 10 - 1
-    // progress = 0.0 -> stage = 0
-    // progress = 0.1 -> stage = 0
-    // progress = 0.2 -> stage = 1
-    // ...
-    // progress = 1.0 -> stage = 9
     u8 newStage = static_cast<u8>(std::min(9.0f, progress * 10.0f));
 
     if (newStage != m_localDamageStage) {
@@ -94,22 +70,15 @@ void BreakProgressManager::stopBreaking() {
     m_localDamageStage = 0;
 }
 
-// ============================================================================
-// 远程玩家挖掘进度
-// ============================================================================
-
 void BreakProgressManager::updateRemoteProgress(EntityId breakerId, const BlockPos& pos,
                                                  i8 stage, u64 currentTick) {
     if (stage < 0 || stage > static_cast<i8>(MAX_DAMAGE_STAGE)) {
-        // 无效阶段，移除进度
         removeRemoteProgress(breakerId);
         return;
     }
 
-    // 查找或创建进度条目
     auto it = m_remoteProgressByEntity.find(breakerId);
     if (it == m_remoteProgressByEntity.end()) {
-        // 新建进度
         BlockBreakProgress progress;
         progress.breakerId = breakerId;
         progress.position = pos;
@@ -123,10 +92,8 @@ void BreakProgressManager::updateRemoteProgress(EntityId breakerId, const BlockP
         spdlog::debug("BreakProgressManager: Created remote progress for entity {} at ({}, {}, {}), stage {}",
                       breakerId, pos.x, pos.y, pos.z, stage);
     } else {
-        // 更新现有进度
         BlockPos oldPos = it->second.position;
 
-        // 如果位置改变，需要更新位置索引
         if (oldPos != pos) {
             removeFromPositionIndex(oldPos, breakerId);
             it->second.position = pos;
@@ -157,21 +124,15 @@ void BreakProgressManager::clearRemoteProgress() {
     m_remoteProgressByPos.clear();
 }
 
-// ============================================================================
-// 查询接口
-// ============================================================================
-
 u8 BreakProgressManager::getDamageStage(const BlockPos& pos) const {
     u8 maxStage = 0;
     bool hasProgress = false;
 
-    // 检查本地进度
     if (m_localBreaking && m_localBreakPos == pos) {
         maxStage = m_localDamageStage;
         hasProgress = true;
     }
 
-    // 检查远程进度
     auto posIt = m_remoteProgressByPos.find(pos);
     if (posIt != m_remoteProgressByPos.end()) {
         for (EntityId breakerId : posIt->second) {
@@ -192,7 +153,6 @@ std::vector<const BlockBreakProgress*>
 BreakProgressManager::getProgressAtPos(const BlockPos& pos) const {
     std::vector<const BlockBreakProgress*> result;
 
-    // 检查远程进度
     auto posIt = m_remoteProgressByPos.find(pos);
     if (posIt != m_remoteProgressByPos.end()) {
         for (EntityId breakerId : posIt->second) {
@@ -210,57 +170,62 @@ std::vector<std::pair<BlockPos, u8>>
 BreakProgressManager::getVisibleProgress(const Vector3& cameraPos) const {
     std::vector<std::pair<BlockPos, u8>> result;
 
+    // 使用 unordered_map 去重同一位置的多个进度
+    std::unordered_map<BlockPos, u8> positionToStage;
+
     // 添加本地进度
     if (m_localBreaking) {
-        f32 dx = static_cast<f32>(m_localBreakPos.x) - cameraPos.x;
-        f32 dy = static_cast<f32>(m_localBreakPos.y) - cameraPos.y;
-        f32 dz = static_cast<f32>(m_localBreakPos.z) - cameraPos.z;
-        f32 distSq = dx * dx + dy * dy + dz * dz;
+        f32 distSq = math::distanceSq(
+            static_cast<f32>(m_localBreakPos.x),
+            static_cast<f32>(m_localBreakPos.y),
+            static_cast<f32>(m_localBreakPos.z),
+            cameraPos.x,
+            cameraPos.y,
+            cameraPos.z
+        );
 
         if (distSq <= MAX_RENDER_DISTANCE_SQ) {
-            result.emplace_back(m_localBreakPos, m_localDamageStage);
+            positionToStage[m_localBreakPos] = m_localDamageStage;
         }
     }
 
     // 添加远程进度
     for (const auto& [breakerId, progress] : m_remoteProgressByEntity) {
-        f32 dx = static_cast<f32>(progress.position.x) - cameraPos.x;
-        f32 dy = static_cast<f32>(progress.position.y) - cameraPos.y;
-        f32 dz = static_cast<f32>(progress.position.z) - cameraPos.z;
-        f32 distSq = dx * dx + dy * dy + dz * dz;
+        f32 distSq = math::distanceSq(
+            static_cast<f32>(progress.position.x),
+            static_cast<f32>(progress.position.y),
+            static_cast<f32>(progress.position.z),
+            cameraPos.x,
+            cameraPos.y,
+            cameraPos.z
+        );
 
         if (distSq <= MAX_RENDER_DISTANCE_SQ) {
-            // 避免重复添加同一位置（取最大阶段）
-            bool found = false;
-            for (auto& [pos, stage] : result) {
-                if (pos == progress.position) {
-                    stage = std::max(stage, progress.damageStage);
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                result.emplace_back(progress.position, progress.damageStage);
+            auto it = positionToStage.find(progress.position);
+            if (it != positionToStage.end()) {
+                it->second = std::max(it->second, progress.damageStage);
+            } else {
+                positionToStage[progress.position] = progress.damageStage;
             }
         }
+    }
+
+    // 转换为 vector 返回
+    result.reserve(positionToStage.size());
+    for (const auto& [pos, stage] : positionToStage) {
+        result.emplace_back(pos, stage);
     }
 
     return result;
 }
 
 bool BreakProgressManager::hasProgressAt(const BlockPos& pos) const {
-    // 检查本地进度
     if (m_localBreaking && m_localBreakPos == pos) {
         return true;
     }
 
-    // 检查远程进度
     return m_remoteProgressByPos.find(pos) != m_remoteProgressByPos.end();
 }
-
-// ============================================================================
-// 私有方法
-// ============================================================================
 
 void BreakProgressManager::cleanupStaleProgress(u64 currentTick) {
     std::vector<EntityId> toRemove;
@@ -279,7 +244,6 @@ void BreakProgressManager::cleanupStaleProgress(u64 currentTick) {
 void BreakProgressManager::updatePositionIndex(const BlockBreakProgress& progress) {
     auto& entityList = m_remoteProgressByPos[progress.position];
 
-    // 检查是否已存在
     for (EntityId id : entityList) {
         if (id == progress.breakerId) {
             return;
@@ -298,7 +262,6 @@ void BreakProgressManager::removeFromPositionIndex(const BlockPos& pos, EntityId
             entityList.end()
         );
 
-        // 如果列表为空，移除位置索引
         if (entityList.empty()) {
             m_remoteProgressByPos.erase(posIt);
         }

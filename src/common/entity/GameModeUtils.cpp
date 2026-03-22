@@ -4,65 +4,45 @@
 namespace mc {
 namespace entity {
 
+namespace {
+// 游戏模式能力配置表
+// 顺序: creativeMode, canFly, flying, invulnerable, allowEdit, flySpeed, walkSpeed
+struct ModeConfig {
+    bool creativeMode;
+    bool canFly;
+    bool flying;
+    bool invulnerable;
+    bool allowEdit;
+    f32 flySpeed;
+    f32 walkSpeed;
+};
+
+constexpr size_t MODE_COUNT = 4;  // Survival, Creative, Adventure, Spectator
+
+constexpr ModeConfig MODE_CONFIGS[] = {
+    {false, false, false, false, true,  0.05f, 0.1f},   // Survival (0)
+    {true,  true,  false, true,  true,  0.05f, 0.1f},   // Creative (1)
+    {false, false, false, false, false, 0.05f, 0.1f},   // Adventure (2)
+    {false, true,  true,  true,  false, 0.05f, 0.1f},   // Spectator (3)
+};
+} // namespace
+
 PlayerAbilities GameModeUtils::getAbilitiesForGameMode(GameMode mode) {
     PlayerAbilities abilities;
 
-    switch (mode) {
-        case GameMode::Survival:
-            // 生存模式：默认能力（无特殊标志）
-            abilities.creativeMode = false;
-            abilities.canFly = false;
-            abilities.flying = false;
-            abilities.invulnerable = false;
-            abilities.allowEdit = true;
-            abilities.flySpeed = 0.05f;
-            abilities.walkSpeed = 0.1f;
-            break;
-
-        case GameMode::Creative:
-            // 创造模式：无敌、可飞行、创造模式
-            abilities.creativeMode = true;
-            abilities.canFly = true;
-            abilities.flying = false;  // 飞行状态由玩家控制
-            abilities.invulnerable = true;
-            abilities.allowEdit = true;
-            abilities.flySpeed = 0.05f;
-            abilities.walkSpeed = 0.1f;
-            break;
-
-        case GameMode::Adventure:
-            // 冒险模式：无特殊能力，不能编辑方块
-            abilities.creativeMode = false;
-            abilities.canFly = false;
-            abilities.flying = false;
-            abilities.invulnerable = false;
-            abilities.allowEdit = false;  // 不能编辑方块
-            abilities.flySpeed = 0.05f;
-            abilities.walkSpeed = 0.1f;
-            break;
-
-        case GameMode::Spectator:
-            // 旁观者模式：无敌、可飞行、正在飞行
-            abilities.creativeMode = false;
-            abilities.canFly = true;
-            abilities.flying = true;  // 旁观者默认飞行
-            abilities.invulnerable = true;
-            abilities.allowEdit = false;  // 不能编辑方块
-            abilities.flySpeed = 0.05f;
-            abilities.walkSpeed = 0.1f;
-            break;
-
-        default:
-            // 未知模式：使用生存模式设置
-            abilities.creativeMode = false;
-            abilities.canFly = false;
-            abilities.flying = false;
-            abilities.invulnerable = false;
-            abilities.allowEdit = true;
-            abilities.flySpeed = 0.05f;
-            abilities.walkSpeed = 0.1f;
-            break;
+    size_t index = static_cast<size_t>(mode);
+    if (index >= MODE_COUNT) {
+        index = 0;  // 默认为 Survival
     }
+
+    const auto& config = MODE_CONFIGS[index];
+    abilities.creativeMode = config.creativeMode;
+    abilities.canFly = config.canFly;
+    abilities.flying = config.flying;
+    abilities.invulnerable = config.invulnerable;
+    abilities.allowEdit = config.allowEdit;
+    abilities.flySpeed = config.flySpeed;
+    abilities.walkSpeed = config.walkSpeed;
 
     return abilities;
 }
