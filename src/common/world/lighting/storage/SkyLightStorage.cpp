@@ -1,4 +1,5 @@
 #include "SkyLightStorage.hpp"
+#include "../engine/LightEngineUtils.hpp"
 #include <climits>
 
 namespace mc {
@@ -84,10 +85,10 @@ u8 SkyLightStorage::getLightOrDefault(i64 worldPos) const {
     // 如果在表面高度之上，返回15（全亮）
     if (surfaceHeight != m_cachedLightData.minY() && sectionY < surfaceHeight) {
         const NibbleArray* array = getArray(sectionPos, true);
+        i64 currentPos = worldPos;
 
         if (array == nullptr) {
             // 向上查找有效的区块段
-            i64 currentPos = worldPos;
             i64 currentSectionPos = sectionPos;
             i32 currentY = sectionY;
 
@@ -100,17 +101,16 @@ u8 SkyLightStorage::getLightOrDefault(i64 worldPos) const {
                 }
 
                 array = getArray(currentSectionPos, true);
-                currentPos = packPos(
-                    static_cast<i32>((currentPos >> 38) & 0xFFFFFFF),
-                    static_cast<i32>((currentPos & 0xFFF) + 16),
-                    static_cast<i32>((currentPos >> 26) & 0xFFFFFFF));
+        i32 currentX, currentBlockY, currentZ;
+        LightEngineUtils::unpackPos(currentPos, currentX, currentBlockY, currentZ);
+        currentPos = LightEngineUtils::packPos(currentX, currentBlockY + 16, currentZ);
             }
         }
 
         // 解码坐标
-        i32 x = static_cast<i32>((worldPos >> 38) & 0xF);
-        i32 y = static_cast<i32>(worldPos & 0xFFF);
-        i32 z = static_cast<i32>((worldPos >> 26) & 0xF);
+    i32 x = static_cast<i32>((currentPos >> 38) & 0xF);
+    i32 y = static_cast<i32>(currentPos & 0xFFF);
+    i32 z = static_cast<i32>((currentPos >> 12) & 0xF);
         i32 localY = y & 0xF;
 
         return array->get(x, localY, z);
@@ -130,7 +130,7 @@ u8 SkyLightStorage::getLight(i64 worldPos) const {
 
     i32 x = static_cast<i32>((worldPos >> 38) & 0xF);
     i32 y = static_cast<i32>(worldPos & 0xFFF);
-    i32 z = static_cast<i32>((worldPos >> 26) & 0xF);
+    i32 z = static_cast<i32>((worldPos >> 12) & 0xF);
     i32 localY = y & 0xF;
 
     return array->get(x, localY, z);
@@ -151,7 +151,7 @@ void SkyLightStorage::setLight(i64 worldPos, u8 light) {
 
     i32 x = static_cast<i32>((worldPos >> 38) & 0xF);
     i32 y = static_cast<i32>(worldPos & 0xFFF);
-    i32 z = static_cast<i32>((worldPos >> 26) & 0xF);
+    i32 z = static_cast<i32>((worldPos >> 12) & 0xF);
     i32 localY = y & 0xF;
 
     array->set(x, localY, z, light);

@@ -3,9 +3,11 @@
 #include "LightDataMap.hpp"
 #include "../LightType.hpp"
 #include "../IChunkLightProvider.hpp"
+#include "../engine/LightEngineUtils.hpp"
 #include "../../chunk/ChunkPos.hpp"
 #include <unordered_set>
 #include <unordered_map>
+#include <vector>
 #include <climits>
 
 namespace mc {
@@ -151,7 +153,53 @@ public:
      * @brief 处理所有级别更新
      */
     void processAllLevelUpdates() {
-        // 子类可重写
+        // 处理区块段状态变化
+        if (!m_addedActiveSections.empty()) {
+            for (i64 sectionPos : m_addedActiveSections) {
+                if (m_activeLightSections.insert(sectionPos).second) {
+                    addSection(sectionPos);
+                }
+            }
+            m_addedActiveSections.clear();
+        }
+
+        if (!m_addedEmptySections.empty()) {
+            for (i64 sectionPos : m_addedEmptySections) {
+                if (m_activeLightSections.erase(sectionPos) > 0) {
+                    removeSection(sectionPos);
+                }
+            }
+            m_addedEmptySections.clear();
+        }
+
+        // 提交待写入的光照数组到缓存数据
+        if (!m_newArrays.empty()) {
+            std::vector<i64> newSectionPositions;
+            newSectionPositions.reserve(m_newArrays.size());
+
+            for (const auto& [sectionPos, array] : m_newArrays) {
+                m_cachedLightData.setArray(sectionPos, array.copy());
+                m_dirtyCachedSections.insert(sectionPos);
+                m_changedLightPositions.insert(sectionPos);
+                newSectionPositions.push_back(sectionPos);
+            }
+
+            for (i64 sectionPos : newSectionPositions) {
+                m_newArrays.removeArray(sectionPos);
+            }
+        }
+
+        // 处理待移除的无光照区块段
+        if (!m_noLightSections.empty()) {
+            for (i64 sectionPos : m_noLightSections) {
+                m_cachedLightData.removeArray(sectionPos);
+                m_dirtyCachedSections.insert(sectionPos);
+                m_changedLightPositions.insert(sectionPos);
+            }
+            m_noLightSections.clear();
+        }
+
+        m_dirtyNewArrays.clear();
     }
 
     /**
@@ -242,10 +290,7 @@ protected:
      * @brief 世界位置转区块段位置
      */
     [[nodiscard]] static i64 worldToSectionPos(i64 worldPos) {
-        i32 x = static_cast<i32>(worldPos >> 42);
-        i32 y = static_cast<i32>((worldPos << 44) >> 44);
-        i32 z = static_cast<i32>((worldPos << 22) >> 42);
-        return SectionPos(x >> 4, y >> 4, z >> 4).toLong();
+        return LightEngineUtils::worldToSectionPos(worldPos);
     }
 
     /**

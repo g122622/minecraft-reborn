@@ -9,7 +9,7 @@ BlockLightStorage::BlockLightStorage(IChunkLightProvider* provider)
 
 u8 BlockLightStorage::getLightOrDefault(i64 worldPos) const {
     i64 sectionPos = worldToSectionPos(worldPos);
-    const NibbleArray* array = getArray(sectionPos, false);
+    const NibbleArray* array = getArray(sectionPos, true);
 
     if (array == nullptr) {
         return 0;
@@ -18,7 +18,7 @@ u8 BlockLightStorage::getLightOrDefault(i64 worldPos) const {
     // 从世界位置解码坐标
     i32 x = static_cast<i32>((worldPos >> 38) & 0xF);
     i32 y = static_cast<i32>(worldPos & 0xFFF);
-    i32 z = static_cast<i32>((worldPos >> 26) & 0xF);
+    i32 z = static_cast<i32>((worldPos >> 12) & 0xF);
 
     // Y坐标转换为区块段内坐标
     i32 localY = y & 0xF;
@@ -37,7 +37,7 @@ u8 BlockLightStorage::getLight(i64 worldPos) const {
     // 从世界位置解码坐标
     i32 x = static_cast<i32>((worldPos >> 38) & 0xF);
     i32 y = static_cast<i32>(worldPos & 0xFFF);
-    i32 z = static_cast<i32>((worldPos >> 26) & 0xF);
+    i32 z = static_cast<i32>((worldPos >> 12) & 0xF);
 
     // Y坐标转换为区块段内坐标
     i32 localY = y & 0xF;
@@ -61,7 +61,7 @@ void BlockLightStorage::setLight(i64 worldPos, u8 light) {
     // 从世界位置解码坐标
     i32 x = static_cast<i32>((worldPos >> 38) & 0xF);
     i32 y = static_cast<i32>(worldPos & 0xFFF);
-    i32 z = static_cast<i32>((worldPos >> 26) & 0xF);
+    i32 z = static_cast<i32>((worldPos >> 12) & 0xF);
 
     // Y坐标转换为区块段内坐标
     i32 localY = y & 0xF;
@@ -72,9 +72,8 @@ void BlockLightStorage::setLight(i64 worldPos, u8 light) {
     for (i32 dx = -1; dx <= 1; ++dx) {
         for (i32 dy = -1; dy <= 1; ++dy) {
             for (i32 dz = -1; dz <= 1; ++dz) {
-                i64 neighborPos = sectionPos + ((static_cast<i64>(dx) << 42) |
-                                                (static_cast<i64>(dz) << 20) |
-                                                static_cast<i64>(dy));
+                SectionPos pos = SectionPos::fromLong(sectionPos);
+                i64 neighborPos = SectionPos(pos.x + dx, pos.y + dy, pos.z + dz).toLong();
                 m_changedLightPositions.insert(neighborPos);
             }
         }

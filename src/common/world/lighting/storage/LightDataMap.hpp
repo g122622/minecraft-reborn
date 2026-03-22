@@ -92,7 +92,7 @@ public:
 
         i32 x = static_cast<i32>((worldPos >> 38) & 0xF);
         i32 y = static_cast<i32>((worldPos >> 0) & 0xFFF);
-        i32 z = static_cast<i32>((worldPos >> 26) & 0xF);
+        i32 z = static_cast<i32>((worldPos >> 12) & 0xF);
 
         // Y坐标转换为区块段内坐标
         i32 localY = y & 0xF;
@@ -115,7 +115,7 @@ public:
 
         i32 x = static_cast<i32>((worldPos >> 38) & 0xF);
         i32 y = static_cast<i32>((worldPos >> 0) & 0xFFF);
-        i32 z = static_cast<i32>((worldPos >> 26) & 0xF);
+        i32 z = static_cast<i32>((worldPos >> 12) & 0xF);
 
         // Y坐标转换为区块段内坐标
         i32 localY = y & 0xF;
