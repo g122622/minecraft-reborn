@@ -154,11 +154,25 @@ public:
     using EntitySpawnCallback = std::function<void(const std::vector<SpawnedEntityData>& entities)>;
 
     /**
+     * @brief 区块加载回调类型
+     * @param x 区块 X 坐标
+     * @param z 区块 Z 坐标
+     */
+    using ChunkLoadedCallback = std::function<void(ChunkCoord x, ChunkCoord z)>;
+
+    /**
      * @brief 设置实体生成回调
      *
      * 当没有 ServerWorld 时（如 IntegratedServer），通过此回调通知实体生成。
      */
     void setEntitySpawnCallback(EntitySpawnCallback callback) { m_entitySpawnCallback = std::move(callback); }
+
+    /**
+     * @brief 设置区块加载回调
+     *
+     * 当区块完成加载/生成后调用，用于初始化光照等系统。
+     */
+    void setChunkLoadedCallback(ChunkLoadedCallback callback) { m_chunkLoadedCallback = std::move(callback); }
 
     /**
      * @brief 获取区块 Future
@@ -340,6 +354,7 @@ private:
     ServerWorld* m_world = nullptr;  // 可选，IntegratedServer 不需要
     std::unique_ptr<IChunkGenerator> m_generator;
     EntitySpawnCallback m_entitySpawnCallback;  // 实体生成回调（用于 IntegratedServer）
+    ChunkLoadedCallback m_chunkLoadedCallback;  // 区块加载回调（用于光照初始化等）
 
     // 区块持有者
     std::unordered_map<u64, std::unique_ptr<ChunkHolder>> m_holders;

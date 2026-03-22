@@ -110,6 +110,8 @@ add_executable(mc_tests
     client/renderer/AmbientOcclusionCalculatorTest.cpp
     # NaturalSpawner 测试
     server/world/spawn/NaturalSpawnerTest.cpp
+    # 光照同步测试
+    server/LightSyncTests.cpp
     # Kagero UI模板系统测试
     ui/kagero/template/template_test.cpp
     # Kagero UI布局系统测试

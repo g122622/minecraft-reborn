@@ -25,6 +25,9 @@ using mc::IChunk;
 using mc::IChunkLightProvider;
 using mc::LightType;
 using mc::SectionPos;
+using mc::ChunkPos;
+using mc::ChunkSection;
+using mc::NibbleArray;
 
 // ============================================================================
 // ServerWorld 实现
@@ -74,6 +77,11 @@ Result<void> ServerWorld::initialize() {
         );
         m_chunkManager = std::make_unique<ServerChunkManager>(*this, std::move(generator));
     }
+
+    // 设置区块加载回调（用于初始化光照引擎）
+    m_chunkManager->setChunkLoadedCallback([this](ChunkCoord x, ChunkCoord z) {
+        initializeChunkLighting(x, z);
+    });
 
     auto result = m_chunkManager->initialize();
     if (result.failed()) {
@@ -609,6 +617,48 @@ void ServerWorld::checkChunkUnloading() {
     // 区块卸载现在由 ServerChunkManager 处理
 }
 
+void ServerWorld::initializeChunkLighting(ChunkCoord chunkX, ChunkCoord chunkZ) {
+    if (!m_lightManager) {
+        return;
+    }
+
+    // 获取区块数据
+    const ChunkData* chunk = getChunk(chunkX, chunkZ);
+    if (!chunk) {
+        return;
+    }
+
+    ChunkPos chunkPos(chunkX, chunkZ);
+
+    // 为每个区块段初始化光照数据
+    for (i32 sectionY = 0; sectionY < world::CHUNK_SECTIONS; ++sectionY) {
+        const ChunkSection* section = chunk->getSection(sectionY);
+        SectionPos sectionPos(chunkX, sectionY, chunkZ);
+
+        // 告诉光照引擎该区块段的状态（是否为空）
+        bool isEmpty = (section == nullptr || section->isEmpty());
+        m_lightManager->updateSectionStatus(sectionPos, isEmpty);
+
+        // 如果区块段有数据，将光照数据同步到光照引擎
+        if (section != nullptr) {
+            // 同步天空光照
+            if (m_lightManager->getSkyLightEngine()) {
+                NibbleArray skyLightCopy = section->skyLightNibble().copy();
+                m_lightManager->setData(LightType::SKY, sectionPos, &skyLightCopy, false);
+            }
+
+            // 同步方块光照
+            if (m_lightManager->getBlockLightEngine()) {
+                NibbleArray blockLightCopy = section->blockLightNibble().copy();
+                m_lightManager->setData(LightType::BLOCK, sectionPos, &blockLightCopy, false);
+            }
+        }
+    }
+
+    // 启用该区块列的光源
+    m_lightManager->enableLightSources(chunkPos, true);
+}
+
 size_t ServerWorld::chunkCount() const {
     if (m_chunkManager) {
         return m_chunkManager->holderCount();
@@ -1071,6 +1121,11 @@ void ServerWorld::markLightChanged(LightType type, const SectionPos& pos) {
         chunk->setDirty(true);
     }
 
+    // 从光照引擎同步光照数据到 ChunkSection
+    // 这是关键步骤：光照引擎计算的数据存储在其内部 storage 中，
+    // 需要将数据同步到 ChunkSection 才能正确广播给客户端
+    syncLightDataToChunk(type, pos);
+
     // 发送光照更新包给客户端
     broadcastLightUpdate(type, pos);
 }
@@ -1154,6 +1209,68 @@ void ServerWorld::broadcastLightUpdate(LightType type, const SectionPos& pos) {
     spdlog::debug("Broadcast light update: chunk({}, {}), section {}, type {}",
                   chunkX, chunkZ, sectionY,
                   type == LightType::SKY ? "sky" : "block");
+}
+
+void ServerWorld::syncLightDataToChunk(LightType type, const SectionPos& pos) {
+    if (!m_lightManager) {
+        return;
+    }
+
+    // 获取区块数据
+    ChunkData* chunk = getChunk(pos.x, pos.z);
+    if (!chunk) {
+        return;
+    }
+
+    // 获取区块段索引
+    i32 sectionIndex = pos.y;
+    if (sectionIndex < 0 || sectionIndex >= world::CHUNK_SECTIONS) {
+        return;
+    }
+
+    // 获取或创建区块段
+    ChunkSection* section = chunk->getSection(sectionIndex);
+    if (!section) {
+        // 如果没有区块段，需要创建一个
+        section = chunk->createSection(sectionIndex);
+        if (!section) {
+            return;
+        }
+    }
+
+    // 从光照引擎获取光照数据
+    NibbleArray* lightArray = m_lightManager->getData(type, pos);
+    if (!lightArray) {
+        // 光照引擎没有该段的数据，使用默认值
+        if (type == LightType::SKY) {
+            // 天空光照默认为 15（全亮）
+            section->fillSkyLight(15);
+        } else {
+            // 方块光照默认为 0（无光）
+            section->fillBlockLight(0);
+        }
+        return;
+    }
+
+    // 复制光照数据到 ChunkSection
+    const auto& data = lightArray->data();
+    if (type == LightType::SKY) {
+        NibbleArray& skyLight = section->skyLightNibble();
+        if (skyLight.data().size() == data.size()) {
+            std::memcpy(skyLight.data().data(), data.data(), data.size());
+        } else {
+            // 尺寸不匹配，重新设置
+            section->skyLightNibble() = lightArray->copy();
+        }
+    } else {
+        NibbleArray& blockLight = section->blockLightNibble();
+        if (blockLight.data().size() == data.size()) {
+            std::memcpy(blockLight.data().data(), data.data(), data.size());
+        } else {
+            // 尺寸不匹配，重新设置
+            section->blockLightNibble() = lightArray->copy();
+        }
+    }
 }
 
 bool ServerWorld::hasSkyLight() const {

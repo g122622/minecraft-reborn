@@ -214,6 +214,17 @@ public:
      */
     void clearCollisionCache();
 
+    /**
+     * @brief 初始化区块的光照引擎数据
+     *
+     * 当新区块加载或生成后调用，将 ChunkSection 中的光照数据
+     * 同步到光照引擎，并通知引擎区块段的状态。
+     *
+     * @param chunkX 区块X坐标
+     * @param chunkZ 区块Z坐标
+     */
+    void initializeChunkLighting(ChunkCoord chunkX, ChunkCoord chunkZ);
+
     // ========== ICollisionWorld 接口实现 ==========
 
     [[nodiscard]] const ChunkData* getChunkAt(ChunkCoord x, ChunkCoord z) const override {
@@ -342,6 +353,18 @@ private:
     void broadcastBlockUpdate(i32 x, i32 y, i32 z, u32 blockStateId);
     void broadcastTimeUpdate();  // 广播时间更新
     void broadcastLightUpdate(LightType type, const SectionPos& pos);  // 广播光照更新
+
+    /**
+     * @brief 从光照引擎同步光照数据到 ChunkSection
+     *
+     * 光照引擎计算的光照数据存储在其内部 storage 中，
+     * 此方法将数据复制到 ChunkSection 的 NibbleArray 中，
+     * 以便在序列化和广播时使用正确的光照值。
+     *
+     * @param type 光照类型
+     * @param pos 区块段位置
+     */
+    void syncLightDataToChunk(LightType type, const SectionPos& pos);
 
     // 卸载检查
     void checkChunkUnloading();

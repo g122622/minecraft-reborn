@@ -692,6 +692,11 @@ ChunkData* ServerChunkManager::storeGeneratedChunk(ChunkCoord x, ChunkCoord z, s
         holder->setStatus(ChunkStatus::FULL);
     }
 
+    // 调用区块加载回调（用于光照初始化等）
+    if (m_chunkLoadedCallback && stored) {
+        m_chunkLoadedCallback(x, z);
+    }
+
     return stored;
 }
 
