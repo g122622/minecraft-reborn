@@ -4,6 +4,7 @@
 #include "../math/Vector3.hpp"
 #include "../world/block/Block.hpp"
 #include "../world/chunk/ChunkData.hpp"
+#include "PhysicsConstants.hpp"
 #include <vector>
 
 namespace mc {
@@ -66,11 +67,7 @@ public:
  * 2. 调用moveEntity()处理带碰撞的移动
  * 3. 使用isOnGround()检测是否在地面
  *
- * 物理常量（来自Minecraft）：
- * - GRAVITY = 0.08 blocks/tick²
- * - JUMP_VELOCITY = 0.42 blocks/tick
- * - DRAG = 0.98（空气阻力）
- * - STEP_HEIGHT = 0.6（玩家步进高度）
+ * 需要注意物理常量定义在 PhysicsConstants.hpp 中。
  *
  * 参考MC源码：
  * - Entity.move() - 核心移动逻辑
@@ -79,14 +76,6 @@ public:
  */
 class PhysicsEngine {
 public:
-    // MC物理常量
-    static constexpr f32 GRAVITY = 0.055f;           // blocks/tick²（调低，提升滞空体验）
-    static constexpr f32 JUMP_VELOCITY = 0.48f;      // blocks/tick（调高，提升单次跳跃高度）
-    static constexpr f32 DRAG = 0.98f;               // 空气阻力
-    static constexpr f32 STEP_HEIGHT = 0.6f;         // 最大步进高度
-    static constexpr f32 PLAYER_WIDTH = 0.6f;        // 玩家宽度
-    static constexpr f32 PLAYER_HEIGHT = 1.8f;       // 玩家高度
-
     explicit PhysicsEngine(ICollisionWorld& world);
 
     /**

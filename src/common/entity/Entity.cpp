@@ -1,6 +1,7 @@
 #include "Entity.hpp"
 #include "../world/IWorld.hpp"
 #include "../physics/PhysicsEngine.hpp"
+#include "../physics/PhysicsConstants.hpp"
 #include "../math/random/Random.hpp"
 #include "../math/MathUtils.hpp"
 #include "../world/block/Block.hpp"
@@ -275,13 +276,13 @@ void Entity::applyPhysics(f32 deltaTime) {
     if (!m_onGround) {
         // 重力加速度（MC使用固定值，与deltaTime无关）
         // 但这里我们使用deltaTime来平滑
-        m_velocity.y -= PhysicsEngine::GRAVITY;
+        m_velocity.y -= physics::GRAVITY;
     }
 
     // 应用空气阻力
-    m_velocity.x *= PhysicsEngine::DRAG;
-    m_velocity.y *= PhysicsEngine::DRAG;
-    m_velocity.z *= PhysicsEngine::DRAG;
+    m_velocity.x *= physics::DRAG_AIR;
+    m_velocity.y *= physics::DRAG_AIR;
+    m_velocity.z *= physics::DRAG_AIR;
 
     // 如果在地面，停止Y方向速度
     if (m_onGround && m_velocity.y < 0.0f) {

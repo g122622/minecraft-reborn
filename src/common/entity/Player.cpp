@@ -1,5 +1,6 @@
 #include "Player.hpp"
 #include "../physics/PhysicsEngine.hpp"
+#include "../physics/PhysicsConstants.hpp"
 #include "../math/random/Random.hpp"
 #include "../item/BlockItemRegistry.hpp"
 #include "../item/ItemRegistry.hpp"
@@ -288,7 +289,7 @@ void Player::handleMovementInput(f32 forward, f32 strafe, bool jumping, bool sne
 
 void Player::jump() {
     if (m_onGround && m_jumpTicks == 0) {
-        m_velocity.y = PhysicsEngine::JUMP_VELOCITY;
+        m_velocity.y = physics::JUMP_VELOCITY;
         m_onGround = false;
         m_jumpTicks = JUMP_COOLDOWN; // 设置跳跃冷却
     }
@@ -376,15 +377,15 @@ void Player::updatePhysics() {
     // 2. 应用重力
     if (!m_abilities.flying) {
         if (!m_onGround) {
-            m_velocity.y -= PhysicsEngine::GRAVITY;
+            m_velocity.y -= physics::GRAVITY;
         }
     }
 
     // 3. 应用阻力（MC: moveStrafing *= 0.98F, moveForward *= 0.98F）
     // 注意：阻力在移动前应用，而不是在移动后
-    m_velocity.x *= PhysicsEngine::DRAG;
-    m_velocity.y *= PhysicsEngine::DRAG;
-    m_velocity.z *= PhysicsEngine::DRAG;
+    m_velocity.x *= physics::DRAG_AIR;
+    m_velocity.y *= physics::DRAG_AIR;
+    m_velocity.z *= physics::DRAG_AIR;
 
     // 4. 如果在地面，停止Y方向速度（防止下落速度累积）
     if (m_onGround && m_velocity.y < 0.0f) {

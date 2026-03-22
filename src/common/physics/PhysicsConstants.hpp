@@ -10,7 +10,7 @@ namespace physics {
 // ============================================================================
 
 /// 标准 MC 重力加速度 (blocks/tick²)
-constexpr f32 GRAVITY = 0.08f;
+constexpr f32 GRAVITY = 0.02f;
 
 /// 空气阻力系数 (每 tick)
 constexpr f32 DRAG_AIR = 0.98f;
