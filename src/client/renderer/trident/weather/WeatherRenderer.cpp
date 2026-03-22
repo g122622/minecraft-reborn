@@ -289,7 +289,7 @@ void WeatherRenderer::render(VkCommandBuffer cmd,
         return;
     }
 
-    MC_TRACE_EVENT_BEGIN("rendering", "WeatherRenderer::render");
+    MC_TRACE_EVENT_BEGIN("rendering.weather", "WeatherRenderer::render");
 
     m_cameraPos = cameraPos;
     m_currentProjection = projection;
@@ -302,7 +302,7 @@ void WeatherRenderer::render(VkCommandBuffer cmd,
     generateWeatherGeometry();
 
     if (m_rainVertexCount == 0 && m_snowVertexCount == 0) {
-        MC_TRACE_EVENT_END("rendering");
+        MC_TRACE_EVENT_END("rendering.weather");
         return;
     }
 
@@ -353,7 +353,7 @@ void WeatherRenderer::render(VkCommandBuffer cmd,
         vkCmdDraw(cmd, m_snowVertexCount, 1, 0, 0);
     }
 
-    MC_TRACE_EVENT_END("rendering");
+    MC_TRACE_EVENT_END("rendering.weather");
 }
 
 void WeatherRenderer::generateWeatherGeometry() {

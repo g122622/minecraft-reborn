@@ -202,14 +202,14 @@ void ServerChunkManager::startWorkers(i32 count)
                     // 第一阶段：所有区块生成到 CARVERS
                     // 第二阶段：批量执行 FEATURES
                     m_generator->placeFeatures(region, chunk);
+                } else if (status == ChunkStatus::HEIGHTMAPS) {
+                    MC_TRACE_EVENT("world.chunk_gen", "Heightmaps");
+                    chunk.updateAllHeightmaps();
                 } else if (status == ChunkStatus::LIGHT) {
-                    MC_TRACE_EVENT("world.chunk_gen", "Lighting", "x", chunk.x(), "z", chunk.z());
+                    MC_TRACE_EVENT("world.chunk_gen", "Lighting");
                     // 光照初始化
                     chunk.initializeSkyLight();
                     chunk.initializeBlockLight();
-                } else if (status == ChunkStatus::HEIGHTMAPS) {
-                    MC_TRACE_EVENT("world.chunk_gen", "Heightmaps", "x", chunk.x(), "z", chunk.z());
-                    chunk.updateAllHeightmaps();
                 }
 
                 chunk.setChunkStatus(status);
@@ -220,7 +220,8 @@ void ServerChunkManager::startWorkers(i32 count)
         // 参考 MC 1.16.5 performWorldGenSpawning
         // 注意：这里我们已经在 FEATURES 阶段之后，地形已经完整生成
         if (chunk.hasCompletedStatus(ChunkStatus::FEATURES)) {
-            MC_TRACE_EVENT("world.chunk_gen", "SpawnInitialMobsWrapper", "x", chunk.x(), "z", chunk.z());
+            // TODO 下面代码会导致MSVC编译器死循环，暂时注释掉，后续解决
+            // MC_TRACE_EVENT("world.chunk_gen", "SpawnInitialMobsWrapper");
             std::vector<SpawnedEntityData> entities;
             m_generator->spawnInitialMobs(region, chunk, entities);
 

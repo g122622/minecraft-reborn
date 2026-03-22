@@ -55,6 +55,10 @@ PERFETTO_DEFINE_CATEGORIES(
         .SetDescription("推送常量更新"),
     perfetto::Category("rendering.command_buffer")
         .SetDescription("命令缓冲区操作"),
+    perfetto::Category("rendering.weather")
+        .SetDescription("天气渲染（雨、雪）"),
+    perfetto::Category("rendering.cloud")
+        .SetDescription("云层渲染"),
 
     // === 游戏逻辑分类 ===
     perfetto::Category("game.tick")

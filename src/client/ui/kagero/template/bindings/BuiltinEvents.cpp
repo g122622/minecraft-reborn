@@ -399,7 +399,7 @@ i32 parseKeyCode(const String& keyName) {
 
     // 单字符键
     if (keyName.size() == 1) {
-        char c = std::toupper(keyName[0]);
+        char c = static_cast<char>(std::toupper(static_cast<unsigned char>(keyName[0])));
         if (c >= 'A' && c <= 'Z') {
             return static_cast<i32>(c);
         }

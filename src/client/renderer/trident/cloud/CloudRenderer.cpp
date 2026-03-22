@@ -223,7 +223,7 @@ Result<void> CloudRenderer::initialize(
         return Result<void>::ok();
     }
 
-    MC_TRACE_EVENT("render", "CloudRenderer::initialize");
+    MC_TRACE_EVENT("rendering.cloud", "CloudRenderer::initialize");
 
     m_device = device;
     m_physicalDevice = physicalDevice;
@@ -446,7 +446,7 @@ void CloudRenderer::render(VkCommandBuffer cmd,
         return;
     }
 
-    MC_TRACE_EVENT("render", "CloudRenderer::render");
+    MC_TRACE_EVENT("rendering.cloud", "CloudRenderer::render");
 
     m_cameraPos = cameraPos;
 
