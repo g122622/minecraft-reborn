@@ -1,6 +1,12 @@
 #include "Items.hpp"
 
 #include "BlockItem.hpp"
+#include "tier/ItemTiers.hpp"
+#include "tool/PickaxeItem.hpp"
+#include "tool/AxeItem.hpp"
+#include "tool/ShovelItem.hpp"
+#include "tool/HoeItem.hpp"
+#include "tool/SwordItem.hpp"
 #include "../world/block/VanillaBlocks.hpp"
 
 namespace {
@@ -245,10 +251,14 @@ void Items::initialize() {
     );
 
     registerMaterials();
+    registerMisc();  // 提前注册，因为工具层级需要木板等作为修复材料
+
+    // 初始化工具层级（需要在材料物品注册后）
+    item::tier::ItemTiers::initialize();
+
     registerTools();
     registerArmor();
     registerFood();
-    registerMisc();
     registerDyes();
     registerSeeds();
     registerCrops();
@@ -375,134 +385,219 @@ void Items::registerMaterials() {
 void Items::registerTools() {
     auto& registry = ItemRegistry::instance();
 
+    // ========================================================================
     // 钻石工具
-    DIAMOND_PICKAXE = &registry.registerItem(
+    // ========================================================================
+    DIAMOND_PICKAXE = &registry.registerItem<item::tool::PickaxeItem>(
         ResourceLocation("minecraft:diamond_pickaxe"),
-        ItemProperties().maxDamage(1561).rarity(ItemRarity::Common)
+        item::tier::ItemTiers::DIAMOND(),  // tier
+        1,      // attackDamage
+        -2.8f,  // attackSpeed
+        ItemProperties().rarity(ItemRarity::Common)
     );
 
-    DIAMOND_AXE = &registry.registerItem(
+    DIAMOND_AXE = &registry.registerItem<item::tool::AxeItem>(
         ResourceLocation("minecraft:diamond_axe"),
-        ItemProperties().maxDamage(1561).rarity(ItemRarity::Common)
+        item::tier::ItemTiers::DIAMOND(),  // tier
+        5.0f,   // attackDamage
+        -3.0f,  // attackSpeed
+        ItemProperties().rarity(ItemRarity::Common)
     );
 
-    DIAMOND_SHOVEL = &registry.registerItem(
+    DIAMOND_SHOVEL = &registry.registerItem<item::tool::ShovelItem>(
         ResourceLocation("minecraft:diamond_shovel"),
-        ItemProperties().maxDamage(1561).rarity(ItemRarity::Common)
+        item::tier::ItemTiers::DIAMOND(),  // tier
+        1.5f,   // attackDamage
+        -3.0f,  // attackSpeed
+        ItemProperties().rarity(ItemRarity::Common)
     );
 
-    DIAMOND_HOE = &registry.registerItem(
+    DIAMOND_HOE = &registry.registerItem<item::tool::HoeItem>(
         ResourceLocation("minecraft:diamond_hoe"),
-        ItemProperties().maxDamage(1561).rarity(ItemRarity::Common)
+        item::tier::ItemTiers::DIAMOND(),  // tier
+        0,      // attackDamage
+        -2.0f,  // attackSpeed
+        ItemProperties().rarity(ItemRarity::Common)
     );
 
-    DIAMOND_SWORD = &registry.registerItem(
+    DIAMOND_SWORD = &registry.registerItem<item::tool::SwordItem>(
         ResourceLocation("minecraft:diamond_sword"),
-        ItemProperties().maxDamage(1561).rarity(ItemRarity::Common)
+        item::tier::ItemTiers::DIAMOND(),  // tier
+        3,      // attackDamage
+        -2.4f,  // attackSpeed
+        ItemProperties().rarity(ItemRarity::Common)
     );
 
+    // ========================================================================
     // 铁工具
-    IRON_PICKAXE = &registry.registerItem(
+    // ========================================================================
+    IRON_PICKAXE = &registry.registerItem<item::tool::PickaxeItem>(
         ResourceLocation("minecraft:iron_pickaxe"),
-        ItemProperties().maxDamage(250)
+        item::tier::ItemTiers::IRON(),  // tier
+        1,      // attackDamage
+        -2.8f,  // attackSpeed
+        ItemProperties()
     );
 
-    IRON_AXE = &registry.registerItem(
+    IRON_AXE = &registry.registerItem<item::tool::AxeItem>(
         ResourceLocation("minecraft:iron_axe"),
-        ItemProperties().maxDamage(250)
+        item::tier::ItemTiers::IRON(),  // tier
+        4.0f,   // attackDamage
+        -3.0f,  // attackSpeed
+        ItemProperties()
     );
 
-    IRON_SHOVEL = &registry.registerItem(
+    IRON_SHOVEL = &registry.registerItem<item::tool::ShovelItem>(
         ResourceLocation("minecraft:iron_shovel"),
-        ItemProperties().maxDamage(250)
+        item::tier::ItemTiers::IRON(),  // tier
+        1.5f,   // attackDamage
+        -3.0f,  // attackSpeed
+        ItemProperties()
     );
 
-    IRON_HOE = &registry.registerItem(
+    IRON_HOE = &registry.registerItem<item::tool::HoeItem>(
         ResourceLocation("minecraft:iron_hoe"),
-        ItemProperties().maxDamage(250)
+        item::tier::ItemTiers::IRON(),  // tier
+        0,      // attackDamage
+        -2.0f,  // attackSpeed
+        ItemProperties()
     );
 
-    IRON_SWORD = &registry.registerItem(
+    IRON_SWORD = &registry.registerItem<item::tool::SwordItem>(
         ResourceLocation("minecraft:iron_sword"),
-        ItemProperties().maxDamage(250)
+        item::tier::ItemTiers::IRON(),  // tier
+        3,      // attackDamage
+        -2.4f,  // attackSpeed
+        ItemProperties()
     );
 
+    // ========================================================================
     // 石工具
-    STONE_PICKAXE = &registry.registerItem(
+    // ========================================================================
+    STONE_PICKAXE = &registry.registerItem<item::tool::PickaxeItem>(
         ResourceLocation("minecraft:stone_pickaxe"),
-        ItemProperties().maxDamage(131)
+        item::tier::ItemTiers::STONE(),  // tier
+        1,      // attackDamage
+        -2.8f,  // attackSpeed
+        ItemProperties()
     );
 
-    STONE_AXE = &registry.registerItem(
+    STONE_AXE = &registry.registerItem<item::tool::AxeItem>(
         ResourceLocation("minecraft:stone_axe"),
-        ItemProperties().maxDamage(131)
+        item::tier::ItemTiers::STONE(),  // tier
+        4.0f,   // attackDamage
+        -3.0f,  // attackSpeed
+        ItemProperties()
     );
 
-    STONE_SHOVEL = &registry.registerItem(
+    STONE_SHOVEL = &registry.registerItem<item::tool::ShovelItem>(
         ResourceLocation("minecraft:stone_shovel"),
-        ItemProperties().maxDamage(131)
+        item::tier::ItemTiers::STONE(),  // tier
+        1.5f,   // attackDamage
+        -3.0f,  // attackSpeed
+        ItemProperties()
     );
 
-    STONE_HOE = &registry.registerItem(
+    STONE_HOE = &registry.registerItem<item::tool::HoeItem>(
         ResourceLocation("minecraft:stone_hoe"),
-        ItemProperties().maxDamage(131)
+        item::tier::ItemTiers::STONE(),  // tier
+        0,      // attackDamage
+        -2.0f,  // attackSpeed
+        ItemProperties()
     );
 
-    STONE_SWORD = &registry.registerItem(
+    STONE_SWORD = &registry.registerItem<item::tool::SwordItem>(
         ResourceLocation("minecraft:stone_sword"),
-        ItemProperties().maxDamage(131)
+        item::tier::ItemTiers::STONE(),  // tier
+        3,      // attackDamage
+        -2.4f,  // attackSpeed
+        ItemProperties()
     );
 
+    // ========================================================================
     // 木工具
-    WOODEN_PICKAXE = &registry.registerItem(
+    // ========================================================================
+    WOODEN_PICKAXE = &registry.registerItem<item::tool::PickaxeItem>(
         ResourceLocation("minecraft:wooden_pickaxe"),
-        ItemProperties().maxDamage(59)
+        item::tier::ItemTiers::WOOD(),  // tier
+        1,      // attackDamage
+        -2.8f,  // attackSpeed
+        ItemProperties()
     );
 
-    WOODEN_AXE = &registry.registerItem(
+    WOODEN_AXE = &registry.registerItem<item::tool::AxeItem>(
         ResourceLocation("minecraft:wooden_axe"),
-        ItemProperties().maxDamage(59)
+        item::tier::ItemTiers::WOOD(),  // tier
+        3.0f,   // attackDamage
+        -3.0f,  // attackSpeed
+        ItemProperties()
     );
 
-    WOODEN_SHOVEL = &registry.registerItem(
+    WOODEN_SHOVEL = &registry.registerItem<item::tool::ShovelItem>(
         ResourceLocation("minecraft:wooden_shovel"),
-        ItemProperties().maxDamage(59)
+        item::tier::ItemTiers::WOOD(),  // tier
+        1.0f,   // attackDamage
+        -3.0f,  // attackSpeed
+        ItemProperties()
     );
 
-    WOODEN_HOE = &registry.registerItem(
+    WOODEN_HOE = &registry.registerItem<item::tool::HoeItem>(
         ResourceLocation("minecraft:wooden_hoe"),
-        ItemProperties().maxDamage(59)
+        item::tier::ItemTiers::WOOD(),  // tier
+        0,      // attackDamage
+        -2.0f,  // attackSpeed
+        ItemProperties()
     );
 
-    WOODEN_SWORD = &registry.registerItem(
+    WOODEN_SWORD = &registry.registerItem<item::tool::SwordItem>(
         ResourceLocation("minecraft:wooden_sword"),
-        ItemProperties().maxDamage(59)
+        item::tier::ItemTiers::WOOD(),  // tier
+        3,      // attackDamage
+        -2.4f,  // attackSpeed
+        ItemProperties()
     );
 
+    // ========================================================================
     // 金工具
-    GOLDEN_PICKAXE = &registry.registerItem(
+    // ========================================================================
+    GOLDEN_PICKAXE = &registry.registerItem<item::tool::PickaxeItem>(
         ResourceLocation("minecraft:golden_pickaxe"),
-        ItemProperties().maxDamage(32)
+        item::tier::ItemTiers::GOLD(),  // tier
+        1,      // attackDamage
+        -2.8f,  // attackSpeed
+        ItemProperties()
     );
 
-    GOLDEN_AXE = &registry.registerItem(
+    GOLDEN_AXE = &registry.registerItem<item::tool::AxeItem>(
         ResourceLocation("minecraft:golden_axe"),
-        ItemProperties().maxDamage(32)
+        item::tier::ItemTiers::GOLD(),  // tier
+        3.0f,   // attackDamage
+        -3.0f,  // attackSpeed
+        ItemProperties()
     );
 
-    GOLDEN_SHOVEL = &registry.registerItem(
+    GOLDEN_SHOVEL = &registry.registerItem<item::tool::ShovelItem>(
         ResourceLocation("minecraft:golden_shovel"),
-        ItemProperties().maxDamage(32)
+        item::tier::ItemTiers::GOLD(),  // tier
+        1.0f,   // attackDamage
+        -3.0f,  // attackSpeed
+        ItemProperties()
     );
 
-    GOLDEN_HOE = &registry.registerItem(
+    GOLDEN_HOE = &registry.registerItem<item::tool::HoeItem>(
         ResourceLocation("minecraft:golden_hoe"),
-        ItemProperties().maxDamage(32)
+        item::tier::ItemTiers::GOLD(),  // tier
+        0,      // attackDamage
+        -2.0f,  // attackSpeed
+        ItemProperties()
     );
 
-    GOLDEN_SWORD = &registry.registerItem(
+    GOLDEN_SWORD = &registry.registerItem<item::tool::SwordItem>(
         ResourceLocation("minecraft:golden_sword"),
-        ItemProperties().maxDamage(32)
+        item::tier::ItemTiers::GOLD(),  // tier
+        3,      // attackDamage
+        -2.4f,  // attackSpeed
+        ItemProperties()
     );
 }
 

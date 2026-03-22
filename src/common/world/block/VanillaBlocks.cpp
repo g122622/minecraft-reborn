@@ -1,4 +1,5 @@
 #include "VanillaBlocks.hpp"
+#include "HarvestTool.hpp"
 #include "blocks/LiquidBlock.hpp"
 #include "../fluid/FluidRegistry.hpp"
 #include "../fluid/fluids/WaterFluid.hpp"
@@ -331,7 +332,12 @@ void VanillaBlocks::registerBaseBlocks() {
     // 参考: new Block(Properties.create(Material.ROCK).setRequiresTool().hardnessAndResistance(1.5F, 6.0F))
     STONE = &registry.registerBlock<SimpleBlock>(
         ResourceLocation("minecraft:stone"),
-        BlockProperties(Material::ROCK).hardness(1.5f).resistance(6.0f)
+        BlockProperties(Material::ROCK)
+            .hardness(1.5f)
+            .resistance(6.0f)
+            .harvestTool(HarvestTool::Pickaxe)
+            .harvestLevel(0)
+            .requiresTool()
     );
 
     // 草方块 - ID 2
@@ -498,7 +504,12 @@ void VanillaBlocks::registerOreBlocks() {
     // 钻石矿石 - ID 14
     DIAMOND_ORE = &registry.registerBlock<SimpleBlock>(
         ResourceLocation("minecraft:diamond_ore"),
-        BlockProperties(Material::ROCK).hardness(3.0f).resistance(3.0f)
+        BlockProperties(Material::ROCK)
+            .hardness(3.0f)
+            .resistance(3.0f)
+            .harvestTool(HarvestTool::Pickaxe)
+            .harvestLevel(2)  // 需要铁镐及以上
+            .requiresTool()
     );
 
     // 钻石块 - ID 15

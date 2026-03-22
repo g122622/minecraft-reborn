@@ -288,6 +288,56 @@ namespace {
             .replaceable()
             .build();
     }
+
+    Material makeAnvilMaterial() {
+        return MaterialBuilder()
+            .solid()
+            .opaque()
+            .pushReaction(Material::PushReaction::Block)
+            .build();
+    }
+
+    Material makeGourdMaterial() {
+        return MaterialBuilder()
+            .solid()
+            .opaque()
+            .pushReaction(Material::PushReaction::Destroy)
+            .build();
+    }
+
+    Material makeTallPlantsMaterial() {
+        return MaterialBuilder()
+            .solid(false)
+            .flammable()
+            .replaceable()
+            .blocksMovement(false)
+            .build();
+    }
+
+    Material makeBambooMaterial() {
+        return MaterialBuilder()
+            .solid(false)
+            .flammable()
+            .blocksMovement()
+            .pushReaction(Material::PushReaction::Destroy)
+            .build();
+    }
+
+    Material makeNetherWoodMaterial() {
+        return MaterialBuilder()
+            .solid()
+            .flammable(false)
+            .opaque()
+            .build();
+    }
+
+    Material makeMossMaterial() {
+        return MaterialBuilder()
+            .solid(false)
+            .replaceable()
+            .opaque(false)
+            .build();
+    }
 }
 
 // 静态常量定义
@@ -428,6 +478,40 @@ const Material& Material::SEA_GRASS = []() -> const Material& {
 
 const Material& Material::FIRE = []() -> const Material& {
     static Material material = makeFireMaterial();
+    return material;
+}();
+
+// ============================================================================
+// 工具系统相关材质
+// ============================================================================
+
+const Material& Material::ANVIL = []() -> const Material& {
+    static Material material = makeAnvilMaterial();
+    return material;
+}();
+
+const Material& Material::GOURD = []() -> const Material& {
+    static Material material = makeGourdMaterial();
+    return material;
+}();
+
+const Material& Material::TALL_PLANTS = []() -> const Material& {
+    static Material material = makeTallPlantsMaterial();
+    return material;
+}();
+
+const Material& Material::BAMBOO = []() -> const Material& {
+    static Material material = makeBambooMaterial();
+    return material;
+}();
+
+const Material& Material::NETHER_WOOD = []() -> const Material& {
+    static Material material = makeNetherWoodMaterial();
+    return material;
+}();
+
+const Material& Material::MOSS = []() -> const Material& {
+    static Material material = makeMossMaterial();
     return material;
 }();
 

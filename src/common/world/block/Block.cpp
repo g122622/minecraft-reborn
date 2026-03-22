@@ -58,6 +58,8 @@ void BlockState::cacheProperties() {
     m_hardness = m_owner->hardness();
     m_resistance = m_owner->resistance();
     m_blockId = m_owner->blockId();
+    m_harvestTool = m_owner->harvestTool();
+    m_harvestLevel = m_owner->harvestLevel();
 }
 
 bool BlockState::isAir() const {
@@ -129,12 +131,33 @@ String BlockState::ownerName() const {
     return m_owner->toString();
 }
 
+u8 BlockState::getHarvestTool() const {
+    return m_harvestTool;
+}
+
+i32 BlockState::getHarvestLevel() const {
+    return m_harvestLevel;
+}
+
+bool BlockState::isToolEffective(u8 toolType, i32 harvestLevel) const {
+    // 检查工具类型是否匹配
+    if (m_harvestTool != toolType) {
+        return false;
+    }
+    // 检查工具等级是否足够
+    return harvestLevel >= m_harvestLevel;
+}
+
+bool BlockState::requiresTool() const {
+    return m_owner->requiresTool();
+}
+
 // ============================================================================
 // BlockProperties
 // ============================================================================
 
 BlockProperties::BlockProperties(const Material& material)
-    : m_material(material)
+    : m_material(&material)
     , m_hardness(0.0f)
     , m_resistance(0.0f)
     , m_lightLevel(0)
@@ -201,6 +224,16 @@ BlockProperties& BlockProperties::propagatesSkylightDown(bool value) {
     return *this;
 }
 
+BlockProperties& BlockProperties::harvestTool(u8 toolType) {
+    m_harvestTool = toolType;
+    return *this;
+}
+
+BlockProperties& BlockProperties::harvestLevel(i32 level) {
+    m_harvestLevel = level < 0 ? 0 : level;
+    return *this;
+}
+
 // ============================================================================
 // Block
 // ============================================================================
@@ -226,14 +259,17 @@ void Block::forEachBlockState(std::function<void(const BlockState&)> callback) {
 }
 
 Block::Block(BlockProperties properties)
-    : m_material(properties.material())
-    , m_hardness(properties.hardness())
-    , m_resistance(properties.resistance())
-    , m_lightLevel(properties.lightLevel())
-    , m_opacity(properties.opacity())
-    , m_hasCollision(properties.hasCollision())
-    , m_isFlammable(properties.isFlammable())
-    , m_propagatesSkylightDown(properties.doesPropagateSkylightDown()) {
+    : m_material(properties.m_material)
+    , m_hardness(properties.m_hardness)
+    , m_resistance(properties.m_resistance)
+    , m_lightLevel(properties.m_lightLevel)
+    , m_opacity(properties.m_opacity)
+    , m_hasCollision(properties.m_hasCollision)
+    , m_isFlammable(properties.m_isFlammable)
+    , m_propagatesSkylightDown(properties.m_propagatesSkylightDown)
+    , m_requiresTool(properties.m_requiresTool)
+    , m_harvestTool(properties.m_harvestTool)
+    , m_harvestLevel(properties.m_harvestLevel) {
 }
 
 void Block::createBlockState(std::unique_ptr<StateContainer<Block, BlockState>> container) {
@@ -270,12 +306,12 @@ bool Block::isAir(const BlockState& state) const {
 
 bool Block::isSolid(const BlockState& state) const {
     (void)state;
-    return m_material.isSolid();
+    return m_material->isSolid();
 }
 
 bool Block::isOpaque(const BlockState& state) const {
     (void)state;
-    return m_material.isOpaque();
+    return m_material->isOpaque();
 }
 
 i32 Block::getOpacity(const BlockState& state, IWorld* world, const BlockPos* pos) const {
@@ -358,7 +394,7 @@ void Block::onBlockRemoved(IWorld& world, const BlockPos& pos, const BlockState&
 bool Block::isSolidSide(const BlockState& state, IWorld& world, const BlockPos& pos, Direction side) const {
     // 参考 MC 1.16.5: Block.isSolidSide
     // 冰块特殊处理：冰块的侧面不被认为是实体面（用于流体流动判断）
-    if (m_material == Material::ICE) {
+    if (*m_material == Material::ICE) {
         return false;
     }
     // 默认实现：检查方块是否为固体且有碰撞
@@ -366,7 +402,7 @@ bool Block::isSolidSide(const BlockState& state, IWorld& world, const BlockPos& 
     (void)world;
     (void)pos;
     (void)side;
-    return m_material.isSolid() && m_hasCollision;
+    return m_material->isSolid() && m_hasCollision;
 }
 
 } // namespace mc

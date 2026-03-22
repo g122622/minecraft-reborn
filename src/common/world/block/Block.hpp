@@ -7,12 +7,26 @@
 #include "../../util/property/StateContainer.hpp"
 #include "../../util/Direction.hpp"
 #include "Material.hpp"
+#include "HarvestTool.hpp"
 #include <memory>
 #include <vector>
 #include <unordered_map>
 #include <functional>
 
 namespace mc {
+namespace item {
+namespace tool {
+    // Tool type constants for harvest tool comparison
+    // These values must match ToolType enum in item/tool/ToolType.hpp
+    constexpr u8 TOOL_TYPE_NONE = 0;
+    constexpr u8 TOOL_TYPE_PICKAXE = 1;
+    constexpr u8 TOOL_TYPE_AXE = 2;
+    constexpr u8 TOOL_TYPE_SHOVEL = 3;
+    constexpr u8 TOOL_TYPE_HOE = 4;
+    constexpr u8 TOOL_TYPE_SWORD = 5;
+    constexpr u8 TOOL_TYPE_SHEARS = 6;
+}
+}
 
 // Forward declarations
 class Block;
@@ -224,6 +238,58 @@ public:
     [[nodiscard]] const Material& getMaterial() const;
 
     /**
+     * @brief 获取挖掘工具类型
+     *
+     * 返回采集此方块所需的工具类型。
+     * 返回值与 item::tool 命名空间中的常量比较：
+     * - TOOL_TYPE_NONE (0): 无需工具
+     * - TOOL_TYPE_PICKAXE (1): 镐
+     * - TOOL_TYPE_AXE (2): 斧
+     * - TOOL_TYPE_SHOVEL (3): 锹
+     * - TOOL_TYPE_HOE (4): 锄
+     * - TOOL_TYPE_SWORD (5): 剑
+     * - TOOL_TYPE_SHEARS (6): 剪刀
+     *
+     * @return 工具类型值
+     */
+    [[nodiscard]] u8 getHarvestTool() const;
+
+    /**
+     * @brief 获取挖掘等级
+     *
+     * 返回采集此方块所需的最低工具等级。
+     * - 0: 木/金工具可采集
+     * - 1: 石制工具可采集
+     * - 2: 铁制工具可采集
+     * - 3: 钻石工具可采集
+     * - 4: 下界合金工具可采集
+     *
+     * @return 挖掘等级（0-4）
+     */
+    [[nodiscard]] i32 getHarvestLevel() const;
+
+    /**
+     * @brief 检查工具是否有效
+     *
+     * 检查指定工具类型和等级是否能采集此方块。
+     *
+     * @param toolType 工具类型值
+     * @param harvestLevel 工具挖掘等级
+     * @return 如果工具有效返回true
+     */
+    [[nodiscard]] bool isToolEffective(u8 toolType, i32 harvestLevel) const;
+
+    /**
+     * @brief 是否需要正确工具才能采集
+     *
+     * 如果返回 true，则必须使用正确类型且等级足够的工具
+     * 才能获得方块掉落物。
+     *
+     * @return 是否需要正确工具
+     */
+    [[nodiscard]] bool requiresTool() const;
+
+    /**
      * @brief 转换为模型键（用于查找模型变体）
      * @return 格式: "axis=y,facing=north" 或 "" (无属性时)
      */
@@ -252,7 +318,9 @@ private:
     bool m_isFlammable = false;
     bool m_propagatesSkylightDown = false;
     u8 m_lightLevel = 0;
+    u8 m_harvestTool = 0;  // HarvestTool::None
     i32 m_opacity = 15;  // 默认完全不透明
+    i32 m_harvestLevel = 0;
     f32 m_hardness = 0.0f;
     f32 m_resistance = 0.0f;
     u32 m_blockId = 0;
@@ -348,8 +416,33 @@ public:
      */
     BlockProperties& propagatesSkylightDown(bool value = true);
 
+    /**
+     * @brief 设置挖掘工具类型
+     *
+     * 指定采集此方块所需的工具类型。
+     * 如果设置了工具类型且 requiresTool() 为 true，
+     * 则必须使用正确类型的工具才能获得掉落物。
+     *
+     * @param toolType 工具类型值（HarvestTool::Pickaxe 等）
+     */
+    BlockProperties& harvestTool(u8 toolType);
+
+    /**
+     * @brief 设置挖掘等级
+     *
+     * 指定采集此方块所需的最低工具等级。
+     * - 0: 木/金工具可采集
+     * - 1: 石制工具可采集
+     * - 2: 铁制工具可采集
+     * - 3: 钻石工具可采集
+     * - 4: 下界合金工具可采集
+     *
+     * @param level 挖掘等级（0-4）
+     */
+    BlockProperties& harvestLevel(i32 level);
+
     // Getters
-    [[nodiscard]] const Material& material() const { return m_material; }
+    [[nodiscard]] const Material& material() const { return *m_material; }
     [[nodiscard]] f32 hardness() const { return m_hardness; }
     [[nodiscard]] f32 resistance() const { return m_resistance; }
     [[nodiscard]] u8 lightLevel() const { return m_lightLevel; }
@@ -360,12 +453,14 @@ public:
     [[nodiscard]] bool isReplaceable() const { return m_isReplaceable; }
     [[nodiscard]] i32 opacity() const { return m_opacity; }
     [[nodiscard]] bool doesPropagateSkylightDown() const { return m_propagatesSkylightDown; }
+    [[nodiscard]] u8 harvestTool() const { return m_harvestTool; }
+    [[nodiscard]] i32 harvestLevel() const { return m_harvestLevel; }
 
 private:
     friend class Block;
     friend class BlockRegistry;
 
-    Material m_material;
+    const Material* m_material;
     f32 m_hardness;
     f32 m_resistance;
     u8 m_lightLevel;
@@ -376,6 +471,8 @@ private:
     bool m_isReplaceable;
     i32 m_opacity = 15;  // 默认完全不透明
     bool m_propagatesSkylightDown = false;
+    u8 m_harvestTool = HarvestTool::None;
+    i32 m_harvestLevel = 0;
 };
 
 /**
@@ -450,7 +547,7 @@ public:
     /**
      * @brief 获取材质
      */
-    [[nodiscard]] const Material& material() const { return m_material; }
+    [[nodiscard]] const Material& material() const { return *m_material; }
 
     /**
      * @brief 获取状态容器
@@ -486,6 +583,40 @@ public:
      * @brief 检查是否传播天空光向下
      */
     [[nodiscard]] bool doesPropagateSkylightDown() const { return m_propagatesSkylightDown; }
+
+    /**
+     * @brief 获取挖掘工具类型
+     *
+     * 返回采集此方块所需的工具类型。
+     * 如果返回 HarvestTool::None，则不需要特定工具。
+     *
+     * @return 工具类型值
+     */
+    [[nodiscard]] u8 harvestTool() const { return m_harvestTool; }
+
+    /**
+     * @brief 获取挖掘等级
+     *
+     * 返回采集此方块所需的最低工具等级。
+     * - 0: 木/金工具可采集
+     * - 1: 石制工具可采集
+     * - 2: 铁制工具可采集
+     * - 3: 钻石工具可采集
+     * - 4: 下界合金工具可采集
+     *
+     * @return 挖掘等级（0-4）
+     */
+    [[nodiscard]] i32 harvestLevel() const { return m_harvestLevel; }
+
+    /**
+     * @brief 是否需要正确工具才能采集
+     *
+     * 如果返回 true，则必须使用正确类型且等级足够的工具
+     * 才能获得方块掉落物。
+     *
+     * @return 是否需要正确工具
+     */
+    [[nodiscard]] bool requiresTool() const { return m_requiresTool; }
 
     // ========================================================================
     // 虚方法
@@ -704,7 +835,7 @@ protected:
     u32 m_blockId = 0;
 
     // 由构造函数设置
-    Material m_material;
+    const Material* m_material;
     f32 m_hardness = 0.0f;
     f32 m_resistance = 0.0f;
     u8 m_lightLevel = 0;
@@ -712,6 +843,9 @@ protected:
     bool m_hasCollision = true;
     bool m_isFlammable = false;
     bool m_propagatesSkylightDown = false;
+    bool m_requiresTool = false;
+    u8 m_harvestTool = HarvestTool::None;
+    i32 m_harvestLevel = 0;
 
     // 由createBlockState设置
     std::unique_ptr<StateContainer<Block, BlockState>> m_stateContainer;

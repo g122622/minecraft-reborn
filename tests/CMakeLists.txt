@@ -37,6 +37,7 @@ add_executable(mc_tests
     common/item/crafting/ShapedRecipeTest.cpp
     common/item/crafting/ShapelessRecipeTest.cpp
     common/item/crafting/RecipeLoaderTest.cpp
+    common/item/tool/ToolTests.cpp
     common/entity/inventory/CraftingInventoryTest.cpp
     common/world/blockentity/BlockEntityTest.cpp
     common/command/test_command_dispatcher.cpp
@@ -245,6 +246,22 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/common/item/ItemStack.cpp
         ${CMAKE_SOURCE_DIR}/src/common/item/ItemRegistry.cpp
         ${CMAKE_SOURCE_DIR}/src/common/item/Items.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/BlockItem.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/BlockItemRegistry.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/ItemUseContext.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/BlockItemUseContext.cpp
+        # 工具层级系统
+        ${CMAKE_SOURCE_DIR}/src/common/item/tier/IItemTier.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/tier/ItemTiers.cpp
+        # 工具系统
+        ${CMAKE_SOURCE_DIR}/src/common/item/tool/ToolType.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/tool/TieredItem.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/tool/ToolItem.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/tool/PickaxeItem.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/tool/AxeItem.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/tool/ShovelItem.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/tool/HoeItem.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/item/tool/SwordItem.cpp
         # 背包系统
         ${CMAKE_SOURCE_DIR}/src/common/entity/inventory/Slot.cpp
         ${CMAKE_SOURCE_DIR}/src/common/entity/inventory/PlayerInventory.cpp

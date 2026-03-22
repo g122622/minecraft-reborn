@@ -648,7 +648,13 @@ void IntegratedServer::handleLoginRequest(const u8* data, size_t size) {
     m_clientData.inventory.setSelectedSlot(0);
 
     if (player->gameMode == GameMode::Creative) {
-        i32 slot = 0;
+        // 第一格放置钻石镐
+        if (Items::DIAMOND_PICKAXE != nullptr) {
+            m_clientData.inventory.setItem(0, ItemStack(*Items::DIAMOND_PICKAXE, 1));
+        }
+
+        // 其余格子填充方块物品
+        i32 slot = 1;
         BlockItemRegistry::instance().forEachBlockItem([this, player, &slot](const BlockItem& item) {
             if (slot >= PlayerInventory::TOTAL_SIZE) {
                 return;

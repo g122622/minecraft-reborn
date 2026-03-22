@@ -102,6 +102,20 @@ add_library(mc_common STATIC
     item/ItemUseContext.cpp
     item/BlockItemUseContext.cpp
 
+    # Item - Tier System
+    item/tier/IItemTier.cpp
+    item/tier/ItemTiers.cpp
+
+    # Item - Tool System
+    item/tool/ToolType.cpp
+    item/tool/TieredItem.cpp
+    item/tool/ToolItem.cpp
+    item/tool/PickaxeItem.cpp
+    item/tool/AxeItem.cpp
+    item/tool/ShovelItem.cpp
+    item/tool/HoeItem.cpp
+    item/tool/SwordItem.cpp
+
     # Item - Crafting
     item/crafting/Ingredient.cpp
     item/crafting/RecipeType.cpp
