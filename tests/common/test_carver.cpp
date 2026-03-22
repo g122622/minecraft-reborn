@@ -7,7 +7,7 @@
 #include "world/block/VanillaBlocks.hpp"
 #include "world/biome/BiomeProvider.hpp"
 #include "world/biome/layer/LayerUtil.hpp"
-#include "math/random/Random.hpp"
+#include "util/math/random/Random.hpp"
 
 using namespace mc;
 

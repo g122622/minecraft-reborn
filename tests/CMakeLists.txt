@@ -84,7 +84,7 @@ add_executable(mc_tests
     # 流体系统测试
     common/world/fluid/FluidTest.cpp
     # 射线检测测试
-    common/util/math/RaycastTest.cpp
+    common/math/RaycastTest.cpp
     # 实体生成回调测试
     server/ServerChunkManagerCallbackTest.cpp
     common/world/EntityManagerSpawnTest.cpp

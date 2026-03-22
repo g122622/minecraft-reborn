@@ -10,7 +10,7 @@
 #include "world/chunk/ChunkData.hpp"
 #include "world/block/Block.hpp"
 #include "world/fluid/Fluid.hpp"
-#include "math/random/Random.hpp"
+#include "util/math/random/Random.hpp"
 
 using namespace mc;
 using namespace mc::loot;

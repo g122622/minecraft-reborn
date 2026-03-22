@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include "math/ray/Raycast.hpp"
-#include "math/ray/Ray.hpp"
+#include "util/math/ray/Raycast.hpp"
+#include "util/math/ray/Ray.hpp"
 #include "core/BlockRaycastResult.hpp"
 #include "world/block/Block.hpp"
 #include "world/block/BlockRegistry.hpp"

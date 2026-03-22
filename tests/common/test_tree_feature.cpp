@@ -7,7 +7,7 @@
 #include "world/gen/feature/tree/TreeFeature.hpp"
 #include "world/block/BlockRegistry.hpp"
 #include "world/block/VanillaBlocks.hpp"
-#include "math/MathUtils.hpp"
+#include "util/math/MathUtils.hpp"
 
 using namespace mc;
 

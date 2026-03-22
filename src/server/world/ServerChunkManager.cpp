@@ -3,6 +3,7 @@
 #include "../../common/world/WorldConstants.hpp"
 #include <chrono>
 #include <spdlog/spdlog.h>
+#include "../../common/perfetto/TraceEvents.hpp"
 
 namespace mc::server {
 
@@ -202,10 +203,12 @@ void ServerChunkManager::startWorkers(i32 count)
                     // 第二阶段：批量执行 FEATURES
                     m_generator->placeFeatures(region, chunk);
                 } else if (status == ChunkStatus::LIGHT) {
+                    MC_TRACE_EVENT("world.chunk_gen", "Lighting", "x", chunk.x(), "z", chunk.z());
                     // 光照初始化
                     chunk.initializeSkyLight();
                     chunk.initializeBlockLight();
                 } else if (status == ChunkStatus::HEIGHTMAPS) {
+                    MC_TRACE_EVENT("world.chunk_gen", "Heightmaps", "x", chunk.x(), "z", chunk.z());
                     chunk.updateAllHeightmaps();
                 }
 
@@ -217,6 +220,7 @@ void ServerChunkManager::startWorkers(i32 count)
         // 参考 MC 1.16.5 performWorldGenSpawning
         // 注意：这里我们已经在 FEATURES 阶段之后，地形已经完整生成
         if (chunk.hasCompletedStatus(ChunkStatus::FEATURES)) {
+            MC_TRACE_EVENT("world.chunk_gen", "SpawnInitialMobsWrapper", "x", chunk.x(), "z", chunk.z());
             std::vector<SpawnedEntityData> entities;
             m_generator->spawnInitialMobs(region, chunk, entities);
 
