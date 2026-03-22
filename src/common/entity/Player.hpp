@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Entity.hpp"
+#include "movement/AutoJump.hpp"
 #include "inventory/PlayerInventory.hpp"
 #include "../network/packet/ProtocolPackets.hpp"
 #include <array>
@@ -307,6 +308,22 @@ public:
      */
     [[nodiscard]] i32 armorValue() const;
 
+    /**
+     * @brief 获取跳跃因子
+     *
+     * 跳跃因子影响玩家能跳多高。正常方块返回 1.0，
+     * 蜂蜜块返回 0.5（降低跳跃高度）。
+     *
+     * @return 跳跃因子（0.0 - 1.0）
+     */
+    [[nodiscard]] virtual f32 getJumpFactor() const { return 1.0f; }
+
+    /**
+     * @brief 获取自动跳跃系统
+     */
+    [[nodiscard]] entity::movement::AutoJump& autoJump() { return m_autoJump; }
+    [[nodiscard]] const entity::movement::AutoJump& autoJump() const { return m_autoJump; }
+
     // ========== 重生 ==========
 
     void respawn();
@@ -355,6 +372,9 @@ private:
     i32 sleepTimer = 0;
     i32 hurtTime = 0;
     i32 deathTime = 0;
+
+    // 自动跳跃系统
+    entity::movement::AutoJump m_autoJump;
 };
 
 } // namespace mc

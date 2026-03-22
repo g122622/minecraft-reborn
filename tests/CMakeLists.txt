@@ -146,6 +146,8 @@ add_executable(mc_tests
     client/ui/kagero/widget/SlotWidgetTest.cpp
     # 附魔系统测试
     common/item/enchantment/EnchantmentTest.cpp
+    # 自动跳跃测试
+    common/entity/movement/AutoJumpTest.cpp
 )
 
 # 添加服务端源文件
@@ -237,6 +239,7 @@ target_sources(mc_tests
         # ${CMAKE_SOURCE_DIR}/src/common/world/BlockID.cpp  # 已移除 - 使用新的方块系统
         ${CMAKE_SOURCE_DIR}/src/common/entity/Player.cpp
         ${CMAKE_SOURCE_DIR}/src/common/entity/Entity.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/entity/movement/AutoJump.cpp
         ${CMAKE_SOURCE_DIR}/src/common/physics/PhysicsEngine.cpp
         ${CMAKE_SOURCE_DIR}/src/common/physics/CollisionCache.cpp
         # ${CMAKE_SOURCE_DIR}/src/common/physics/collision/BlockCollision.cpp  # 已移除 - 使用新的方块系统

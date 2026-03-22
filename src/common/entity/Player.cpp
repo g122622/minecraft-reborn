@@ -371,6 +371,9 @@ void Player::updatePhysics() {
         m_jumpTicks--;
     }
 
+    // 0.1 更新自动跳跃冷却
+    m_autoJump.tick();
+
     // 1. 重置过小的速度（MC: LivingEntity.aiStep）
     clampMotion();
 
@@ -398,11 +401,14 @@ void Player::updatePhysics() {
         movement = maybeBackOffFromEdge(movement);
     }
 
-    // 6. 使用碰撞检测移动
+    // 6. 记录移动前的位置（用于自动跳跃检测）
+    Vector3 prevPos = m_position;
+
+    // 7. 使用碰撞检测移动
     if (m_physicsEngine && (movement.x != 0.0f || movement.y != 0.0f || movement.z != 0.0f)) {
         Vector3 actualMovement = moveWithCollision(movement.x, movement.y, movement.z);
 
-        // 7. 碰撞后重置速度（参考MC: Entity.move）
+        // 8. 碰撞后重置速度（参考MC: Entity.move）
         // if (pos.x != vector3d.x) setMotion(0, y, z)
         // if (pos.z != vector3d.z) setMotion(x, y, 0)
         if (m_collidedHorizontally) {
@@ -414,7 +420,23 @@ void Player::updatePhysics() {
         }
     }
 
-    // 8. 再次重置过小的速度
+    // 9. 自动跳跃检测（在移动后）
+    // MC 源码在 ClientPlayerEntity.move() 方法末尾调用 updateAutoJump
+    if (m_autoJump.isEnabled() && !m_abilities.flying && m_onGround && !m_isSneaking) {
+        // 计算实际移动距离
+        Vector2 actualMovement(m_position.x - prevPos.x, m_position.z - prevPos.z);
+        f32 moveDistSq = actualMovement.x * actualMovement.x + actualMovement.y * actualMovement.y;
+
+        // 只有在确实移动了才检测
+        if (moveDistSq > 0.0001f && m_physicsEngine) {
+            auto result = m_autoJump.check(*this, *m_physicsEngine, actualMovement);
+            if (result.shouldJump) {
+                jump();
+            }
+        }
+    }
+
+    // 10. 再次重置过小的速度
     clampMotion();
 }
 
