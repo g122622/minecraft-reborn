@@ -14,6 +14,7 @@ namespace loot {
 // Forward declarations
 class LootPool;
 class LootContext;
+class LootCondition;
 
 /**
  * @brief 掉落条目类型
@@ -39,7 +40,7 @@ enum class LootEntryType : u8 {
  */
 class LootEntry {
 public:
-    virtual ~LootEntry() = default;
+    virtual ~LootEntry();
 
     /**
      * @brief 获取条目类型
@@ -78,6 +79,32 @@ public:
      */
     void setQuality(i32 quality) { m_quality = quality; }
 
+    // ========== 条件管理 ==========
+
+    /**
+     * @brief 添加掉落条件
+     *
+     * 条件用于控制条目是否生效。所有条件都必须满足才能生成物品。
+     *
+     * @param condition 条件
+     */
+    void addCondition(std::unique_ptr<LootCondition> condition);
+
+    /**
+     * @brief 获取所有条件
+     */
+    [[nodiscard]] const std::vector<std::unique_ptr<LootCondition>>& getConditions() const {
+        return m_conditions;
+    }
+
+    /**
+     * @brief 检查所有条件是否满足
+     *
+     * @param context 掉落上下文
+     * @return 如果所有条件都满足返回true
+     */
+    [[nodiscard]] bool testConditions(LootContext& context) const;
+
     /**
      * @brief 扩展条目（生成候选列表）
      *
@@ -108,6 +135,7 @@ protected:
 
     i32 m_weight = 1;
     i32 m_quality = 0;
+    std::vector<std::unique_ptr<LootCondition>> m_conditions;
 };
 
 /**
@@ -123,9 +151,7 @@ public:
         : LootEntry(weight, quality) {}
 
     [[nodiscard]] LootEntryType getType() const override { return LootEntryType::Empty; }
-    [[nodiscard]] std::unique_ptr<LootEntry> clone() const override {
-        return std::make_unique<EmptyLootEntry>(m_weight, m_quality);
-    }
+    [[nodiscard]] std::unique_ptr<LootEntry> clone() const override;
 
     void expand(LootContext& context,
                std::function<void(LootEntry&)> consumer) const override;

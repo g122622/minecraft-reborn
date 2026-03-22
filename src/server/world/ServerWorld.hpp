@@ -17,6 +17,7 @@
 #include "server/core/ServerPlayerData.hpp"
 #include "server/world/entity/EntityTracker.hpp"
 #include "server/world/weather/WeatherManager.hpp"
+#include "server/world/entity/ItemPickupManager.hpp"
 #include <unordered_map>
 #include <memory>
 #include <functional>
@@ -280,6 +281,12 @@ public:
     [[nodiscard]] EntityTracker& entityTracker() { return m_entityTracker; }
     [[nodiscard]] const EntityTracker& entityTracker() const { return m_entityTracker; }
 
+    /**
+     * @brief 获取物品拾取管理器
+     */
+    [[nodiscard]] server::ItemPickupManager& itemPickupManager() { return m_itemPickupManager; }
+    [[nodiscard]] const server::ItemPickupManager& itemPickupManager() const { return m_itemPickupManager; }
+
     // ========== 区块生成实体 ==========
 
     /**
@@ -379,6 +386,7 @@ private:
     std::unique_ptr<world::tick::TickManager> m_tickManager;  // Tick管理器
     std::unique_ptr<WorldLightManager> m_lightManager;  // 光照管理器
     std::unique_ptr<WeatherManager> m_weatherManager;  // 天气管理器
+    server::ItemPickupManager m_itemPickupManager;  // 物品拾取管理器
     bool m_initialized = false;
 
     // 玩家存储

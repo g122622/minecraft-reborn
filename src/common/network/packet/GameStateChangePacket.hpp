@@ -75,6 +75,15 @@ public:
         return GameStateChangePacket(GameStateChangeReason::ThunderStrengthChange, strength);
     }
 
+    /**
+     * @brief 创建游戏模式变化包
+     *
+     * @param mode 新的游戏模式
+     */
+    static GameStateChangePacket gameModeChange(GameMode mode) {
+        return GameStateChangePacket(GameStateChangeReason::ChangeGameMode, static_cast<f32>(mode));
+    }
+
     [[nodiscard]] Result<std::vector<u8>> serialize() const override;
     [[nodiscard]] Result<void> deserialize(const u8* data, size_t size) override;
     size_t expectedSize() const override;

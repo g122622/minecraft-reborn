@@ -10,7 +10,7 @@
 #include "common/world/gen/chunk/NoiseChunkGenerator.hpp"
 #include "common/world/gen/settings/DimensionSettings.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
-#include "common/world/drop/DropTables.hpp"
+#include "common/world/block/BlockPos.hpp"
 #include "common/world/fluid/Fluid.hpp"
 #include "common/network/packet/Packet.hpp"
 #include "common/network/sync/ChunkSync.hpp"
@@ -23,6 +23,7 @@
 #include "common/perfetto/TraceEvents.hpp"
 #include "common/entity/EntityRegistry.hpp"
 #include "common/entity/mob/MobEntity.hpp"
+#include "common/entity/loot/LootConditions.hpp"
 #include "server/menu/CraftingMenu.hpp"
 #include "server/application/MinecraftServer.hpp"
 #include "server/command/CommandRegistry.hpp"
@@ -34,6 +35,7 @@
 #include "server/core/KeepAliveManager.hpp"
 #include "server/core/PositionTracker.hpp"
 #include "server/core/PacketHandler.hpp"
+#include "server/world/drop/BlockDropHandler.hpp"
 
 #include <spdlog/spdlog.h>
 #include <cmath>
@@ -202,8 +204,7 @@ Result<void> IntegratedServer::initialize(const IntegratedServerConfig& config) 
     spdlog::info("Vanilla blocks initialized");
 
     Items::initialize();
-    DropTableRegistry::instance().initializeVanillaDrops();
-    spdlog::info("Vanilla items and drop tables initialized");
+    spdlog::info("Vanilla items initialized");
 
     // 初始化方块物品注册表
     BlockItemRegistry::instance().initializeVanillaBlockItems();
@@ -807,6 +808,56 @@ void IntegratedServer::handleBlockInteraction(const u8* data, size_t size) {
         spdlog::warn("[Mining] Block interaction rejected due to invalid target state at ({}, {}, {})",
                      packet.x(), packet.y(), packet.z());
         return;
+    }
+
+    // 获取玩家手持物品
+    ItemStack heldItemCopy;
+    i32 selectedSlot = 0;
+    {
+        std::lock_guard<std::mutex> lock(m_clientDataMutex);
+        selectedSlot = m_clientData.inventory.getSelectedSlot();
+        heldItemCopy = m_clientData.inventory.getSelectedStack();
+    }
+    const ItemStack* heldItem = heldItemCopy.isEmpty() ? nullptr : &heldItemCopy;
+
+    // 检查是否可以采集方块
+    // TODO: 需要传递 Player 对象而非 ServerPlayerData，以便正确处理创造模式
+    // 目前传递 nullptr，因为 ServerPlayerData 不是 Player 类型
+    bool canHarvest = BlockDropHandler::canHarvestBlock(*state, nullptr, heldItem);
+
+    // 生成掉落物（仅在可以采集时）
+    if (canHarvest) {
+        ServerWorld* world = m_serverCore ? m_serverCore->world() : nullptr;
+        if (world) {
+            BlockPos blockPos(packet.x(), packet.y(), packet.z());
+            auto drops = BlockDropHandler::generateDrops(
+                *world,
+                blockPos,
+                *state,
+                nullptr,  // TODO: 需要 Player 对象
+                heldItem,
+                m_lootTableManager);
+
+            if (!drops.empty()) {
+                BlockDropHandler::spawnDrops(*world, blockPos, drops, "");
+            }
+        }
+
+        // 消耗工具耐久度（仅在成功采集时）
+        if (heldItemCopy.isDamageable() && state->hardness() > 0.0f) {
+            bool broken = heldItemCopy.attemptDamageItem(1);
+
+            // 更新物品栏
+            {
+                std::lock_guard<std::mutex> lock(m_clientDataMutex);
+                m_clientData.inventory.setItem(selectedSlot, heldItemCopy);
+            }
+
+            // 如果工具损坏，发送物品更新包到客户端
+            if (broken) {
+                sendPlayerInventory();
+            }
+        }
     }
 
     Block* airBlock = Block::getBlock(ResourceLocation("minecraft:air"));

@@ -2,6 +2,7 @@
 
 #include "server/application/IntegratedServer.hpp"
 #include "common/network/connection/LocalConnection.hpp"
+#include "common/entity/loot/LootConditions.hpp"
 #include <thread>
 #include <chrono>
 #include <vector>

@@ -1,4 +1,5 @@
 #include "LootTable.hpp"
+#include "LootConditions.hpp"
 #include "common/item/ItemRegistry.hpp"
 #include <algorithm>
 
@@ -152,6 +153,10 @@ const LootTable& LootTableManager::getEmptyTable() {
 }
 
 void LootTableManager::initializeDefaultTables() {
+    // ========================================================================
+    // 实体掉落表
+    // ========================================================================
+
     // 创建猪的掉落表
     {
         auto table = std::make_unique<LootTable>();
@@ -216,6 +221,271 @@ void LootTableManager::initializeDefaultTables() {
         ));
         table->addPool(std::move(pool));
         registerTable("minecraft:entities/chicken", std::move(table));
+    }
+
+    // ========================================================================
+    // 方块掉落表
+    // ========================================================================
+
+    // 钻石矿石掉落表
+    // - 精准采集: 掉落钻石矿石
+    // - 无精准采集: 掉落钻石（受时运影响）
+    {
+        auto table = std::make_unique<LootTable>();
+
+        // 池1: 精准采集时掉落原矿
+        auto silkTouchPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
+        auto silkTouchEntry = std::make_unique<ItemLootEntry>(
+            "minecraft:diamond_ore",
+            RandomValueRange(1.0f, 1.0f),
+            1, 0
+        );
+        silkTouchEntry->addCondition(std::make_unique<SilkTouchCondition>());
+        silkTouchPool->addEntry(std::move(silkTouchEntry));
+        table->addPool(std::move(silkTouchPool));
+
+        // 池2: 无精准采集时掉落钻石
+        auto normalPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
+        auto normalEntry = std::make_unique<ItemLootEntry>(
+            "minecraft:diamond",
+            RandomValueRange(1.0f, 1.0f),
+            1, 0
+        );
+        normalEntry->addCondition(std::make_unique<NotCondition>(std::make_unique<SilkTouchCondition>()));
+        normalPool->addEntry(std::move(normalEntry));
+        table->addPool(std::move(normalPool));
+
+        registerTable("minecraft:blocks/diamond_ore", std::move(table));
+    }
+
+    // 石头掉落表
+    // - 精准采集: 掉落石头
+    // - 无精准采集: 掉落圆石
+    {
+        auto table = std::make_unique<LootTable>();
+
+        // 精准采集时掉落石头
+        auto silkTouchPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
+        auto silkTouchEntry = std::make_unique<ItemLootEntry>(
+            "minecraft:stone",
+            RandomValueRange(1.0f, 1.0f),
+            1, 0
+        );
+        silkTouchEntry->addCondition(std::make_unique<SilkTouchCondition>());
+        silkTouchPool->addEntry(std::move(silkTouchEntry));
+        table->addPool(std::move(silkTouchPool));
+
+        // 无精准采集时掉落圆石
+        auto normalPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
+        auto normalEntry = std::make_unique<ItemLootEntry>(
+            "minecraft:cobblestone",
+            RandomValueRange(1.0f, 1.0f),
+            1, 0
+        );
+        normalEntry->addCondition(std::make_unique<NotCondition>(std::make_unique<SilkTouchCondition>()));
+        normalPool->addEntry(std::move(normalEntry));
+        table->addPool(std::move(normalPool));
+
+        registerTable("minecraft:blocks/stone", std::move(table));
+    }
+
+    // 煤矿掉落表
+    // - 精准采集: 掉落煤矿
+    // - 无精准采集: 掉落煤炭（受时运影响数量）
+    {
+        auto table = std::make_unique<LootTable>();
+
+        // 精准采集时掉落煤矿
+        auto silkTouchPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
+        auto silkTouchEntry = std::make_unique<ItemLootEntry>(
+            "minecraft:coal_ore",
+            RandomValueRange(1.0f, 1.0f),
+            1, 0
+        );
+        silkTouchEntry->addCondition(std::make_unique<SilkTouchCondition>());
+        silkTouchPool->addEntry(std::move(silkTouchEntry));
+        table->addPool(std::move(silkTouchPool));
+
+        // 无精准采集时掉落煤炭
+        auto normalPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
+        auto normalEntry = std::make_unique<ItemLootEntry>(
+            "minecraft:coal",
+            RandomValueRange(1.0f, 1.0f),
+            1, 0
+        );
+        normalEntry->addCondition(std::make_unique<NotCondition>(std::make_unique<SilkTouchCondition>()));
+        normalPool->addEntry(std::move(normalEntry));
+        table->addPool(std::move(normalPool));
+
+        registerTable("minecraft:blocks/coal_ore", std::move(table));
+    }
+
+    // 铁矿掉落表
+    // - 精准采集: 掉落铁矿
+    // - 无精准采集: 掉落铁原矿
+    {
+        auto table = std::make_unique<LootTable>();
+
+        // 精准采集时掉落铁矿
+        auto silkTouchPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
+        auto silkTouchEntry = std::make_unique<ItemLootEntry>(
+            "minecraft:iron_ore",
+            RandomValueRange(1.0f, 1.0f),
+            1, 0
+        );
+        silkTouchEntry->addCondition(std::make_unique<SilkTouchCondition>());
+        silkTouchPool->addEntry(std::move(silkTouchEntry));
+        table->addPool(std::move(silkTouchPool));
+
+        // 无精准采集时掉落铁原矿
+        auto normalPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
+        auto normalEntry = std::make_unique<ItemLootEntry>(
+            "minecraft:iron_ore",
+            RandomValueRange(1.0f, 1.0f),
+            1, 0
+        );
+        normalEntry->addCondition(std::make_unique<NotCondition>(std::make_unique<SilkTouchCondition>()));
+        normalPool->addEntry(std::move(normalEntry));
+        table->addPool(std::move(normalPool));
+
+        registerTable("minecraft:blocks/iron_ore", std::move(table));
+    }
+
+    // 金矿掉落表
+    // - 精准采集: 掉落金矿
+    // - 无精准采集: 掉落金原矿
+    {
+        auto table = std::make_unique<LootTable>();
+
+        // 精准采集时掉落金矿
+        auto silkTouchPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
+        auto silkTouchEntry = std::make_unique<ItemLootEntry>(
+            "minecraft:gold_ore",
+            RandomValueRange(1.0f, 1.0f),
+            1, 0
+        );
+        silkTouchEntry->addCondition(std::make_unique<SilkTouchCondition>());
+        silkTouchPool->addEntry(std::move(silkTouchEntry));
+        table->addPool(std::move(silkTouchPool));
+
+        // 无精准采集时掉落金原矿
+        auto normalPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
+        auto normalEntry = std::make_unique<ItemLootEntry>(
+            "minecraft:gold_ore",
+            RandomValueRange(1.0f, 1.0f),
+            1, 0
+        );
+        normalEntry->addCondition(std::make_unique<NotCondition>(std::make_unique<SilkTouchCondition>()));
+        normalPool->addEntry(std::move(normalEntry));
+        table->addPool(std::move(normalPool));
+
+        registerTable("minecraft:blocks/gold_ore", std::move(table));
+    }
+
+    // 红石矿掉落表
+    // - 精准采集: 掉落红石矿
+    // - 无精准采集: 掉落红石（4-5个，受时运影响）
+    {
+        auto table = std::make_unique<LootTable>();
+
+        // 精准采集时掉落红石矿
+        auto silkTouchPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
+        auto silkTouchEntry = std::make_unique<ItemLootEntry>(
+            "minecraft:redstone_ore",
+            RandomValueRange(1.0f, 1.0f),
+            1, 0
+        );
+        silkTouchEntry->addCondition(std::make_unique<SilkTouchCondition>());
+        silkTouchPool->addEntry(std::move(silkTouchEntry));
+        table->addPool(std::move(silkTouchPool));
+
+        // 无精准采集时掉落红石（4-5个）
+        auto normalPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
+        auto normalEntry = std::make_unique<ItemLootEntry>(
+            "minecraft:redstone",
+            RandomValueRange(4.0f, 5.0f),
+            1, 0
+        );
+        normalEntry->addCondition(std::make_unique<NotCondition>(std::make_unique<SilkTouchCondition>()));
+        normalPool->addEntry(std::move(normalEntry));
+        table->addPool(std::move(normalPool));
+
+        registerTable("minecraft:blocks/redstone_ore", std::move(table));
+    }
+
+    // 青金石矿掉落表
+    // - 精准采集: 掉落青金石矿
+    // - 无精准采集: 掉落青金石（4-9个，受时运影响）
+    {
+        auto table = std::make_unique<LootTable>();
+
+        // 精准采集时掉落青金石矿
+        auto silkTouchPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
+        auto silkTouchEntry = std::make_unique<ItemLootEntry>(
+            "minecraft:lapis_ore",
+            RandomValueRange(1.0f, 1.0f),
+            1, 0
+        );
+        silkTouchEntry->addCondition(std::make_unique<SilkTouchCondition>());
+        silkTouchPool->addEntry(std::move(silkTouchEntry));
+        table->addPool(std::move(silkTouchPool));
+
+        // 无精准采集时掉落青金石（4-9个）
+        auto normalPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
+        auto normalEntry = std::make_unique<ItemLootEntry>(
+            "minecraft:lapis_lazuli",
+            RandomValueRange(4.0f, 9.0f),
+            1, 0
+        );
+        normalEntry->addCondition(std::make_unique<NotCondition>(std::make_unique<SilkTouchCondition>()));
+        normalPool->addEntry(std::move(normalEntry));
+        table->addPool(std::move(normalPool));
+
+        registerTable("minecraft:blocks/lapis_ore", std::move(table));
+    }
+
+    // 圆石掉落表（普通挖掘）
+    {
+        auto table = std::make_unique<LootTable>();
+        auto pool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
+        pool->addEntry(std::make_unique<ItemLootEntry>(
+            "minecraft:cobblestone",
+            RandomValueRange(1.0f, 1.0f),
+            1, 0
+        ));
+        table->addPool(std::move(pool));
+        registerTable("minecraft:blocks/cobblestone", std::move(table));
+    }
+
+    // 下界金矿掉落表
+    // - 精准采集: 掉落下界金矿
+    // - 无精准采集: 掉落金粒（2-6个，受时运影响）
+    {
+        auto table = std::make_unique<LootTable>();
+
+        // 精准采集时掉落下界金矿
+        auto silkTouchPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
+        auto silkTouchEntry = std::make_unique<ItemLootEntry>(
+            "minecraft:nether_gold_ore",
+            RandomValueRange(1.0f, 1.0f),
+            1, 0
+        );
+        silkTouchEntry->addCondition(std::make_unique<SilkTouchCondition>());
+        silkTouchPool->addEntry(std::move(silkTouchEntry));
+        table->addPool(std::move(silkTouchPool));
+
+        // 无精准采集时掉落金粒（2-6个）
+        auto normalPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
+        auto normalEntry = std::make_unique<ItemLootEntry>(
+            "minecraft:gold_nugget",
+            RandomValueRange(2.0f, 6.0f),
+            1, 0
+        );
+        normalEntry->addCondition(std::make_unique<NotCondition>(std::make_unique<SilkTouchCondition>()));
+        normalPool->addEntry(std::move(normalEntry));
+        table->addPool(std::move(normalPool));
+
+        registerTable("minecraft:blocks/nether_gold_ore", std::move(table));
     }
 }
 

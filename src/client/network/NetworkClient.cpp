@@ -2,6 +2,7 @@
 #include "common/network/packet/Packet.hpp"
 #include "common/network/packet/EntityPackets.hpp"
 #include "common/network/packet/GameStateChangePacket.hpp"
+#include "common/network/packet/PlayerAbilitiesPacket.hpp"
 #include <chrono>
 #include <spdlog/spdlog.h>
 
@@ -600,6 +601,11 @@ void NetworkClient::processPacket(const u8* data, size_t size) {
             break;
         }
 
+        case network::PacketType::PlayerAbilities: {
+            handlePlayerAbilities(bodyDeser);
+            break;
+        }
+
         case network::PacketType::LightUpdate: {
             handleLightUpdate(bodyDeser);
             break;
@@ -1129,10 +1135,44 @@ void NetworkClient::handleGameStateChange(network::PacketDeserializer& deser) {
             }
             break;
 
+        case network::GameStateChangeReason::ChangeGameMode:
+            spdlog::info("Game mode changed to {}", static_cast<int>(value));
+            if (m_callbacks.onGameModeChange) {
+                m_callbacks.onGameModeChange(static_cast<GameMode>(static_cast<int>(value)));
+            }
+            break;
+
         default:
             spdlog::debug("GameStateChange: unhandled reason={}, value={}",
                           static_cast<u8>(reason), value);
             break;
+    }
+}
+
+void NetworkClient::handlePlayerAbilities(network::PacketDeserializer& deser) {
+    const u8* data = deser.data();
+    size_t size = deser.size();
+
+    network::PlayerAbilitiesPacket packet;
+    auto result = packet.deserialize(data, size);
+    if (result.failed()) {
+        spdlog::error("Failed to deserialize PlayerAbilities packet: {}", result.error().message());
+        return;
+    }
+
+    spdlog::debug("PlayerAbilities: invulnerable={}, flying={}, canFly={}, creativeMode={}, flySpeed={}, walkSpeed={}",
+                  packet.invulnerable(), packet.flying(), packet.canFly(),
+                  packet.creativeMode(), packet.flySpeed(), packet.walkSpeed());
+
+    if (m_callbacks.onPlayerAbilities) {
+        m_callbacks.onPlayerAbilities(
+            packet.invulnerable(),
+            packet.flying(),
+            packet.canFly(),
+            packet.creativeMode(),
+            packet.flySpeed(),
+            packet.walkSpeed()
+        );
     }
 }
 

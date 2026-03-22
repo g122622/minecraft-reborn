@@ -3,6 +3,7 @@
 #include "../core/Types.hpp"
 #include "../network/packet/PacketSerializer.hpp"
 #include "../core/Result.hpp"
+#include "enchantment/EnchantmentContainer.hpp"
 #include <memory>
 #include <optional>
 
@@ -99,6 +100,45 @@ public:
      * @brief 获取最大堆叠数量
      */
     [[nodiscard]] i32 getMaxStackSize() const;
+
+    // ========== 附魔 ==========
+
+    /**
+     * @brief 获取附魔容器
+     * @return 附魔容器的常量引用
+     */
+    [[nodiscard]] const item::enchant::EnchantmentContainer& getEnchantments() const { return m_enchantments; }
+
+    /**
+     * @brief 获取可修改的附魔容器
+     * @return 附魔容器的引用
+     */
+    item::enchant::EnchantmentContainer& getEnchantmentsMutable() { return m_enchantments; }
+
+    /**
+     * @brief 是否有附魔
+     */
+    [[nodiscard]] bool hasEnchantments() const { return !m_enchantments.isEmpty(); }
+
+    /**
+     * @brief 获取指定附魔的等级
+     * @param enchantmentId 附魔ID
+     * @return 附魔等级（0表示无此附魔）
+     */
+    [[nodiscard]] i32 getEnchantmentLevel(const String& enchantmentId) const;
+
+    /**
+     * @brief 检查是否有指定附魔
+     * @param enchantmentId 附魔ID
+     */
+    [[nodiscard]] bool hasEnchantment(const String& enchantmentId) const;
+
+    /**
+     * @brief 添加或更新附魔
+     * @param enchantmentId 附魔ID
+     * @param level 附魔等级
+     */
+    void addEnchantment(const String& enchantmentId, i32 level);
 
     // ========== 耐久度 ==========
 
@@ -240,7 +280,7 @@ private:
     const Item* m_item = nullptr;
     i32 m_count = 0;
     i32 m_damage = 0;       // 已承受的伤害（耐久度）
-    // TODO: NBT数据、附魔等
+    item::enchant::EnchantmentContainer m_enchantments;  // 附魔容器
 };
 
 } // namespace mc

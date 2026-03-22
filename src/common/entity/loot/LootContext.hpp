@@ -16,6 +16,8 @@ class Player;
 class DamageSource;
 class ServerWorld;
 class IWorld;
+class BlockState;
+class BlockPos;
 
 namespace loot {
 
@@ -101,13 +103,23 @@ private:
 };
 
 // 预定义掉落参数
+// 注意：模板参数是值类型，使用时传入指针
 namespace LootParams {
-    extern const LootParameter<Entity*> THIS_ENTITY;           // 当前实体
-    extern const LootParameter<Player*> KILLER_PLAYER;         // 击杀玩家
-    extern const LootParameter<Entity*> KILLER_ENTITY;         // 击杀实体
-    extern const LootParameter<Entity*> DIRECT_KILLER;         // 直接击杀者
-    extern const LootParameter<DamageSource*> DAMAGE_SOURCE;   // 伤害来源
-    extern const LootParameter<f32> LUCK;                      // 幸运值
+    extern const LootParameter<Entity> THIS_ENTITY;           // 当前实体
+    extern const LootParameter<Player> KILLER_PLAYER;         // 击杀玩家
+    extern const LootParameter<Entity> KILLER_ENTITY;         // 击杀实体
+    extern const LootParameter<Entity> DIRECT_KILLER;         // 直接击杀者
+    extern const LootParameter<DamageSource> DAMAGE_SOURCE;   // 伤害来源
+    extern const LootParameter<f32> LUCK;                     // 幸运值
+
+    // 方块相关参数
+    extern const LootParameter<BlockState> BLOCK_STATE;       // 被破坏的方块状态
+    extern const LootParameter<BlockPos> BLOCK_POS;           // 方块位置
+    extern const LootParameter<ItemStack> TOOL;               // 使用的工具
+
+    // 附魔等级参数
+    extern const LootParameter<i32> FORTUNE_LEVEL;             // 时运附魔等级
+    extern const LootParameter<i32> SILK_TOUCH_LEVEL;          // 精准采集附魔等级
 }
 
 /**
@@ -158,6 +170,13 @@ public:
 
     /**
      * @brief 设置参数
+     *
+     * 存储参数指针到内部映射。
+     * 调用方需要确保参数在 LootContext 生命周期内有效。
+     *
+     * @tparam T 参数值的类型
+     * @param param 参数标识符
+     * @param value 参数值指针
      */
     template<typename T>
     void set(const LootParameter<T>& param, T* value) {

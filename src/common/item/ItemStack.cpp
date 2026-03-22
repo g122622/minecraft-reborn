@@ -61,6 +61,22 @@ i32 ItemStack::getMaxStackSize() const {
 }
 
 // ============================================================================
+// 附魔
+// ============================================================================
+
+i32 ItemStack::getEnchantmentLevel(const String& enchantmentId) const {
+    return m_enchantments.getLevel(enchantmentId);
+}
+
+bool ItemStack::hasEnchantment(const String& enchantmentId) const {
+    return m_enchantments.has(enchantmentId);
+}
+
+void ItemStack::addEnchantment(const String& enchantmentId, i32 level) {
+    m_enchantments.set(enchantmentId, level);
+}
+
+// ============================================================================
 // 耐久度
 // ============================================================================
 
@@ -133,6 +149,11 @@ bool ItemStack::canMergeWith(const ItemStack& other) const {
         return false;
     }
 
+    // 如果有附魔，不能合并（附魔物品无法堆叠）
+    if (hasEnchantments() || other.hasEnchantments()) {
+        return false;
+    }
+
     // 检查是否还有堆叠空间
     return m_count < getMaxStackSize();
 }
@@ -168,7 +189,8 @@ ItemStack ItemStack::copy() const {
     }
     ItemStack result(*m_item, m_count);
     result.m_damage = m_damage;
-    // TODO: 复制NBT数据
+    // 复制附魔
+    result.m_enchantments = m_enchantments;
     return result;
 }
 
@@ -220,6 +242,9 @@ void ItemStack::serialize(network::PacketSerializer& ser) const {
     if (m_item->isDamageable()) {
         ser.writeI32(m_damage);
     }
+
+    // 附魔
+    m_enchantments.serialize(ser);
 }
 
 Result<ItemStack> ItemStack::deserialize(network::PacketDeserializer& deser) {
@@ -260,6 +285,13 @@ Result<ItemStack> ItemStack::deserialize(network::PacketDeserializer& deser) {
         stack.setDamage(damageResult.value());
     }
 
+    // 读取附魔
+    auto enchantmentsResult = item::enchant::EnchantmentContainer::deserialize(deser);
+    if (enchantmentsResult.failed()) {
+        return enchantmentsResult.error();
+    }
+    stack.m_enchantments = std::move(enchantmentsResult.value());
+
     return stack;
 }
 
@@ -277,7 +309,8 @@ bool ItemStack::operator==(const ItemStack& other) const {
 
     return m_item == other.m_item &&
            m_count == other.m_count &&
-           m_damage == other.m_damage;
+           m_damage == other.m_damage &&
+           m_enchantments.getAll() == other.m_enchantments.getAll();
 }
 
 } // namespace mc

@@ -1,5 +1,9 @@
 #include "LootContext.hpp"
 #include "LootTable.hpp"
+#include "LootConditions.hpp"
+#include "common/world/block/Block.hpp"
+#include "common/world/block/BlockPos.hpp"
+#include "common/item/ItemStack.hpp"
 #include <chrono>
 
 namespace mc {
@@ -7,12 +11,21 @@ namespace loot {
 
 // 预定义掉落参数
 namespace LootParams {
-    const LootParameter<Entity*> THIS_ENTITY("this_entity");
-    const LootParameter<Player*> KILLER_PLAYER("killer_player");
-    const LootParameter<Entity*> KILLER_ENTITY("killer_entity");
-    const LootParameter<Entity*> DIRECT_KILLER("direct_killer");
-    const LootParameter<DamageSource*> DAMAGE_SOURCE("damage_source");
+    const LootParameter<Entity> THIS_ENTITY("this_entity");
+    const LootParameter<Player> KILLER_PLAYER("killer_player");
+    const LootParameter<Entity> KILLER_ENTITY("killer_entity");
+    const LootParameter<Entity> DIRECT_KILLER("direct_killer");
+    const LootParameter<DamageSource> DAMAGE_SOURCE("damage_source");
     const LootParameter<f32> LUCK("luck");
+
+    // 方块相关参数
+    const LootParameter<BlockState> BLOCK_STATE("block_state");
+    const LootParameter<BlockPos> BLOCK_POS("block_pos");
+    const LootParameter<ItemStack> TOOL("tool");
+
+    // 附魔等级参数
+    const LootParameter<i32> FORTUNE_LEVEL("fortune_level");
+    const LootParameter<i32> SILK_TOUCH_LEVEL("silk_touch_level");
 }
 
 // ============================================================================

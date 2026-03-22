@@ -18,12 +18,15 @@ add_executable(minecraft-server
     core/KeepAliveManager.cpp
     core/PositionTracker.cpp
     core/PacketHandler.cpp
+    core/GameModeManager.cpp
     world/ServerWorld.cpp
     world/ChunkWorkerPool.cpp
     world/ServerChunkManager.cpp
+    world/drop/BlockDropHandler.cpp
     world/spawn/NaturalSpawner.cpp
     world/spawn/SpawnConditions.cpp
     world/entity/EntityTracker.cpp
+    world/entity/ItemPickupManager.cpp
     world/weather/WeatherManager.cpp
     player/ServerPlayer.cpp
     # 命令系统

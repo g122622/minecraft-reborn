@@ -60,7 +60,8 @@ enum class PacketType : u16 {
     OpenContainer = 304,        // 打开容器 (S->C)
     PlayerInventory = 305,      // 玩家背包同步 (S->C)
     HotbarSelect = 306,         // 快捷栏选择 (C->S)
-    HotbarSet = 307             // 快捷栏设置 (S->C)
+    HotbarSet = 307,            // 快捷栏设置 (S->C)
+    PlayerAbilities = 308       // 玩家能力同步 (S->C)
 };
 
 // 数据包头

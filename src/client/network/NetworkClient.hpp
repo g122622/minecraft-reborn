@@ -91,6 +91,12 @@ struct NetworkClientCallbacks {
     std::function<void()> onBeginRaining;
     std::function<void()> onEndRaining;
 
+    // 游戏模式事件
+    std::function<void(GameMode mode)> onGameModeChange;
+
+    // 玩家能力事件
+    std::function<void(bool invulnerable, bool flying, bool canFly, bool creativeMode, f32 flySpeed, f32 walkSpeed)> onPlayerAbilities;
+
     // 光照更新事件
     std::function<void(i32 chunkX, i32 chunkZ, i32 sectionY,
                        const std::vector<u8>& skyLight,
@@ -195,6 +201,9 @@ private:
 
     // 天气包处理
     void handleGameStateChange(network::PacketDeserializer& deser);
+
+    // 玩家能力包处理
+    void handlePlayerAbilities(network::PacketDeserializer& deser);
 
     // 光照更新包处理
     void handleLightUpdate(network::PacketDeserializer& deser);

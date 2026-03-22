@@ -1,13 +1,40 @@
 #include "LootEntry.hpp"
+#include "LootConditions.hpp"
 #include "LootTable.hpp"
 #include "common/item/ItemRegistry.hpp"
+#include <algorithm>
 
 namespace mc {
 namespace loot {
 
 // ============================================================================
+// LootEntry
+// ============================================================================
+
+LootEntry::~LootEntry() = default;
+
+void LootEntry::addCondition(std::unique_ptr<LootCondition> condition) {
+    m_conditions.push_back(std::move(condition));
+}
+
+bool LootEntry::testConditions(LootContext& context) const {
+    return std::all_of(m_conditions.begin(), m_conditions.end(),
+        [&context](const std::unique_ptr<LootCondition>& cond) {
+            return cond && cond->test(context);
+        });
+}
+
+// ============================================================================
 // EmptyLootEntry
 // ============================================================================
+
+std::unique_ptr<LootEntry> EmptyLootEntry::clone() const {
+    auto entry = std::make_unique<EmptyLootEntry>(m_weight, m_quality);
+    for (const auto& cond : m_conditions) {
+        entry->addCondition(cond->clone());
+    }
+    return entry;
+}
 
 void EmptyLootEntry::expand(LootContext& /*context*/,
                            std::function<void(LootEntry&)> consumer) const {
@@ -35,7 +62,12 @@ ItemLootEntry::ItemLootEntry(const String& itemId,
 }
 
 std::unique_ptr<LootEntry> ItemLootEntry::clone() const {
-    return std::make_unique<ItemLootEntry>(m_itemId, m_count, m_weight, m_quality);
+    auto entry = std::make_unique<ItemLootEntry>(m_itemId, m_count, m_weight, m_quality);
+    // 复制条件
+    for (const auto& cond : m_conditions) {
+        entry->addCondition(cond->clone());
+    }
+    return entry;
 }
 
 void ItemLootEntry::expand(LootContext& /*context*/,
@@ -45,6 +77,11 @@ void ItemLootEntry::expand(LootContext& /*context*/,
 
 bool ItemLootEntry::generate(std::function<void(const ItemStack&)> consumer,
                              LootContext& context) const {
+    // 检查条件
+    if (!testConditions(context)) {
+        return false;
+    }
+
     // 获取物品
     const Item* item = ItemRegistry::instance().getItem(ResourceLocation(m_itemId));
     if (!item) {
@@ -75,7 +112,11 @@ TableLootEntry::TableLootEntry(const String& tableId, i32 weight, i32 quality)
 }
 
 std::unique_ptr<LootEntry> TableLootEntry::clone() const {
-    return std::make_unique<TableLootEntry>(m_tableId, m_weight, m_quality);
+    auto entry = std::make_unique<TableLootEntry>(m_tableId, m_weight, m_quality);
+    for (const auto& cond : m_conditions) {
+        entry->addCondition(cond->clone());
+    }
+    return entry;
 }
 
 void TableLootEntry::expand(LootContext& /*context*/,
@@ -85,6 +126,11 @@ void TableLootEntry::expand(LootContext& /*context*/,
 
 bool TableLootEntry::generate(std::function<void(const ItemStack&)> consumer,
                               LootContext& context) const {
+    // 检查条件
+    if (!testConditions(context)) {
+        return false;
+    }
+
     // 获取引用的掉落表
     const LootTable* table = context.getLootTable(m_tableId);
     if (!table) {
@@ -114,7 +160,11 @@ std::unique_ptr<LootEntry> AlternativesLootEntry::clone() const {
     for (const auto& child : m_children) {
         clonedChildren.push_back(child->clone());
     }
-    return std::make_unique<AlternativesLootEntry>(std::move(clonedChildren));
+    auto entry = std::make_unique<AlternativesLootEntry>(std::move(clonedChildren));
+    for (const auto& cond : m_conditions) {
+        entry->addCondition(cond->clone());
+    }
+    return entry;
 }
 
 void AlternativesLootEntry::addChild(std::unique_ptr<LootEntry> child) {
@@ -128,6 +178,11 @@ void AlternativesLootEntry::expand(LootContext& /*context*/,
 
 bool AlternativesLootEntry::generate(std::function<void(const ItemStack&)> consumer,
                                      LootContext& context) const {
+    // 检查条件
+    if (!testConditions(context)) {
+        return false;
+    }
+
     // 尝试每个子条目，直到一个成功
     for (auto& child : m_children) {
         if (child->generate(consumer, context)) {
@@ -151,7 +206,11 @@ std::unique_ptr<LootEntry> SequenceLootEntry::clone() const {
     for (const auto& child : m_children) {
         clonedChildren.push_back(child->clone());
     }
-    return std::make_unique<SequenceLootEntry>(std::move(clonedChildren));
+    auto entry = std::make_unique<SequenceLootEntry>(std::move(clonedChildren));
+    for (const auto& cond : m_conditions) {
+        entry->addCondition(cond->clone());
+    }
+    return entry;
 }
 
 void SequenceLootEntry::addChild(std::unique_ptr<LootEntry> child) {
@@ -165,6 +224,11 @@ void SequenceLootEntry::expand(LootContext& /*context*/,
 
 bool SequenceLootEntry::generate(std::function<void(const ItemStack&)> consumer,
                                  LootContext& context) const {
+    // 检查条件
+    if (!testConditions(context)) {
+        return false;
+    }
+
     // 按顺序执行所有子条目，直到一个失败
     for (auto& child : m_children) {
         if (!child->generate(consumer, context)) {
@@ -188,7 +252,11 @@ std::unique_ptr<LootEntry> GroupLootEntry::clone() const {
     for (const auto& child : m_children) {
         clonedChildren.push_back(child->clone());
     }
-    return std::make_unique<GroupLootEntry>(std::move(clonedChildren));
+    auto entry = std::make_unique<GroupLootEntry>(std::move(clonedChildren));
+    for (const auto& cond : m_conditions) {
+        entry->addCondition(cond->clone());
+    }
+    return entry;
 }
 
 void GroupLootEntry::addChild(std::unique_ptr<LootEntry> child) {
@@ -202,6 +270,11 @@ void GroupLootEntry::expand(LootContext& /*context*/,
 
 bool GroupLootEntry::generate(std::function<void(const ItemStack&)> consumer,
                               LootContext& context) const {
+    // 检查条件
+    if (!testConditions(context)) {
+        return false;
+    }
+
     // 执行所有子条目
     bool anySuccess = false;
     for (auto& child : m_children) {

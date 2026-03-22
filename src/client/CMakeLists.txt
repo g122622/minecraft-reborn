@@ -143,12 +143,15 @@ add_executable(minecraft-client
     ${CMAKE_SOURCE_DIR}/src/server/core/KeepAliveManager.cpp
     ${CMAKE_SOURCE_DIR}/src/server/core/PositionTracker.cpp
     ${CMAKE_SOURCE_DIR}/src/server/core/PacketHandler.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/core/GameModeManager.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ChunkWorkerPool.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/ServerChunkManager.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/spawn/SpawnConditions.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/spawn/NaturalSpawner.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/entity/EntityTracker.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/world/entity/ItemPickupManager.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/world/drop/BlockDropHandler.cpp
     ${CMAKE_SOURCE_DIR}/src/server/world/weather/WeatherManager.cpp
     ${CMAKE_SOURCE_DIR}/src/server/player/ServerPlayer.cpp
     ${CMAKE_SOURCE_DIR}/src/server/menu/CraftingMenu.cpp

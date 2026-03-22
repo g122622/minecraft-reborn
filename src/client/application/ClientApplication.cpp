@@ -2,7 +2,6 @@
 #include "common/item/Items.hpp"
 #include "common/item/BlockItemRegistry.hpp"
 #include "common/world/block/VanillaBlocks.hpp"
-#include "common/world/drop/DropTables.hpp"
 #include "common/world/fluid/Fluid.hpp"
 #include "common/util/math/ray/Raycast.hpp"
 #include "common/resource/VanillaResources.hpp"
@@ -259,8 +258,7 @@ Result<void> ClientApplication::initialize(const ClientLaunchParams& params)
     spdlog::info("Vanilla blocks initialized");
 
     Items::initialize();
-    DropTableRegistry::instance().initializeVanillaDrops();
-    spdlog::info("Vanilla items and drop tables initialized");
+    spdlog::info("Vanilla items initialized");
 
     // 注册实体类型
     entity::VanillaEntities::registerAll();
@@ -1668,6 +1666,31 @@ void ClientApplication::setupNetworkCallbacks()
 
     callbacks.onEndRaining = [this]() {
         m_world.onEndRaining();
+    };
+
+    // ========== 游戏模式回调 ==========
+    callbacks.onGameModeChange = [this](GameMode mode) {
+        spdlog::info("Game mode changed to {}", static_cast<int>(mode));
+        // 更新本地玩家的游戏模式
+        if (m_player) {
+            m_player->setGameMode(mode);
+        }
+    };
+
+    // ========== 玩家能力回调 ==========
+    callbacks.onPlayerAbilities = [this](bool invulnerable, bool flying, bool canFly, bool creativeMode, f32 flySpeed, f32 walkSpeed) {
+        spdlog::debug("Player abilities updated: invulnerable={}, flying={}, canFly={}, creativeMode={}",
+                      invulnerable, flying, canFly, creativeMode);
+        // 更新本地玩家能力
+        if (m_player) {
+            PlayerAbilities& abilities = m_player->abilities();
+            abilities.invulnerable = invulnerable;
+            abilities.flying = flying;
+            abilities.canFly = canFly;
+            abilities.creativeMode = creativeMode;
+            abilities.flySpeed = flySpeed;
+            abilities.walkSpeed = walkSpeed;
+        }
     };
 
     // ========== 光照更新回调 ==========

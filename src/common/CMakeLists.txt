@@ -39,6 +39,7 @@ add_library(mc_common STATIC
     network/packet/EntityPackets.cpp
     network/packet/EntityMetadataSerializer.cpp
     network/packet/GameStateChangePacket.cpp
+    network/packet/PlayerAbilitiesPacket.cpp
 
     # Network - Sync
     network/sync/ChunkSync.cpp
@@ -66,6 +67,7 @@ add_library(mc_common STATIC
     entity/loot/LootEntry.cpp
     entity/loot/LootPool.cpp
     entity/loot/LootTable.cpp
+    entity/loot/LootConditions.cpp
     entity/combat/AttackContext.cpp
     entity/combat/PlayerAttackHelper.cpp
     entity/damage/CombatEntry.cpp
@@ -125,8 +127,13 @@ add_library(mc_common STATIC
     item/crafting/RecipeSerializers.cpp
     item/crafting/RecipeLoader.cpp
 
-    # World - Drop Tables
-    world/drop/DropTables.cpp
+    # Item - Enchantment System
+    item/enchantment/Enchantment.cpp
+    item/enchantment/EnchantmentRegistry.cpp
+    item/enchantment/EnchantmentContainer.cpp
+    item/enchantment/EnchantmentHelper.cpp
+    item/enchantment/enchantments/FortuneEnchantment.cpp
+    item/enchantment/enchantments/SilkTouchEnchantment.cpp
 
     # World - Entity
     world/entity/EntityManager.cpp

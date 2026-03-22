@@ -97,27 +97,30 @@ void ItemEntity::tick() {
 // 玩家拾取
 // ============================================================================
 
-bool ItemEntity::onPlayerPickup(Player& /*player*/) {
+bool ItemEntity::onPlayerPickup(Player& player) {
     // 检查是否可以拾取
     if (!canBePickedUp()) {
         return false;
     }
 
     // 检查所有者限制（防止立即拾取自己丢弃的物品）
-    // 这里简化处理，实际应该检查玩家的UUID
-    // if (!m_ownerUuid.empty() && m_age < 20) {
-    //     return false;
-    // }
+    // 如果设置了所有者且延迟未过期，则不能拾取
+    if (!m_ownerUuid.empty() && m_age < DEFAULT_PICKUP_DELAY) {
+        // TODO: 检查 UUID 匹配
+        // 暂时跳过 UUID 检查
+    }
 
-    // TODO: 将物品添加到玩家背包
-    // PlayerInventory& inventory = player.inventory();
-    // i32 remaining = inventory.add(m_itemStack);
-    // if (remaining > 0) {
-    //     m_itemStack.setCount(remaining);
-    //     return false;  // 只拾取了部分
-    // }
+    // 将物品添加到玩家背包
+    PlayerInventory& inventory = player.inventory();
+    i32 remaining = inventory.add(m_itemStack);
 
-    // 标记为移除
+    if (remaining > 0) {
+        // 只拾取了部分
+        m_itemStack.setCount(remaining);
+        return false;
+    }
+
+    // 完全拾取，标记为移除
     remove();
     return true;
 }

@@ -6,6 +6,7 @@
 #include "server/core/KeepAliveManager.hpp"
 #include "server/core/PositionTracker.hpp"
 #include "server/core/PacketHandler.hpp"
+#include "server/core/GameModeManager.hpp"
 #include "server/world/ServerWorld.hpp"
 #include "common/perfetto/TraceEvents.hpp"
 #include <spdlog/spdlog.h>
@@ -33,6 +34,7 @@ ServerCore::ServerCore(const ServerCoreConfig& config)
           *m_positionTracker,
           *m_timeManager,
           m_config))
+    , m_gameModeManager(std::make_unique<core::GameModeManager>(*m_playerManager, *m_connectionManager))
 {
     m_playerManager->setConfig(m_config);
     m_weatherManager.initialize(m_config.seed);
@@ -72,6 +74,9 @@ const core::PacketHandler& ServerCore::packetHandler() const { return *m_packetH
 
 WeatherManager& ServerCore::weatherManager() { return m_weatherManager; }
 const WeatherManager& ServerCore::weatherManager() const { return m_weatherManager; }
+
+core::GameModeManager& ServerCore::gameModeManager() { return *m_gameModeManager; }
+const core::GameModeManager& ServerCore::gameModeManager() const { return *m_gameModeManager; }
 
 // ============================================================================
 // 玩家管理
@@ -208,20 +213,11 @@ void ServerCore::recordKeepAliveSent(PlayerId playerId, u64 timestamp) {
 // ============================================================================
 
 bool ServerCore::setPlayerGameMode(PlayerId playerId, GameMode mode) {
-    auto* player = m_playerManager->getPlayer(playerId);
-    if (!player) {
-        return false;
-    }
-    player->gameMode = mode;
-    return true;
+    return m_gameModeManager->setGameMode(playerId, mode);
 }
 
 GameMode ServerCore::getPlayerGameMode(PlayerId playerId) const {
-    const auto* player = m_playerManager->getPlayer(playerId);
-    if (!player) {
-        return GameMode::NotSet;
-    }
-    return player->gameMode;
+    return m_gameModeManager->getGameMode(playerId);
 }
 
 // ============================================================================

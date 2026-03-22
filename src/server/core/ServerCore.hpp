@@ -31,6 +31,7 @@ class TeleportManager;
 class KeepAliveManager;
 class PositionTracker;
 class PacketHandler;
+class GameModeManager;
 }
 
 /**
@@ -155,6 +156,12 @@ public:
      */
     [[nodiscard]] WeatherManager& weatherManager();
     [[nodiscard]] const WeatherManager& weatherManager() const;
+
+    /**
+     * @brief 获取游戏模式管理器
+     */
+    [[nodiscard]] core::GameModeManager& gameModeManager();
+    [[nodiscard]] const core::GameModeManager& gameModeManager() const;
 
     // ========== 便捷方法（委托给管理器） ==========
 
@@ -337,6 +344,7 @@ private:
     std::unique_ptr<core::KeepAliveManager> m_keepAliveManager;
     std::unique_ptr<core::PositionTracker> m_positionTracker;
     std::unique_ptr<core::PacketHandler> m_packetHandler;
+    std::unique_ptr<core::GameModeManager> m_gameModeManager;
 
     // 天气管理器（直接对象）
     WeatherManager m_weatherManager;

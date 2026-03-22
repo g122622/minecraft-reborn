@@ -37,6 +37,11 @@ class IBlockReader;
 class BlockPos;
 class IRandom;
 
+namespace loot {
+class LootTableManager;
+class LootTable;
+}
+
 namespace fluid {
 class FluidState;
 } // namespace fluid
@@ -441,6 +446,18 @@ public:
      */
     BlockProperties& harvestLevel(i32 level);
 
+    /**
+     * @brief 设置掉落表ID
+     *
+     * 指定方块被破坏时使用的掉落表。
+     *
+     * @param lootTableId 掉落表ID（如 "minecraft:blocks/diamond_ore"）
+     */
+    BlockProperties& lootTableId(const String& id) {
+        m_lootTableId = id;
+        return *this;
+    }
+
     // Getters
     [[nodiscard]] const Material& material() const { return *m_material; }
     [[nodiscard]] f32 hardness() const { return m_hardness; }
@@ -455,6 +472,7 @@ public:
     [[nodiscard]] bool doesPropagateSkylightDown() const { return m_propagatesSkylightDown; }
     [[nodiscard]] u8 harvestTool() const { return m_harvestTool; }
     [[nodiscard]] i32 harvestLevel() const { return m_harvestLevel; }
+    [[nodiscard]] const String& lootTableId() const { return m_lootTableId; }
 
 private:
     friend class Block;
@@ -473,6 +491,7 @@ private:
     bool m_propagatesSkylightDown = false;
     u8 m_harvestTool = HarvestTool::None;
     i32 m_harvestLevel = 0;
+    String m_lootTableId;
 };
 
 /**
@@ -617,6 +636,40 @@ public:
      * @return 是否需要正确工具
      */
     [[nodiscard]] bool requiresTool() const { return m_requiresTool; }
+
+    // ========== 掉落表 ==========
+
+    /**
+     * @brief 获取方块的掉落表ID
+     *
+     * 返回用于生成方块掉落的掉落表ID。
+     * 默认返回空字符串，表示使用默认掉落逻辑。
+     *
+     * 子类可重写此方法返回自定义掉落表ID。
+     * 例如：
+     * - 石头: "minecraft:blocks/stone"
+     * - 钻石矿石: "minecraft:blocks/diamond_ore"
+     *
+     * @return 掉落表ID，如 "minecraft:blocks/stone"，空字符串表示无掉落表
+     */
+    [[nodiscard]] virtual String getLootTableId() const { return m_lootTableId; }
+
+    /**
+     * @brief 获取方块的掉落表
+     *
+     * 从掉落表管理器获取此方块的掉落表。
+     *
+     * @param manager 掉落表管理器
+     * @return 掉落表指针，无掉落表或找不到时返回nullptr
+     */
+    [[nodiscard]] const loot::LootTable* getLootTable(const loot::LootTableManager& manager) const;
+
+    /**
+     * @brief 设置掉落表ID
+     *
+     * @param id 掉落表ID
+     */
+    void setLootTableId(const String& id) { m_lootTableId = id; }
 
     // ========================================================================
     // 虚方法
@@ -846,6 +899,9 @@ protected:
     bool m_requiresTool = false;
     u8 m_harvestTool = HarvestTool::None;
     i32 m_harvestLevel = 0;
+
+    // 掉落表ID（默认为空，表示无自定义掉落表）
+    String m_lootTableId;
 
     // 由createBlockState设置
     std::unique_ptr<StateContainer<Block, BlockState>> m_stateContainer;

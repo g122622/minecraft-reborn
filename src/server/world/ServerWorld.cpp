@@ -583,6 +583,9 @@ void ServerWorld::tick() {
     }
     m_entityManager.tick();
 
+    // 处理物品拾取
+    m_itemPickupManager.tick(*this);
+
     // 更新实体追踪（发送位置更新给已追踪的玩家）
     m_entityTracker.tick(*this);
 

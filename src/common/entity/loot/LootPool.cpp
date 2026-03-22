@@ -1,4 +1,5 @@
 #include "LootPool.hpp"
+#include "LootConditions.hpp"
 #include <algorithm>
 
 namespace mc {

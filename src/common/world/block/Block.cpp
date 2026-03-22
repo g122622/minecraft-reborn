@@ -8,6 +8,8 @@
 #include "../fluid/fluids/EmptyFluid.hpp"
 #include "../../util/math/random/IRandom.hpp"
 #include "../../util/Direction.hpp"
+#include "../../entity/loot/LootTable.hpp"
+#include "../../entity/loot/LootConditions.hpp"
 #include <sstream>
 
 namespace mc {
@@ -269,7 +271,8 @@ Block::Block(BlockProperties properties)
     , m_propagatesSkylightDown(properties.m_propagatesSkylightDown)
     , m_requiresTool(properties.m_requiresTool)
     , m_harvestTool(properties.m_harvestTool)
-    , m_harvestLevel(properties.m_harvestLevel) {
+    , m_harvestLevel(properties.m_harvestLevel)
+    , m_lootTableId(properties.m_lootTableId) {
 }
 
 void Block::createBlockState(std::unique_ptr<StateContainer<Block, BlockState>> container) {
@@ -403,6 +406,13 @@ bool Block::isSolidSide(const BlockState& state, IWorld& world, const BlockPos& 
     (void)pos;
     (void)side;
     return m_material->isSolid() && m_hasCollision;
+}
+
+const loot::LootTable* Block::getLootTable(const loot::LootTableManager& manager) const {
+    if (m_lootTableId.empty()) {
+        return nullptr;
+    }
+    return manager.getTable(m_lootTableId);
 }
 
 } // namespace mc

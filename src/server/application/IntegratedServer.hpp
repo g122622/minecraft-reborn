@@ -14,6 +14,7 @@
 #include "common/world/entity/EntityManager.hpp"
 #include "common/entity/Player.hpp"
 #include "common/physics/PhysicsEngine.hpp"
+#include "common/entity/loot/LootTable.hpp"
 #include "server/world/ServerChunkManager.hpp"
 #include "server/core/ServerCore.hpp"
 #include <memory>
@@ -246,6 +247,9 @@ private:
         bool needsFullUpdate = true;
     };
     std::unordered_map<EntityId, EntityTrackData> m_entityTrackData;
+
+    // 掉落表管理器
+    loot::LootTableManager m_lootTableManager;
 
     // 物理引擎碰撞世界适配器
     class ServerCollisionWorld : public ICollisionWorld {

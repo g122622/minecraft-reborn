@@ -3,6 +3,7 @@
 #include "entity/loot/LootTable.hpp"
 #include "entity/loot/LootPool.hpp"
 #include "entity/loot/LootEntry.hpp"
+#include "entity/loot/LootConditions.hpp"
 #include "entity/loot/RandomRanges.hpp"
 #include "item/ItemRegistry.hpp"
 #include "item/Items.hpp"

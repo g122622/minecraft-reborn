@@ -2,6 +2,7 @@
 
 #include "common/core/Types.hpp"
 #include "LootEntry.hpp"
+#include "LootConditions.hpp"
 #include "RandomRanges.hpp"
 #include <functional>
 #include <memory>

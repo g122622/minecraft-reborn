@@ -74,6 +74,7 @@ add_executable(mc_tests
     network/EntityPacketsTest.cpp
     network/LocalServerConnectionTest.cpp
     common/entity/loot/LootTest.cpp
+    common/entity/loot/LootConditionTest.cpp
     common/world/gen/WorldGenSpawnerTest.cpp
     common/entity/EntitySpawnPlacementRegistryTest.cpp
     common/world/gen/ChunkSpawnIntegrationTest.cpp
@@ -94,6 +95,8 @@ add_executable(mc_tests
     server/ServerWorldCollisionTests.cpp
     # 实体追踪器测试
     server/world/EntityTrackerTest.cpp
+    # 物品拾取管理器测试
+    server/world/ItemPickupManagerTest.cpp
     # 资源包兼容层测试
     common/resource/compat/CompatLayerTest.cpp
     # 缓存性能对比测试
@@ -141,6 +144,8 @@ add_executable(mc_tests
     client/ui/kagero/widget/ListWidgetTest.cpp
     client/ui/kagero/widget/Viewport3DWidgetTest.cpp
     client/ui/kagero/widget/SlotWidgetTest.cpp
+    # 附魔系统测试
+    common/item/enchantment/EnchantmentTest.cpp
 )
 
 # 添加服务端源文件
@@ -154,10 +159,12 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/server/core/KeepAliveManager.cpp
         ${CMAKE_SOURCE_DIR}/src/server/core/PositionTracker.cpp
         ${CMAKE_SOURCE_DIR}/src/server/core/PacketHandler.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/core/GameModeManager.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/ServerWorld.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/ChunkWorkerPool.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/ServerChunkManager.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/entity/EntityTracker.cpp
+        ${CMAKE_SOURCE_DIR}/src/server/world/entity/ItemPickupManager.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/spawn/NaturalSpawner.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/spawn/SpawnConditions.cpp
         ${CMAKE_SOURCE_DIR}/src/server/world/weather/WeatherManager.cpp
@@ -288,7 +295,9 @@ target_sources(mc_tests
         ${CMAKE_SOURCE_DIR}/src/common/entity/loot/LootEntry.cpp
         ${CMAKE_SOURCE_DIR}/src/common/entity/loot/LootPool.cpp
         ${CMAKE_SOURCE_DIR}/src/common/entity/loot/LootTable.cpp
-        ${CMAKE_SOURCE_DIR}/src/common/world/drop/DropTables.cpp
+        ${CMAKE_SOURCE_DIR}/src/common/entity/loot/LootConditions.cpp
+        # 方块掉落处理
+        ${CMAKE_SOURCE_DIR}/src/server/world/drop/BlockDropHandler.cpp
         # 天体计算
         ${CMAKE_SOURCE_DIR}/src/client/renderer/trident/sky/CelestialCalculations.cpp
         # Trident 渲染 API 层
