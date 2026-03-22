@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Minecraft Reborn is a modern Minecraft clone with client-server architecture written in C++17 using Vulkan for rendering.
+Minecraft Reborn is a modern Minecraft clone with client-server architecture written in C++17 using Vulkan for rendering. The project aims to replicate the Java Edition 1.16.5 experience as closely as possible while maintaining compatibility with existing Minecraft ecosystem (resource packs, world saves, data packs).
 
 ## Build Commands
 
@@ -44,154 +44,277 @@ cmake --build build --config Release
 
 ```
 src/
-├── common/          # Shared code between client and server
-│   ├── core/        # Types, Result, Constants
-│   ├── math/        # Vector3, MathUtils, PerlinNoise, SimplexNoise
-│   ├── network/     # Packet, PacketSerializer, IServerConnection
-│   ├── world/       # World generation and chunk management
-│   │   ├── block/   # Block system (Block, BlockState, BlockRegistry)
-│   │   ├── chunk/   # Chunk data structures
-│   │   │   ├── ChunkData.hpp       # Final chunk data
-│   │   │   ├── ChunkPos.hpp        # Chunk position
-│   │   │   ├── ChunkStatus.hpp     # Generation stages
-│   │   │   ├── ChunkPrimer.hpp     # Intermediate chunk state
-│   │   │   ├── ChunkHolder.hpp     # Chunk state management
-│   │   │   ├── IChunk.hpp          # Chunk interface
-│   │   │   └── ChunkLoadTicketManager.hpp
-│   │   ├── time/    # Game time system
-│   │   │   └── GameTime.hpp        # Day/night cycle
-│   │   └── gen/     # World generation
-│   │       ├── ImprovedNoiseGenerator.hpp  # MC-style Perlin noise
-│   │       ├── OctavesNoiseGenerator.hpp   # Multi-octave noise
-│   │       ├── NoiseSettings.hpp           # Noise configuration
-│   │       ├── IChunkGenerator.hpp         # Generator interface
-│   │       ├── NoiseChunkGenerator.hpp     # MC-style terrain generator
-│   │       ├── BiomeProvider.hpp           # Biome distribution
-│   │       └── WorldGenRegion.hpp          # Limited world view
-│   ├── resource/    # Resource system
-│   │   ├── ResourceLocation.hpp   # Resource identifier (namespace:path)
-│   │   ├── IResourcePack.hpp      # Resource pack interface
-│   │   ├── FolderResourcePack.hpp # Folder resource pack implementation
-│   │   └── PackMetadata.hpp       # pack.mcmeta parsing
-│   └── renderer/    # MeshTypes, ChunkMesher (shared rendering data)
-├── server/          # Server application
-│   ├── application/ # ServerApplication, IntegratedServer
-│   ├── core/        # ServerCore module (NEW)
-│   │   ├── ServerCore.hpp/cpp        # Facade class coordinating all managers
-│   │   ├── ServerCoreConfig.hpp      # Configuration struct
-│   │   ├── ServerPlayerData.hpp      # Player data structure
-│   │   ├── PlayerManager.hpp/cpp     # Player lifecycle management
-│   │   ├── ConnectionManager.hpp/cpp # Network communication
-│   │   ├── TimeManager.hpp/cpp       # Game time, tick count, day cycle
-│   │   ├── TeleportManager.hpp/cpp   # Teleport request/confirmation
-│   │   ├── KeepAliveManager.hpp/cpp  # Heartbeat, ping, timeout
-│   │   ├── PositionTracker.hpp/cpp   # Player position, chunk subscription
-│   │   └── PacketHandler.hpp/cpp     # Unified packet handling
-│   ├── network/     # TcpServer, TcpSession, TcpConnection
-│   ├── command/     # Command system
-│   │   ├── CommandRegistry.hpp       # Command registration
-│   │   ├── ServerCommandSource.hpp   # Command execution context
-│   │   └── commands/                 # Command implementations
-│   ├── menu/        # Container menu system
-│   │   └── CraftingMenu.hpp/cpp
-│   ├── player/      # Server player
-│   │   └── ServerPlayer.hpp/cpp
-│   └── world/       # ServerWorld
+├── common/                    # Shared code between client and server
+│   ├── core/                  # Core types and utilities
+│   │   ├── Types.hpp          # Primitive types (i8, i16, String, etc.)
+│   │   ├── Result.hpp         # Error handling (Result<T>, Error, ErrorCode)
+│   │   ├── Constants.hpp      # Game constants
+│   │   ├── EnumSet.hpp        # Enum set utility
+│   │   ├── BlockRaycastResult.hpp
+│   │   └── settings/          # Settings system (SettingsBase, Options)
+│   ├── command/               # Command system
+│   │   ├── arguments/         # Command argument parsers
+│   │   ├── exceptions/        # Command exceptions
+│   │   └── suggestions/       # Tab completion suggestions
+│   ├── entity/                # Entity system
+│   │   ├── ai/                # AI system
+│   │   │   ├── controller/    # Look/Movement/Jump controllers
+│   │   │   ├── goal/          # Goal-based AI
+│   │   │   │   └── goals/     # Specific goal implementations
+│   │   │   └── pathfinding/   # Pathfinding system
+│   │   ├── animal/            # Animal entities (Pig, Cow, Sheep, Chicken)
+│   │   ├── attribute/         # Entity attributes
+│   │   ├── combat/            # Combat system
+│   │   ├── damage/            # Damage tracking
+│   │   ├── inventory/         # Inventory system
+│   │   ├── living/            # Living entity base
+│   │   ├── loot/              # Loot tables
+│   │   ├── mob/               # Mob entity base
+│   │   └── movement/          # Movement system (AutoJump)
+│   ├── item/                  # Item system
+│   │   ├── crafting/          # Crafting recipes
+│   │   ├── enchantment/       # Enchantment system
+│   │   │   └── enchantments/  # Specific enchantments
+│   │   ├── tier/              # Tool tier system
+│   │   └── tool/              # Tool items
+│   ├── network/               # Networking
+│   │   ├── connection/        # LocalConnection for integrated server
+│   │   ├── packet/            # Packet serialization
+│   │   └── sync/              # Chunk synchronization
+│   ├── perfetto/              # Performance tracing
+│   ├── physics/               # Physics engine
+│   │   └── collision/         # Collision detection
+│   ├── resource/              # Resource pack system
+│   │   ├── compat/            # MC version compatibility layer
+│   │   │   ├── unified/       # Unified resource representations
+│   │   │   ├── v1_12/         # MC 1.12 resource mapping
+│   │   │   └── v1_13/         # MC 1.13+ resource mapping
+│   │   └── loader/            # Resource loading pipeline
+│   ├── screen/                # Screen types
+│   ├── util/                  # Utilities
+│   │   ├── cache/             # LRU cache implementations
+│   │   ├── math/              # Math utilities
+│   │   │   ├── random/        # Random number generators
+│   │   │   └── ray/           # Raycast utilities
+│   │   ├── nbt/               # NBT serialization
+│   │   └── property/          # Property system
+│   └── world/                 # World system
+│       ├── biome/             # Biome system
+│       │   └── layer/         # Biome layer generation
+│       │       └── transformers/
+│       ├── block/             # Block system
+│       │   └── blocks/        # Specific block types
+│       ├── blockentity/       # Block entities
+│       ├── chunk/             # Chunk management
+│       ├── dimension/         # Dimension system
+│       ├── entity/            # World entity management
+│       ├── fluid/             # Fluid system
+│       │   └── fluids/        # Water, Lava, Empty
+│       ├── gen/               # World generation
+│       │   ├── carver/        # Cave/Canyon carvers
+│       │   ├── chunk/         # Chunk generators
+│       │   ├── feature/       # Features (ores, trees, vegetation)
+│       │   ├── noise/         # Noise generators
+│       │   ├── placement/     # Feature placement
+│       │   ├── settings/      # Generation settings
+│       │   ├── spawn/         # World spawn
+│       │   └── surface/       # Surface builders
+│       ├── lighting/          # Lighting system
+│       │   ├── engine/        # Light engines
+│       │   ├── manager/       # Light manager
+│       │   └── storage/       # Light storage
+│       ├── spawn/             # Spawn info
+│       ├── tick/              # Tick system
+│       ├── time/              # Game time (day/night cycle)
+│       └── weather/           # Weather system
+├── server/                    # Server application
+│   ├── application/           # ServerApplication, IntegratedServer
+│   ├── core/                  # ServerCore module (modular design)
+│   │   ├── ServerCore.hpp/cpp       # Facade class
+│   │   ├── ServerCoreConfig.hpp     # Configuration struct
+│   │   ├── ServerPlayerData.hpp     # Player data structure
+│   │   ├── PlayerManager.hpp/cpp    # Player lifecycle
+│   │   ├── ConnectionManager.hpp/cpp# Network communication
+│   │   ├── TimeManager.hpp/cpp      # Game time, tick count
+│   │   ├── TeleportManager.hpp/cpp  # Teleport handling
+│   │   ├── KeepAliveManager.hpp/cpp # Heartbeat/ping
+│   │   ├── PositionTracker.hpp/cpp  # Position tracking
+│   │   ├── PacketHandler.hpp/cpp    # Unified packet handling
+│   │   └── GameModeManager.hpp/cpp  # Game mode management
+│   ├── network/               # TcpServer, TcpSession, TcpConnection
+│   ├── command/               # Command system
+│   │   ├── CommandRegistry.hpp
+│   │   ├── ServerCommandSource.hpp
+│   │   └── commands/          # Command implementations
+│   ├── menu/                  # Container menu system
+│   ├── player/                # ServerPlayer
+│   ├── settings/              # ServerSettings
+│   └── world/                 # ServerWorld
 │       ├── ServerWorld.hpp
-│       ├── ServerChunkManager.hpp  # Chunk manager
-│       ├── ChunkWorkerPool.hpp     # Async generation
-│       ├── spawn/                  # Mob spawning
-│       │   ├── NaturalSpawner.hpp
-│       │   └── SpawnConditions.hpp
-│       └── entity/EntityTracker.hpp
-├── client/          # Client application
-│   ├── application/ # ClientApplication, GameLoop
-│   ├── window/      # Window (GLFW wrapper)
-│   ├── input/       # InputManager
-│   ├── renderer/    # Rendering system
-│   │   ├── api/     # Platform-agnostic rendering interface
-│   │   │   ├── IRenderEngine.hpp     # Main render engine interface
-│   │   │   ├── Types.hpp             # Vertex, Face, BlockGeometry
-│   │   │   ├── BlendMode.hpp         # Blend states
-│   │   │   ├── CompareOp.hpp         # Depth comparison
-│   │   │   ├── CullMode.hpp          # Face culling
-│   │   │   ├── buffer/IBuffer.hpp    # Buffer interfaces
-│   │   │   ├── texture/ITexture.hpp  # Texture interface
-│   │   │   ├── pipeline/RenderState.hpp  # Render state (blend, depth, rasterizer)
-│   │   │   ├── pipeline/RenderType.hpp   # Named render types (MC style)
-│   │   │   ├── camera/ICamera.hpp    # Camera interface
-│   │   │   └── mesh/MeshData.hpp     # Mesh data structures
-│   │   ├── trident/  # Trident Vulkan rendering engine
-│   │   │   ├── TridentEngine.hpp     # Main engine (implements IRenderEngine)
-│   │   │   ├── TridentContext.hpp    # Vulkan instance, device, queues
-│   │   │   ├── TridentSwapchain.hpp  # Swapchain management
-│   │   │   └── render/
-│   │   │       ├── RenderPassManager.hpp  # Render pass & framebuffers
-│   │   │       ├── FrameManager.hpp       # Command buffers & sync objects
-│   │   │       ├── DescriptorManager.hpp  # Descriptor sets
-│   │   │       └── UniformManager.hpp     # Uniform buffers
-│   │   ├── chunk/    # Chunk mesh generation
-│   │   │   └── ChunkMesher.hpp
-│   │   ├── mesh/     # Mesh worker pool
-│   │   │   └── MeshWorkerPool.hpp
-│   │   ├── util/     # Utility functions
-│   │   │   └── ShaderPath.hpp
-│   │   ├── entity/   # Entity rendering
-│   │   ├── item/     # Item rendering
-│   │   ├── sky/      # Sky rendering
-│   │   ├── fog/      # Fog effects
-│   │   │   └── FogManager.hpp     # Fog calculation and rendering
-│   │   ├── VulkanRenderer.hpp   # High-level renderer (uses Trident backend)
-│   │   ├── VulkanBuffer.hpp     # GPU buffer management
-│   │   ├── VulkanTexture.hpp    # Texture and texture atlas
-│   │   ├── VulkanPipeline.hpp   # Pipeline management
-│   │   ├── VulkanContext.hpp    # Legacy Vulkan context
-│   │   ├── VulkanSwapchain.hpp  # Legacy swapchain
-│   │   ├── ChunkRenderer.hpp    # Chunk mesh GPU buffers
-│   │   ├── Camera.hpp           # Camera controller
-│   │   └── MeshTypes.hpp        # Mesh types (Vertex, Face, etc.)
-│   └── resource/    # Client resource loading
-│       ├── BlockModelLoader.hpp    # Model JSON parsing
-│       ├── BlockStateLoader.hpp    # Block state JSON parsing
-│       ├── TextureAtlasBuilder.hpp # Texture atlas construction
-│       └── ResourceManager.hpp     # Resource manager facade
-├── common/
-│   └── perfetto/      # Perfetto 性能追踪
-│       ├── PerfettoConfig.hpp      # 编译时配置开关
-│       ├── TraceCategories.hpp     # 追踪分类定义
-│       ├── TraceCategories.cpp     # 分类静态存储
-│       ├── PerfettoManager.hpp     # 单例管理器
-│       ├── PerfettoManager.cpp     # 管理器实现
-│       └── TraceEvents.hpp         # 便捷追踪宏
-└── modding/         # JavaScript mod system (future)
+│       ├── ServerChunkManager.hpp
+│       ├── ChunkWorkerPool.hpp
+│       ├── drop/              # Block drop handling
+│       ├── entity/            # EntityTracker, ItemPickupManager
+│       ├── spawn/             # NaturalSpawner, SpawnConditions
+│       └── weather/           # WeatherManager
+├── client/                    # Client application
+│   ├── application/           # ClientApplication
+│   ├── chat/                  # ChatHistory
+│   ├── input/                 # InputManager
+│   ├── network/               # NetworkClient
+│   ├── settings/              # ClientSettings
+│   ├── window/                # Window (GLFW wrapper)
+│   ├── resource/              # Resource loading
+│   │   ├── ResourceManager.hpp
+│   │   ├── BlockModelLoader.hpp
+│   │   ├── BlockStateLoader.hpp
+│   │   ├── TextureAtlasBuilder.hpp
+│   │   ├── BlockModelCache.hpp
+│   │   ├── ItemTextureAtlas.hpp
+│   │   └── EntityTextureLoader.hpp
+│   ├── renderer/              # Rendering system
+│   │   ├── api/               # Platform-agnostic rendering interface
+│   │   │   ├── IRenderEngine.hpp
+│   │   │   ├── Types.hpp
+│   │   │   ├── BlendMode.hpp, CompareOp.hpp, CullMode.hpp
+│   │   │   ├── buffer/IBuffer.hpp
+│   │   │   ├── camera/ICamera.hpp, CameraConfig.hpp
+│   │   │   ├── mesh/MeshData.hpp
+│   │   │   ├── pipeline/IPipeline.hpp, RenderState.hpp, RenderType.hpp
+│   │   │   └── texture/ITexture.hpp, ITextureAtlas.hpp, TextureRegion.hpp
+│   │   ├── trident/           # Trident Vulkan engine
+│   │   │   ├── core/          # Core components
+│   │   │   │   ├── TridentContext.hpp/cpp
+│   │   │   │   ├── TridentEngine.hpp/cpp
+│   │   │   │   ├── TridentSwapchain.hpp/cpp
+│   │   │   │   ├── buffer/TridentBuffer.hpp/cpp
+│   │   │   │   ├── pipeline/TridentPipeline.hpp/cpp
+│   │   │   │   ├── render/RenderPassManager.hpp, FrameManager.hpp
+│   │   │   │   ├── render/DescriptorManager.hpp, UniformManager.hpp
+│   │   │   │   └── texture/TridentTexture.hpp/cpp
+│   │   │   ├── chunk/         # ChunkRenderer, ChunkMesher, AO
+│   │   │   ├── cloud/         # CloudRenderer
+│   │   │   ├── entity/        # EntityRenderer, EntityPipeline, models
+│   │   │   ├── fog/           # FogManager
+│   │   │   ├── gui/           # GuiRenderer, texture atlases
+│   │   │   ├── item/          # ItemRenderer
+│   │   │   ├── particle/      # ParticleManager, RainParticle, SnowParticle
+│   │   │   ├── postprocess/   # Post-processing
+│   │   │   ├── sky/           # SkyRenderer, CelestialCalculations
+│   │   │   ├── util/          # VulkanUtils
+│   │   │   └── weather/       # WeatherRenderer
+│   │   ├── mesh/              # MeshWorkerPool
+│   │   ├── Camera.hpp/cpp
+│   │   └── MeshTypes.hpp/cpp
+│   ├── ui/                    # User interface
+│   │   ├── Font.hpp/cpp, FontRenderer.hpp
+│   │   ├── FontTextureAtlas.hpp
+│   │   ├── TridentCanvas.hpp
+│   │   ├── kagero/            # Kagero UI framework
+│   │   │   ├── event/         # Event system
+│   │   │   ├── layout/        # Layout system (Flex, Grid, Anchor)
+│   │   │   ├── paint/         # Paint abstraction
+│   │   │   ├── state/         # State management (Reactive)
+│   │   │   ├── template/      # Template system
+│   │   │   └── widget/        # Widget components
+│   │   └── minecraft/         # Minecraft-specific UI
+│   │       ├── resources/     # UI resources
+│   │       ├── screens/       # Game screens
+│   │       └── widgets/       # Game widgets
+│   └── world/                 # ClientWorld
+│       └── entity/            # ClientEntityManager
+└── tests/                     # Test files
+    ├── common/                # Common module tests
+    ├── client/                # Client module tests
+    ├── server/                # Server module tests
+    ├── entity/                # Entity tests
+    ├── lighting/              # Lighting tests
+    ├── network/               # Network tests
+    ├── physics/               # Physics tests
+    └── ui/                    # UI tests
 ```
 
 ## Key Types
 
 All types are in namespace `mc` (client types in `mc::client`, server types in `mc::server`):
 
-- **Primitive types**: `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32`, `f64` （浮点数尽量使用f32而非f64以提升性能。）
-- **String types**: `String` (std::string), `StringView` (std::string_view)
-- **Game types**: `ChunkCoord`, `BlockCoord`, `BlockId`, `EntityId`, `DimensionId`
-- **World types**: `ChunkId`, `BlockPos`, `ChunkPos`, `BlockState`, `ChunkSection`, `ChunkData`
-- **Chunk generation types** (NEW):
-  - `ChunkStatus`: Generation stages (EMPTY, BIOMES, NOISE, SURFACE, CARVERS, FEATURES, HEIGHTMAPS, FULL)
-  - `ChunkPrimer`: Intermediate chunk state during generation
-  - `ChunkHolder`: Manages chunk loading state and futures
-  - `ChunkTask`: Generation task for worker pool
-  - `BiomeId`, `BiomeDefinition`, `BiomeContainer`: Biome system
-  - `Heightmap`, `HeightmapType`: Height tracking
-  - `NoiseSettings`, `DimensionSettings`: Noise configuration
-  - `IChunkGenerator`, `NoiseChunkGenerator`: Terrain generation
-- **Renderer types**: `Vertex`, `Face`, `MeshData`, `TextureRegion`, `BlockModel`, `TextureAtlas`
-- **Fog types** (NEW):
-  - `FogMode`: Fog mode enum (None, Linear, Exp2)
-  - `FogUBO`: Fog uniform buffer data (fogStart, fogEnd, fogDensity, fogColor)
-  - `FogManager`: Fog effect manager (calculation, GPU update)
-- **Resource types**: `ResourceLocation`, `PackMetadata`, `IResourcePack`, `FolderResourcePack`
-- **Model types**: `Direction`, `ModelElement`, `ModelFace`, `UnbakedBlockModel`, `BakedBlockModel`
-- **Block state types**: `BlockStateVariant`, `VariantList`, `BlockStateDefinition`
-- **Error handling**: `Result<T>` with `Error` class and `ErrorCode` enum
+### Primitive Types
+- `i8`, `i16`, `i32`, `i64` - Signed integers
+- `u8`, `u16`, `u32`, `u64` - Unsigned integers
+- `f32`, `f64` - Floating point (prefer f32 for performance)
+- `String`, `StringView` - String types
+- `Optional<T>` - Optional values
+
+### Game Types
+- `ChunkCoord`, `BlockCoord`, `WorldHeight` - Coordinate types
+- `BlockId`, `ItemId`, `EntityId`, `BiomeId`, `DimensionId` - ID types
+- `PlayerId` - Player identifier
+
+### World Types
+- `ChunkPos`, `BlockPos`, `SectionPos` - Position types
+- `ChunkId` - 64-bit chunk identifier
+- `BlockState` - Block state with properties
+- `ChunkSection` - 16x16x16 block section
+- `ChunkData` - Full chunk data (16 sections)
+
+### Chunk Generation Types
+- `ChunkStatus`: Generation stages (EMPTY → BIOMES → NOISE → SURFACE → CARVERS → FEATURES → LIGHT → HEIGHTMAPS → FULL)
+- `ChunkPrimer`: Intermediate chunk state during generation
+- `ChunkHolder`: Manages chunk loading state and futures
+- `ChunkTask`: Generation task for worker pool
+- `IChunk`: Chunk interface for generation
+
+### Biome Types
+- `BiomeId` - Biome identifier (170 biomes, MC 1.16.5 compatible)
+- `Biome` - Biome definition with climate, features, carvers
+- `BiomeContainer` - 4x4x4 sampled biome storage
+- `BiomeProvider` - Base class for biome distribution
+- `LayerBiomeProvider` - Layer-based biome generation (MC 1.16.5)
+
+### Noise Types
+- `INoiseGenerator` - Noise interface
+- `ImprovedNoiseGenerator` - MC-style Perlin noise
+- `OctavesNoiseGenerator` - Multi-octave noise (up to 16 octaves)
+- `PerlinNoiseGenerator`, `SimplexNoiseGenerator` - Other noise types
+
+### Renderer Types
+- `Vertex`, `ModelVertex`, `GuiVertex` - Vertex types
+- `Face` - Triangle face
+- `MeshData` - Mesh vertex/index buffers
+- `TextureRegion` - UV coordinates in atlas
+- `BakedBlockModel`, `UnbakedBlockModel` - Model types
+
+### Renderer API Types (Platform-agnostic)
+- `IRenderEngine` - Main render engine interface
+- `IVertexBuffer`, `IIndexBuffer`, `IUniformBuffer`, `IStagingBuffer` - Buffer interfaces
+- `ITexture`, `ITextureAtlas` - Texture interfaces
+- `ICamera` - Camera interface
+- `RenderState` - Blend, depth, rasterizer state
+- `RenderType` - Named render types (MC 1.16.5 style)
+
+### Fog Types
+- `FogMode`: Fog mode enum (None, Linear, Exp2)
+- `FogUBO`: Fog uniform buffer data (fogStart, fogEnd, fogDensity, fogColor)
+- `FogManager`: Fog effect manager
+
+### Network Types
+- `PacketType` - Packet type enumeration
+- `PacketHeader` - 12-byte packet header
+- `Packet` - Base packet class
+- `PacketSerializer/Deserializer` - Binary serialization
+- `IServerConnection` - Server connection interface
+- `LocalEndpoint`, `LocalConnectionPair` - Local IPC for integrated server
+
+### Error Handling
+- `Result<T>` - Result type for fallible operations
+- `Error` - Error container with code and message
+- `ErrorCode` - Error code enumeration
+
+### Settings Types
+- `BooleanOption`, `RangeOption`, `FloatOption` - Setting option types
+- `EnumOption<T>` - Enum setting type
+- `StringOption`, `ResourcePackListOption` - Other settings
+- `SettingsBase` - Base class for settings management
 
 ## Chunk Generation System
 
@@ -199,7 +322,7 @@ The chunk generation system follows MC 1.16.5 architecture:
 
 ### Generation Stages
 ```
-EMPTY → BIOMES → NOISE → SURFACE → CARVERS → FEATURES → HEIGHTMAPS → FULL
+EMPTY → BIOMES → NOISE → SURFACE → CARVERS → FEATURES → LIGHT → HEIGHTMAPS → FULL
 ```
 
 Each stage has specific responsibilities:
@@ -207,8 +330,9 @@ Each stage has specific responsibilities:
 - **BIOMES**: Generate biome data
 - **NOISE**: Generate terrain density using multi-octave Perlin noise
 - **SURFACE**: Apply surface blocks (grass, sand, etc.)
-- **CARVERS**: Apply cave carving
+- **CARVERS**: Apply cave/canyon carving
 - **FEATURES**: Place trees, ores, structures
+- **LIGHT**: Calculate lighting
 - **HEIGHTMAPS**: Calculate final heightmaps
 - **FULL**: Complete chunk
 
@@ -245,177 +369,298 @@ auto future = manager.getChunkAsync(x, z, &ChunkStatus::FULL);
 manager.tick();
 ```
 
-## Chunk Mesh Generation
+## Rendering System
 
-The chunk mesh system generates renderable meshes from chunk data:
+The client uses the Trident Vulkan rendering engine with a platform-agnostic API layer.
 
-- **BlockGeometry**: Provides face vertices, normals, and directions for cube blocks
-- **MeshData**: Stores vertex and index buffers for a mesh
-- **ChunkMesher**: Generates mesh from ChunkData with face culling
-- **ChunkRenderData**: Per-chunk render data with solid/transparent mesh separation
-- **ChunkMeshCache**: LRU cache for chunk mesh data
+### Architecture
 
-```cpp
-// Generate mesh for a chunk
-MeshData mesh;
-ChunkMesher::generateMesh(chunkData, mesh, neighborChunks);
+```
+client/renderer/
+├── api/                    # Platform-agnostic interface (100%)
+│   ├── IRenderEngine.hpp   # Main engine interface
+│   ├── Types.hpp           # Vertex, ModelVertex, GuiVertex, IndexType
+│   ├── BlendMode.hpp       # Blend modes
+│   ├── CompareOp.hpp       # Depth comparison
+│   ├── CullMode.hpp        # Face culling
+│   ├── TridentApi.hpp      # Unified include
+│   ├── buffer/IBuffer.hpp  # Buffer interfaces
+│   ├── camera/             # Camera interface and config
+│   ├── mesh/MeshData.hpp   # Mesh data structures
+│   ├── pipeline/           # Pipeline, RenderState, RenderType
+│   └── texture/            # Texture interfaces
+├── trident/                # Vulkan implementation (100%)
+│   ├── core/               # Core Vulkan components
+│   │   ├── TridentContext.hpp/cpp
+│   │   ├── TridentEngine.hpp/cpp   # Implements IRenderEngine
+│   │   ├── TridentSwapchain.hpp/cpp
+│   │   ├── buffer/TridentBuffer.hpp/cpp
+│   │   ├── pipeline/TridentPipeline.hpp/cpp
+│   │   ├── render/RenderPassManager.hpp, FrameManager.hpp
+│   │   ├── render/DescriptorManager.hpp, UniformManager.hpp
+│   │   └── texture/TridentTexture.hpp/cpp
+│   ├── chunk/              # ChunkRenderer, ChunkMesher, AmbientOcclusionCalculator
+│   ├── cloud/              # CloudRenderer (Fast/Fancy)
+│   ├── entity/             # EntityRenderer, EntityPipeline, models
+│   ├── fog/                # FogManager (Linear/Exp2 fog)
+│   ├── gui/                # GuiRenderer, texture atlases, sprite system
+│   ├── item/               # ItemRenderer
+│   ├── particle/           # ParticleManager, RainParticle, SnowParticle
+│   ├── postprocess/        # Post-processing effects
+│   ├── sky/                # SkyRenderer, sun/moon/stars
+│   ├── util/               # VulkanUtils
+│   └── weather/            # WeatherRenderer
+├── mesh/                   # MeshWorkerPool (async mesh building)
+├── Camera.hpp/cpp          # Camera controller (implements ICamera)
+└── MeshTypes.hpp/cpp       # Mesh types
 ```
 
-## Vulkan Rendering
+### Sub-Renderers
 
-The client uses Vulkan for rendering:
-
-- **VulkanContext**: Vulkan instance, physical/logical device, queues
-- **VulkanSwapchain**: Swapchain and image views
-- **VulkanPipeline**: Graphics pipeline, render pass, descriptor layouts
-- **VulkanRenderer**: Main renderer coordinating all Vulkan objects
-- **VulkanBuffer**: GPU buffer management (vertex, index, staging)
-- **VulkanTexture**: Texture image, view, sampler management
-- **VulkanTextureAtlas**: Texture atlas for block textures
-- **ChunkRenderer**: Manages chunk GPU buffers and rendering
+| Renderer | Location | Description |
+|----------|----------|-------------|
+| ChunkRenderer | `trident/chunk/` | Chunk mesh GPU buffers, async upload |
+| ChunkMesher | `trident/chunk/` | Mesh generation with face culling |
+| AmbientOcclusionCalculator | `trident/chunk/` | AO for smooth lighting |
+| SkyRenderer | `trident/sky/` | Sky dome, sun, moon, stars |
+| CloudRenderer | `trident/cloud/` | Fast/Fancy cloud rendering |
+| FogManager | `trident/fog/` | Linear/Exp2 fog, underwater/lava fog |
+| WeatherRenderer | `trident/weather/` | Rain/snow layer rendering |
+| ParticleManager | `trident/particle/` | Particle system |
+| EntityRenderer | `trident/entity/` | Entity rendering with models |
+| GuiRenderer | `trident/gui/` | GUI text, rectangles, sprites |
+| ItemRenderer | `trident/item/` | Item icons in GUI |
 
 ## Resource Pack System
 
-The resource pack system parses standard Minecraft resource pack format with a "compiler-style" frontend compatibility layer.
+The resource pack system parses standard Minecraft resource pack format with a compatibility layer for MC 1.12 through MC 1.19+.
 
-### Resource Pack Compatibility Layer Architecture
+### Architecture
 
 ```
-src/common/resource/
-├── compat/                        # COMPATIBILITY LAYER
-│   ├── PackFormat.hpp/cpp         # Pack format version detection (1.12, 1.13+, etc.)
-│   ├── ResourceMapper.hpp/cpp     # Abstract resource mapping interface
-│   ├── TextureMapper.hpp/cpp      # 250+ texture name mappings (bidirectional)
-│   ├── v1_12/                     # MC 1.12.2 specific handling
-│   │   ├── ResourceMapperV112.hpp
-│   │   └── ResourceMapperV112.cpp
-│   ├── v1_13/                     # MC 1.13+ specific handling
-│   │   ├── ResourceMapperV113.hpp
-│   │   └── ResourceMapperV113.cpp
-│   └── unified/                   # Unified IR definitions
-│       ├── UnifiedResource.hpp    # Base unified resource types
-│       ├── UnifiedTexture.hpp     # Unified texture representation
-│       ├── UnifiedModel.hpp       # Unified model representation
-│       └── UnifiedBlockState.hpp  # Unified block state representation
-│
-├── loader/                        # RESOURCE LOADERS
-│   └── ResourceLoader.hpp/cpp     # Loading pipeline with format detection
-│
-└── ... (existing files)
+common/resource/
+├── ResourceLocation.hpp     # Resource identifier (namespace:path)
+├── IResourcePack.hpp        # Resource pack interface
+├── FolderResourcePack.hpp   # Folder-based pack
+├── ZipResourcePack.hpp      # ZIP-based pack
+├── InMemoryResourcePack.hpp # Built-in vanilla resources
+├── PackMetadata.hpp         # pack.mcmeta parsing
+├── ResourcePackList.hpp     # Multi-pack management
+├── VanillaResources.hpp     # Built-in vanilla models/blockstates
+├── compat/                  # MC version compatibility layer
+│   ├── PackFormat.hpp       # Version detection (1.6 to 1.19+)
+│   ├── TextureMapper.hpp    # 250+ texture name mappings
+│   ├── ResourceMapper.hpp   # Abstract mapper interface
+│   ├── v1_12/               # MC 1.12 resource mapping
+│   ├── v1_13/               # MC 1.13+ resource mapping
+│   └── unified/             # Unified intermediate representation
+└── loader/                  # Resource loading pipeline
+    └── ResourceLoader.hpp   # Format detection, loading
 ```
 
-### MC Version Compatibility
+### Pack Format Support
 
-The system supports MC 1.12 through MC 1.19+ resource packs with automatic conversion:
+| Format | MC Version | Texture Paths |
+|--------|------------|---------------|
+| 1 | 1.6-1.8 | Legacy |
+| 2 | 1.9-1.10 | Legacy |
+| 3 | 1.11-1.12 | `textures/blocks/`, `textures/items/` |
+| 4 | 1.13-1.14 | `textures/block/`, `textures/item/` (flattening) |
+| 5 | 1.15-1.16.1 | Modern |
+| 6 | 1.16.2-1.16.5 | Modern |
+| 7 | 1.17 | Modern |
+| 8 | 1.18 | Modern |
+| 9 | 1.19 | Modern |
 
-**Path Compatibility:**
-- MC 1.12: `textures/blocks/`, `textures/items/`
-- MC 1.13+: `textures/block/`, `textures/item/`
+### Texture Name Mappings (250+ bidirectional)
 
-**Name Mappings (250+ bidirectional mappings):**
 - Logs: `log_jungle` ↔ `jungle_log`, `log_oak` ↔ `oak_log`
 - Leaves: `leaves_jungle` ↔ `jungle_leaves`
-- Planks: `planks_oak` ↔ `oak_planks`
 - Wool: `wool_colored_white` ↔ `white_wool`
 - Stone: `stone_granite` ↔ `granite`, `stone_andesite` ↔ `andesite`
-- Grass: `grass_top` ↔ `grass_block_top`, `grass_side` ↔ `grass_block_side`
 - Flowers: `flower_rose` ↔ `poppy`, `flower_houstonia` ↔ `azure_bluet`
 - Terracotta: `hardened_clay_stained_white` ↔ `white_terracotta`
 
-### Using the Compat Layer
+## Network Layer
 
-```cpp
-#include "resource/compat/TextureMapper.hpp"
-#include "resource/compat/ResourceMapper.hpp"
+### Packet Types
 
-// Get texture name variants
-const auto& mapper = mc::resource::compat::TextureMapper::instance();
-auto variants = mapper.getNameVariants("jungle_log");
-// Returns: {"jungle_log", "log_jungle"}
+| Direction | Types |
+|-----------|-------|
+| Client→Server | LoginRequest, PlayerMove, TeleportConfirm, ChatMessage, BlockInteraction, PlayerTryUseItemOnBlock |
+| Server→Client | LoginResponse, PlayerSpawn, PlayerDespawn, ChunkData, UnloadChunk, BlockUpdate, Teleport, ChatBroadcast, TimeUpdate, GameStateChange, SpawnEntity, SpawnMob |
+| Internal | Handshake, KeepAlive, Disconnect |
 
-// Get all path variants for texture loading
-auto paths = mapper.getPathVariants("textures/block/jungle_log.png");
-// Returns: {"textures/block/jungle_log.png", "textures/blocks/log_jungle.png", ...}
+### Key Classes
 
-// Create format-specific mapper
-auto v112Mapper = mc::resource::compat::ResourceMapper::create(
-    mc::resource::compat::PackFormat::V1_11_to_1_12);
-String unified = v112Mapper->toUnifiedTexturePath("textures/blocks/log_jungle.png");
-// Returns: "textures/block/jungle_log.png"
+- **Packet**: Base class with `serialize()` and `deserialize()`
+- **PacketSerializer/Deserializer**: Binary serialization with VarInt/VarLong support
+- **IServerConnection**: Connection interface (TCP or Local)
+- **LocalEndpoint/LocalConnectionPair**: Process-internal IPC for integrated server
+- **ChunkSyncManager**: Player chunk subscription management
+- **PlayerChunkTracker**: Track loaded chunks per player
+
+## Entity System
+
+### Base Classes
+
+- **Entity**: Base entity class with position, rotation, velocity
+- **LivingEntity**: Entity with health, attributes, effects
+- **Mob**: Living entity with AI goals
+- **Player**: Player entity with inventory, abilities
+- **ServerPlayer/ClientPlayer**: Server/client-specific player implementations
+
+### AI System
+
+```
+entity/ai/
+├── controller/         # Entity controllers
+│   ├── LookController.hpp
+│   ├── MoveController.hpp
+│   └── JumpController.hpp
+├── goal/               # Goal-based AI
+│   ├── Goal.hpp        # Goal base class
+│   ├── GoalSelector.hpp
+│   └── goals/          # Specific goals
+│       ├── RandomWalkingGoal.hpp
+│       ├── LookAtPlayerGoal.hpp
+│       ├── SwimGoal.hpp
+│       └── ...
+└── pathfinding/        # Pathfinding system
+    ├── PathNavigator.hpp
+    ├── NodeProcessor.hpp
+    └── PathFinder.hpp
 ```
 
-### Pack Format Detection
+### Animal Entities
 
-```cpp
-// PackFormat enum values
-enum class PackFormat : i32 {
-    V1_6_to_1_8 = 1,
-    V1_9_to_1_10 = 2,
-    V1_11_to_1_12 = 3,   // Old texture paths
-    V1_13_to_1_14 = 4,   // New texture paths (flattening)
-    V1_15_to_1_16_1 = 5,
-    V1_16_2_to_1_16_5 = 6,
-    V1_17 = 7,
-    V1_18 = 8,
-    V1_19 = 9,
-};
+- **Pig**, **Cow**, **Sheep**, **Chicken** - Passive animals with breeding
 
-// Detect format from pack.mcmeta
-PackFormat format = detectPackFormat(packFormatNumber);
-bool needsMapping = requiresTextureNameMapping(format);
+### Entity Attributes
+
+- `MAX_HEALTH`, `FOLLOW_RANGE`, `KNOCKBACK_RESISTANCE`
+- `MOVEMENT_SPEED`, `ATTACK_DAMAGE`, `ATTACK_SPEED`
+- `LUCK`, `ARMOR`, `ARMOR_TOUGHNESS`
+
+## Item System
+
+### Item Types
+
+- **Item**: Base item class
+- **BlockItem**: Places blocks
+- **ToolItem**: Pickaxe, Axe, Shovel, Hoe, Sword
+- **FoodItem**: Edible items
+- **ArmorItem**: Wearable armor
+
+### Crafting System
+
+```
+item/crafting/
+├── IRecipe.hpp           # Recipe interface
+├── ShapedRecipe.hpp      # Shaped crafting
+├── ShapelessRecipe.hpp   # Shapeless crafting
+├── SmeltingRecipe.hpp    # Furnace recipes
+├── RecipeManager.hpp     # Recipe registry
+└── Ingredient.hpp        # Recipe ingredient matching
 ```
 
-### Resource Location
-```cpp
-// Parse "minecraft:textures/blocks/stone"
-ResourceLocation loc("minecraft:textures/blocks/stone");
-loc.namespace_();  // "minecraft"
-loc.path();        // "textures/blocks/stone"
-loc.toFilePath();  // "assets/minecraft/textures/blocks/stone"
+### Enchantment System
+
+- **Enchantment**: Base enchantment class
+- **EnchantmentType**: ARMOR, WEAPON, DIGGER, etc.
+- **Enchantments**: Protection, Sharpness, Efficiency, Unbreaking, Fortune, etc.
+
+## UI System (Kagero Framework)
+
+### Architecture
+
+```
+ui/kagero/
+├── event/               # Event system
+│   ├── Event.hpp
+│   ├── EventBus.hpp
+│   ├── InputEvents.hpp
+│   └── WidgetEvents.hpp
+├── layout/              # Layout system
+│   ├── algorithms/      # FlexLayout, GridLayout, AnchorLayout
+│   ├── constraints/     # Layout constraints
+│   ├── core/            # LayoutEngine
+│   └── integration/     # Widget adaptors
+├── paint/               # Paint abstraction
+│   ├── Color.hpp
+│   ├── Geometry.hpp
+│   ├── PaintContext.hpp
+│   └── contracts/       # ICanvas, IImage, IPaint, IPath, ISurface
+├── state/               # State management
+│   ├── ReactiveState.hpp
+│   ├── StateBinding.hpp
+│   ├── StateObserver.hpp
+│   └── StateStore.hpp
+├── template/            # Template system
+│   ├── binder/          # Binding context
+│   ├── bindings/        # Built-in bindings
+│   ├── compiler/        # Template compiler
+│   ├── core/            # Template core
+│   ├── parser/          # AST/Lexer/Parser
+│   └── runtime/         # Runtime execution
+└── widget/              # Widget components
+    ├── Widget.hpp
+    ├── ButtonWidget.hpp
+    ├── CheckboxWidget.hpp
+    ├── ContainerWidget.hpp
+    ├── ListWidget.hpp
+    ├── ScrollableWidget.hpp
+    ├── SliderWidget.hpp
+    ├── TextFieldWidget.hpp
+    ├── TextWidget.hpp
+    └── Viewport3DWidget.hpp
 ```
 
-### Loading a Resource Pack
+## Performance Tracing (Perfetto)
+
+### Configuration
+
 ```cpp
-// Create folder resource pack
-auto pack = std::make_shared<FolderResourcePack>("z:/方块概念材质");
-auto result = pack->initialize();
-
-// Load block states
-BlockStateLoader stateLoader;
-stateLoader.loadFromResourcePack(*pack);
-
-// Load and bake models
-BlockModelLoader modelLoader;
-modelLoader.loadFromResourcePack(*pack);
-auto bakedModel = modelLoader.bakeModel(ResourceLocation("minecraft:block/stone"));
-
-// Build texture atlas
-TextureAtlasBuilder atlasBuilder;
-atlasBuilder.addTexture(*pack, ResourceLocation("minecraft:textures/blocks/stone"));
-auto atlas = atlasBuilder.build();
+// Compile-time switches
+MC_ENABLE_TRACING      // Master switch
+MC_TRACE_RENDERING     // Rendering subsystem
+MC_TRACE_GAME_TICK     // Game tick
+MC_TRACE_CHUNK_GENERATION
+MC_TRACE_CHUNK_LOAD
+MC_TRACE_NETWORK
+MC_TRACE_IO
+MC_TRACE_MEMORY
 ```
 
-### Model Inheritance
-Models support parent inheritance (e.g., `cobblestone` inherits from `cube_all`):
-- Parent models are resolved recursively
-- Textures are inherited and can be overridden
-- Elements from parent are used if child has none
+### Trace Categories
 
-### Block State Mapping
+- `rendering.*` - Frame, Vulkan, chunk mesh, entity, GUI, sky, etc.
+- `game.*` - Tick, entity, physics, AI
+- `world.*` - Chunk, biome, generation stages
+- `network.*` - Packet, sync, connection
+- `server.*` - Server tick, player, world, entity
+
+### Usage
+
 ```cpp
-// Get variant for block state
-const auto* variant = blockStateLoader.getVariant(
-    ResourceLocation("minecraft:oak_log"),
-    "axis=y"  // or properties map
-);
-```
+#include "perfetto/TraceEvents.hpp"
 
-### Supported Files
-- `pack.mcmeta` - Pack metadata
-- `blockstates/*.json` - Block state definitions
-- `models/block/*.json` - Block models
-- `textures/blocks/*.png` - Block textures (MC 1.12)
-- `textures/block/*.png` - Block textures (MC 1.13+)
+// Initialize
+mc::perfetto::TraceConfig config;
+config.outputPath = "trace.perfetto-trace";
+mc::perfetto::PerfettoManager::instance().initialize(config);
+mc::perfetto::PerfettoManager::instance().startTracing();
+
+// Scoped event
+MC_TRACE_EVENT("rendering.frame", "RenderFrame");
+
+// Counter
+MC_TRACE_COUNTER("rendering.frame", "FPS", fps);
+
+// Cleanup
+mc::perfetto::PerfettoManager::instance().stopTracing();
+mc::perfetto::PerfettoManager::instance().shutdown();
+```
 
 ## Error Handling Pattern
 
@@ -427,7 +672,7 @@ Result<int> divide(int a, int b) {
     if (b == 0) {
         return Error(ErrorCode::InvalidArgument, "Division by zero");
     }
-    return a / b;
+    return a / b;  // Implicit conversion
 }
 
 // Checking result
@@ -441,18 +686,18 @@ if (result.success()) {
 
 ### Error Codes
 
-Key error codes in `ErrorCode` enum:
-- General: `Unknown`, `InvalidArgument`, `NullPointer`, `OutOfRange`
-- Resource: `NotFound`, `AlreadyExists`, `ResourceExhausted`, `OutOfMemory`
-- File: `FileNotFound`, `FileOpenFailed`, `FileReadFailed`, `FileWriteFailed`
-- Network: `ConnectionFailed`, `ConnectionClosed`, `ConnectionTimeout`, `InvalidPacket`
-- Game: `InvalidBlock`, `InvalidItem`, `InvalidEntity`, `InvalidWorld`
-- Render: `InitializationFailed`, `OperationFailed`, `CapacityExceeded`, `Unsupported`
-- Resource Pack: `ResourcePackNotFound`, `ResourcePackInvalid`, `ResourceNotFound`, `ResourceParseError`, `TextureLoadFailed`, `TextureAtlasFull`, `ModelNotFound`, `BlockStateNotFound`
+| Category | Codes |
+|----------|-------|
+| General | Unknown, InvalidArgument, NullPointer, OutOfRange, Overflow, OutOfBounds, InvalidState, InvalidData, NotInitialized |
+| Resource | NotFound, AlreadyExists, ResourceExhausted, OutOfMemory |
+| File | FileNotFound, FileOpenFailed, FileReadFailed, FileWriteFailed, FileCorrupted, DecompressionFailed |
+| Network | ConnectionFailed, ConnectionClosed, ConnectionTimeout, InvalidPacket, ProtocolError |
+| Game | InvalidBlock, InvalidItem, InvalidEntity, InvalidPlayer, InvalidWorld |
+| Render | InitializationFailed, OperationFailed, CapacityExceeded, Unsupported |
+| Permission | PermissionDenied, Unauthorized |
+| ResourcePack | ResourcePackNotFound, ResourcePackInvalid, ResourceNotFound, ResourceParseError, TextureLoadFailed, TextureAtlasFull, ModelNotFound, BlockStateNotFound |
 
 ## Naming Conventions
-
-From AGENTS.md:
 
 - **Namespaces**: lowercase (`mc`, `mc::client`, `mc::server`)
 - **Classes/Structs**: PascalCase (`ChunkManager`, `Vector3`)
@@ -481,6 +726,7 @@ Managed via vcpkg:
 - **asio** - Networking (async I/O)
 - **GTest** - Testing framework
 - **stb** - Image loading
+- **perfetto** - Performance tracing
 
 ## Code Style
 
@@ -493,217 +739,74 @@ Managed via vcpkg:
 
 ## Random Module
 
-The project provides a unified random number generation module with multiple algorithm implementations:
-
-### Directory Structure
-```
-src/common/util/math/random/
-├── IRandom.hpp/cpp              # Random interface with MC-style methods
-├── Mt19937Random.hpp/cpp        # Mersenne Twister (default, highest compatibility)
-├── Xoroshiro128ppRandom.hpp/cpp # xoroshiro128++ (small state, high performance)
-├── Xoshiro256ppRandom.hpp/cpp   # xoshiro256++ (high quality)
-├── LcgRandom.hpp/cpp            # Linear Congruential (minimal state)
-├── Random.hpp                   # Unified wrapper (algorithm selection via macro)
-├── UniformIntDistribution.hpp/cpp   # Integer distribution wrapper
-└── UniformRealDistribution.hpp/cpp  # Float distribution wrapper
-```
-
-注意：Xoroshiro128ppRandom这些类是内部使用的，禁止外部引用。外部统一使用Random类进行随机数生成。
-
-### Usage
 ```cpp
-#include "math/random/Random.hpp"
+#include "util/math/random/Random.hpp"
 
 mc::math::Random rng(seed);
-i32 value = rng.nextInt(100);   // [0, 100)
+i32 value = rng.nextInt(100);    // [0, 100)
 i32 range = rng.nextInt(10, 20); // [10, 20]
-f32 f = rng.nextFloat();         // [0.0, 1.0)
-f64 d = rng.nextDouble();        // [0.0, 1.0)
-bool b = rng.nextBoolean();      // true/false
-f32 g = rng.nextGaussian();      // Standard normal distribution
+f32 f = rng.nextFloat();          // [0.0, 1.0)
+f32 g = rng.nextGaussian(0.0, 1.0); // Normal distribution
 ```
 
-### Algorithm Selection
-Compile-time algorithm selection via macro in `Random.hpp`:
-- `MC_RANDOM_XOROSHIRO128PP` - xoroshiro128++ (small state, high performance)
-- `MC_RANDOM_XOSHIRO256PP` - xoshiro256++ (high quality)
-- `MC_RANDOM_LCG` - Linear Congruential (minimal state)
-- Default: Mersenne Twister (highest compatibility)
+Available algorithms (selected via macro):
+- `Mt19937Random` - Mersenne Twister (highest compatibility)
+- `Xoroshiro128ppRandom` - xoroshiro128++ (default, high performance)
+- `Xoshiro256ppRandom` - xoshiro256++ (high quality)
+- `LcgRandom` - Linear Congruential (minimal state)
 
-### Interface Methods
-All random implementations provide MC-style methods:
-- `setSeed(u64)` - Set random seed
-- `nextU64()` - 64-bit random integer
-- `nextU32()` - 32-bit random integer
-- `nextInt()` - Random i32
-- `nextInt(bound)` - Random i32 in [0, bound)
-- `nextInt(min, max)` - Random i32 in [min, max]
-- `nextBoolean()` - Random bool
-- `nextFloat()` - Random f32 in [0.0, 1.0)
-- `nextFloat(min, max)` - Random f32 in [min, max)
-- `nextDouble()` - Random f64 in [0.0, 1.0)
-- `nextGaussian(mean, stddev)` - Normal distribution
-- `skip(count)` - Skip ahead in sequence
+## Important Notes
 
-## 注意，你可随时访问mc java版本的源码来供自己参考：`D:\Minecraft\MC研究\Minecraft1.16.5源码\net\minecraft`，这很重要，因为当前项目是一个复刻项目，目标是完全使用cpp尽可能一致地复刻java版mc的游戏体验，并在存档、数据包等层面上尽可能兼容和复用现有java版minecraft生态。务必要有清晰、优雅、能让人赏心悦目的目录结构，不要把很多文件全部堆在一个目录下，要划分好细分的子目录。
+### MC Java Source Reference
+You can access MC Java 1.16.5 source code at `D:\Minecraft\MC研究\Minecraft1.16.5源码\net\minecraft` for reference. This project aims to replicate Java Edition gameplay as closely as possible.
 
-## 你需要先阅读readme文件了解怎么构建项目
+### Code Quality
+- Assertions and unit tests are required
+- Doc comments on every method
+- Test coverage must be 95%+
+- "Test as contract" principle
 
-## 需要断言+单测来保证代码质量；每个方法前都要附上doc注释说明方法的用法和注意事项（容易踩坑的地方）
+### Directory Structure
+Maintain clean, elegant directory structure with proper subdirectories. Never dump many files in one directory.
 
-## 务必要有清晰、优雅、能让人赏心悦目的目录结构，不要把很多文件全部堆在一个目录下，要划分好细分的子目录！
+### Build Warnings
+All compilation warnings must be resolved.
 
-## 编译过程中遇到的warning你也要一并解决
-
-## 当单测不通过的时候，首先应该反思待测代码的问题，而不是急于修改测试代码；测试覆盖率必须95%以上，并坚持“测试即契约”
-
-## 注意：你必须完整实现所有任务，不允许暂时跳过或留任何todo。你被给予了充足时间做全部任务，放心。
-
-## 需要使用命名空间隔离各个子系统的标识符。下面是最佳实践：
-
+### Namespace Usage
+Use nested namespaces to isolate subsystems:
 ```cpp
-
 namespace mc {
 namespace entity {
 namespace attribute {
-
-/**
- * @brief 属性修改器操作类型
- *
- * 定义属性修改器如何影响基础值
- *
- * 参考 MC 1.16.5 Operation
- */
-enum class Operation : u8 {
-    // ...
-}}}}
-
+enum class Operation : u8 { ... };
+}}}
 ```
-
-## 代码复用与质量规范
-
-### 使用现有工具类
-
-1. **Vulkan工具类**: 优先使用 `VulkanBuffer`, `VertexBuffer`, `IndexBuffer`, `StagingBuffer` 而非直接调用 Vulkan API
-2. **数学工具**: 使用 `math::toRadians()`, `math::toDegrees()`, `math::clamp()`, `math::lerp()` 等，避免内联魔法数如 `3.14159265f / 180.0f`
-3. **Result API**: 使用 `Error(ErrorCode, message)` 返回错误，使用隐式转换 `return value` 返回成功值，而非 `Result<T>::ok(value)` 或 `Result<T>::error(...)`
-
-### 避免重复代码
-
-- 如果类似功能在多处出现（如 `beginSingleTimeCommands`/`endSingleTimeCommands`），考虑提取到共享工具类
-- 如果同一模式重复（如缓冲区创建），使用模板或辅助函数
-
-### 参数设计
-
-- 函数参数超过5个时，考虑使用配置结构体
-- 使用枚举或类型安全的标识符替代原始字符串比较
-
-### Shader 路径解析
-
-使用 `resolveShaderPath()` 工具函数来解析 shader 文件路径，它会自动搜索多个可能的位置：
-
-```cpp
-#include "renderer/ShaderPath.hpp"
-
-// 使用方式
-const auto vertPath = resolveShaderPath("entity.vert.spv");
-const auto fragPath = resolveShaderPath("entity.frag.spv");
-if (vertPath.empty() || fragPath.empty()) {
-    return Error(ErrorCode::FileNotFound, "Failed to resolve shader binaries");
-}
-config.vertexShaderPath = vertPath.string();
-config.fragmentShaderPath = fragPath.string();
-```
-
-搜索顺序包括：
-1. `当前目录/build/shaders/`
-2. `当前目录/shaders/`
-3. `当前目录/bin/shaders/`
-4. 向上级目录递归搜索
-
-### Vulkan单次命令模式
-
-当需要在多个地方执行单次Vulkan命令时，使用以下模式：
-```cpp
-VkCommandBuffer beginSingleTimeCommands();
-void endSingleTimeCommands(VkCommandBuffer cmd);
-```
-这两个方法应该在需要时添加到各自的类中，或考虑提取到共享的Vulkan工具类。
-
-### stb_image 使用
-
-整个项目只需在一处定义 `STB_IMAGE_IMPLEMENTATION`（目前已在 `TextureAtlasBuilder.cpp`），其他文件只需 `#include <stb_image.h>`。
 
 ## Current Status
 
-- **Core**: Complete (types, math, error handling)
-- **Network**: Complete (TCP server, packet serialization, LocalConnection for integrated server)
-- **Server Core Module**: Complete (NEW - Modular refactoring)
-  - ServerCore: Facade class coordinating all managers
-  - PlayerManager: Player lifecycle, session mapping, chunk sync
-  - ConnectionManager: Packet sending, broadcasting, disconnection
-  - TimeManager: Game time, tick count, day cycle
-  - TeleportManager: Teleport request/confirmation
-  - KeepAliveManager: Heartbeat, ping calculation, timeout detection
-  - PositionTracker: Position updates, chunk subscription
-  - PacketHandler: Unified packet handling with callbacks
-- **World**: Complete (chunk storage, terrain generation)
-  - ChunkStatus: Generation stages (EMPTY → BIOMES → NOISE → SURFACE → CARVERS → FEATURES → HEIGHTMAPS → FULL)
-  - ChunkPrimer: Intermediate chunk state during generation
-  - ChunkHolder: Future-based chunk state management
-  - ImprovedNoiseGenerator: MC-style Perlin noise
-  - OctavesNoiseGenerator: Multi-octave noise (16 octaves)
-  - NoiseChunkGenerator: Reference MC 1.16.5 terrain generation
-  - LayerBiomeProvider: Layer-based biome distribution (MC 1.16.5)
-  - ChunkWorkerPool: Async generation thread pool
-  - ServerChunkManager: Central chunk coordination
-- **Renderer**: Complete (Trident rendering engine refactored)
-  - Platform-agnostic API layer (`client/renderer/api/`):
-    - IRenderEngine: Main render engine interface
-    - IBuffer/IVertexBuffer/IIndexBuffer: Buffer interfaces
-    - ITexture/ITextureAtlas: Texture interfaces
-    - RenderState/RenderType: MC 1.16.5 style render state system
-    - ICamera: Camera interface
-    - MeshData: Mesh data structures
-  - Trident Vulkan implementation (`client/renderer/trident/`):
-    - TridentEngine: Main engine (implements IRenderEngine)
-    - TridentContext: Vulkan instance, device, queues
-    - TridentSwapchain: Swapchain management
-    - RenderPassManager: Render pass & framebuffers
-    - FrameManager: Command buffers & sync objects
-    - DescriptorManager: Descriptor sets
-    - UniformManager: Uniform buffers (CameraUBO, LightingUBO, FogUBO)
-  - Organized directory structure:
-    - `renderer/chunk/`: Chunk mesh generation (ChunkMesher)
-    - `renderer/mesh/`: Mesh worker pool (MeshWorkerPool)
-    - `renderer/util/`: Utility functions (ShaderPath)
-    - `renderer/entity/`: Entity rendering
-    - `renderer/item/`: Item rendering
-    - `renderer/sky/`: Sky rendering
-    - `renderer/fog/`: Fog effects (FogManager)
-  - Fog system (NEW):
-    - FogManager: Fog effect calculation and GPU updates
-    - FogUBO: Uniform buffer data for fog parameters
-    - Linear fog: Used for land (fogStart/fogEnd based on render distance)
-    - Exponential fog: Used for underwater/lava (density-based)
-    - Integrated with SkyRenderer for fog color
-- **Resource Pack System**: Complete (model/blockstate parsing, texture atlas, MC version compatibility)
-  - Compat layer architecture (NEW):
-    - PackFormat: Version detection from pack.mcmeta
-    - TextureMapper: 250+ bidirectional texture name mappings
-    - ResourceMapper: Abstract interface for version-specific transformations
-    - v1_12/v1_13 mappers: Version-specific implementations
-    - Unified IR: UnifiedTexture, UnifiedModel, UnifiedBlockState
-    - ResourceLoader: Loading pipeline with format detection
-    - ResourceManager: Integrated with compat layer
-- **Block Properties**: Complete (property encoding, variant mapping)
-- **Performance Tracing**: Complete (Perfetto integration)
-  - PerfettoConfig.hpp: Compile-time configuration switches
-  - TraceCategories.hpp/cpp: Category definitions for organized filtering
-  - PerfettoManager: Singleton manager for tracing lifecycle
-  - TraceEvents.hpp: Convenient macros (MC_TRACE_EVENT, MC_TRACE_COUNTER, etc.)
-  - Tests: 2 tests (disabled mode) / 29 tests (enabled mode)
-- **Tests**: 1595 tests passing
+| Module | Status | Description |
+|--------|--------|-------------|
+| **Core** | Complete | Types, math, error handling, settings |
+| **Network** | Complete | TCP server, packet serialization, LocalConnection |
+| **Server Core** | Complete | Modular design with managers |
+| **World Generation** | Complete | MC 1.16.5 terrain generation |
+| **Chunk System** | Complete | ChunkData, ChunkHolder, async generation |
+| **Biome System** | Complete | 170 biomes, layer-based distribution |
+| **Block System** | Complete | BlockRegistry, BlockState, properties |
+| **Fluid System** | Complete | Water, lava flow mechanics |
+| **Lighting System** | Complete | Sky/block light propagation |
+| **Entity System** | Complete | Base entities, AI goals, pathfinding |
+| **Item System** | Complete | Items, tools, armor, food |
+| **Crafting System** | Complete | Shaped, shapeless, smelting recipes |
+| **Enchantment System** | Complete | All vanilla enchantments |
+| **Trident Renderer** | Complete | Vulkan rendering engine |
+| **API Layer** | Complete | Platform-agnostic interfaces |
+| **Sub-Renderers** | Complete | Chunk, sky, cloud, fog, weather, entity, GUI, particle |
+| **Resource Pack** | Complete | MC 1.12-1.19+ compatibility |
+| **Performance Tracing** | Complete | Perfetto integration |
+| **Kagero UI** | Complete | Full UI framework with layout, state, templates |
+| **Physics** | Complete | Collision detection, AABB |
+| **Tests** | **2914 passing** | 123 test files, 406 test suites |
 
 ## Self-Maintenance Rule
 
