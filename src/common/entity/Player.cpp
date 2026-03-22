@@ -1,4 +1,5 @@
 #include "Player.hpp"
+#include "GameModeUtils.hpp"
 #include "../physics/PhysicsEngine.hpp"
 #include "../physics/PhysicsConstants.hpp"
 #include "../util/math/random/Random.hpp"
@@ -27,18 +28,8 @@ Player::Player(EntityId id, const String& username)
 void Player::setGameMode(GameMode mode) {
     m_gameMode = mode;
 
-    // 更新能力
-    m_abilities.creativeMode = (mode == GameMode::Creative);
-    m_abilities.canFly = (mode == GameMode::Creative || mode == GameMode::Spectator);
-    m_abilities.invulnerable = (mode == GameMode::Creative || mode == GameMode::Spectator);
-    m_abilities.allowEdit = (mode != GameMode::Adventure && mode != GameMode::Spectator);
-
-    // 创造模式默认飞行
-    if (mode == GameMode::Spectator) {
-        m_abilities.flying = true;
-    } else if (mode != GameMode::Creative) {
-        m_abilities.flying = false;
-    }
+    // 使用 GameModeUtils 更新能力
+    m_abilities = entity::GameModeUtils::getAbilitiesForGameMode(mode);
 }
 
 void Player::setHealth(f32 health) {

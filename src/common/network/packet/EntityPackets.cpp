@@ -416,4 +416,32 @@ Result<void> EntityStatusPacket::deserialize(const u8* data, size_t size) {
     return {};
 }
 
+// ==================== CollectItemPacket ====================
+
+Result<std::vector<u8>> CollectItemPacket::serialize() const {
+    PacketSerializer serializer;
+    serializer.writeU32(m_collectedEntityId);
+    serializer.writeU32(m_collectorEntityId);
+    serializer.writeI32(m_pickupItemCount);
+    return serializer.buffer();
+}
+
+Result<void> CollectItemPacket::deserialize(const u8* data, size_t size) {
+    PacketDeserializer deserializer(data, size);
+
+    auto collectedResult = deserializer.readU32();
+    if (!collectedResult.success()) return Error(collectedResult.error());
+    m_collectedEntityId = collectedResult.value();
+
+    auto collectorResult = deserializer.readU32();
+    if (!collectorResult.success()) return Error(collectorResult.error());
+    m_collectorEntityId = collectorResult.value();
+
+    auto countResult = deserializer.readI32();
+    if (!countResult.success()) return Error(countResult.error());
+    m_pickupItemCount = countResult.value();
+
+    return {};
+}
+
 } // namespace mc::network

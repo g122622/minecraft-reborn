@@ -423,4 +423,47 @@ private:
     Status m_status = Status::Hurt;
 };
 
+/**
+ * @brief 物品拾取动画包
+ *
+ * 通知客户端播放物品拾取动画（物品飞向玩家）。
+ * 客户端收到此包后：
+ * 1. 播放物品飞向玩家的动画
+ * 2. 播放拾取音效
+ * 3. 从世界中移除物品实体
+ *
+ * 参考 MC 1.16.5 CollectItemPacket
+ */
+class CollectItemPacket : public Packet {
+public:
+    CollectItemPacket() : Packet(PacketType::CollectItem) {}
+
+    [[nodiscard]] Result<std::vector<u8>> serialize() const override;
+    [[nodiscard]] Result<void> deserialize(const u8* data, size_t size) override;
+
+    /**
+     * @brief 获取被拾取的实体ID
+     */
+    u32 collectedEntityId() const { return m_collectedEntityId; }
+    void setCollectedEntityId(u32 id) { m_collectedEntityId = id; }
+
+    /**
+     * @brief 获取拾取者实体ID
+     */
+    u32 collectorEntityId() const { return m_collectorEntityId; }
+    void setCollectorEntityId(u32 id) { m_collectorEntityId = id; }
+
+    /**
+     * @brief 获取拾取物品数量
+     * MC 1.16.5+: 此字段用于显示拾取的物品数量
+     */
+    i32 pickupItemCount() const { return m_pickupItemCount; }
+    void setPickupItemCount(i32 count) { m_pickupItemCount = count; }
+
+private:
+    u32 m_collectedEntityId = 0;  // 被拾取的物品实体ID
+    u32 m_collectorEntityId = 0;  // 拾取者（玩家）实体ID
+    i32 m_pickupItemCount = 1;     // 拾取物品数量
+};
+
 } // namespace mc::network

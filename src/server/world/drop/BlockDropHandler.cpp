@@ -36,7 +36,7 @@ std::vector<ItemStack> BlockDropHandler::generateDrops(
         // 使用掉落表生成掉落
         math::Random random(static_cast<u64>(world.seed() ^ static_cast<u64>(pos.x ^ pos.z)));
 
-        auto context = buildLootContext(world, pos, player, tool, random);
+        auto context = buildLootContext(world, pos, state, player, tool, random);
         if (context) {
             // 设置掉落表解析器
             context->setLootTableResolver([&lootTableManager](const String& id) -> const loot::LootTable* {
@@ -151,6 +151,7 @@ std::vector<ItemStack> BlockDropHandler::getDefaultDrops(const BlockState& state
 std::unique_ptr<loot::LootContext> BlockDropHandler::buildLootContext(
     server::ServerWorld& world,
     const BlockPos& pos,
+    const BlockState& state,
     const Player* player,
     const ItemStack* tool,
     math::Random& random)
@@ -164,6 +165,10 @@ std::unique_ptr<loot::LootContext> BlockDropHandler::buildLootContext(
         return nullptr;
     }
 
+    // 设置方块状态和位置参数
+    context->set(loot::LootParams::BLOCK_STATE, const_cast<BlockState*>(&state));
+    context->set(loot::LootParams::BLOCK_POS, const_cast<BlockPos*>(&pos));
+
     // 设置工具参数
     if (tool && !tool->isEmpty()) {
         context->set(loot::LootParams::TOOL, const_cast<ItemStack*>(tool));
@@ -173,13 +178,14 @@ std::unique_ptr<loot::LootContext> BlockDropHandler::buildLootContext(
         if (fortuneLevel > 0) {
             context->setLootingModifier(fortuneLevel);
             // 同时设置 FORTUNE_LEVEL 参数
-            context->set(loot::LootParams::FORTUNE_LEVEL, new i32(fortuneLevel));
+            // 使用 LootContext 的 owned storage 来避免内存泄漏
+            context->setOwnedValue(loot::LootParams::FORTUNE_LEVEL, fortuneLevel);
         }
 
         // 设置精准采集等级
         i32 silkTouchLevel = hasSilkTouch(tool) ? 1 : 0;
         if (silkTouchLevel > 0) {
-            context->set(loot::LootParams::SILK_TOUCH_LEVEL, new i32(silkTouchLevel));
+            context->setOwnedValue(loot::LootParams::SILK_TOUCH_LEVEL, silkTouchLevel);
         }
     }
 

@@ -104,10 +104,12 @@ bool ItemEntity::onPlayerPickup(Player& player) {
     }
 
     // 检查所有者限制（防止立即拾取自己丢弃的物品）
-    // 如果设置了所有者且延迟未过期，则不能拾取
-    if (!m_ownerUuid.empty() && m_age < DEFAULT_PICKUP_DELAY) {
-        // TODO: 检查 UUID 匹配
-        // 暂时跳过 UUID 检查
+    // 如果玩家 UUID 与所有者匹配，检查拾取延迟
+    // 参考 MC 1.16.5: 丢弃者需要等待 10 ticks 才能拾取自己的物品
+    if (!m_ownerUuid.empty() && player.uuid() == m_ownerUuid) {
+        if (m_age < DEFAULT_PICKUP_DELAY) {
+            return false;
+        }
     }
 
     // 将物品添加到玩家背包

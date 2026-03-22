@@ -145,15 +145,24 @@ TEST_F(LootConditionsTest, OrCondition_OneTrue) {
 }
 
 TEST_F(LootConditionsTest, FortuneCondition_GetLevel) {
-    // FortuneCondition::getFortuneLevel 从 LootContext::getLootingModifier 获取
+    // FortuneCondition::getFortuneLevel 从 LootContext 的 FORTUNE_LEVEL 参数获取
     math::Random random(12345);
 
     auto context = LootContextBuilder(m_world)
         .withRandom(random)
-        .withLootingModifier(3)
         .build();
 
+    // 使用 setOwnedValue 设置时运等级
+    context->setOwnedValue(LootParams::FORTUNE_LEVEL, 3);
+
     EXPECT_EQ(FortuneCondition::getFortuneLevel(*context), 3);
+
+    // 测试默认值（未设置时返回 0）
+    auto context2 = LootContextBuilder(m_world)
+        .withRandom(random)
+        .build();
+
+    EXPECT_EQ(FortuneCondition::getFortuneLevel(*context2), 0);
 }
 
 TEST_F(LootConditionsTest, FortuneCondition_ApplyBonus) {

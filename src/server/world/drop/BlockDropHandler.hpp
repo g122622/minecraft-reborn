@@ -116,6 +116,7 @@ private:
      *
      * @param world 世界引用
      * @param pos 方块位置
+     * @param state 被破坏的方块状态
      * @param player 玩家
      * @param tool 工具
      * @param random 随机数生成器
@@ -124,6 +125,7 @@ private:
     [[nodiscard]] static std::unique_ptr<loot::LootContext> buildLootContext(
         server::ServerWorld& world,
         const BlockPos& pos,
+        const BlockState& state,
         const Player* player,
         const ItemStack* tool,
         math::Random& random);

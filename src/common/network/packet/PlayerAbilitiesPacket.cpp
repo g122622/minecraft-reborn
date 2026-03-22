@@ -1,22 +1,14 @@
 #include "PlayerAbilitiesPacket.hpp"
 #include "PacketSerializer.hpp"
 #include "../../entity/Player.hpp"
+#include "../../entity/GameModeUtils.hpp"
 
 namespace mc::network {
 
-// ============================================================================
-// 常量定义
-// ============================================================================
-
 namespace {
-    // MC 1.16.5 默认速度值
     constexpr f32 DEFAULT_FLY_SPEED = 0.05f;
     constexpr f32 DEFAULT_WALK_SPEED = 0.1f;
 }
-
-// ============================================================================
-// 构造函数
-// ============================================================================
 
 PlayerAbilitiesPacket::PlayerAbilitiesPacket()
     : Packet(PacketType::PlayerAbilities)
@@ -38,73 +30,16 @@ PlayerAbilitiesPacket::PlayerAbilitiesPacket(const PlayerAbilities& abilities)
     setCreativeMode(abilities.creativeMode);
 }
 
-// ============================================================================
-// 工厂方法
-// ============================================================================
-
 PlayerAbilitiesPacket PlayerAbilitiesPacket::fromPlayer(const Player& player) {
-    // 从玩家获取能力（假设 Player 类有 abilities() 方法）
-    // 如果没有，则从游戏模式推断
-    PlayerAbilitiesPacket packet;
-
-    GameMode mode = player.gameMode();
-
-    // 根据游戏模式设置能力
-    switch (mode) {
-        case GameMode::Creative:
-            packet.setInvulnerable(true);
-            packet.setCanFly(true);
-            packet.setCreativeMode(true);
-            break;
-
-        case GameMode::Spectator:
-            packet.setInvulnerable(true);
-            packet.setCanFly(true);
-            packet.setFlying(true);
-            packet.setCreativeMode(false);
-            break;
-
-        case GameMode::Survival:
-        case GameMode::Adventure:
-        default:
-            packet.setInvulnerable(false);
-            packet.setCanFly(false);
-            packet.setFlying(false);
-            packet.setCreativeMode(false);
-            break;
-    }
-
-    return packet;
+    // 使用 GameModeUtils 计算能力
+    PlayerAbilities abilities = entity::GameModeUtils::getAbilitiesForGameMode(player.gameMode());
+    return PlayerAbilitiesPacket(abilities);
 }
 
 PlayerAbilitiesPacket PlayerAbilitiesPacket::fromGameMode(GameMode mode) {
-    PlayerAbilitiesPacket packet;
-
-    switch (mode) {
-        case GameMode::Creative:
-            packet.setInvulnerable(true);
-            packet.setCanFly(true);
-            packet.setCreativeMode(true);
-            break;
-
-        case GameMode::Spectator:
-            packet.setInvulnerable(true);
-            packet.setCanFly(true);
-            packet.setFlying(true);
-            packet.setCreativeMode(false);
-            break;
-
-        case GameMode::Survival:
-        case GameMode::Adventure:
-        default:
-            packet.setInvulnerable(false);
-            packet.setCanFly(false);
-            packet.setFlying(false);
-            packet.setCreativeMode(false);
-            break;
-    }
-
-    return packet;
+    // 使用 GameModeUtils 计算能力
+    PlayerAbilities abilities = entity::GameModeUtils::getAbilitiesForGameMode(mode);
+    return PlayerAbilitiesPacket(abilities);
 }
 
 // ============================================================================

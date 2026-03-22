@@ -5,6 +5,7 @@
 #include "common/item/BlockItemRegistry.hpp"
 #include "common/item/crafting/RecipeLoader.hpp"
 #include "common/item/BlockItemUseContext.hpp"
+#include "common/item/enchantment/EnchantmentRegistry.hpp"
 #include "common/entity/inventory/AbstractContainerMenu.hpp"
 #include "common/network/packet/ContainerPacketHandler.hpp"
 #include "common/world/gen/chunk/NoiseChunkGenerator.hpp"
@@ -205,6 +206,10 @@ Result<void> IntegratedServer::initialize(const IntegratedServerConfig& config) 
 
     Items::initialize();
     spdlog::info("Vanilla items initialized");
+
+    // 初始化附魔注册表
+    item::enchant::EnchantmentRegistry::initialize();
+    spdlog::info("Enchantments initialized");
 
     // 初始化方块物品注册表
     BlockItemRegistry::instance().initializeVanillaBlockItems();
@@ -821,12 +826,15 @@ void IntegratedServer::handleBlockInteraction(const u8* data, size_t size) {
     const ItemStack* heldItem = heldItemCopy.isEmpty() ? nullptr : &heldItemCopy;
 
     // 检查是否可以采集方块
-    // TODO: 需要传递 Player 对象而非 ServerPlayerData，以便正确处理创造模式
-    // 目前传递 nullptr，因为 ServerPlayerData 不是 Player 类型
-    bool canHarvest = BlockDropHandler::canHarvestBlock(*state, nullptr, heldItem);
+    // 使用 ServerPlayerData 的游戏模式检查创造模式
+    const Player* playerForHarvest = nullptr;  // 暂时无法获取 Player 对象
+    bool canHarvest = BlockDropHandler::canHarvestBlock(*state, playerForHarvest, heldItem);
 
-    // 生成掉落物（仅在可以采集时）
-    if (canHarvest) {
+    // 创造模式下不生成掉落物
+    bool isCreativeMode = (player->gameMode == GameMode::Creative);
+
+    // 生成掉落物（仅在可以采集且非创造模式时）
+    if (canHarvest && !isCreativeMode) {
         ServerWorld* world = m_serverCore ? m_serverCore->world() : nullptr;
         if (world) {
             BlockPos blockPos(packet.x(), packet.y(), packet.z());
@@ -834,7 +842,7 @@ void IntegratedServer::handleBlockInteraction(const u8* data, size_t size) {
                 *world,
                 blockPos,
                 *state,
-                nullptr,  // TODO: 需要 Player 对象
+                nullptr,  // Player 对象暂时不可用，使用 gameMode 检查创造模式
                 heldItem,
                 m_lootTableManager);
 

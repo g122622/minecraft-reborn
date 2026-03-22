@@ -1,5 +1,6 @@
 #include "LootConditions.hpp"
 #include "common/item/ItemStack.hpp"
+#include "common/item/tool/ToolItem.hpp"
 #include "common/world/block/Block.hpp"
 #include <algorithm>
 
@@ -43,10 +44,12 @@ std::unique_ptr<LootCondition> FortuneCondition::clone() const {
 }
 
 i32 FortuneCondition::getFortuneLevel(LootContext& context) {
-    // 从上下文的掠夺修饰符获取时运等级
-    // 在MC中，时运附魔使用lootingModifier传递
-    // TODO: 添加专用的FORTUNE_LEVEL参数
-    return context.getLootingModifier();
+    // 从上下文获取时运附魔等级
+    auto* fortuneLevel = context.get<i32>(LootParams::FORTUNE_LEVEL);
+    if (fortuneLevel && *fortuneLevel > 0) {
+        return *fortuneLevel;
+    }
+    return 0;
 }
 
 i32 FortuneCondition::applyFortuneBonus(i32 baseCount, i32 fortuneLevel, math::Random& random) {
@@ -210,12 +213,13 @@ BlockStateCondition::BlockStateCondition(const String& blockId)
 }
 
 bool BlockStateCondition::test(LootContext& context) const {
-    // TODO: 从上下文获取BLOCK_STATE参数并检查
-    // auto* blockState = context.get<BlockState>(LootParams::BLOCK_STATE);
-    // if (blockState) {
-    //     return blockState->blockLocation().toString() == m_blockId;
-    // }
-    return false;
+    // 从上下文获取 BLOCK_STATE 参数
+    auto* blockState = context.get<BlockState>(LootParams::BLOCK_STATE);
+    if (!blockState) {
+        return false;
+    }
+    // 检查方块ID是否匹配
+    return blockState->blockLocation().toString() == m_blockId;
 }
 
 std::unique_ptr<LootCondition> BlockStateCondition::clone() const {
@@ -232,11 +236,26 @@ ToolTypeCondition::ToolTypeCondition(u8 toolType)
 }
 
 bool ToolTypeCondition::test(LootContext& context) const {
-    // TODO: 从上下文获取工具并检查类型
-    // auto* tool = context.get<ItemStack>(LootParams::TOOL);
-    // if (tool) {
-    //     return tool->getItem().getToolType() == m_toolType;
-    // }
+    // 从上下文获取工具参数
+    auto* tool = context.get<ItemStack>(LootParams::TOOL);
+    if (!tool || tool->isEmpty()) {
+        // 空手不满足任何工具类型条件
+        return false;
+    }
+
+    // 获取物品
+    const Item* item = tool->getItem();
+    if (!item) {
+        return false;
+    }
+
+    // 检查是否为工具物品，并获取工具类型
+    const item::tool::ToolItem* toolItem = dynamic_cast<const item::tool::ToolItem*>(item);
+    if (toolItem) {
+        return static_cast<u8>(toolItem->getToolType()) == m_toolType;
+    }
+
+    // 非工具物品不满足工具类型条件
     return false;
 }
 

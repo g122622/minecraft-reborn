@@ -183,6 +183,23 @@ public:
         m_params[param.getId()] = static_cast<void*>(value);
     }
 
+    /**
+     * @brief 设置拥有所有权的参数值
+     *
+     * 存储值的副本到内部容器，由 LootContext 管理生命周期。
+     * 适用于简单的值类型（如 i32, f32 等）。
+     *
+     * @tparam T 参数值的类型
+     * @param param 参数标识符
+     * @param value 参数值
+     */
+    template<typename T>
+    void setOwnedValue(const LootParameter<T>& param, T value) {
+        auto ownedPtr = std::make_shared<T>(std::move(value));
+        m_ownedValues.push_back(ownedPtr);
+        m_params[param.getId()] = static_cast<void*>(ownedPtr.get());
+    }
+
     // ========== 基本属性 ==========
 
     /**
@@ -250,6 +267,7 @@ private:
     f32 m_luck = 0.0f;
     i32 m_lootingModifier = 0;
     std::unordered_map<String, void*> m_params;
+    std::vector<std::shared_ptr<void>> m_ownedValues;  // 拥有所有权的值存储
     LootTableResolver m_lootTableResolver;
     std::vector<const LootTable*> m_visitedTables;  // 用于检测循环引用
 };

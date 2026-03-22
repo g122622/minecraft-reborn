@@ -52,6 +52,7 @@ add_library(mc_common STATIC
     entity/Player.cpp
     entity/PlayerManager.cpp
     entity/ItemEntity.cpp
+    entity/GameModeUtils.cpp
     entity/living/LivingEntity.cpp
     # Entity - Movement
     entity/movement/AutoJump.cpp

@@ -2,6 +2,8 @@
 #include "PlayerManager.hpp"
 #include "ConnectionManager.hpp"
 #include "ServerPlayerData.hpp"
+#include "common/entity/GameModeUtils.hpp"
+#include "common/entity/Player.hpp"
 #include <spdlog/spdlog.h>
 
 namespace mc::server::core {
@@ -89,28 +91,21 @@ bool GameModeManager::syncAbilities(PlayerId playerId) {
 }
 
 u8 GameModeManager::getAbilitiesForGameMode(GameMode mode) {
+    // 使用 GameModeUtils 计算能力
+    PlayerAbilities abilities = entity::GameModeUtils::getAbilitiesForGameMode(mode);
+
     u8 flags = 0;
-
-    switch (mode) {
-        case GameMode::Creative:
-            // 创造模式：无敌、可飞行、创造模式标志
-            flags |= static_cast<u8>(network::PlayerAbilityFlags::Invulnerable);
-            flags |= static_cast<u8>(network::PlayerAbilityFlags::CanFly);
-            flags |= static_cast<u8>(network::PlayerAbilityFlags::CreativeMode);
-            break;
-
-        case GameMode::Spectator:
-            // 旁观者模式：无敌、可飞行、正在飞行
-            flags |= static_cast<u8>(network::PlayerAbilityFlags::Invulnerable);
-            flags |= static_cast<u8>(network::PlayerAbilityFlags::CanFly);
-            flags |= static_cast<u8>(network::PlayerAbilityFlags::Flying);
-            break;
-
-        case GameMode::Survival:
-        case GameMode::Adventure:
-        default:
-            // 生存和冒险模式：无特殊能力
-            break;
+    if (abilities.invulnerable) {
+        flags |= static_cast<u8>(network::PlayerAbilityFlags::Invulnerable);
+    }
+    if (abilities.flying) {
+        flags |= static_cast<u8>(network::PlayerAbilityFlags::Flying);
+    }
+    if (abilities.canFly) {
+        flags |= static_cast<u8>(network::PlayerAbilityFlags::CanFly);
+    }
+    if (abilities.creativeMode) {
+        flags |= static_cast<u8>(network::PlayerAbilityFlags::CreativeMode);
     }
 
     return flags;

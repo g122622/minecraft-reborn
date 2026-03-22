@@ -6,6 +6,7 @@
 #include "common/entity/inventory/PlayerInventory.hpp"
 #include "common/item/ItemStack.hpp"
 #include "common/network/packet/InventoryPackets.hpp"
+#include "common/network/packet/EntityPackets.hpp"
 #include "common/network/packet/PacketSerializer.hpp"
 #include "common/network/packet/Packet.hpp"
 #include "common/network/packet/ProtocolPackets.hpp"
@@ -103,40 +104,26 @@ bool ItemPickupManager::tryPickupItem(
         return true;  // 空物品，直接移除
     }
 
-    // 获取玩家背包（通过 Player 类型）
+    // 检查是否是玩家
     if (player.legacyType() != LegacyEntityType::Player) {
         return false;
     }
 
     Player* playerEntity = static_cast<Player*>(&player);
-    PlayerInventory& inventory = playerEntity->inventory();
 
-    // 尝试添加到背包
-    i32 originalCount = stack.getCount();
-    i32 added = inventory.add(stack);
+    // 使用 ItemEntity::onPlayerPickup 处理拾取逻辑
+    // 这确保所有者 UUID 检查等逻辑在一处实现
+    bool fullyPickedUp = itemEntity.onPlayerPickup(*playerEntity);
 
-    if (added > 0) {
-        // 成功添加部分或全部物品
-        // stack 已被 add() 方法修改（剩余数量）
-
-        // 发送背包更新
+    if (fullyPickedUp || itemEntity.getItemStack().isEmpty()) {
+        // 完全拾取，发送背包更新和实体销毁包
         sendInventoryUpdate(world, *playerEntity);
-
-        // 发送拾取音效（TODO）
-        // 发送拾取统计（TODO）
-
-        if (stack.isEmpty()) {
-            // 完全拾取，发送实体销毁包
-            sendEntityDestroy(world, itemEntity.id(), player.id());
-            return true;
-        } else {
-            // 部分拾取，物品数量减少
-            // ItemEntity 的 stack 已更新，不需要额外操作
-            return false;
-        }
+        sendEntityDestroy(world, itemEntity.id(), player.id());
+        return fullyPickedUp;
     }
 
-    // 背包满，无法拾取
+    // 部分拾取，发送背包更新
+    sendInventoryUpdate(world, *playerEntity);
     return false;
 }
 
@@ -218,22 +205,8 @@ bool ItemPickupManager::canPickup(const Entity& player, const ItemEntity& itemEn
         return false;
     }
 
-    // 检查所有者限制
-    // 物品刚被丢弃时，丢弃者不能立即拾取
-    if (!itemEntity.ownerUuid().empty()) {
-        // 检查玩家 UUID 是否匹配
-        if (player.legacyType() == LegacyEntityType::Player) {
-            const Player* playerEntity = static_cast<const Player*>(&player);
-            // 如果玩家 UUID 匹配，需要检查拾取延迟
-            // 这里简化处理：如果设置了所有者且延迟未过期，则不能拾取
-            // 实际 MC 实现中，所有者在 10 ticks 后才能拾取
-            if (itemEntity.getAge() < DEFAULT_THROWER_PICKUP_DELAY) {
-                // TODO: 检查 UUID 匹配
-                // 暂时跳过 UUID 检查
-                (void)playerEntity;
-            }
-        }
-    }
+    // 所有者限制检查由 ItemEntity::onPlayerPickup 处理
+    // 这里只检查基本的可拾取状态
 
     return true;
 }
@@ -290,11 +263,28 @@ void ItemPickupManager::sendEntityDestroy(
     EntityId entityId,
     EntityId collectorId)
 {
-    // 发送实体销毁包给所有追踪此实体的玩家
-    // 这里简化处理，使用广播
-    (void)collectorId;
+    // 首先发送 CollectItemPacket 触发拾取动画
+    // 这会让客户端播放物品飞向玩家的动画
+    network::CollectItemPacket collectPacket;
+    collectPacket.setCollectedEntityId(static_cast<u32>(entityId));
+    collectPacket.setCollectorEntityId(static_cast<u32>(collectorId));
+    collectPacket.setPickupItemCount(1);  // 默认拾取数量
 
-    // 创建实体销毁包
+    auto collectResult = collectPacket.serialize();
+    if (collectResult.success()) {
+        network::PacketSerializer fullPacket;
+        fullPacket.writeU32(static_cast<u32>(network::PACKET_HEADER_SIZE + collectResult.value().size()));
+        fullPacket.writeU16(static_cast<u16>(network::PacketType::CollectItem));
+        fullPacket.writeU16(0);
+        fullPacket.writeU16(0);
+        fullPacket.writeU16(0);
+        fullPacket.writeBytes(collectResult.value());
+
+        // 广播给所有玩家
+        world.broadcastPacket(fullPacket.buffer());
+    }
+
+    // 然后发送实体销毁包
     // SPacketDestroyEntities: VarInt count, Array[VarInt] entityIds
     network::PacketSerializer ser;
     ser.writeVarInt(static_cast<i32>(network::PacketType::EntityDestroy));

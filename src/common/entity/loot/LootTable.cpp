@@ -322,7 +322,7 @@ void LootTableManager::initializeDefaultTables() {
 
     // 铁矿掉落表
     // - 精准采集: 掉落铁矿
-    // - 无精准采集: 掉落铁原矿
+    // - 无精准采集: 掉落粗铁 (raw_iron)
     {
         auto table = std::make_unique<LootTable>();
 
@@ -337,10 +337,10 @@ void LootTableManager::initializeDefaultTables() {
         silkTouchPool->addEntry(std::move(silkTouchEntry));
         table->addPool(std::move(silkTouchPool));
 
-        // 无精准采集时掉落铁原矿
+        // 无精准采集时掉落粗铁
         auto normalPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
         auto normalEntry = std::make_unique<ItemLootEntry>(
-            "minecraft:iron_ore",
+            "minecraft:raw_iron",
             RandomValueRange(1.0f, 1.0f),
             1, 0
         );
@@ -353,7 +353,7 @@ void LootTableManager::initializeDefaultTables() {
 
     // 金矿掉落表
     // - 精准采集: 掉落金矿
-    // - 无精准采集: 掉落金原矿
+    // - 无精准采集: 掉落粗金 (raw_gold)
     {
         auto table = std::make_unique<LootTable>();
 
@@ -368,10 +368,10 @@ void LootTableManager::initializeDefaultTables() {
         silkTouchPool->addEntry(std::move(silkTouchEntry));
         table->addPool(std::move(silkTouchPool));
 
-        // 无精准采集时掉落金原矿
+        // 无精准采集时掉落粗金
         auto normalPool = std::make_unique<LootPool>(RandomValueRange(1.0f, 1.0f));
         auto normalEntry = std::make_unique<ItemLootEntry>(
-            "minecraft:gold_ore",
+            "minecraft:raw_gold",
             RandomValueRange(1.0f, 1.0f),
             1, 0
         );
