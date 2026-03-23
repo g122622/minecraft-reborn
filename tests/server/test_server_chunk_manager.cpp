@@ -129,7 +129,7 @@ TEST_F(ServerChunkManagerTest, GetChunkSync_MultipleChunks) {
 
 TEST_F(ServerChunkManagerTest, GetChunkAsync_NotInitialized) {
     // 未初始化 Worker 时，异步生成应该失败或立即返回
-    auto future = m_manager->getChunkAsync(0, 0, &ChunkStatus::FULL);
+    auto future = m_manager->getChunkAsync(0, 0, &ChunkStatuses::FULL);
 
     // 等待结果
     auto status = future.wait_for(std::chrono::seconds(5));
@@ -143,7 +143,7 @@ TEST_F(ServerChunkManagerTest, GetChunkAsync_NotInitialized) {
 TEST_F(ServerChunkManagerTest, GetChunkAsync_AfterInit) {
     m_manager->initialize();
 
-    auto future = m_manager->getChunkAsync(0, 0, &ChunkStatus::FULL);
+    auto future = m_manager->getChunkAsync(0, 0, &ChunkStatuses::FULL);
 
     // 等待完成
     auto status = future.wait_for(std::chrono::seconds(10));
@@ -169,7 +169,7 @@ TEST_F(ServerChunkManagerTest, GetChunkAsync_Callback) {
             completed = true;
             resultChunk = chunk;
         },
-        &ChunkStatus::FULL);
+        &ChunkStatuses::FULL);
 
     // 等待完成
     for (int i = 0; i < 200 && !completed; ++i) {
@@ -190,7 +190,7 @@ TEST_F(ServerChunkManagerTest, GetChunkAsync_AlreadyCached) {
     ASSERT_NE(syncChunk, nullptr);
 
     // 异步获取应该立即返回缓存
-    auto future = m_manager->getChunkAsync(10, 10, &ChunkStatus::FULL);
+    auto future = m_manager->getChunkAsync(10, 10, &ChunkStatuses::FULL);
 
     auto status = future.wait_for(std::chrono::milliseconds(100));
     EXPECT_NE(status, std::future_status::timeout);

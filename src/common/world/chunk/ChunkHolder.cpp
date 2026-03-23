@@ -66,7 +66,7 @@ std::unique_ptr<ChunkData> ChunkHolder::completeGeneration()
     if (m_generatingChunk) {
         m_chunkData = m_generatingChunk->toChunkData();
         m_generatingChunk.reset();
-        m_status = &ChunkStatus::FULL;
+        m_status = &ChunkStatuses::FULL;
     }
 
     return std::move(m_chunkData);

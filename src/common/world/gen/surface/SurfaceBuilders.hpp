@@ -204,4 +204,129 @@ public:
     [[nodiscard]] const char* name() const override { return "beach"; }
 };
 
+/**
+ * @brief 巨型针叶林地表构建器
+ *
+ * 参考 MC GiantTreeTaigaSurfaceBuilder，适用于巨型针叶林生物群系。
+ * 生成灰化土和砂土层。
+ */
+class GiantTreeTaigaSurfaceBuilder : public SurfaceBuilder {
+public:
+    GiantTreeTaigaSurfaceBuilder() = default;
+
+    void buildSurface(
+        math::Random& random,
+        ChunkPrimer& chunk,
+        const Biome& biome,
+        i32 x, i32 z,
+        i32 startHeight,
+        f32 surfaceNoise,
+        const BlockState* defaultBlock,
+        const BlockState* defaultFluid,
+        i32 seaLevel,
+        const SurfaceBuilderConfig& config) override;
+
+    [[nodiscard]] const char* name() const override { return "giant_tree_taiga"; }
+};
+
+/**
+ * @brief 破碎热带草原地表构建器
+ *
+ * 参考 MC ShatteredSavannaSurfaceBuilder，适用于破碎热带草原生物群系。
+ * 生成更多石头和砂土。
+ */
+class ShatteredSavannaSurfaceBuilder : public SurfaceBuilder {
+public:
+    ShatteredSavannaSurfaceBuilder() = default;
+
+    void buildSurface(
+        math::Random& random,
+        ChunkPrimer& chunk,
+        const Biome& biome,
+        i32 x, i32 z,
+        i32 startHeight,
+        f32 surfaceNoise,
+        const BlockState* defaultBlock,
+        const BlockState* defaultFluid,
+        i32 seaLevel,
+        const SurfaceBuilderConfig& config) override;
+
+    [[nodiscard]] const char* name() const override { return "shattered_savanna"; }
+};
+
+/**
+ * @brief 竹林地表构建器
+ *
+ * 参考 MC BambooJungleSurfaceBuilder，适用于竹林生物群系。
+ * 生成灰化土和砂砾。
+ */
+class BambooJungleSurfaceBuilder : public SurfaceBuilder {
+public:
+    BambooJungleSurfaceBuilder() = default;
+
+    void buildSurface(
+        math::Random& random,
+        ChunkPrimer& chunk,
+        const Biome& biome,
+        i32 x, i32 z,
+        i32 startHeight,
+        f32 surfaceNoise,
+        const BlockState* defaultBlock,
+        const BlockState* defaultFluid,
+        i32 seaLevel,
+        const SurfaceBuilderConfig& config) override;
+
+    [[nodiscard]] const char* name() const override { return "bamboo_jungle"; }
+};
+
+/**
+ * @brief 下界森林地表构建器
+ *
+ * 参考 MC NetherForestSurfaceBuilder，适用于下界森林生物群系。
+ * 使用下界岩和灵魂土。
+ */
+class NetherForestsSurfaceBuilder : public SurfaceBuilder {
+public:
+    NetherForestsSurfaceBuilder() = default;
+
+    void buildSurface(
+        math::Random& random,
+        ChunkPrimer& chunk,
+        const Biome& biome,
+        i32 x, i32 z,
+        i32 startHeight,
+        f32 surfaceNoise,
+        const BlockState* defaultBlock,
+        const BlockState* defaultFluid,
+        i32 seaLevel,
+        const SurfaceBuilderConfig& config) override;
+
+    [[nodiscard]] const char* name() const override { return "nether_forests"; }
+};
+
+/**
+ * @brief 灵魂沙峡谷地表构建器
+ *
+ * 参考 MC SoulSandValleySurfaceBuilder，适用于灵魂沙峡谷生物群系。
+ * 生成灵魂沙和灵魂土。
+ */
+class SoulSandValleySurfaceBuilder : public SurfaceBuilder {
+public:
+    SoulSandValleySurfaceBuilder() = default;
+
+    void buildSurface(
+        math::Random& random,
+        ChunkPrimer& chunk,
+        const Biome& biome,
+        i32 x, i32 z,
+        i32 startHeight,
+        f32 surfaceNoise,
+        const BlockState* defaultBlock,
+        const BlockState* defaultFluid,
+        i32 seaLevel,
+        const SurfaceBuilderConfig& config) override;
+
+    [[nodiscard]] const char* name() const override { return "soul_sand_valley"; }
+};
+
 } // namespace mc

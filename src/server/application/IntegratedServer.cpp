@@ -503,7 +503,7 @@ void IntegratedServer::requestChunkAsync(ChunkCoord x, ChunkCoord z) {
             std::lock_guard<std::mutex> lock(m_pendingSendsMutex);
             m_pendingSends.push_back({x, z, std::move(result.value())});
         },
-        &ChunkStatus::FULL
+        &ChunkStatuses::FULL
     );
 }
 

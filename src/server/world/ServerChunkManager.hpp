@@ -32,7 +32,7 @@ class ServerWorld;
  * ChunkData* chunk = manager.getChunk(x, z);
  *
  * // 获取区块（异步）
- * auto future = manager.getChunkAsync(x, z, &ChunkStatus::FULL);
+ * auto future = manager.getChunkAsync(x, z, &ChunkStatuses::FULL);
  *
  * // 主循环
  * manager.tick();
@@ -182,7 +182,7 @@ public:
      * @return 区块 Future
      */
     [[nodiscard]] std::future<ChunkData*> getChunkAsync(ChunkCoord x, ChunkCoord z,
-                                                         const ChunkStatus* targetStatus = &ChunkStatus::FULL);
+                                                         const ChunkStatus* targetStatus = &ChunkStatuses::FULL);
 
     /**
      * @brief 异步获取区块（回调版本）
@@ -192,7 +192,7 @@ public:
      * @param targetStatus 目标状态
      */
     void getChunkAsync(ChunkCoord x, ChunkCoord z, ChunkCallback callback,
-                       const ChunkStatus* targetStatus = &ChunkStatus::FULL);
+                       const ChunkStatus* targetStatus = &ChunkStatuses::FULL);
 
     // ============================================================================
     // 区块持有者

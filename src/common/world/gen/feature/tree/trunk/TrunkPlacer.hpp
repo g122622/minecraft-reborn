@@ -119,6 +119,21 @@ protected:
      */
     static void placeDirtUnder(WorldGenRegion& world, const BlockPos& pos);
 
+    /**
+     * @brief 放置 2x2 树干层（用于巨型树木）
+     *
+     * @param world 世界区域
+     * @param pos 树干层起始位置
+     * @param trunkBlocks 树干方块集合
+     * @param trunkBlock 树干方块状态
+     */
+    void placeTrunkLayer2x2(
+        WorldGenRegion& world,
+        const BlockPos& pos,
+        std::set<BlockPos>& trunkBlocks,
+        const BlockState* trunkBlock
+    );
+
     i32 m_baseHeight;
     i32 m_heightRandA;
     i32 m_heightRandB;

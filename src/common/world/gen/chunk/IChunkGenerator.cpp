@@ -64,11 +64,11 @@ const BlockState* WorldGenRegion::getBlock(i32 x, i32 y, i32 z) const
     return chunk->getBlock(localX, y, localZ);
 }
 
-void WorldGenRegion::setBlock(i32 x, i32 y, i32 z, const BlockState* state)
+bool WorldGenRegion::setBlock(i32 x, i32 y, i32 z, const BlockState* state)
 {
     // 检查 Y 边界
     if (y < world::MIN_BUILD_HEIGHT || y >= world::MAX_BUILD_HEIGHT) {
-        return;
+        return false;
     }
 
     // 转换为区块坐标和本地坐标
@@ -79,12 +79,13 @@ void WorldGenRegion::setBlock(i32 x, i32 y, i32 z, const BlockState* state)
 
     IChunk* chunk = getChunk(relX, relZ);
     if (!chunk) {
-        return;
+        return false;
     }
 
     const i32 localX = world::toLocalCoord(x);
     const i32 localZ = world::toLocalCoord(z);
     chunk->setBlock(localX, y, localZ, state);
+    return true;
 }
 
 BiomeId WorldGenRegion::getBiome(i32 x, i32 y, i32 z) const
@@ -150,6 +151,20 @@ BaseChunkGenerator::BaseChunkGenerator(u64 seed, DimensionSettings settings)
     , m_settings(std::move(settings))
     , m_worldGenSpawner(std::make_unique<WorldGenSpawner>())
 {
+}
+
+void BaseChunkGenerator::generateStructureStarts(WorldGenRegion& /*region*/, ChunkPrimer& chunk)
+{
+    // 默认实现：不生成任何结构
+    // 子类可以覆盖以添加结构生成
+    chunk.setChunkStatus(ChunkStatuses::STRUCTURE_STARTS);
+}
+
+void BaseChunkGenerator::generateStructureReferences(WorldGenRegion& /*region*/, ChunkPrimer& chunk)
+{
+    // 默认实现：不处理结构引用
+    // 子类可以覆盖以处理结构引用
+    chunk.setChunkStatus(ChunkStatuses::STRUCTURE_REFERENCES);
 }
 
 void BaseChunkGenerator::generateBiomes(WorldGenRegion& /*region*/, ChunkPrimer& chunk)

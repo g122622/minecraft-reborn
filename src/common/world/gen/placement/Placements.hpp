@@ -1,0 +1,246 @@
+#pragma once
+
+#include "Placement.hpp"
+#include <memory>
+
+namespace mc {
+
+/**
+ * @brief 噪声阈值放置配置
+ *
+ * 根据噪声值决定是否放置特征。
+ * 参考 MC NoisePlacementConfig
+ */
+struct NoisePlacementConfig : public IPlacementConfig {
+    f64 noiseLevel;     ///< 噪声阈值
+    f64 noiseFactor;    ///< 噪声因子
+    f64 noiseOffset;    ///< 噪声偏移
+
+    NoisePlacementConfig(f64 level, f64 factor, f64 offset)
+        : noiseLevel(level), noiseFactor(factor), noiseOffset(offset) {}
+};
+
+/**
+ * @brief 噪声控制数量放置配置
+ *
+ * 根据噪声值决定放置数量。
+ * 参考 MC CountNoisePlacementConfig
+ */
+struct CountNoiseConfig : public IPlacementConfig {
+    f64 noiseLevel;     ///< 噪声阈值
+    i32 belowCount;     ///< 低于阈值时的数量
+    i32 aboveCount;     ///< 高于阈值时的数量
+
+    CountNoiseConfig(f64 level, i32 below, i32 above)
+        : noiseLevel(level), belowCount(below), aboveCount(above) {}
+};
+
+/**
+ * @brief 深度平均放置配置
+ *
+ * 在基准深度附近放置特征。
+ * 参考 MC DepthAverageConfig
+ */
+struct DepthAverageConfig : public IPlacementConfig {
+    i32 baseline;       ///< 基准深度
+    i32 spread;         ///< 扩散范围
+
+    DepthAverageConfig(i32 base, i32 spread)
+        : baseline(base), spread(spread) {}
+};
+
+/**
+ * @brief 随机偏移放置配置
+ *
+ * 随机偏移放置位置。
+ * 参考 MC RandomOffsetPlacementConfig
+ */
+struct RandomOffsetConfig : public IPlacementConfig {
+    i32 xzSpread;       ///< XZ平面扩散
+    i32 ySpread;        ///< Y轴扩散
+
+    RandomOffsetConfig(i32 xz, i32 y)
+        : xzSpread(xz), ySpread(y) {}
+};
+
+/**
+ * @brief 水深阈值放置配置
+ *
+ * 根据水深决定是否放置。
+ * 参考 MC WaterDepthThresholdConfig
+ */
+struct WaterDepthThresholdConfig : public IPlacementConfig {
+    i32 maxWaterDepth;  ///< 最大水深
+
+    explicit WaterDepthThresholdConfig(i32 depth)
+        : maxWaterDepth(depth) {}
+};
+
+/**
+ * @brief 海平面放置配置
+ *
+ * 在海平面附近放置特征。
+ */
+struct SeaLevelConfig : public IPlacementConfig {
+    i32 offset;         ///< 相对于海平面的偏移
+
+    explicit SeaLevelConfig(i32 off = 0) : offset(off) {}
+};
+
+// ============================================================================
+// 放置器类定义
+// ============================================================================
+
+/**
+ * @brief 噪声阈值放置器
+ *
+ * 根据噪声值决定是否放置特征。
+ * 参考 MC NoiseBasedPlacement
+ */
+class NoisePlacement : public Placement {
+public:
+    [[nodiscard]] std::vector<BlockPos> getPositions(
+        WorldGenRegion& region,
+        math::Random& random,
+        const IPlacementConfig& config,
+        const BlockPos& basePos) const override;
+
+    [[nodiscard]] const char* name() const override { return "noise"; }
+};
+
+/**
+ * @brief 噪声控制数量放置器
+ *
+ * 根据噪声值决定放置数量。
+ * 参考 MC CountNoisePlacement
+ */
+class CountNoisePlacement : public Placement {
+public:
+    [[nodiscard]] std::vector<BlockPos> getPositions(
+        WorldGenRegion& region,
+        math::Random& random,
+        const IPlacementConfig& config,
+        const BlockPos& basePos) const override;
+
+    [[nodiscard]] const char* name() const override { return "count_noise"; }
+};
+
+/**
+ * @brief 深度平均放置器
+ *
+ * 在基准深度附近放置特征。
+ * 参考 MC DepthAveragePlacement
+ */
+class DepthAveragePlacement : public Placement {
+public:
+    [[nodiscard]] std::vector<BlockPos> getPositions(
+        WorldGenRegion& region,
+        math::Random& random,
+        const IPlacementConfig& config,
+        const BlockPos& basePos) const override;
+
+    [[nodiscard]] const char* name() const override { return "depth_average"; }
+};
+
+/**
+ * @brief 顶层固体放置器
+ *
+ * 在顶层固体方块上放置特征。
+ * 参考 MC TopSolidPlacement
+ */
+class TopSolidPlacement : public Placement {
+public:
+    [[nodiscard]] std::vector<BlockPos> getPositions(
+        WorldGenRegion& region,
+        math::Random& random,
+        const IPlacementConfig& config,
+        const BlockPos& basePos) const override;
+
+    [[nodiscard]] const char* name() const override { return "top_solid"; }
+};
+
+/**
+ * @brief 雕刻掩码放置器
+ *
+ * 在雕刻掩码指定的位置放置特征。
+ * 参考 MC CarvingMaskPlacement
+ */
+class CarvingMaskPlacement : public Placement {
+public:
+    [[nodiscard]] std::vector<BlockPos> getPositions(
+        WorldGenRegion& region,
+        math::Random& random,
+        const IPlacementConfig& config,
+        const BlockPos& basePos) const override;
+
+    [[nodiscard]] const char* name() const override { return "carving_mask"; }
+};
+
+/**
+ * @brief 随机偏移放置器
+ *
+ * 对位置进行随机偏移。
+ * 参考 MC RandomOffsetPlacement
+ */
+class RandomOffsetPlacement : public Placement {
+public:
+    [[nodiscard]] std::vector<BlockPos> getPositions(
+        WorldGenRegion& region,
+        math::Random& random,
+        const IPlacementConfig& config,
+        const BlockPos& basePos) const override;
+
+    [[nodiscard]] const char* name() const override { return "random_offset"; }
+};
+
+/**
+ * @brief 水深阈值放置器
+ *
+ * 根据水深决定是否放置特征。
+ * 参考 MC WaterDepthThresholdPlacement
+ */
+class WaterDepthThresholdPlacement : public Placement {
+public:
+    [[nodiscard]] std::vector<BlockPos> getPositions(
+        WorldGenRegion& region,
+        math::Random& random,
+        const IPlacementConfig& config,
+        const BlockPos& basePos) const override;
+
+    [[nodiscard]] const char* name() const override { return "water_depth_threshold"; }
+};
+
+/**
+ * @brief 海平面放置器
+ *
+ * 在海平面附近放置特征。
+ */
+class SeaLevelPlacement : public Placement {
+public:
+    [[nodiscard]] std::vector<BlockPos> getPositions(
+        WorldGenRegion& region,
+        math::Random& random,
+        const IPlacementConfig& config,
+        const BlockPos& basePos) const override;
+
+    [[nodiscard]] const char* name() const override { return "sea_level"; }
+};
+
+/**
+ * @brief 扩散放置器
+ *
+ * 在原始位置周围扩散放置特征。
+ * 参考 MC SpreadPlacement
+ */
+class SpreadPlacement : public Placement {
+public:
+    [[nodiscard]] std::vector<BlockPos> getPositions(
+        WorldGenRegion& region,
+        math::Random& random,
+        const IPlacementConfig& config,
+        const BlockPos& basePos) const override;
+
+    [[nodiscard]] const char* name() const override { return "spread"; }
+};
+
+} // namespace mc

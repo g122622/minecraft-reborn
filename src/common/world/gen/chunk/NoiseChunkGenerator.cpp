@@ -1,5 +1,9 @@
 #include "NoiseChunkGenerator.hpp"
 #include "../spawn/WorldGenSpawner.hpp"
+#include "../carver/UnderwaterCarver.hpp"
+#include "../structure/StructureManager.hpp"
+#include "../structure/Structure.hpp"
+#include "../placement/PlacementRegistry.hpp"
 #include "../../block/BlockRegistry.hpp"
 #include "../../block/VanillaBlocks.hpp"
 #include "../../biome/BiomeRegistry.hpp"
@@ -53,6 +57,17 @@ NoiseChunkGenerator::NoiseChunkGenerator(u64 seed, DimensionSettings settings)
     // 峡谷概率更低
     m_canyonCarver = std::make_unique<CanyonCarver>(256);
     m_canyonConfig = ProbabilityConfig(0.02f);
+
+    // 初始化水下雕刻器
+    m_underwaterCaveCarver = std::make_unique<world::gen::carver::UnderwaterCaveCarver>();
+    m_underwaterCanyonCarver = std::make_unique<world::gen::carver::UnderwaterCanyonCarver>();
+
+    // 初始化结构管理器
+    world::gen::structure::StructureRegistry::initialize();
+    m_structureManager = std::make_unique<world::gen::structure::StructureManager>(static_cast<i64>(seed));
+
+    // 初始化放置器注册表
+    PlacementRegistry::instance().initialize();
 }
 
 NoiseChunkGenerator::NoiseChunkGenerator(u64 seed, DimensionSettings settings,
@@ -71,6 +86,13 @@ NoiseChunkGenerator::NoiseChunkGenerator(u64 seed, DimensionSettings settings,
 
     // 确保生物群系注册表已初始化（默认构造路径会初始化，注入路径也需要）
     BiomeRegistry::instance().initialize();
+
+    // 初始化结构管理器
+    world::gen::structure::StructureRegistry::initialize();
+    m_structureManager = std::make_unique<world::gen::structure::StructureManager>(static_cast<i64>(seed));
+
+    // 初始化放置器注册表
+    PlacementRegistry::instance().initialize();
 }
 
 NoiseChunkGenerator::~NoiseChunkGenerator() = default;
@@ -131,6 +153,56 @@ void NoiseChunkGenerator::initBiomeWeights()
 }
 
 // ============================================================================
+// 结构生成
+// ============================================================================
+
+void NoiseChunkGenerator::generateStructureStarts(WorldGenRegion& region, ChunkPrimer& chunk)
+{
+    MC_TRACE_EVENT("world.chunk_gen", "GenerateStructureStarts", "x", chunk.x(), "z", chunk.z());
+
+    if (!m_structureManager) {
+        chunk.setChunkStatus(ChunkStatuses::STRUCTURE_STARTS);
+        return;
+    }
+
+    const ChunkCoord chunkX = chunk.x();
+    const ChunkCoord chunkZ = chunk.z();
+
+    // 遍历所有已注册的结构，检查是否应该在此区块生成
+    math::Random rng(static_cast<u64>(chunkX) * 341873128712ULL +
+                     static_cast<u64>(chunkZ) * 132897987541ULL +
+                     m_seed);
+
+    for (const auto* structure : world::gen::structure::StructureRegistry::getAll()) {
+        if (!structure) continue;
+
+        // 检查是否应该在此位置生成结构
+        if (m_structureManager->shouldGenerateStructureStart(*structure, chunkX, chunkZ)) {
+            // 生成结构起点
+            auto start = structure->generate(region, *this, rng, chunkX, chunkZ);
+
+            if (start) {
+                // 将结构起点存储到区块中
+                chunk.addStructureStart(structure->name(), std::move(start));
+            }
+        }
+    }
+
+    chunk.setChunkStatus(ChunkStatuses::STRUCTURE_STARTS);
+}
+
+void NoiseChunkGenerator::generateStructureReferences(WorldGenRegion& /*region*/, ChunkPrimer& chunk)
+{
+    MC_TRACE_EVENT("world.chunk_gen", "GenerateStructureReferences", "x", chunk.x(), "z", chunk.z());
+
+    // 结构引用阶段：计算结构之间的引用关系
+    // 这主要用于结构之间的连接（如要塞、村庄道路等）
+    // 目前简化实现，未来可扩展
+
+    chunk.setChunkStatus(ChunkStatuses::STRUCTURE_REFERENCES);
+}
+
+// ============================================================================
 // 生物群系生成
 // ============================================================================
 
@@ -146,7 +218,7 @@ void NoiseChunkGenerator::generateBiomes(WorldGenRegion& region, ChunkPrimer& ch
     m_biomeProvider->fillBiomeContainer(biomes, chunkX, chunkZ);
 
     // 标记阶段完成
-    chunk.setChunkStatus(ChunkStatus::BIOMES);
+    chunk.setChunkStatus(ChunkStatuses::BIOMES);
 }
 
 // ============================================================================
@@ -261,7 +333,7 @@ void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chu
     }
 
     // 标记阶段完成
-    chunk.setChunkStatus(ChunkStatus::NOISE);
+    chunk.setChunkStatus(ChunkStatuses::NOISE);
 }
 
 void NoiseChunkGenerator::fillNoiseColumn(std::vector<f32>& column, i32 noiseX, i32 noiseZ)
@@ -572,7 +644,7 @@ void NoiseChunkGenerator::buildSurface(WorldGenRegion& /*region*/, ChunkPrimer& 
     }
 
     // 标记阶段完成
-    chunk.setChunkStatus(ChunkStatus::SURFACE);
+    chunk.setChunkStatus(ChunkStatuses::SURFACE);
 }
 
 void NoiseChunkGenerator::buildSurfaceForColumn(ChunkPrimer& chunk, i32 x, i32 z,
@@ -648,17 +720,33 @@ void NoiseChunkGenerator::applyCarvers(WorldGenRegion& /*region*/, ChunkPrimer& 
     // 创建雕刻掩码
     CarvingMask carvingMask(chunkX, chunkZ);
 
-    // 应用洞穴雕刻器
-    if (m_caveCarver && !isLiquid) {
-        m_caveCarver->carve(chunk, *m_biomeProvider, m_settings.seaLevel, chunkX, chunkZ, carvingMask, m_caveConfig);
-    }
+    if (!isLiquid) {
+        // 空气雕刻阶段：洞穴和峡谷
+        // 应用洞穴雕刻器
+        if (m_caveCarver) {
+            m_caveCarver->carve(chunk, *m_biomeProvider, m_settings.seaLevel, chunkX, chunkZ, carvingMask, m_caveConfig);
+        }
 
-    // 应用峡谷雕刻器
-    if (m_canyonCarver && !isLiquid) {
-        m_canyonCarver->carve(chunk, *m_biomeProvider, m_settings.seaLevel, chunkX, chunkZ, carvingMask, m_canyonConfig);
-    }
+        // 应用峡谷雕刻器
+        if (m_canyonCarver) {
+            m_canyonCarver->carve(chunk, *m_biomeProvider, m_settings.seaLevel, chunkX, chunkZ, carvingMask, m_canyonConfig);
+        }
 
-    chunk.setChunkStatus(ChunkStatus::CARVERS);
+        chunk.setChunkStatus(ChunkStatuses::CARVERS);
+    } else {
+        // 液体雕刻阶段：水下洞穴和峡谷
+        // 应用水下洞穴雕刻器
+        if (m_underwaterCaveCarver) {
+            m_underwaterCaveCarver->carve(chunk, *m_biomeProvider, m_settings.seaLevel, chunkX, chunkZ, carvingMask, m_underwaterCaveConfig);
+        }
+
+        // 应用水下峡谷雕刻器
+        if (m_underwaterCanyonCarver) {
+            m_underwaterCanyonCarver->carve(chunk, *m_biomeProvider, m_settings.seaLevel, chunkX, chunkZ, carvingMask, m_underwaterCanyonConfig);
+        }
+
+        chunk.setChunkStatus(ChunkStatuses::LIQUID_CARVERS);
+    }
 }
 
 void NoiseChunkGenerator::placeFeatures(WorldGenRegion& region, ChunkPrimer& chunk)
@@ -681,7 +769,7 @@ void NoiseChunkGenerator::placeFeatures(WorldGenRegion& region, ChunkPrimer& chu
             region, chunk, *this, settings, stage, m_seed);
     }
 
-    chunk.setChunkStatus(ChunkStatus::FEATURES);
+    chunk.setChunkStatus(ChunkStatuses::FEATURES);
 }
 
 // ============================================================================

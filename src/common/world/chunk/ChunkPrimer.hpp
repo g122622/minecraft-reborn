@@ -5,6 +5,7 @@
 #include "ChunkData.hpp"
 #include "../block/Block.hpp"
 #include "../gen/spawn/WorldGenSpawner.hpp"
+#include "../gen/structure/Structure.hpp"
 #include <array>
 #include <memory>
 #include <unordered_map>
@@ -228,6 +229,41 @@ public:
     [[nodiscard]] size_t spawnedEntityCount() const { return m_spawnedEntities.size(); }
 
     // ============================================================================
+    // 结构起点管理
+    // ============================================================================
+
+    /**
+     * @brief 添加结构起点
+     * @param structureName 结构名称
+     * @param start 结构起点实例
+     */
+    void addStructureStart(const String& structureName, std::unique_ptr<world::gen::structure::StructureStart> start) {
+        m_structureStarts[structureName] = std::move(start);
+    }
+
+    /**
+     * @brief 获取结构起点
+     * @param structureName 结构名称
+     * @return 结构起点指针，如果不存在则返回 nullptr
+     */
+    [[nodiscard]] world::gen::structure::StructureStart* getStructureStart(const String& structureName) {
+        auto it = m_structureStarts.find(structureName);
+        return it != m_structureStarts.end() ? it->second.get() : nullptr;
+    }
+
+    /**
+     * @brief 获取所有结构起点
+     */
+    [[nodiscard]] const std::unordered_map<String, std::unique_ptr<world::gen::structure::StructureStart>>& structureStarts() const {
+        return m_structureStarts;
+    }
+
+    /**
+     * @brief 检查是否有结构起点
+     */
+    [[nodiscard]] bool hasStructureStarts() const { return !m_structureStarts.empty(); }
+
+    // ============================================================================
     // 转换方法
     // ============================================================================
 
@@ -266,7 +302,7 @@ private:
     std::unique_ptr<ChunkData> m_data;
 
     // 生成状态
-    const ChunkStatus* m_chunkStatus = &ChunkStatus::EMPTY;
+    const ChunkStatus* m_chunkStatus = &ChunkStatuses::EMPTY;
     ChunkLoadStatus m_status = ChunkLoadStatus::Empty;
     bool m_modified = false;
 
@@ -285,6 +321,9 @@ private:
 
     // 区块生成时生成的实体
     std::vector<SpawnedEntityData> m_spawnedEntities;
+
+    // 结构起点（用于结构生成）
+    std::unordered_map<String, std::unique_ptr<world::gen::structure::StructureStart>> m_structureStarts;
 
     // 辅助方法
     [[nodiscard]] static bool isValidBlockCoord(BlockCoord x, BlockCoord y, BlockCoord z);

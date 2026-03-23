@@ -134,6 +134,11 @@ bool Heightmap::isOpaque(const BlockState* state) const
             return (block.isSolid(*state) || state->isLiquid()) &&
                    (&block.material() != &Material::LEAVES) && (&block.material() != &Material::PLANT);
 
+        case HeightmapType::LightBlocking:
+            // 阻挡光照的方块（不透明方块，透明度 > 0）
+            // 参考 MC 1.16.5: 阻挡光照传播的方块
+            return block.isSolid(*state) && state->getOpacity() > 0;
+
         default:
             return !block.isAir(*state);
     }

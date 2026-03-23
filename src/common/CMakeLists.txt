@@ -190,6 +190,7 @@ add_library(mc_common STATIC
     world/gen/carver/WorldCarver.cpp
     world/gen/carver/CaveCarver.cpp
     world/gen/carver/CanyonCarver.cpp
+    world/gen/carver/UnderwaterCarver.cpp
 
     # World - Biome
     world/biome/Biome.cpp
@@ -220,8 +221,10 @@ add_library(mc_common STATIC
     world/gen/feature/tree/TreeFeature.cpp
     world/gen/feature/tree/trunk/TrunkPlacer.cpp
     world/gen/feature/tree/trunk/StraightTrunkPlacer.cpp
+    world/gen/feature/tree/trunk/TrunkPlacers.cpp
     world/gen/feature/tree/foliage/FoliagePlacer.cpp
     world/gen/feature/tree/foliage/BlobFoliagePlacer.cpp
+    world/gen/feature/tree/foliage/FoliagePlacers.cpp
     # World - Generation - Feature - Vegetation
     world/gen/feature/vegetation/FlowerFeature.cpp
     world/gen/feature/vegetation/GrassFeature.cpp
@@ -230,9 +233,20 @@ add_library(mc_common STATIC
     world/gen/feature/vegetation/SugarCaneFeature.cpp
     world/gen/feature/vegetation/IceSpikeFeature.cpp
 
+    # World - Generation - Feature - Lake
+    world/gen/feature/lake/LakeFeature.cpp
+
+    # World - Generation - Structure
+    world/gen/structure/Structure.cpp
+    world/gen/structure/StructureManager.cpp
+    world/gen/structure/structures/RuinedPortalStructure.cpp
+    world/gen/structure/structures/BuriedTreasureStructure.cpp
+
     # World - Generation - Placement
     world/gen/placement/Placement.cpp
     world/gen/placement/PlacementUtils.cpp
+    world/gen/placement/Placements.cpp
+    world/gen/placement/PlacementRegistry.cpp
 
     # World - Generation - Spawn
     world/gen/spawn/WorldGenSpawner.cpp

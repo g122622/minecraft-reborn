@@ -29,12 +29,13 @@ enum class ChunkLoadStatus : u8 {
 // ============================================================================
 
 enum class HeightmapType : u8 {
-    WorldSurface,       // 最高非空气方块
-    OceanFloor,         // 最高固体方块
-    MotionBlocking,     // 最高阻挡运动方块
-    MotionBlockingNoLeaves,  // 最高阻挡运动方块（不含树叶）
-    WorldSurfaceWG,     // 世界表面（生成时）
-    OceanFloorWG        // 海底（生成时）
+    WorldSurface,           // 最高非空气方块
+    OceanFloor,             // 最高固体方块
+    MotionBlocking,         // 最高阻挡运动方块
+    MotionBlockingNoLeaves, // 最高阻挡运动方块（不含树叶）
+    WorldSurfaceWG,         // 世界表面（生成时）
+    OceanFloorWG,           // 海底（生成时）
+    LightBlocking           // 最高阻挡光照方块
 };
 
 // ============================================================================

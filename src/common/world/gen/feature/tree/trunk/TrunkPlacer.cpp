@@ -92,4 +92,17 @@ void TrunkPlacer::placeDirtUnder(WorldGenRegion& world, const BlockPos& pos) {
     }
 }
 
+void TrunkPlacer::placeTrunkLayer2x2(
+    WorldGenRegion& world,
+    const BlockPos& pos,
+    std::set<BlockPos>& trunkBlocks,
+    const BlockState* trunkBlock
+) {
+    for (i32 dx = 0; dx < 2; ++dx) {
+        for (i32 dz = 0; dz < 2; ++dz) {
+            placeBlock(world, BlockPos(pos.x + dx, pos.y, pos.z + dz), trunkBlocks, trunkBlock);
+        }
+    }
+}
+
 } // namespace mc

@@ -13,7 +13,7 @@ ChunkPrimer::ChunkPrimer(ChunkCoord x, ChunkCoord z)
     : m_x(x)
     , m_z(z)
     , m_data(std::make_unique<ChunkData>(x, z))
-    , m_chunkStatus(&ChunkStatus::EMPTY)
+    , m_chunkStatus(&ChunkStatuses::EMPTY)
     , m_status(ChunkLoadStatus::Empty)
 {
     initializeCarvingMasks();
@@ -23,7 +23,7 @@ ChunkPrimer::ChunkPrimer(std::unique_ptr<ChunkData> data)
     : m_x(data ? data->x() : 0)
     , m_z(data ? data->z() : 0)
     , m_data(std::move(data))
-    , m_chunkStatus(&ChunkStatus::FULL)
+    , m_chunkStatus(&ChunkStatuses::FULL)
     , m_status(ChunkLoadStatus::Loaded)
 {
     if (m_data) {
@@ -262,7 +262,7 @@ std::unique_ptr<ChunkData> ChunkPrimer::toChunkData()
 
     // 设置状态
     m_status = ChunkLoadStatus::Generated;
-    m_chunkStatus = &ChunkStatus::FULL;
+    m_chunkStatus = &ChunkStatuses::FULL;
 
     // 清空生成的实体数据（调用者应该在调用此方法之前提取）
     m_spawnedEntities.clear();

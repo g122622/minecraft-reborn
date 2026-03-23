@@ -302,7 +302,7 @@ private:
     ChunkCoord m_z;
 
     // 区块状态
-    const ChunkStatus* m_status = &ChunkStatus::EMPTY;
+    const ChunkStatus* m_status = &ChunkStatuses::EMPTY;
 
     // 加载级别（原子操作）
     std::atomic<i32> m_level{33};

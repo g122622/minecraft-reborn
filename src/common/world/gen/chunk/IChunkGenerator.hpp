@@ -4,6 +4,7 @@
 #include "../../chunk/ChunkStatus.hpp"
 #include "../../chunk/ChunkPrimer.hpp"
 #include "../../biome/Biome.hpp"
+#include "../../IWorldWriter.hpp"
 #include "../../../core/Types.hpp"
 #include <memory>
 #include <array>
@@ -35,6 +36,26 @@ public:
     virtual ~IChunkGenerator() = default;
 
     // === 生成阶段 ===
+
+    /**
+     * @brief 生成结构起点
+     * @param region 世界生成区域
+     * @param chunk 区块生成器
+     *
+     * 参考 MC 1.16.5: STRUCTURE_STARTS 阶段
+     * 在此阶段确定结构（村庄、神殿等）的起点位置
+     */
+    virtual void generateStructureStarts(WorldGenRegion& region, ChunkPrimer& chunk) = 0;
+
+    /**
+     * @brief 生成结构引用
+     * @param region 世界生成区域
+     * @param chunk 区块生成器
+     *
+     * 参考 MC 1.16.5: STRUCTURE_REFERENCES 阶段
+     * 计算结构之间的引用关系，用于结构间的连接
+     */
+    virtual void generateStructureReferences(WorldGenRegion& region, ChunkPrimer& chunk) = 0;
 
     /**
      * @brief 生成生物群系
@@ -133,7 +154,7 @@ public:
  *
  * @note 参考 MC 1.16.5 WorldGenRegion
  */
-class WorldGenRegion {
+class WorldGenRegion : public IWorldWriter {
 public:
     /**
      * @brief 构造世界生成区域
@@ -182,7 +203,7 @@ public:
     /**
      * @brief 设置世界坐标处的方块
      */
-    void setBlock(i32 x, i32 y, i32 z, const BlockState* state);
+    bool setBlock(i32 x, i32 y, i32 z, const BlockState* state) override;
 
     /**
      * @brief 设置世界坐标处的方块（BlockPos 版本）
@@ -231,6 +252,8 @@ public:
 
     // === IChunkGenerator 接口 ===
 
+    void generateStructureStarts(WorldGenRegion& region, ChunkPrimer& chunk) override;
+    void generateStructureReferences(WorldGenRegion& region, ChunkPrimer& chunk) override;
     void generateBiomes(WorldGenRegion& region, ChunkPrimer& chunk) override;
     void applyCarvers(WorldGenRegion& region, ChunkPrimer& chunk, bool isLiquid) override;
     void placeFeatures(WorldGenRegion& region, ChunkPrimer& chunk) override;

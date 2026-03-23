@@ -83,14 +83,14 @@ TEST_F(ChunkWorkerPoolTest, SubmitGenerateBasic) {
     ChunkWorkerPool pool(2);
     pool.setGenerator([](ChunkPrimer& chunk, const ChunkStatus& targetStatus) {
         // 简单的生成器，标记为完成
-        chunk.setChunkStatus(ChunkStatus::FULL);
+        chunk.setChunkStatus(ChunkStatuses::FULL);
     });
     pool.start();
 
     std::atomic<bool> completed{false};
     ChunkPrimer* resultChunk = nullptr;
 
-    pool.submitGenerate(0, 0, ChunkStatus::FULL,
+    pool.submitGenerate(0, 0, ChunkStatuses::FULL,
         [&](bool success, ChunkPrimer* chunk) {
             completed = true;
             resultChunk = chunk;
@@ -115,7 +115,7 @@ TEST_F(ChunkWorkerPoolTest, SubmitGenerateBasic) {
 TEST_F(ChunkWorkerPoolTest, SubmitGenerateMultiple) {
     ChunkWorkerPool pool(4);
     pool.setGenerator([](ChunkPrimer& chunk, const ChunkStatus& targetStatus) {
-        chunk.setChunkStatus(ChunkStatus::FULL);
+        chunk.setChunkStatus(ChunkStatuses::FULL);
     });
     pool.start();
 
@@ -123,7 +123,7 @@ TEST_F(ChunkWorkerPoolTest, SubmitGenerateMultiple) {
     const int numChunks = 10;
 
     for (int i = 0; i < numChunks; ++i) {
-        pool.submitGenerate(i, i, ChunkStatus::FULL,
+        pool.submitGenerate(i, i, ChunkStatuses::FULL,
             [&](bool success, ChunkPrimer* chunk) {
                 completedCount++;
             },
@@ -146,7 +146,7 @@ TEST_F(ChunkWorkerPoolTest, SubmitGeneratePriority) {
     pool.setGenerator([](ChunkPrimer& chunk, const ChunkStatus& targetStatus) {
         // 短暂延迟以便测试优先级
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
-        chunk.setChunkStatus(ChunkStatus::FULL);
+        chunk.setChunkStatus(ChunkStatuses::FULL);
     });
     pool.start();
 
@@ -159,9 +159,9 @@ TEST_F(ChunkWorkerPoolTest, SubmitGeneratePriority) {
     };
 
     // 提交三个任务，优先级 2, 0, 1（0 最高）
-    pool.submitGenerate(1, 0, ChunkStatus::FULL, callback, 2);  // 低优先级
-    pool.submitGenerate(2, 0, ChunkStatus::FULL, callback, 0);  // 高优先级
-    pool.submitGenerate(3, 0, ChunkStatus::FULL, callback, 1);  // 中优先级
+    pool.submitGenerate(1, 0, ChunkStatuses::FULL, callback, 2);  // 低优先级
+    pool.submitGenerate(2, 0, ChunkStatuses::FULL, callback, 0);  // 高优先级
+    pool.submitGenerate(3, 0, ChunkStatuses::FULL, callback, 1);  // 中优先级
 
     // 等待完成
     for (int i = 0; i < 100 && executionOrder.size() < 3; ++i) {
@@ -182,7 +182,7 @@ TEST_F(ChunkWorkerPoolTest, SubmitGenerateWhenNotRunning) {
     // 不启动
 
     std::atomic<bool> completed{false};
-    pool.submitGenerate(0, 0, ChunkStatus::FULL,
+    pool.submitGenerate(0, 0, ChunkStatuses::FULL,
         [&](bool success, ChunkPrimer* chunk) {
             completed = true;
             EXPECT_FALSE(success);  // 应该失败
@@ -199,11 +199,11 @@ TEST_F(ChunkWorkerPoolTest, SubmitTaskCustom) {
 
     std::atomic<bool> completed{false};
 
-    ChunkTask task(ChunkTask::Type::Generate, 5, 10, &ChunkStatus::FULL, 0);
+    ChunkTask task(ChunkTask::Type::Generate, 5, 10, &ChunkStatuses::FULL, 0);
 
     pool.submitTask(std::move(task),
         [](ChunkPrimer& chunk, const ChunkStatus& targetStatus) {
-            chunk.setChunkStatus(ChunkStatus::FULL);
+            chunk.setChunkStatus(ChunkStatuses::FULL);
         },
         [&](bool success, ChunkPrimer* chunk) {
             completed = true;
@@ -237,7 +237,7 @@ TEST_F(ChunkWorkerPoolTest, GeneratorException) {
     std::atomic<bool> completed{false};
     std::atomic<bool> success{true};
 
-    pool.submitGenerate(0, 0, ChunkStatus::FULL,
+    pool.submitGenerate(0, 0, ChunkStatuses::FULL,
         [&](bool s, ChunkPrimer* chunk) {
             completed = true;
             success = s;
@@ -261,13 +261,13 @@ TEST_F(ChunkWorkerPoolTest, PendingTaskCount) {
     ChunkWorkerPool pool(1);  // 单线程
     pool.setGenerator([](ChunkPrimer& chunk, const ChunkStatus& targetStatus) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        chunk.setChunkStatus(ChunkStatus::FULL);
+        chunk.setChunkStatus(ChunkStatuses::FULL);
     });
     pool.start();
 
     // 提交多个任务
     for (int i = 0; i < 5; ++i) {
-        pool.submitGenerate(i, 0, ChunkStatus::FULL, nullptr, 0);
+        pool.submitGenerate(i, 0, ChunkStatuses::FULL, nullptr, 0);
     }
 
     // 应该有待处理任务
@@ -284,7 +284,7 @@ TEST_F(ChunkWorkerPoolTest, PendingTaskCount) {
 TEST_F(ChunkWorkerPoolTest, ConcurrentSubmissions) {
     ChunkWorkerPool pool(4);
     pool.setGenerator([](ChunkPrimer& chunk, const ChunkStatus& targetStatus) {
-        chunk.setChunkStatus(ChunkStatus::FULL);
+        chunk.setChunkStatus(ChunkStatuses::FULL);
     });
     pool.start();
 
@@ -295,7 +295,7 @@ TEST_F(ChunkWorkerPoolTest, ConcurrentSubmissions) {
     for (int t = 0; t < 4; ++t) {
         threads.emplace_back([&pool, &completedCount, t]() {
             for (int i = 0; i < 10; ++i) {
-                pool.submitGenerate(t * 10 + i, 0, ChunkStatus::FULL,
+                pool.submitGenerate(t * 10 + i, 0, ChunkStatuses::FULL,
                     [&](bool success, ChunkPrimer* chunk) {
                         completedCount++;
                     });

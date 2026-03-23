@@ -26,7 +26,7 @@ namespace mc::server {
  * pool.start();
  *
  * // 提交任务
- * pool.submit(ChunkTask::Generate, x, z, &ChunkStatus::FULL, [](ChunkPrimer* chunk) {
+ * pool.submit(ChunkTask::Generate, x, z, &ChunkStatuses::FULL, [](ChunkPrimer* chunk) {
  *     // 任务完成回调
  * });
  *

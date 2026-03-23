@@ -6,8 +6,10 @@
 #include "../carver/WorldCarver.hpp"
 #include "../carver/CaveCarver.hpp"
 #include "../carver/CanyonCarver.hpp"
+#include "../carver/UnderwaterCarver.hpp"
 #include "../feature/DecorationStage.hpp"
 #include "../feature/ConfiguredFeature.hpp"
+#include "../structure/StructureManager.hpp"
 #include "../../biome/BiomeProvider.hpp"
 #include "../../biome/BiomeGenerationSettings.hpp"
 #include "../../chunk/ChunkPrimer.hpp"
@@ -57,6 +59,8 @@ public:
 
     // === IChunkGenerator 接口 ===
 
+    void generateStructureStarts(WorldGenRegion& region, ChunkPrimer& chunk) override;
+    void generateStructureReferences(WorldGenRegion& region, ChunkPrimer& chunk) override;
     void generateBiomes(WorldGenRegion& region, ChunkPrimer& chunk) override;
     void generateNoise(WorldGenRegion& region, ChunkPrimer& chunk) override;
     void buildSurface(WorldGenRegion& region, ChunkPrimer& chunk) override;
@@ -93,6 +97,15 @@ private:
     std::unique_ptr<CanyonCarver> m_canyonCarver;
     ProbabilityConfig m_caveConfig;
     ProbabilityConfig m_canyonConfig;
+
+    // === 水下雕刻器 ===
+    std::unique_ptr<world::gen::carver::UnderwaterCaveCarver> m_underwaterCaveCarver;
+    std::unique_ptr<world::gen::carver::UnderwaterCanyonCarver> m_underwaterCanyonCarver;
+    world::gen::carver::UnderwaterCaveConfig m_underwaterCaveConfig;
+    world::gen::carver::UnderwaterCanyonConfig m_underwaterCanyonConfig;
+
+    // === 结构管理器 ===
+    std::unique_ptr<world::gen::structure::StructureManager> m_structureManager;
 
     // === 缓存的噪声参数 ===
     i32 m_noiseSizeX;
