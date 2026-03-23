@@ -148,6 +148,8 @@ add_executable(mc_tests
     common/item/enchantment/EnchantmentTest.cpp
     # 自动跳跃测试
     common/entity/movement/AutoJumpTest.cpp
+    # 玩家移动测试
+    common/entity/PlayerMovementTest.cpp
 )
 
 # 添加服务端源文件

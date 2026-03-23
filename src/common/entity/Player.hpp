@@ -18,7 +18,7 @@ struct PlayerAbilities {
     bool canFly = false;            // 允许飞行
     bool creativeMode = false;      // 创造模式
     bool allowEdit = true;          // 允许编辑方块
-    f32 flySpeed = 1.0f;           // 飞行速度
+    f32 flySpeed = 0.05f;          // 飞行速度 (MC默认: 0.05F)
     f32 walkSpeed = 0.1f;           // 行走速度
 
     void serialize(network::PacketSerializer& ser) const {

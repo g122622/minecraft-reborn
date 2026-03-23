@@ -160,41 +160,8 @@ void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chu
 
     const ChunkCoord chunkX = chunk.x();
     const ChunkCoord chunkZ = chunk.z();
-    const i32 startX = chunkX << 4;
-    const i32 startZ = chunkZ << 4;
 
-    // === 阶段 1: 计算地形目标 ===
-    std::array<std::array<f32, 16>, 16> terrainTargets{};
-    {
-        MC_TRACE_EVENT("world.chunk_gen", "GenerateNoise_TerrainTargets");
-        for (i32 localX = 0; localX < 16; ++localX) {
-            for (i32 localZ = 0; localZ < 16; ++localZ) {
-                const i32 worldX = startX + localX;
-                const i32 worldZ = startZ + localZ;
-                const BiomeId biomeId = m_biomeProvider->getBiome(worldX, 64, worldZ);
-                const Biome& biomeDef = m_biomeProvider->getBiomeDefinition(biomeId);
-
-                const f32 macroNoise = m_surfaceDepthNoise
-                    ? m_surfaceDepthNoise->noise2D(static_cast<f32>(worldX) * 0.0075f, static_cast<f32>(worldZ) * 0.0075f)
-                    : 0.0f;
-                const f32 detailNoise = m_surfaceDepthNoise
-                    ? m_surfaceDepthNoise->noise2D(static_cast<f32>(worldX) * 0.035f + 137.0f, static_cast<f32>(worldZ) * 0.035f - 91.0f)
-                    : 0.0f;
-                const f32 regionalNoise = m_surfaceDepthNoise
-                    ? m_surfaceDepthNoise->noise2D(static_cast<f32>(worldX) * 0.09f - 47.0f, static_cast<f32>(worldZ) * 0.09f + 83.0f)
-                    : 0.0f;
-
-                terrainTargets[localX][localZ] = static_cast<f32>(m_settings.seaLevel) + 1.0f
-                    + static_cast<f32>(biomeDef.depth()) * 18.0f
-                    + static_cast<f32>(biomeDef.scale()) * 24.0f
-                    + macroNoise * 28.0f
-                    + detailNoise * 14.0f
-                    + regionalNoise * 36.0f;
-            }
-        }
-    }
-
-    // === 阶段 2: 噪声缓存初始化 ===
+    // === 噪声缓存初始化 ===
     std::vector<std::vector<f32>> noiseCache[2];
     {
         MC_TRACE_EVENT("world.chunk_gen", "GenerateNoise_InitCache");
@@ -208,8 +175,12 @@ void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chu
         }
     }
 
-    // === 阶段 3: 噪声填充与方块放置 ===
-    // TODO：根据perfetto分析结果，这一阶段是关键性能瓶颈，优化重点
+    const i32 startX = chunkX << 4;
+    const i32 startZ = chunkZ << 4;
+
+    // === 噪声填充与方块放置 ===
+    // 注意：地形密度计算已在 fillNoiseColumn() 中完成，包含 biome depth/scale 的影响
+    // 参考 MC 1.16.5 NoiseChunkGenerator
     {
         MC_TRACE_EVENT("world.chunk_gen", "GenerateNoise_FillBlocks");
         // 遍历每个噪声单元
@@ -261,14 +232,13 @@ void NoiseChunkGenerator::generateNoise(WorldGenRegion& region, ChunkPrimer& chu
                                 const f32 zLerp = static_cast<f32>(localZ) / static_cast<f32>(m_horizontalNoiseGranularity);
 
                                 // Z 轴插值 - 最终密度值
+                                // 密度值已包含 biome depth/scale 影响（在 fillNoiseColumn 中计算）
                                 const f32 density = math::lerp(x0, x1, zLerp);
                                 const i32 localBlockX = worldX & 15;
                                 const i32 localBlockZ = worldZ & 15;
-                                const f32 terrainBias = (terrainTargets[localBlockX][localBlockZ] - static_cast<f32>(worldY)) * 0.16f;
-                                const f32 finalDensity = density + terrainBias;
 
                                 // 确定方块
-                                const BlockState* blockState = getBlockForDensity(finalDensity, worldY);
+                                const BlockState* blockState = getBlockForDensity(density, worldY);
 
                                 if (blockState) {
                                     chunk.setBlock(localBlockX, worldY, localBlockZ, blockState);
@@ -363,25 +333,32 @@ void NoiseChunkGenerator::fillNoiseColumn(std::vector<f32>& column, i32 noiseX, 
     const f32 densityOffset = noise.densityOffset;
 
     // === 阶段 2: 填充噪声列 ===
+    // 参考 MC 1.16.5 NoiseChunkGenerator.fillNoiseColumn()
     for (i32 y = 0; y <= m_noiseSizeY; ++y) {
         // 计算 3D 噪声密度
         f32 density = calculateNoiseDensity(noiseX, y, noiseZ, xzScale, yScale, xzFactor, yFactor);
 
-        // 高度归一化
-        const f32 normalizedY = 1.0f - static_cast<f32>(y) * 2.0f / static_cast<f32>(m_noiseSizeY);
+        // 高度归一化 + 随机密度偏移
+        // 参考 MC: double d8 = 1.0D - (double)i1 * 2.0D / (double)this.noiseSizeY + d4;
+        // 其中 d4 是 randomDensityOffset
+        const f32 normalizedY = 1.0f - static_cast<f32>(y) * 2.0f / static_cast<f32>(m_noiseSizeY) + randomDensityOffset;
 
         // 应用密度因子和偏移
+        // 参考 MC: double d9 = d8 * d5 + d6; (d5=densityFactor, d6=densityOffset)
         f32 value = normalizedY * densityFactor + densityOffset;
+
+        // 应用地形偏移 (biome depth/scale 影响)
+        // 参考 MC: double d10 = (d9 + d0) * d1; (d0=depthOffset, d1=heightFactor)
         f32 terrainMod = (value + depthOffset) * heightFactor;
 
+        // 参考 MC: if (d10 > 0.0D) d7 = d7 + d10 * 4.0D; else d7 = d7 + d10;
         if (terrainMod > 0.0f) {
             density += terrainMod * 4.0f;
         } else {
             density += terrainMod;
         }
 
-        // 应用随机密度偏移
-        density += randomDensityOffset;
+        // 应用列地形偏差 (surface depth noise)
         density += columnTerrainBias;
 
         // 顶部滑动

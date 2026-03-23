@@ -213,6 +213,13 @@ std::unique_ptr<IAreaFactory> buildOverworldLayers(
 {
     MC_TRACE_EVENT("world.biome", "BuildOverworldLayers", "biomeSize", biomeSize, "riverSize", riverSize);
 
+    // 实现 largeBiomes 参数支持
+    // 参考 MC 1.16.5: biomeSize = largeBiomes ? 6 : 4, riverSize = largeBiomes ? 6 : 4
+    if (largeBiomes) {
+        biomeSize = 6;
+        riverSize = 6;
+    }
+
     // 创建上下文工厂 - 使用 shared_ptr 保持生命周期
     auto createContext = [seed](u64 modifier) -> std::shared_ptr<LayerContext> {
         return std::make_shared<LayerContext>(LayerCacheConfig::DEFAULT_CACHE_SIZE, seed, modifier);
@@ -235,9 +242,10 @@ std::unique_ptr<IAreaFactory> buildOverworldLayers(
     static layer::AddIslandLayer addIslandLayer;
 
     // ========================================================================
-    // 第一阶段：气候层（共享）
+    // 第一阶段：气候层（只计算一次，通过 SharedFactory 复用）
+    // 参考 MC 1.16.5 LayerUtil.func_237216_a_
     // ========================================================================
-    auto climateFactory = buildClimateLayers(seed, createContext);
+    auto climateFactory = std::make_shared<SharedFactory>(buildClimateLayers(seed, createContext));
 
     // ========================================================================
     // 第二阶段：海洋温度分支（独立）
@@ -247,21 +255,38 @@ std::unique_ptr<IAreaFactory> buildOverworldLayers(
     oceanFactory = repeatZoom(2001L, normalZoom, std::move(oceanFactory), 6, createContext);
 
     // ========================================================================
-    // 第三阶段：河流分支（用于 HillsLayer）
+    // 第三阶段：河流分支（从气候层派生）
+    // 注意：MC Java 的河流分支架构：
+    //   climateFactory → StartRiverLayer → Zoom(2次) → [分支给 HillsLayer]
+    //                                            → [继续 Zoom → RiverLayer → MixRiverLayer]
     // ========================================================================
-    auto riverFactory1 = buildClimateLayers(seed, createContext);
+
+    // 河流基础层（从气候层派生）
     context = createContext(100L);
-    riverFactory1 = startRiverLayer.apply(*context, std::move(riverFactory1));
-    riverFactory1 = repeatZoom(1000L, normalZoom, std::move(riverFactory1), 2, createContext);
+    auto riverBaseFactory = startRiverLayer.apply(*context, climateFactory->share());
+    riverBaseFactory = repeatZoom(1000L, normalZoom, std::move(riverBaseFactory), 2, createContext);
+
+    // 分支1：给 HillsLayer 使用（缩放 2 次后的河流噪声）
+    auto riverFactoryForHills = repeatZoom(1000L, normalZoom, climateFactory->share(), 0, createContext);
+    context = createContext(100L);
+    riverFactoryForHills = startRiverLayer.apply(*context, std::move(riverFactoryForHills));
+    riverFactoryForHills = repeatZoom(1000L, normalZoom, std::move(riverFactoryForHills), 2, createContext);
+
+    // 分支2：给 MixRiverLayer 使用（继续缩放到 riverSize 次）
+    context = createContext(100L);
+    auto riverFactoryForMix = startRiverLayer.apply(*context, climateFactory->share());
+    riverFactoryForMix = repeatZoom(1000L, normalZoom, std::move(riverFactoryForMix), 2, createContext);
+    riverFactoryForMix = repeatZoom(1000L, normalZoom, std::move(riverFactoryForMix), riverSize, createContext);
+    context = createContext(1L);
+    riverFactoryForMix = riverLayer.apply(*context, std::move(riverFactoryForMix));
+    context = createContext(1000L);
+    riverFactoryForMix = smoothLayer.apply(*context, std::move(riverFactoryForMix));
 
     // ========================================================================
-    // 第四阶段：生物群系分支
+    // 第四阶段：生物群系分支（从气候层派生）
     // ========================================================================
-    auto biomeFactory = buildClimateLayers(seed, createContext);
-
-    // BiomeLayer - 将温度值转换为实际生物群系
     context = createContext(200L);
-    biomeFactory = biomeLayer.apply(*context, std::move(biomeFactory));
+    auto biomeFactory = biomeLayer.apply(*context, climateFactory->share());
 
     // AddBambooForestLayer
     context = createContext(1001L);
@@ -278,25 +303,10 @@ std::unique_ptr<IAreaFactory> buildOverworldLayers(
     // 第五阶段：山丘层（合并生物群系和河流噪声）
     // ========================================================================
     context = createContext(1000L);
-    biomeFactory = hillsLayer.apply(*context, std::move(biomeFactory), std::move(riverFactory1));
+    biomeFactory = hillsLayer.apply(*context, std::move(biomeFactory), std::move(riverFactoryForHills));
 
     // ========================================================================
-    // 第六阶段：河流分支（用于 MixRiverLayer）
-    // ========================================================================
-    auto riverFactory2 = buildClimateLayers(seed, createContext);
-    context = createContext(100L);
-    riverFactory2 = startRiverLayer.apply(*context, std::move(riverFactory2));
-    riverFactory2 = repeatZoom(1000L, normalZoom, std::move(riverFactory2), 2, createContext);
-    riverFactory2 = repeatZoom(1000L, normalZoom, std::move(riverFactory2), riverSize, createContext);
-
-    context = createContext(1L);
-    riverFactory2 = riverLayer.apply(*context, std::move(riverFactory2));
-
-    context = createContext(1000L);
-    riverFactory2 = smoothLayer.apply(*context, std::move(riverFactory2));
-
-    // ========================================================================
-    // 第七阶段：稀有生物群系和海岸
+    // 第六阶段：稀有生物群系和海岸
     // ========================================================================
     context = createContext(1001L);
     biomeFactory = rareBiomeLayer.apply(*context, std::move(biomeFactory));
@@ -310,7 +320,9 @@ std::unique_ptr<IAreaFactory> buildOverworldLayers(
             biomeFactory = addIslandLayer.apply(*context, std::move(biomeFactory));
         }
 
-        if (i == biomeSize - 1 || biomeSize == 0) {
+        // 修复：ShoreLayer 应该在 i == 1 或 biomeSize == 1 时执行
+        // 参考 MC 1.16.5: if (i == 1 || biomeSize == 1)
+        if (i == 1 || biomeSize == 1) {
             context = createContext(1000L);
             biomeFactory = shoreLayer.apply(*context, std::move(biomeFactory));
         }
@@ -320,13 +332,13 @@ std::unique_ptr<IAreaFactory> buildOverworldLayers(
     biomeFactory = smoothLayer.apply(*context, std::move(biomeFactory));
 
     // ========================================================================
-    // 第八阶段：合并河流
+    // 第七阶段：合并河流
     // ========================================================================
     context = createContext(100L);
-    auto finalFactory = mixRiverLayer.apply(*context, std::move(biomeFactory), std::move(riverFactory2));
+    auto finalFactory = mixRiverLayer.apply(*context, std::move(biomeFactory), std::move(riverFactoryForMix));
 
     // ========================================================================
-    // 第九阶段：合并海洋温度
+    // 第八阶段：合并海洋温度
     // ========================================================================
     context = createContext(100L);
     finalFactory = mixOceansLayer.apply(*context, std::move(finalFactory), std::move(oceanFactory));

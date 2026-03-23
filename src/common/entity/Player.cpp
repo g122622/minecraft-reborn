@@ -200,33 +200,44 @@ void Player::update() {
 /**
  * @brief 处理移动输入
  *
- * 参考MC Java版 Entity.getAbsoluteMotion() 的逻辑：
- * - MC坐标系: yaw=0 看向 +Z, yaw=90 看向 -X
+ * 参考MC Java版 Entity.getAbsoluteMotion() 和 LivingEntity.travel() 的逻辑：
+ * - MC坐标系: yaw=0 看向 -Z, yaw=90 看向 +X
  * - forward: 正值向前走, 负值向后走
  * - strafe: 正值向右走, 负值向左走
  *
- * MC公式:
+ * MC公式 (Entity.getAbsoluteMotion):
  *   sinYaw = sin(yaw * PI/180)
  *   cosYaw = cos(yaw * PI/180)
  *   moveX = strafe * cosYaw - forward * sinYaw
  *   moveZ = forward * cosYaw + strafe * sinYaw
  *
- * 参考源码: Entity.java:1171-1180
+ * 重要：MC中 moveRelative 是将速度**添加**到当前速度，而不是替换！
+ * 参考 Entity.moveRelative() line 1166-1169:
+ *   Vector3d vector3d = getAbsoluteMotion(relative, p_213309_1_, this.rotationYaw);
+ *   this.setMotion(this.getMotion().add(vector3d));
+ *
+ * 参考源码: Entity.java:1166-1181, LivingEntity.java:2148-2167
+ * 飞行上升/下降: ClientPlayerEntity.java:788-801 - 使用 flySpeed * 3.0F
  */
 void Player::handleMovementInput(f32 forward, f32 strafe, bool jumping, bool sneaking) {
-    // 计算移动速度
-    f32 speed = m_abilities.walkSpeed;
+    // 计算移动速度因子
+    // 参考MC: LivingEntity.getRelevantMoveFactor() - 在空中时使用jumpMovementFactor
+    // 参考MC: PlayerEntity.travel() line 1448 - 飞行时jumpMovementFactor = flySpeed * (sprinting ? 2 : 1)
+    f32 speedFactor = m_abilities.walkSpeed;
     if (m_isSprinting) {
-        speed *= 1.3f; // 冲刺速度倍率
+        speedFactor *= 1.3f; // 冲刺速度倍率
     }
     if (sneaking && !m_abilities.flying) {
-        speed *= 0.3f; // 潜行速度倍率
+        speedFactor *= 0.3f; // 潜行速度倍率
     }
     if (m_abilities.flying) {
-        speed = m_abilities.flySpeed; // 飞行速度
+        // 飞行时使用flySpeed作为速度因子
+        // MC: this.jumpMovementFactor = this.abilities.getFlySpeed() * (float)(this.isSprinting() ? 2 : 1);
+        speedFactor = m_abilities.flySpeed * (m_isSprinting ? 2.0f : 1.0f);
     }
 
     // 根据朝向计算移动方向（只有有输入时才处理）
+    // MC: moveRelative() 调用 getAbsoluteMotion() 然后添加到速度
     if (forward != 0.0f || strafe != 0.0f) {
         // MC坐标系: yaw单位是度，转换为弧度
         // MC中: yaw=0 看向 -Z, yaw=90 看向 +X
@@ -240,40 +251,55 @@ void Player::handleMovementInput(f32 forward, f32 strafe, bool jumping, bool sne
         f32 moveX = strafe * cosYaw - forward * sinYaw;
         f32 moveZ = forward * cosYaw + strafe * sinYaw;
 
-        // 归一化并应用速度
+        // 归一化
         f32 length = std::sqrt(moveX * moveX + moveZ * moveZ);
         if (length > 0.0f) {
-            moveX = moveX / length * speed;
-            moveZ = moveZ / length * speed;
+            moveX /= length;
+            moveZ /= length;
         }
 
-        m_velocity.x = moveX;
-        m_velocity.z = moveZ;
-    } else {
-        // 没有水平移动输入，停止水平速度
-        m_velocity.x = 0.0f;
-        m_velocity.z = 0.0f;
+        // 关键：MC中是**添加**到速度，而不是替换！
+        // 参考 MC Entity.moveRelative() line 1168:
+        //   this.setMotion(this.getMotion().add(vector3d));
+        m_velocity.x += moveX * speedFactor;
+        m_velocity.z += moveZ * speedFactor;
     }
+    // 注意：没有输入时不重置速度，让阻力系统自然减速
+    // 这样更符合MC的行为（速度会逐渐衰减而不是立即停止）
 
     // 更新跳跃状态（用于动画等）
     m_isJumping = jumping;
 
-    // 处理跳跃（无论是否有水平移动输入都要处理！）
-    // 这是MC的关键逻辑：跳跃是独立于水平移动的
-    // 参考MC: LivingEntity.aiStep() lines 2567-2591
-    if (jumping) {
-        if (m_abilities.flying) {
-            // 飞行模式下向上移动（3倍速度）
-            m_velocity.y = m_abilities.flySpeed;
-        } else if (m_onGround && m_jumpTicks == 0) {
-            jump();
+    // 处理飞行上升/下降
+    // 参考 MC ClientPlayerEntity.livingTick() lines 788-801:
+    // if (this.abilities.isFlying && this.isCurrentViewEntity()) {
+    //     int j = 0;
+    //     if (this.movementInput.sneaking) --j;
+    //     if (this.movementInput.jump) ++j;
+    //     if (j != 0) {
+    //         this.setMotion(this.getMotion().add(0.0D, (double)((float)j * this.abilities.getFlySpeed() * 3.0F), 0.0D));
+    //     }
+    // }
+    // 关键：飞行上升/下降速度是 flySpeed * 3.0，而且是**添加**到Y速度
+    if (m_abilities.flying) {
+        i32 verticalInput = 0;
+        if (jumping) {
+            verticalInput += 1;
         }
-    } else if (m_abilities.flying) {
-        // 飞行模式下按Shift下降（3倍速度）
         if (sneaking) {
-            m_velocity.y = -m_abilities.flySpeed;
-        } else {
-            m_velocity.y *= 0.6f; // 阻力
+            verticalInput -= 1;
+        }
+        if (verticalInput != 0) {
+            // 飞行时上升/下降速度 = flySpeed * 3.0
+            // 如果冲刺则再乘以2
+            f32 verticalSpeed = m_abilities.flySpeed * 3.0f * (m_isSprinting ? 2.0f : 1.0f);
+            m_velocity.y += static_cast<f32>(verticalInput) * verticalSpeed;
+        }
+        // 注意：飞行时Y速度的衰减在updatePhysics中处理（0.6倍）
+    } else {
+        // 非飞行模式下处理跳跃
+        if (jumping && m_onGround && m_jumpTicks == 0) {
+            jump();
         }
     }
 }
@@ -368,25 +394,37 @@ void Player::updatePhysics() {
     // 1. 重置过小的速度（MC: LivingEntity.aiStep）
     clampMotion();
 
-    // 2. 应用重力
+    // 2. 应用重力（飞行时不应用重力）
     if (!m_abilities.flying) {
         if (!m_onGround) {
             m_velocity.y -= physics::GRAVITY;
         }
     }
 
-    // 3. 应用阻力（MC: moveStrafing *= 0.98F, moveForward *= 0.98F）
-    // 注意：阻力在移动前应用，而不是在移动后
-    m_velocity.x *= physics::DRAG_AIR;
-    m_velocity.y *= physics::DRAG_AIR;
-    m_velocity.z *= physics::DRAG_AIR;
+    // 3. 应用阻力
+    // 参考MC: LivingEntity.travel() 和 PlayerEntity.travel()
+    // 飞行时阻力处理不同：Y方向用0.6，水平方向用0.91
+    if (m_abilities.flying) {
+        // 飞行模式：参考 MC PlayerEntity.travel() line 1451
+        // this.setMotion(vector3d.x, d5 * 0.6D, vector3d.z);
+        // 其中 d5 是旅行前的Y速度
+        m_velocity.x *= physics::DRAG_GROUND;  // 0.91 (水平阻力)
+        m_velocity.y *= 0.6f;                    // 飞行Y阻力 (MC: 0.6D)
+        m_velocity.z *= physics::DRAG_GROUND;  // 0.91 (水平阻力)
+    } else {
+        // 非飞行模式：应用空气阻力
+        m_velocity.x *= physics::DRAG_AIR;     // 0.98
+        m_velocity.y *= physics::DRAG_AIR;     // 0.98
+        m_velocity.z *= physics::DRAG_AIR;     // 0.98
+    }
 
     // 4. 如果在地面，停止Y方向速度（防止下落速度累积）
-    if (m_onGround && m_velocity.y < 0.0f) {
+    // 飞行模式下不处理
+    if (!m_abilities.flying && m_onGround && m_velocity.y < 0.0f) {
         m_velocity.y = 0.0f;
     }
 
-    // 5. 潜行边缘检测
+    // 5. 潜行边缘检测（飞行时不检测）
     Vector3 movement(m_velocity.x, m_velocity.y, m_velocity.z);
     if (m_isSneaking && !m_abilities.flying) {
         movement = maybeBackOffFromEdge(movement);
@@ -400,11 +438,12 @@ void Player::updatePhysics() {
         Vector3 actualMovement = moveWithCollision(movement.x, movement.y, movement.z);
 
         // 8. 碰撞后重置速度（参考MC: Entity.move）
-        // if (pos.x != vector3d.x) setMotion(0, y, z)
-        // if (pos.z != vector3d.z) setMotion(x, y, 0)
-        if (m_collidedHorizontally) {
-            m_velocity.x = 0.0f;
-            m_velocity.z = 0.0f;
+        // 飞行模式下碰撞时不重置水平速度（可以穿透方块边缘的感觉）
+        if (!m_abilities.flying) {
+            if (m_collidedHorizontally) {
+                m_velocity.x = 0.0f;
+                m_velocity.z = 0.0f;
+            }
         }
         if (m_collidedVertically) {
             m_velocity.y = 0.0f;
