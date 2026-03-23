@@ -3,8 +3,10 @@
 #include "Packet.hpp"
 #include "../../core/Types.hpp"
 #include "../../util/math/Vector3.hpp"
+#include "../../item/ItemStack.hpp"
 #include <vector>
 #include <array>
+#include <memory>
 
 namespace mc::network {
 
@@ -57,6 +59,31 @@ public:
         m_velocityX = vx; m_velocityY = vy; m_velocityZ = vz;
     }
 
+    // ========== ItemStack 支持（用于 ItemEntity） ==========
+
+    /**
+     * @brief 是否包含 ItemStack 数据
+     * 仅当实体类型为 minecraft:item 时有效
+     */
+    [[nodiscard]] bool hasItemStack() const { return m_hasItemStack; }
+
+    /**
+     * @brief 获取 ItemStack
+     * @return ItemStack 指针，如果没有则返回 nullptr
+     */
+    [[nodiscard]] const ItemStack* itemStack() const {
+        return m_hasItemStack ? &m_itemStack : nullptr;
+    }
+
+    /**
+     * @brief 设置 ItemStack
+     * @param stack 要设置的物品堆
+     */
+    void setItemStack(const ItemStack& stack) {
+        m_itemStack = stack;
+        m_hasItemStack = true;
+    }
+
 private:
     u32 m_entityId = 0;
     std::array<u8, 16> m_uuid = {};
@@ -69,6 +96,8 @@ private:
     i16 m_velocityX = 0;
     i16 m_velocityY = 0;
     i16 m_velocityZ = 0;
+    bool m_hasItemStack = false;     // 是否包含 ItemStack 数据
+    ItemStack m_itemStack;           // ItemEntity 的物品数据
 };
 
 /**

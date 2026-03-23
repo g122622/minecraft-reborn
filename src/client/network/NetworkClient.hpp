@@ -76,7 +76,7 @@ struct NetworkClientCallbacks {
 
     // 实体事件
     std::function<void(u32 entityId, const String& typeId, f32 x, f32 y, f32 z, f32 yaw, f32 pitch, f32 headYaw)> onSpawnMob;
-    std::function<void(u32 entityId, const String& typeId, f32 x, f32 y, f32 z, f32 yaw, f32 pitch)> onSpawnEntity;
+    std::function<void(u32 entityId, const String& typeId, f32 x, f32 y, f32 z, f32 yaw, f32 pitch, const ItemStack* itemStack)> onSpawnEntity;
     std::function<void(u32 entityId, f32 deltaX, f32 deltaY, f32 deltaZ)> onEntityMove;
     std::function<void(u32 entityId, i16 vx, i16 vy, i16 vz)> onEntityVelocity;
     std::function<void(u32 entityId, f32 x, f32 y, f32 z, f32 yaw, f32 pitch)> onEntityTeleport;

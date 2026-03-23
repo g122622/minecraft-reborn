@@ -1599,14 +1599,20 @@ void ClientApplication::setupNetworkCallbacks()
 
     callbacks.onSpawnEntity = [this](u32 entityId, const String& typeId,
                                       f32 x, f32 y, f32 z,
-                                      f32 yaw, f32 pitch) {
+                                      f32 yaw, f32 pitch,
+                                      const ItemStack* itemStack) {
         auto* entity = m_world.entityManager().spawnEntity(
             static_cast<EntityId>(entityId), typeId);
         if (entity) {
             entity->setPosition(x, y, z);
             entity->setRotation(yaw, pitch);
-            // spdlog::info("Client received SpawnEntity: {} (ID: {}) at ({:.1f}, {:.1f}, {:.1f})",
-            //               typeId, entityId, x, y, z);
+
+            // 如果是 ItemEntity，设置物品数据
+            if (itemStack != nullptr && !itemStack->isEmpty()) {
+                entity->setItemStack(*itemStack);
+                spdlog::debug("Client received ItemEntity {} with item: {} x{}",
+                              entityId, itemStack->getItem()->itemId(), itemStack->getCount());
+            }
         }
     };
 

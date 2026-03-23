@@ -19,6 +19,13 @@ Result<std::vector<u8>> SpawnEntityPacket::serialize() const {
     serializer.writeI16(m_velocityX);
     serializer.writeI16(m_velocityY);
     serializer.writeI16(m_velocityZ);
+
+    // 序列化 ItemStack 数据（如果存在）
+    serializer.writeBool(m_hasItemStack);
+    if (m_hasItemStack) {
+        m_itemStack.serialize(serializer);
+    }
+
     return serializer.buffer();
 }
 
@@ -74,6 +81,19 @@ Result<void> SpawnEntityPacket::deserialize(const u8* data, size_t size) {
     auto vzResult = deserializer.readI16();
     if (!vzResult.success()) return Error(vzResult.error());
     m_velocityZ = vzResult.value();
+
+    // 读取 ItemStack 数据（如果存在）
+    auto hasItemResult = deserializer.readBool();
+    if (!hasItemResult.success()) return Error(hasItemResult.error());
+    m_hasItemStack = hasItemResult.value();
+
+    if (m_hasItemStack) {
+        auto itemResult = ItemStack::deserialize(deserializer);
+        if (!itemResult.success()) {
+            return Error(itemResult.error());
+        }
+        m_itemStack = itemResult.value();
+    }
 
     return {};
 }

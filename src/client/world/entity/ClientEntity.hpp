@@ -2,7 +2,9 @@
 
 #include "../../../common/core/Types.hpp"
 #include "../../../common/util/math/Vector3.hpp"
+#include "../../../common/item/ItemStack.hpp"
 #include <string>
+#include <memory>
 
 namespace mc::client {
 
@@ -193,6 +195,29 @@ public:
      */
     void tick();
 
+    // ========== ItemStack 支持（用于 ItemEntity 渲染） ==========
+
+    /**
+     * @brief 是否持有物品
+     * 用于 ItemEntity 渲染
+     */
+    [[nodiscard]] bool hasItem() const { return m_itemStack != nullptr; }
+
+    /**
+     * @brief 获取物品堆
+     * @return 物品堆指针，如果没有物品返回 nullptr
+     */
+    [[nodiscard]] const ItemStack* itemStack() const { return m_itemStack.get(); }
+
+    /**
+     * @brief 设置物品堆
+     * 用于客户端接收 SpawnEntity 包时设置 ItemEntity 的物品
+     * @param stack 物品堆
+     */
+    void setItemStack(const ItemStack& stack) {
+        m_itemStack = std::make_unique<ItemStack>(stack);
+    }
+
 private:
     // 基本信息
     EntityId m_id;
@@ -230,6 +255,9 @@ private:
 
     // 存活时间
     u32 m_ticksExisted = 0;
+
+    // ItemEntity 物品数据
+    std::unique_ptr<ItemStack> m_itemStack;
 };
 
 } // namespace mc::client

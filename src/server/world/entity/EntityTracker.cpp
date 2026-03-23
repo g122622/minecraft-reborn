@@ -5,6 +5,8 @@
 #include "common/entity/Entity.hpp"
 #include "common/entity/living/LivingEntity.hpp"
 #include "common/entity/mob/MobEntity.hpp"
+#include "common/entity/ItemEntity.hpp"
+#include "common/item/Item.hpp"
 #include "server/core/ServerPlayerData.hpp"
 #include <spdlog/spdlog.h>
 #include <cmath>
@@ -286,6 +288,16 @@ void EntityTracker::sendSpawnPacket(ServerWorld& world, PlayerId playerId, Entit
             static_cast<i16>(std::clamp(velocity.y * 8000.0f, -32768.0f, 32767.0f)),
             static_cast<i16>(std::clamp(velocity.z * 8000.0f, -32768.0f, 32767.0f))
         );
+
+        // 检查是否是 ItemEntity，如果是则序列化 ItemStack 数据
+        ItemEntity* itemEntity = dynamic_cast<ItemEntity*>(entity);
+        if (itemEntity != nullptr) {
+            packet.setItemStack(itemEntity->getItemStack());
+            const auto& stack = itemEntity->getItemStack();
+            spdlog::debug("SpawnEntity packet includes ItemStack: {} x{}",
+                          stack.getItem() ? std::to_string(stack.getItem()->itemId()) : "null",
+                          stack.getCount());
+        }
 
         auto result = packet.serialize();
         if (result.success()) {

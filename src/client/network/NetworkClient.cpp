@@ -904,16 +904,18 @@ void NetworkClient::handleSpawnEntity(network::PacketDeserializer& deser) {
         return;
     }
 
-    spdlog::debug("Received SpawnEntity: id={}, type={}, pos=({:.1f}, {:.1f}, {:.1f})",
+    spdlog::debug("Received SpawnEntity: id={}, type={}, pos=({:.1f}, {:.1f}, {:.1f}){}",
                   packet.entityId(), packet.entityTypeId().c_str(),
-                  packet.x(), packet.y(), packet.z());
+                  packet.x(), packet.y(), packet.z(),
+                  packet.hasItemStack() ? " (with ItemStack)" : "");
 
     if (m_callbacks.onSpawnEntity) {
         m_callbacks.onSpawnEntity(
             packet.entityId(),
             packet.entityTypeId(),
             packet.x(), packet.y(), packet.z(),
-            packet.yaw(), packet.pitch()
+            packet.yaw(), packet.pitch(),
+            packet.itemStack()
         );
     }
 }

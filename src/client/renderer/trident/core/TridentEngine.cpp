@@ -1337,6 +1337,11 @@ Result<void> TridentEngine::initializeEntityRenderer() {
     // 初始化默认实体渲染器
     m_entityRendererManager->initializeDefaults();
 
+    // 设置物品纹理图集（用于 ItemEntity 渲染）
+    if (m_itemTextureAtlasInitialized && m_itemTextureAtlas.isValid()) {
+        m_entityRendererManager->setItemTextureAtlas(&m_itemTextureAtlas);
+    }
+
     // 创建并初始化实体渲染管线
     if (!m_entityPipeline) {
         m_entityPipeline = std::make_unique<EntityPipeline>();

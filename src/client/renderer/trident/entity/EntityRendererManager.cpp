@@ -1,9 +1,15 @@
 #include "EntityRendererManager.hpp"
 #include "AnimalRenderers.hpp"
+#include "ItemEntityRenderer.hpp"
 #include "EntityTextureAtlas.hpp"
 #include "../../../resource/EntityTextureLoader.hpp"
+#include "../../../resource/ItemTextureAtlas.hpp"
 #include "../../../world/entity/ClientEntity.hpp"
 #include "../../../../common/entity/EntityRegistry.hpp"
+#include "../../../../common/entity/ItemEntity.hpp"
+#include "../../../../common/item/ItemStack.hpp"
+#include "../../../../common/item/Item.hpp"
+#include "../../../../common/resource/ResourceLocation.hpp"
 #include "../../../../common/util/math/MathUtils.hpp"
 #include <spdlog/spdlog.h>
 
@@ -88,9 +94,23 @@ void EntityRendererManager::renderWithPipeline(VkCommandBuffer cmd, ClientEntity
         return;
     }
 
+    // 检查是否为 ItemEntity
+    String normalizedType = normalizeEntityTypeId(entity.typeId());
+    bool isItemEntity = (normalizedType == entity::EntityTypes::ITEM);
+
+    // 对于 ItemEntity，使用 ItemTextureAtlas
+    if (isItemEntity && m_itemTextureAtlas && m_itemTextureAtlas->isValid()) {
+        // 绑定物品纹理图集
+        m_pipeline->setTextureAtlas(m_itemTextureAtlas->imageView(), m_itemTextureAtlas->sampler());
+    }
+
     // 获取或创建网格
     EntityMesh* mesh = getOrCreateMesh(entity);
     if (!mesh || mesh->indexCount == 0) {
+        // 恢复实体纹理图集
+        if (isItemEntity && m_textureAtlas && m_textureAtlas->isBuilt()) {
+            // 注意：需要在下一帧渲染前恢复，或在此处恢复
+        }
         return;
     }
 
@@ -114,7 +134,7 @@ void EntityRendererManager::renderWithPipeline(VkCommandBuffer cmd, ClientEntity
     // 绑定纹理描述符（set = 1）
     m_pipeline->bindTextureDescriptor(cmd);
 
-    // 计算模型矩阵（单位矩阵，旋转由实体yaw/pitch控制）
+    // 计算模型矩阵
     std::array<f32, 16> modelMatrix = {
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
@@ -122,29 +142,73 @@ void EntityRendererManager::renderWithPipeline(VkCommandBuffer cmd, ClientEntity
         0.0f, 0.0f, 0.0f, 1.0f
     };
 
-    // MC 实体模型局部坐标系的 Y 轴方向与世界坐标相反，先做一次 Y 翻转
-    modelMatrix[5] = -1.0f;
-    // Y 翻转后，模型会相对地面下沉，需要补偿一个模型高度
-    modelMatrix[7] = MODEL_Y_OFFSET;
+    if (isItemEntity) {
+        // ItemEntity 特殊渲染：应用浮动和旋转动画
+        f32 bobOffset = calculateItemBobOffset(entity.ticksExisted(), partialTicks);
+        f32 rotation = calculateItemRotation(entity.ticksExisted(), partialTicks);
 
-    // 应用实体旋转（yaw）
-    f32 yaw = entity.getInterpolatedYaw(partialTicks);
-    f32 yawRad = math::toRadians(yaw);
-    f32 cosYaw = std::cos(yawRad);
-    f32 sinYaw = std::sin(yawRad);
+        // Y 翻转
+        modelMatrix[5] = -1.0f;
 
-    // 旋转矩阵（绕Y轴）
-    modelMatrix[0] = cosYaw;
-    modelMatrix[2] = sinYaw;
-    modelMatrix[8] = -sinYaw;
-    modelMatrix[10] = cosYaw;
+        // 应用 Y 轴旋转（物品自转）
+        f32 rotRad = math::toRadians(rotation);
+        f32 cosRot = std::cos(rotRad);
+        f32 sinRot = std::sin(rotRad);
+        modelMatrix[0] = cosRot;
+        modelMatrix[2] = sinRot;
+        modelMatrix[8] = -sinRot;
+        modelMatrix[10] = cosRot;
 
-    // 获取插值位置
-    Vector3 posInterp = entity.getInterpolatedPosition(partialTicks);
-    Vector3f pos(posInterp.x, posInterp.y, posInterp.z);
+        // 获取插值位置并应用浮动偏移
+        Vector3 posInterp = entity.getInterpolatedPosition(partialTicks);
+        Vector3f pos(posInterp.x, posInterp.y + bobOffset, posInterp.z);
 
-    // 绘制网格
-    m_pipeline->drawMesh(cmd, *mesh, modelMatrix, pos, MODEL_SCALE);
+        // 绘制网格（使用更大的缩放）
+        m_pipeline->drawMesh(cmd, *mesh, modelMatrix, pos, MODEL_SCALE * 16.0f);
+    } else {
+        // 普通实体渲染
+        // MC 实体模型局部坐标系的 Y 轴方向与世界坐标相反，先做一次 Y 翻转
+        modelMatrix[5] = -1.0f;
+        // Y 翻转后，模型会相对地面下沉，需要补偿一个模型高度
+        modelMatrix[7] = MODEL_Y_OFFSET;
+
+        // 应用实体旋转（yaw）
+        f32 yaw = entity.getInterpolatedYaw(partialTicks);
+        f32 yawRad = math::toRadians(yaw);
+        f32 cosYaw = std::cos(yawRad);
+        f32 sinYaw = std::sin(yawRad);
+
+        // 旋转矩阵（绕Y轴）
+        modelMatrix[0] = cosYaw;
+        modelMatrix[2] = sinYaw;
+        modelMatrix[8] = -sinYaw;
+        modelMatrix[10] = cosYaw;
+
+        // 获取插值位置
+        Vector3 posInterp = entity.getInterpolatedPosition(partialTicks);
+        Vector3f pos(posInterp.x, posInterp.y, posInterp.z);
+
+        // 绘制网格
+        m_pipeline->drawMesh(cmd, *mesh, modelMatrix, pos, MODEL_SCALE);
+    }
+
+    // 恢复实体纹理图集（如果为 ItemEntity）
+    if (isItemEntity && m_textureAtlas && m_textureAtlas->isBuilt()) {
+        m_pipeline->setTextureAtlas(m_textureAtlas->imageView(), m_textureAtlas->sampler());
+    }
+}
+
+f32 EntityRendererManager::calculateItemBobOffset(u32 ticksExisted, f32 partialTick) const {
+    // 参考 MC 1.16.5 ItemEntityRenderer
+    // 浮动动画：sin(ticks * 0.1) * 0.1
+    f32 ticks = static_cast<f32>(ticksExisted) + partialTick;
+    return std::sin(ticks * 0.1f) * 0.1f + 0.2f;  // 0.2 是基础高度偏移
+}
+
+f32 EntityRendererManager::calculateItemRotation(u32 ticksExisted, f32 partialTick) const {
+    // 参考 MC 1.16.5 ItemEntityRenderer
+    // 旋转速度：每 tick 旋转 2 度
+    return static_cast<f32>(ticksExisted) * 2.0f + partialTick * 2.0f;
 }
 
 EntityMesh* EntityRendererManager::getOrCreateMesh(ClientEntity& entity) {
@@ -161,6 +225,15 @@ EntityMesh* EntityRendererManager::getOrCreateMesh(ClientEntity& entity) {
 
     if (!generateModelMesh(entity.typeId(), vertices, indices)) {
         return nullptr;
+    }
+
+    // 对于 ItemEntity，使用 ItemTextureAtlas 进行 UV 重映射
+    String normalizedType = normalizeEntityTypeId(entity.typeId());
+    if (normalizedType == entity::EntityTypes::ITEM) {
+        remapItemEntityUv(entity, vertices);
+    } else {
+        // 普通实体使用实体纹理图集
+        remapUvToAtlasRegion(normalizedType, vertices);
     }
 
     // 创建GPU网格
@@ -229,6 +302,18 @@ void EntityRendererManager::initializeDefaults() {
     registerRenderer(ET::CHICKEN, []() -> std::unique_ptr<EntityRenderer> {
         return std::make_unique<ChickenRenderer>();
     });
+
+    // ItemEntity 渲染器
+    registerRenderer(ET::ITEM, [this]() -> std::unique_ptr<EntityRenderer> {
+        auto renderer = std::make_unique<ItemEntityRenderer>();
+        if (m_itemTextureAtlas) {
+            renderer->setItemTextureAtlas(m_itemTextureAtlas);
+        }
+        return renderer;
+    });
+
+    spdlog::debug("EntityRendererManager: Registered {} entity types including ItemEntity",
+                  static_cast<size_t>(4) + 1);  // 4 animals + 1 item
 }
 
 EntityRenderer* EntityRendererManager::getOrCreateRenderer(const String& typeId) {
@@ -291,10 +376,93 @@ bool EntityRendererManager::generateModelMesh(const String& typeId,
         remapUvToAtlasRegion(normalizedId, vertices);
         return true;
     }
+    if (normalizedId == ET::ITEM) {
+        // ItemEntity 使用简单的四边形网格
+        // 物品图标会在渲染时根据 ItemStack 动态获取纹理
+        generateItemEntityMesh(vertices, indices);
+        return true;
+    }
 
     // 未知实体类型
     spdlog::debug("Unknown entity type for mesh generation: {}", normalizedId);
     return false;
+}
+
+void EntityRendererManager::generateItemEntityMesh(std::vector<ModelVertex>& vertices,
+                                                    std::vector<u32>& indices) {
+    // 生成一个简单的四边形网格用于 ItemEntity
+    // 物品图标是一个面向摄像机的 billboard（双面渲染）
+    // 尺寸参考 MC 1.16.5：物品在地面上的渲染大小约为 0.25 块
+
+    constexpr f32 HALF_SIZE = 0.125f;  // 物品尺寸的一半 (0.25 / 2)
+    constexpr f32 Y_OFFSET = 0.25f;    // 地面偏移
+
+    // 创建一个垂直的四边形（面向 +Z 方向）
+    // 实际渲染时会根据摄像机朝向旋转
+    vertices = {
+        // 背面（法线 -Z）
+        ModelVertex(-HALF_SIZE, Y_OFFSET, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, -1.0f),  // 左下
+        ModelVertex(-HALF_SIZE, Y_OFFSET + 0.25f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f),  // 左上
+        ModelVertex(HALF_SIZE, Y_OFFSET + 0.25f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, -1.0f),  // 右上
+        ModelVertex(HALF_SIZE, Y_OFFSET, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, -1.0f),  // 右下
+        // 正面（法线 +Z）
+        ModelVertex(HALF_SIZE, Y_OFFSET, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f),  // 左下
+        ModelVertex(HALF_SIZE, Y_OFFSET + 0.25f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),  // 左上
+        ModelVertex(-HALF_SIZE, Y_OFFSET + 0.25f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f),  // 右上
+        ModelVertex(-HALF_SIZE, Y_OFFSET, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f),  // 右下
+    };
+
+    indices = {
+        // 背面
+        0, 1, 2, 0, 2, 3,
+        // 正面
+        4, 5, 6, 4, 6, 7
+    };
+}
+
+void EntityRendererManager::remapItemEntityUv(ClientEntity& entity, std::vector<ModelVertex>& vertices) {
+    if (!m_itemTextureAtlas || vertices.empty()) {
+        return;
+    }
+
+    // 获取物品堆
+    const ItemStack* itemStack = entity.itemStack();
+    if (!itemStack || itemStack->isEmpty()) {
+        return;
+    }
+
+    // 获取物品
+    const Item* item = itemStack->getItem();
+    if (!item) {
+        return;
+    }
+
+    // 尝试获取物品纹理区域
+    const TextureRegion* region = m_itemTextureAtlas->getItemTexture(item->itemId());
+    if (!region) {
+        // 尝试使用资源路径获取
+        const ResourceLocation& itemId = item->itemLocation();
+        ResourceLocation itemPath(itemId.namespace_(), "item/" + itemId.path());
+        region = m_itemTextureAtlas->getItemTexture(itemPath);
+        if (!region) {
+            ResourceLocation itemTexturePath(itemId.namespace_(), "textures/item/" + itemId.path());
+            region = m_itemTextureAtlas->getItemTexture(itemTexturePath);
+        }
+    }
+
+    if (!region) {
+        spdlog::debug("No item texture found for ItemEntity with item: {}", item->itemId());
+        return;
+    }
+
+    // 重映射 UV 坐标
+    const f32 du = region->u1 - region->u0;
+    const f32 dv = region->v1 - region->v0;
+
+    for (auto& vertex : vertices) {
+        vertex.texCoord.x = region->u0 + vertex.texCoord.x * du;
+        vertex.texCoord.y = region->v0 + vertex.texCoord.y * dv;
+    }
 }
 
 void EntityRendererManager::remapUvToAtlasRegion(const String& normalizedTypeId,

@@ -11,6 +11,9 @@
 
 namespace mc {
 class Entity;
+class Item;
+class ItemStack;
+struct TextureRegion;
 }
 
 namespace mc::client {
@@ -18,6 +21,7 @@ namespace mc::client {
 // 前向声明
 class ClientEntity;
 class EntityTextureAtlas;
+class ItemTextureAtlas;
 
 namespace renderer {
 
@@ -116,6 +120,16 @@ public:
     void setTextureAtlas(const EntityTextureAtlas* textureAtlas);
 
     /**
+     * @brief 设置物品纹理图集（用于 ItemEntity 渲染）
+     */
+    void setItemTextureAtlas(ItemTextureAtlas* itemAtlas) { m_itemTextureAtlas = itemAtlas; }
+
+    /**
+     * @brief 获取物品纹理图集
+     */
+    [[nodiscard]] ItemTextureAtlas* itemTextureAtlas() { return m_itemTextureAtlas; }
+
+    /**
      * @brief 设置相机描述符集
      * @param descriptorSet 相机描述符集（set = 0）
      */
@@ -165,6 +179,7 @@ private:
     // 管线
     EntityPipeline* m_pipeline = nullptr;
     const EntityTextureAtlas* m_textureAtlas = nullptr;
+    ItemTextureAtlas* m_itemTextureAtlas = nullptr;  // 用于 ItemEntity 渲染
 
     // 相机描述符集（set = 0）
     VkDescriptorSet m_cameraDescriptorSet = VK_NULL_HANDLE;
@@ -189,10 +204,47 @@ private:
                            std::vector<u32>& indices);
 
     /**
+     * @brief 生成 ItemEntity 的网格
+     *
+     * ItemEntity 使用简单的四边形网格来显示物品图标
+     *
+     * @param vertices 输出顶点
+     * @param indices 输出索引
+     */
+    void generateItemEntityMesh(std::vector<ModelVertex>& vertices,
+                                std::vector<u32>& indices);
+
+    /**
+     * @brief 将 ItemEntity 的 UV 映射到物品纹理图集
+     *
+     * 根据 ItemStack 中的物品获取纹理区域，重映射 UV 坐标
+     *
+     * @param entity 客户端实体
+     * @param vertices 顶点数据（会被修改）
+     */
+    void remapItemEntityUv(ClientEntity& entity, std::vector<ModelVertex>& vertices);
+
+    /**
      * @brief 将模型局部UV映射到图集区域
      */
     void remapUvToAtlasRegion(const String& normalizedTypeId,
                               std::vector<ModelVertex>& vertices) const;
+
+    /**
+     * @brief 计算 ItemEntity 浮动偏移
+     * @param ticksExisted 实体存活时间
+     * @param partialTick 部分 tick
+     * @return Y 轴偏移
+     */
+    [[nodiscard]] f32 calculateItemBobOffset(u32 ticksExisted, f32 partialTick) const;
+
+    /**
+     * @brief 计算 ItemEntity 旋转角度
+     * @param ticksExisted 实体存活时间
+     * @param partialTick 部分 tick
+     * @return 旋转角度（度）
+     */
+    [[nodiscard]] f32 calculateItemRotation(u32 ticksExisted, f32 partialTick) const;
 };
 
 } // namespace renderer

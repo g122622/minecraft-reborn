@@ -55,6 +55,7 @@ add_executable(minecraft-client
     renderer/trident/item/ItemRenderer.cpp
     renderer/trident/entity/EntityRenderer.cpp
     renderer/trident/entity/EntityRendererManager.cpp
+    renderer/trident/entity/ItemEntityRenderer.cpp
     renderer/trident/entity/model/ModelRenderer.cpp
     renderer/trident/entity/model/EntityModel.cpp
     renderer/trident/entity/model/AnimalModels.cpp
