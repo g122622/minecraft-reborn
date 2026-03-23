@@ -2,6 +2,7 @@
 #include "BreakProgressManager.hpp"
 #include "client/resource/DestroyStageTextures.hpp"
 #include "client/renderer/util/ShaderPath.hpp"
+#include "client/renderer/trident/util/VulkanUtils.hpp"
 #include <spdlog/spdlog.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -176,16 +177,17 @@ void BreakProgressRenderer::cleanup() {
 // ============================================================================
 
 void BreakProgressRenderer::updateMesh(const Vector3& cameraPos) {
-    // 获取可见的破坏进度
+    // 获取可见的破坏进度（使用预分配缓冲区避免内存分配）
     auto& manager = BreakProgressManager::instance();
     m_progressEntries.clear();
 
-    auto visibleProgress = manager.getVisibleProgress(cameraPos);
+    // 预分配缓冲区已准备好
+    manager.getVisibleProgress(cameraPos, m_progressBuffer);
 
     // 转换 pair 格式到 ProgressEntry 格式，并计算偏移量
-    m_progressEntries.reserve(visibleProgress.size());
-    for (size_t i = 0; i < visibleProgress.size(); ++i) {
-        const auto& [pos, stage] = visibleProgress[i];
+    m_progressEntries.reserve(m_progressBuffer.size());
+    for (size_t i = 0; i < m_progressBuffer.size(); ++i) {
+        const auto& [pos, stage] = m_progressBuffer[i];
         m_progressEntries.push_back({
             pos,
             stage,
@@ -552,71 +554,44 @@ bool BreakProgressRenderer::createBuffers() {
     m_maxVertices = DEFAULT_MAX_CUBES * VERTICES_PER_CUBE;
     m_maxIndices = DEFAULT_MAX_CUBES * INDICES_PER_CUBE;
 
-    // 创建顶点缓冲区
-    VkBufferCreateInfo vertexBufferInfo{};
-    vertexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    vertexBufferInfo.size = m_maxVertices * sizeof(Vertex);
-    vertexBufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    vertexBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    // 使用 VulkanUtils 创建顶点缓冲区
+    auto vertexResult = VulkanUtils::createBuffer(
+        m_config.device,
+        m_config.physicalDevice,
+        m_maxVertices * sizeof(Vertex),
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        m_vertexBuffer,
+        m_vertexBufferMemory
+    );
 
-    if (vkCreateBuffer(m_config.device, &vertexBufferInfo, nullptr, &m_vertexBuffer) != VK_SUCCESS) {
+    if (!vertexResult.success()) {
+        spdlog::error("BreakProgressRenderer: Failed to create vertex buffer: {}",
+                      vertexResult.error().message());
         return false;
     }
 
-    // 分配顶点缓冲区内存
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_config.device, m_vertexBuffer, &memRequirements);
+    // 使用 VulkanUtils 创建索引缓冲区
+    auto indexResult = VulkanUtils::createBuffer(
+        m_config.device,
+        m_config.physicalDevice,
+        m_maxIndices * sizeof(u32),
+        VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        m_indexBuffer,
+        m_indexBufferMemory
+    );
 
-    // 查找合适的内存类型
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(m_config.physicalDevice, &memProperties);
-
-    u32 memoryTypeIndex = UINT32_MAX;
-    for (u32 i = 0; i < memProperties.memoryTypeCount; ++i) {
-        if ((memRequirements.memoryTypeBits & (1 << i)) &&
-            (memProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) &&
-            (memProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
-            memoryTypeIndex = i;
-            break;
-        }
-    }
-
-    if (memoryTypeIndex == UINT32_MAX) {
+    if (!indexResult.success()) {
+        spdlog::error("BreakProgressRenderer: Failed to create index buffer: {}",
+                      indexResult.error().message());
+        // 清理已创建的顶点缓冲区
+        vkDestroyBuffer(m_config.device, m_vertexBuffer, nullptr);
+        vkFreeMemory(m_config.device, m_vertexBufferMemory, nullptr);
+        m_vertexBuffer = VK_NULL_HANDLE;
+        m_vertexBufferMemory = VK_NULL_HANDLE;
         return false;
     }
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = memoryTypeIndex;
-
-    if (vkAllocateMemory(m_config.device, &allocInfo, nullptr, &m_vertexBufferMemory) != VK_SUCCESS) {
-        return false;
-    }
-
-    vkBindBufferMemory(m_config.device, m_vertexBuffer, m_vertexBufferMemory, 0);
-
-    // 创建索引缓冲区
-    VkBufferCreateInfo indexBufferInfo{};
-    indexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    indexBufferInfo.size = m_maxIndices * sizeof(u32);
-    indexBufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-    indexBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    if (vkCreateBuffer(m_config.device, &indexBufferInfo, nullptr, &m_indexBuffer) != VK_SUCCESS) {
-        return false;
-    }
-
-    // 分配索引缓冲区内存
-    vkGetBufferMemoryRequirements(m_config.device, m_indexBuffer, &memRequirements);
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = memoryTypeIndex;
-
-    if (vkAllocateMemory(m_config.device, &allocInfo, nullptr, &m_indexBufferMemory) != VK_SUCCESS) {
-        return false;
-    }
-
-    vkBindBufferMemory(m_config.device, m_indexBuffer, m_indexBufferMemory, 0);
 
     spdlog::info("BreakProgressRenderer: Buffers created (vertices: {}, indices: {})",
                  m_maxVertices, m_maxIndices);
@@ -674,43 +649,21 @@ bool BreakProgressRenderer::uploadTextureAtlas() {
     // 创建暂存缓冲区
     VkDeviceSize imageSize = width * height * 4;
 
-    VkBufferCreateInfo stagingBufferInfo{};
-    stagingBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    stagingBufferInfo.size = imageSize;
-    stagingBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    stagingBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    auto stagingResult = VulkanUtils::createBuffer(
+        m_config.device,
+        m_config.physicalDevice,
+        imageSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        m_stagingBuffer,
+        m_stagingBufferMemory
+    );
 
-    if (vkCreateBuffer(m_config.device, &stagingBufferInfo, nullptr, &m_stagingBuffer) != VK_SUCCESS) {
+    if (!stagingResult.success()) {
+        spdlog::error("BreakProgressRenderer: Failed to create staging buffer: {}",
+                      stagingResult.error().message());
         return false;
     }
-
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_config.device, m_stagingBuffer, &memRequirements);
-
-    // 查找合适的内存类型
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(m_config.physicalDevice, &memProperties);
-
-    u32 memoryTypeIndex = UINT32_MAX;
-    for (u32 i = 0; i < memProperties.memoryTypeCount; ++i) {
-        if ((memRequirements.memoryTypeBits & (1 << i)) &&
-            (memProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) &&
-            (memProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
-            memoryTypeIndex = i;
-            break;
-        }
-    }
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = memoryTypeIndex;
-
-    if (vkAllocateMemory(m_config.device, &allocInfo, nullptr, &m_stagingBufferMemory) != VK_SUCCESS) {
-        return false;
-    }
-
-    vkBindBufferMemory(m_config.device, m_stagingBuffer, m_stagingBufferMemory, 0);
 
     // 复制数据到暂存缓冲区
     void* data;
@@ -719,45 +672,24 @@ bool BreakProgressRenderer::uploadTextureAtlas() {
     vkUnmapMemory(m_config.device, m_stagingBufferMemory);
 
     // 创建图像
-    VkImageCreateInfo imageInfo{};
-    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.extent.width = width;
-    imageInfo.extent.height = height;
-    imageInfo.extent.depth = 1;
-    imageInfo.mipLevels = 1;
-    imageInfo.arrayLayers = 1;
-    imageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    auto imageResult = VulkanUtils::createImage(
+        m_config.device,
+        m_config.physicalDevice,
+        width,
+        height,
+        VK_FORMAT_R8G8B8A8_UNORM,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        m_textureImage,
+        m_textureImageMemory
+    );
 
-    if (vkCreateImage(m_config.device, &imageInfo, nullptr, &m_textureImage) != VK_SUCCESS) {
+    if (!imageResult.success()) {
+        spdlog::error("BreakProgressRenderer: Failed to create texture image: {}",
+                      imageResult.error().message());
         return false;
     }
-
-    vkGetImageMemoryRequirements(m_config.device, m_textureImage, &memRequirements);
-
-    // 查找设备本地内存
-    memoryTypeIndex = UINT32_MAX;
-    for (u32 i = 0; i < memProperties.memoryTypeCount; ++i) {
-        if ((memRequirements.memoryTypeBits & (1 << i)) &&
-            (memProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
-            memoryTypeIndex = i;
-            break;
-        }
-    }
-
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = memoryTypeIndex;
-
-    if (vkAllocateMemory(m_config.device, &allocInfo, nullptr, &m_textureImageMemory) != VK_SUCCESS) {
-        return false;
-    }
-
-    vkBindImageMemory(m_config.device, m_textureImage, m_textureImageMemory, 0);
 
     // 转换图像布局并复制
     VkCommandBufferAllocateInfo cmdAllocInfo{};
@@ -1019,72 +951,39 @@ bool BreakProgressRenderer::recreateBuffers(size_t vertexCount, size_t indexCoun
         m_indexBufferMemory = VK_NULL_HANDLE;
     }
 
-    // 查找合适的内存类型
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(m_config.physicalDevice, &memProperties);
+    // 使用 VulkanUtils 创建顶点缓冲区
+    auto vertexResult = VulkanUtils::createBuffer(
+        device,
+        m_config.physicalDevice,
+        vertexCount * sizeof(Vertex),
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        m_vertexBuffer,
+        m_vertexBufferMemory
+    );
 
-    u32 memoryTypeIndex = UINT32_MAX;
-    for (u32 i = 0; i < memProperties.memoryTypeCount; ++i) {
-        if ((memProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) &&
-            (memProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
-            memoryTypeIndex = i;
-            break;
-        }
-    }
-
-    if (memoryTypeIndex == UINT32_MAX) {
-        spdlog::error("BreakProgressRenderer: Failed to find suitable memory type");
+    if (!vertexResult.success()) {
+        spdlog::error("BreakProgressRenderer: Failed to recreate vertex buffer: {}",
+                      vertexResult.error().message());
         return false;
     }
 
-    // 创建顶点缓冲区
-    VkBufferCreateInfo vertexBufferInfo{};
-    vertexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    vertexBufferInfo.size = vertexCount * sizeof(Vertex);
-    vertexBufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    vertexBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    // 使用 VulkanUtils 创建索引缓冲区
+    auto indexResult = VulkanUtils::createBuffer(
+        device,
+        m_config.physicalDevice,
+        indexCount * sizeof(u32),
+        VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        m_indexBuffer,
+        m_indexBufferMemory
+    );
 
-    if (vkCreateBuffer(device, &vertexBufferInfo, nullptr, &m_vertexBuffer) != VK_SUCCESS) {
-        spdlog::error("BreakProgressRenderer: Failed to create vertex buffer");
+    if (!indexResult.success()) {
+        spdlog::error("BreakProgressRenderer: Failed to recreate index buffer: {}",
+                      indexResult.error().message());
         return false;
     }
-
-    VkMemoryRequirements memReqs;
-    vkGetBufferMemoryRequirements(device, m_vertexBuffer, &memReqs);
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memReqs.size;
-    allocInfo.memoryTypeIndex = memoryTypeIndex;
-
-    if (vkAllocateMemory(device, &allocInfo, nullptr, &m_vertexBufferMemory) != VK_SUCCESS) {
-        spdlog::error("BreakProgressRenderer: Failed to allocate vertex buffer memory");
-        return false;
-    }
-
-    vkBindBufferMemory(device, m_vertexBuffer, m_vertexBufferMemory, 0);
-
-    // 创建索引缓冲区
-    VkBufferCreateInfo indexBufferInfo{};
-    indexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    indexBufferInfo.size = indexCount * sizeof(u32);
-    indexBufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-    indexBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    if (vkCreateBuffer(device, &indexBufferInfo, nullptr, &m_indexBuffer) != VK_SUCCESS) {
-        spdlog::error("BreakProgressRenderer: Failed to create index buffer");
-        return false;
-    }
-
-    vkGetBufferMemoryRequirements(device, m_indexBuffer, &memReqs);
-    allocInfo.allocationSize = memReqs.size;
-
-    if (vkAllocateMemory(device, &allocInfo, nullptr, &m_indexBufferMemory) != VK_SUCCESS) {
-        spdlog::error("BreakProgressRenderer: Failed to allocate index buffer memory");
-        return false;
-    }
-
-    vkBindBufferMemory(device, m_indexBuffer, m_indexBufferMemory, 0);
 
     m_maxVertices = vertexCount;
     m_maxIndices = indexCount;

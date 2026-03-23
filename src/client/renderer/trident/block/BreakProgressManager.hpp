@@ -36,6 +36,7 @@ public:
     static constexpr size_t MAX_DAMAGE_STAGE = 9;
     static constexpr u64 PROGRESS_TIMEOUT_TICKS = 400;  // 20秒
     static constexpr f32 MAX_RENDER_DISTANCE_SQ = 1024.0f;  // 32格
+    static constexpr size_t INITIAL_BUFFER_CAPACITY = 16;  // 预分配缓冲区初始容量
 
     static BreakProgressManager& instance();
 
@@ -63,6 +64,12 @@ public:
     [[nodiscard]] std::vector<const BlockBreakProgress*> getProgressAtPos(const BlockPos& pos) const;
     [[nodiscard]] std::vector<std::pair<BlockPos, u8>> getVisibleProgress(const Vector3& cameraPos) const;
     [[nodiscard]] bool hasProgressAt(const BlockPos& pos) const;
+
+    /// 高性能版本：使用预分配缓冲区避免内存分配
+    /// @param cameraPos 摄像机位置
+    /// @param outProgress 输出缓冲区（会被清空后填充）
+    void getVisibleProgress(const Vector3& cameraPos,
+                            std::vector<std::pair<BlockPos, u8>>& outProgress) const;
 
 private:
     BreakProgressManager() = default;

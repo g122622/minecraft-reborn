@@ -219,6 +219,63 @@ BreakProgressManager::getVisibleProgress(const Vector3& cameraPos) const {
     return result;
 }
 
+void BreakProgressManager::getVisibleProgress(const Vector3& cameraPos,
+                                               std::vector<std::pair<BlockPos, u8>>& outProgress) const {
+    outProgress.clear();
+
+    // 快速路径：如果没有任何进度，直接返回
+    if (!m_localBreaking && m_remoteProgressByEntity.empty()) {
+        return;
+    }
+
+    // 预估容量，避免多次分配
+    size_t estimatedSize = (m_localBreaking ? 1 : 0) + m_remoteProgressByEntity.size();
+    outProgress.reserve(estimatedSize);
+
+    // 添加本地进度
+    if (m_localBreaking) {
+        f32 distSq = math::distanceSq(
+            static_cast<f32>(m_localBreakPos.x),
+            static_cast<f32>(m_localBreakPos.y),
+            static_cast<f32>(m_localBreakPos.z),
+            cameraPos.x,
+            cameraPos.y,
+            cameraPos.z
+        );
+
+        if (distSq <= MAX_RENDER_DISTANCE_SQ) {
+            outProgress.emplace_back(m_localBreakPos, m_localDamageStage);
+        }
+    }
+
+    // 添加远程进度，去重处理
+    for (const auto& [breakerId, progress] : m_remoteProgressByEntity) {
+        f32 distSq = math::distanceSq(
+            static_cast<f32>(progress.position.x),
+            static_cast<f32>(progress.position.y),
+            static_cast<f32>(progress.position.z),
+            cameraPos.x,
+            cameraPos.y,
+            cameraPos.z
+        );
+
+        if (distSq <= MAX_RENDER_DISTANCE_SQ) {
+            // 线性搜索去重（对于小数量更高效）
+            bool found = false;
+            for (auto& [pos, stage] : outProgress) {
+                if (pos == progress.position) {
+                    stage = std::max(stage, progress.damageStage);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                outProgress.emplace_back(progress.position, progress.damageStage);
+            }
+        }
+    }
+}
+
 bool BreakProgressManager::hasProgressAt(const BlockPos& pos) const {
     if (m_localBreaking && m_localBreakPos == pos) {
         return true;

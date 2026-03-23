@@ -27,6 +27,7 @@ namespace mc {
 
 // 前向声明
 class WorldLightManager;
+class ItemEntity;
 
 namespace server {
 
@@ -91,6 +92,33 @@ public:
     [[nodiscard]] const ServerPlayerData* getPlayer(PlayerId playerId) const;
     [[nodiscard]] bool hasPlayer(PlayerId playerId) const;
     [[nodiscard]] size_t playerCount() const;
+
+    /// 遍历所有在线玩家实体，回调函数返回 false 时停止遍历
+    /// 使用 EntityManager 按类型过滤，避免全实体扫描
+    template<typename Fn>
+    void forEachPlayerEntity(Fn&& fn) {
+        auto players = m_entityManager.getEntitiesByType(LegacyEntityType::Player);
+        for (Entity* entity : players) {
+            if (entity && entity->isAlive()) {
+                if (!fn(*static_cast<Player*>(entity))) {
+                    break;
+                }
+            }
+        }
+    }
+
+    /// 遍历所有物品实体，回调函数返回 false 时停止遍历
+    template<typename Fn>
+    void forEachItemEntity(Fn&& fn) {
+        auto items = m_entityManager.getEntitiesByType(LegacyEntityType::Item);
+        for (Entity* entity : items) {
+            if (entity && entity->isAlive()) {
+                if (!fn(*static_cast<ItemEntity*>(entity))) {
+                    break;
+                }
+            }
+        }
+    }
 
     // 位置更新（网络协议使用 f64，内部转换为 f32）
     void updatePlayerPosition(PlayerId playerId, f64 x, f64 y, f64 z, f32 yaw, f32 pitch, bool onGround);

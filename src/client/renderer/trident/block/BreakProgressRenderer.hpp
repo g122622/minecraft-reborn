@@ -253,6 +253,9 @@ private:
     /// 当前帧的破坏进度条目
     std::vector<ProgressEntry> m_progressEntries;
 
+    /// 预分配的进度查询缓冲区（避免每帧分配）
+    std::vector<std::pair<BlockPos, u8>> m_progressBuffer;
+
     /// 顶点数量
     size_t m_vertexCount = 0;
 
