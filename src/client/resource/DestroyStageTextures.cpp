@@ -237,15 +237,39 @@ bool DestroyStageTextures::loadTextureFromResourcePack(ResourceManager* resource
         return false;
     }
 
-    // MC 原版破坏纹理格式：灰度图，白色=裂纹可见，alpha=255
-    // 我们需要的格式：RGB=(0,0,0), Alpha=裂纹强度
-    // 转换：将灰度值（亮度）转换为 alpha 通道
+    // MC 原版破坏纹理格式分析：
+    // - 灰度图，白色像素 = 裂纹可见，黑色像素 = 无裂纹
+    // - Alpha = 255（完全不透明）
+    //
+    // 着色器期望的格式：RGB=(0,0,0), Alpha=裂纹强度
+    // - 高 alpha = 强裂纹 = 变暗效果明显
+    // - 低 alpha = 弱裂纹 = 变暗效果弱
+    //
+    // 转换策略：
+    // - 白色像素（亮度高）→ 裂纹可见 → 应该变暗 → 高 alpha
+    // - 黑色像素（亮度低）→ 无裂纹 → 不变暗 → 低 alpha
+    // - 因此：crackIntensity = luminance（亮度直接映射到裂纹强度）
+    // - 但实际上，stage 0 亮度高（~125），stage 9 亮度低（~97）
+    // - 这说明亮度表示的是"裂纹可见度"，需要反转：crackIntensity = 255 - luminance
+    //   - 高亮度（白色裂纹）→ 低 crackIntensity → 变暗少？
+    //   - 不对，让我重新理解...
+    //
+    // 正确理解：
+    // - 混合公式：dst.rgb = dst.rgb * (1 - crackIntensity/255)
+    // - crackIntensity 越高，乘数越小，越暗
+    // - 白色裂纹（高亮度）→ 应该变暗 → crackIntensity 应该高
+    // - 因此：crackIntensity = luminance
 
     // 处理纹理：缩放并转换格式
     data.resize(TEXTURE_SIZE * TEXTURE_SIZE * 4);
 
     float xRatio = static_cast<float>(srcWidth) / TEXTURE_SIZE;
     float yRatio = static_cast<float>(srcHeight) / TEXTURE_SIZE;
+
+    // 统计用于调试
+    u32 totalCrackIntensity = 0;
+    u32 maxCrackIntensity = 0;
+    u32 minCrackIntensity = 255;
 
     for (u32 y = 0; y < TEXTURE_SIZE; ++y) {
         for (u32 x = 0; x < TEXTURE_SIZE; ++x) {
@@ -257,26 +281,41 @@ bool DestroyStageTextures::loadTextureFromResourcePack(ResourceManager* resource
             size_t srcIdx = (srcY * srcWidth + srcX) * 4;
             size_t dstIdx = (y * TEXTURE_SIZE + x) * 4;
 
-            // 读取源像素的灰度值（取RGB的平均值或直接取红色通道）
-            u8 r = rawData[srcIdx + 0];
-            u8 g = rawData[srcIdx + 1];
-            u8 b = rawData[srcIdx + 2];
-            // u8 a = rawData[srcIdx + 3];  // 原始alpha通常为255，忽略
+            u8 srcR = rawData[srcIdx + 0];
+            u8 srcG = rawData[srcIdx + 1];
+            u8 srcB = rawData[srcIdx + 2];
+            u8 srcA = rawData[srcIdx + 3];
 
-            // 计算灰度（亮度）
-            // 白色像素(255) -> 裂纹可见(alpha=高)
-            // 黑色像素(0) -> 无裂纹(alpha=低)
-            u8 gray = static_cast<u8>((static_cast<u32>(r) + g + b) / 3);
+            // 计算亮度
+            u8 luminance = static_cast<u8>((static_cast<u32>(srcR) + srcG + srcB) / 3);
+
+            // 从日志观察：stage 0 亮度高(125)，stage 9 亮度低(97)
+            // 这说明：高亮度 = 无裂纹区域，低亮度 = 裂纹区域
+            // 因此需要反转：crackIntensity = 255 - luminance
+            // 低亮度（黑色裂纹）→ 高 crackIntensity → 变暗明显
+            // 高亮度（白色背景）→ 低 crackIntensity → 不变暗
+            u8 crackIntensity = static_cast<u8>(255 - luminance);
+
+            totalCrackIntensity += crackIntensity;
+            maxCrackIntensity = std::max(maxCrackIntensity, static_cast<u32>(crackIntensity));
+            minCrackIntensity = std::min(minCrackIntensity, static_cast<u32>(crackIntensity));
 
             // 转换为我们需要的格式：
             // RGB = (0, 0, 0) 黑色
-            // Alpha = 灰度值（白色=高alpha=更明显的裂纹）
+            // Alpha = 裂纹强度
             data[dstIdx + 0] = 0;  // R
             data[dstIdx + 1] = 0;  // G
             data[dstIdx + 2] = 0;  // B
-            data[dstIdx + 3] = gray;  // A = 裂纹强度
+            data[dstIdx + 3] = crackIntensity;  // A = 裂纹强度
         }
     }
+
+    // 计算平均值
+    u32 pixelCount = TEXTURE_SIZE * TEXTURE_SIZE;
+    u32 avgCrackIntensity = totalCrackIntensity / pixelCount;
+    spdlog::info("DestroyStageTextures: Stage {} loaded ({}x{}) - "
+                 "crackIntensity: avg={}, min={}, max={}",
+                 stage, srcWidth, srcHeight, avgCrackIntensity, minCrackIntensity, maxCrackIntensity);
 
     spdlog::info("DestroyStageTextures: Loaded and converted texture for stage {} ({}x{} -> 16x16)",
                  stage, srcWidth, srcHeight);
