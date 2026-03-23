@@ -206,6 +206,13 @@ void DebugScreenWidget::buildLeftDebugText() {
     m_leftLines.push_back("");
     m_leftLines.push_back("Debug: Pie [shift]: hidden FPS + TPS [alt]: hidden");
     m_leftLines.push_back("For help: press F3 + Q");
+
+    // 种子信息
+    if (m_world != nullptr) {
+        std::ostringstream seedOss;
+        seedOss << "Seed: " << m_world->seed();
+        m_leftLines.push_back(seedOss.str());
+    }
 }
 
 void DebugScreenWidget::buildRightDebugText() {
