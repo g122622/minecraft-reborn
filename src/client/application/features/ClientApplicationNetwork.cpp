@@ -828,7 +828,8 @@ void ClientApplication::_handleWorldEvent(i32 eventId, i32 x, i32 y, i32 z, i32 
         }
 
         default:
-            // 未知事件ID，忽略
+            // 未知事件ID，打印warning日志
+            spdlog::warn("Unknown world event ID: {} at position ({}, {}, {}) with data {}", eventId, x, y, z, data);
             break;
     }
 }
